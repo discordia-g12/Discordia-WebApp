@@ -1,54 +1,849 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  Server,
+  User,
+  Status,
+  AppView,
+  AuthScreen,
+  Modal,
+  ConfirmAction,
+  Message,
+  MessageAttachment,
+} from './types';
+import {
+  SERVERS,
+  USERS,
+  MESSAGES,
+  DIRECT_MESSAGES,
+  DM_MESSAGES,
+  NOTIFICATIONS,
+  CURRENT_USER_ID,
+  INITIAL_ROLES,
+} from './data/mock';
 
-export default function App() {
-  const [count, setCount] = useState(0);
+import {
+  ServerRail,
+  ChannelSidebar,
+  ChatView,
+  VoiceView,
+  MemberList,
+  HomeView,
+  MobileShell,
+  CreateServerModal,
+  JoinServerModal,
+  InviteModal,
+  UserProfileModal,
+  IncomingCallModal,
+  ConfirmDialog,
+  NotificationCenter,
+  GlobalSearch,
+} from './components';
+
+import {
+  AuthView,
+  OwnProfileView,
+  ServerSettings,
+  UserSettings,
+} from './views';
+
+/**
+ * Hook para detectar si el viewport corresponde a un dispositivo móvil (<768px).
+ */
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  });
+
+  useEffect(() => {
+    const handler = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+
+  return mobile;
+}
+
+/**
+ * Banner flotante de conectividad (offline / restablecido).
+ */
+function ConnectionBanner() {
+  const [offline, setOffline] = useState(false);
+  const [reconnected, setReconnected] = useState(false);
+
+  useEffect(() => {
+    const handleOffline = () => setOffline(true);
+    const handleOnline = () => {
+      setOffline(false);
+      setReconnected(true);
+      const timer = setTimeout(() => setReconnected(false), 3000);
+      return () => clearTimeout(timer);
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
+  if (!offline && !reconnected) return null;
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      backgroundColor: '#1e1f22',
-      color: '#f2f3f5',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      padding: '2rem',
-    }}>
-      <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem', color: '#5865f2' }}>
-        Discordia WebApp
-      </h1>
-      <p style={{ fontSize: '1.2rem', color: '#949ba4', marginBottom: '2rem' }}>
-        Plataforma comunitaria de texto y voz en tiempo real
-      </p>
-
-      <div style={{
-        backgroundColor: '#2b2d31',
-        padding: '2rem',
-        borderRadius: '8px',
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.2)',
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: offline ? 'var(--status-danger, #ed4245)' : 'var(--status-online, #23a55a)',
+        color: '#ffffff',
         textAlign: 'center',
-      }}>
-        <button
-          onClick={() => setCount((c) => c + 1)}
-          style={{
-            backgroundColor: '#5865f2',
-            color: 'white',
-            border: 'none',
-            padding: '0.75rem 1.5rem',
-            fontSize: '1rem',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 600,
-            transition: 'background-color 0.2s',
+        padding: '8px 16px',
+        fontSize: '13px',
+        fontWeight: 600,
+        zIndex: 9999,
+        boxShadow: '0 -2px 10px rgba(0,0,0,0.3)',
+      }}
+    >
+      {offline ? '⚠️ Conexión perdida — Intentando reconectar...' : '✓ Conexión restablecida'}
+    </div>
+  );
+}
+
+/**
+ * Componente Toast para avisos flotantes efímeros.
+ */
+function ToastNotification({
+  message,
+  type = 'info',
+}: {
+  message: string;
+  type?: 'success' | 'danger' | 'info';
+}) {
+  const bg =
+    type === 'success' ? '#23a55a' : type === 'danger' ? '#ed4245' : 'var(--brand-blurple, #5865f2)';
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 32,
+        right: 32,
+        backgroundColor: bg,
+        color: '#ffffff',
+        padding: '10px 18px',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: 600,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+        zIndex: 9999,
+        animation: 'fadeIn 0.2s ease-out',
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
+export default function App() {
+  const isMobile = useIsMobile();
+
+  // Estados principales de navegación y sesión
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
+  const [currentUser, setCurrentUser] = useState<User>(() => USERS[CURRENT_USER_ID] || Object.values(USERS)[0]);
+  const [servers, setServers] = useState<Server[]>(() => [...SERVERS]);
+  const [selectedServerId, setSelectedServerId] = useState<string | 'home'>('s1');
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>('ch-general');
+  const [appView, setAppView] = useState<AppView>('chat');
+  const [isMemberListOpen, setIsMemberListOpen] = useState<boolean>(true);
+
+  // Estados de voz y multimedia
+  const [inVoiceChannelId, setInVoiceChannelId] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [isDeafened, setIsDeafened] = useState<boolean>(false);
+  const [isVideoOn, setIsVideoOn] = useState<boolean>(false);
+  const [isScreenSharing, setIsScreenSharing] = useState<boolean>(false);
+
+  // Estados de mensajes y canales
+  const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() => ({
+    ...MESSAGES,
+    ...DM_MESSAGES,
+  }));
+  const [directMessagesList, setDirectMessagesList] = useState(() => [...DIRECT_MESSAGES]);
+  const [selectedDmId, setSelectedDmId] = useState<string | null>(null);
+
+  // Notificaciones y búsqueda
+  const [notificationsList, setNotificationsList] = useState(() => [...NOTIFICATIONS]);
+  const [isNotifCenterOpen, setIsNotifCenterOpen] = useState<boolean>(false);
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+
+  // Modales
+  const [activeModal, setActiveModal] = useState<Modal>(null);
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+  const [confirmTargetName, setConfirmTargetName] = useState<string>('');
+
+  // Toast flotante
+  const [toast, setToast] = useState<{ message: string; type?: 'success' | 'danger' | 'info' } | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'danger' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  // Llamada entrante simulada para testing
+  const [incomingCaller, setIncomingCaller] = useState<User | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Simular llamada de Sofia después de 12 segundos
+      if (USERS['u1']) {
+        setIncomingCaller(USERS['u1']);
+      }
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Servidor y canal actualmente seleccionados
+  const currentServer = useMemo(() => {
+    if (selectedServerId === 'home') return null;
+    return servers.find((s) => s.id === selectedServerId) || null;
+  }, [servers, selectedServerId]);
+
+  const allServerChannels = useMemo(() => {
+    if (!currentServer) return [];
+    return currentServer.categories.flatMap((cat) => cat.channels);
+  }, [currentServer]);
+
+  const currentChannel = useMemo(() => {
+    if (!selectedChannelId) return null;
+    return allServerChannels.find((ch) => ch.id === selectedChannelId) || null;
+  }, [allServerChannels, selectedChannelId]);
+
+  // Mensajes del canal o DM activo
+  const activeMessages = useMemo(() => {
+    const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
+    if (!key) return [];
+    return messagesMap[key] || [];
+  }, [selectedServerId, selectedDmId, selectedChannelId, messagesMap]);
+
+  // Manejador de selección de servidor
+  const handleSelectServer = (serverId: string | 'home') => {
+    setSelectedServerId(serverId);
+    if (serverId === 'home') {
+      setAppView('home');
+      setSelectedDmId(null);
+    } else {
+      const srv = servers.find((s) => s.id === serverId);
+      if (srv) {
+        const firstTextChannel = srv.categories
+          .flatMap((c) => c.channels)
+          .find((ch) => ch.type === 'text');
+        setSelectedChannelId(firstTextChannel?.id || null);
+        setAppView('chat');
+      }
+    }
+  };
+
+  // Manejador de selección de canal
+  const handleSelectChannel = (channelId: string) => {
+    const channel = allServerChannels.find((ch) => ch.id === channelId);
+    setSelectedChannelId(channelId);
+    if (channel?.type === 'voice') {
+      setAppView('voice');
+      setInVoiceChannelId(channelId);
+    } else {
+      setAppView('chat');
+    }
+  };
+
+  // Manejador para unirse a canal de voz
+  const handleJoinVoiceChannel = (channelId: string) => {
+    setInVoiceChannelId(channelId);
+    setSelectedChannelId(channelId);
+    setAppView('voice');
+    showToast('Conectado al canal de voz', 'success');
+  };
+
+  // Manejador de desconexión de voz
+  const handleDisconnectVoice = () => {
+    setInVoiceChannelId(null);
+    if (appView === 'voice') {
+      const firstText = allServerChannels.find((c) => c.type === 'text');
+      if (firstText) {
+        setSelectedChannelId(firstText.id);
+        setAppView('chat');
+      }
+    }
+    showToast('Desconectado de la llamada', 'info');
+  };
+
+  // Enviar mensaje en canal o DM
+  const handleSendMessage = (
+    content: string,
+    attachment?: MessageAttachment,
+    replyToId?: string,
+  ) => {
+    const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
+    if (!key) return;
+
+    const newMsg: Message = {
+      id: `msg-${Date.now()}`,
+      channelId: key,
+      authorId: currentUser.id,
+      userId: currentUser.id,
+      content,
+      timestamp: new Date().toISOString(),
+      type: 'normal',
+      replyToId: replyToId || null,
+      fileAttachment: attachment
+        ? {
+            name: attachment.name,
+            size: typeof attachment.size === 'number' ? `${(attachment.size / 1024).toFixed(1)} KB` : (attachment.size || '0 KB'),
+            type: attachment.type,
+          }
+        : undefined,
+    };
+
+    setMessagesMap((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] || []), newMsg],
+    }));
+
+    if (selectedServerId === 'home' && selectedDmId) {
+      setDirectMessagesList((prev) =>
+        prev.map((dm) =>
+          dm.id === selectedDmId
+            ? { ...dm, lastMessage: content, lastTimestamp: 'Just now' }
+            : dm,
+        ),
+      );
+    }
+  };
+
+  // Alternar reacción emoji
+  const handleToggleReaction = (messageId: string, emoji: string) => {
+    const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
+    if (!key) return;
+
+    setMessagesMap((prev) => {
+      const list = prev[key] || [];
+      const updated = list.map((msg) => {
+        if (msg.id !== messageId) return msg;
+        const reactions = msg.reactions || [];
+        const existing = reactions.find((r) => r.emoji === emoji);
+        let nextReactions: import('./types').Reaction[];
+        if (existing) {
+          if (existing.reacted) {
+            nextReactions = reactions
+              .map((r) =>
+                r.emoji === emoji
+                  ? {
+                      ...r,
+                      count: r.count - 1,
+                      reacted: false,
+                      users: (r.users || []).filter((u) => u !== currentUser.id),
+                    }
+                  : r,
+              )
+              .filter((r) => r.count > 0);
+          } else {
+            nextReactions = reactions.map((r) =>
+              r.emoji === emoji
+                ? {
+                    ...r,
+                    count: r.count + 1,
+                    reacted: true,
+                    users: [...(r.users || []), currentUser.id],
+                  }
+                : r,
+            );
+          }
+        } else {
+          nextReactions = [
+            ...reactions,
+            { emoji, count: 1, reacted: true, users: [currentUser.id] },
+          ];
+        }
+        return { ...msg, reactions: nextReactions };
+      });
+      return { ...prev, [key]: updated };
+    });
+  };
+
+  // Eliminar mensaje
+  const handleDeleteMessage = (messageId: string) => {
+    const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
+    if (!key) return;
+    setMessagesMap((prev) => {
+      const list = prev[key] || [];
+      return {
+        ...prev,
+        [key]: list.map((m) =>
+          m.id === messageId ? { ...m, type: 'deleted' as const, content: '' } : m,
+        ),
+      };
+    });
+    showToast('Mensaje eliminado', 'info');
+  };
+
+  // Editar mensaje
+  const handleEditMessage = (messageId: string, newContent: string) => {
+    const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
+    if (!key) return;
+    setMessagesMap((prev) => {
+      const list = prev[key] || [];
+      return {
+        ...prev,
+        [key]: list.map((m) =>
+          m.id === messageId ? { ...m, content: newContent, edited: true } : m,
+        ),
+      };
+    });
+    showToast('Mensaje editado', 'success');
+  };
+
+  // Creación de nuevo servidor
+  const handleCreateServer = (name: string, iconUrl?: string) => {
+    const newId = `s-${Date.now()}`;
+    const newServer: Server = {
+      id: newId,
+      name,
+      icon: iconUrl || undefined,
+      color: `hsl(${Math.floor(Math.random() * 360)}, 65%, 55%)`,
+      ownerId: currentUser.id,
+      description: `Comunidad creada por ${currentUser.displayName || currentUser.name || 'Alex'}`,
+      memberCount: 1,
+      boostLevel: 0,
+      boostCount: 0,
+      roles: [...INITIAL_ROLES],
+      members: [currentUser],
+      categories: [
+        {
+          id: `cat-${newId}-info`,
+          name: 'INFORMACIÓN',
+          channels: [
+            { id: `ch-${newId}-welcome`, name: 'bienvenida', type: 'announcement', position: 0 },
+            { id: `ch-${newId}-reglas`, name: 'reglas', type: 'text', position: 1 },
+          ],
+        },
+        {
+          id: `cat-${newId}-general`,
+          name: 'CANALES DE TEXTO',
+          channels: [
+            { id: `ch-${newId}-general`, name: 'general', type: 'text', position: 0 },
+          ],
+        },
+        {
+          id: `cat-${newId}-voice`,
+          name: 'CANALES DE VOZ',
+          channels: [
+            { id: `ch-${newId}-voice-gen`, name: 'General', type: 'voice', position: 0 },
+          ],
+        },
+      ],
+    };
+
+    setServers((prev) => [...prev, newServer]);
+    setSelectedServerId(newId);
+    setSelectedChannelId(`ch-${newId}-general`);
+    setAppView('chat');
+    setActiveModal(null);
+    showToast(`¡Servidor "${name}" creado exitosamente!`, 'success');
+  };
+
+  // Actualizar usuario propio
+  const handleUpdateCurrentUser = (updatedUser: User) => {
+    setCurrentUser(updatedUser);
+    showToast('Perfil actualizado con éxito', 'success');
+  };
+
+  // Actualizar servidor
+  const handleUpdateServer = (updatedServer: Server) => {
+    setServers((prev) => prev.map((s) => (s.id === updatedServer.id ? updatedServer : s)));
+    showToast('Configuración del servidor guardada', 'success');
+  };
+
+  // Abrir perfil de usuario
+  const handleOpenUserProfile = (userId: string) => {
+    if (userId === currentUser.id) {
+      setAppView('own-profile');
+    } else {
+      setSelectedProfileUserId(userId);
+      setActiveModal('user-profile');
+    }
+  };
+
+  // Cerrar sesión
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setAuthScreen('login');
+    showToast('Sesión cerrada', 'info');
+  };
+
+  // Si no está autenticado, renderizar AuthView
+  if (!isAuthenticated) {
+    return (
+      <AuthView
+        initialScreen={authScreen}
+        onSuccess={(user) => {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+          showToast(`¡Bienvenido de nuevo, ${user.displayName || user.name}!`, 'success');
+        }}
+        onCancel={() => {
+          setIsAuthenticated(true);
+        }}
+      />
+    );
+  }
+
+  // Shell móvil para pantallas menores a 768px
+  if (isMobile) {
+    return (
+      <>
+        <MobileShell
+          servers={servers}
+          currentUser={currentUser}
+          onOpenModal={(m) => setActiveModal(m)}
+          onConfirmAction={(act, target) => {
+            setConfirmAction(act);
+            setConfirmTargetName(target || '');
+            setActiveModal('confirm-action');
           }}
-        >
-          Contador: {count}
-        </button>
-        <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: '#b5bac1' }}>
-          Entorno Docker conectado a <code>discordia-net</code>
-        </p>
+        />
+
+        {/* Modales globales en móvil */}
+        {activeModal === 'create-server' && (
+          <CreateServerModal
+            onClose={() => setActiveModal(null)}
+            onCreateServer={(data) => handleCreateServer(data.name, data.icon)}
+          />
+        )}
+        {activeModal === 'join-server' && (
+          <JoinServerModal
+            onClose={() => setActiveModal(null)}
+            onJoinServer={(code) => {
+              setActiveModal(null);
+              showToast(`Te has unido al servidor (${code})`, 'success');
+            }}
+          />
+        )}
+        {activeModal === 'user-profile' && selectedProfileUserId && USERS[selectedProfileUserId] && (
+          <UserProfileModal
+            user={USERS[selectedProfileUserId]}
+            currentUser={currentUser}
+            onClose={() => setActiveModal(null)}
+            onSendDM={() => {
+              setActiveModal(null);
+              setSelectedServerId('home');
+              setAppView('home');
+            }}
+            onEditProfile={() => {
+              setActiveModal(null);
+              setAppView('own-profile');
+            }}
+          />
+        )}
+
+        <ConnectionBanner />
+        {toast && <ToastNotification message={toast.message} type={toast.type} />}
+      </>
+    );
+  }
+
+  // Vistas a pantalla completa (Desktop)
+  if (appView === 'own-profile') {
+    return (
+      <OwnProfileView
+        currentUser={currentUser}
+        onBack={() => setAppView('chat')}
+        onSave={(updated) => {
+          handleUpdateCurrentUser(updated);
+          setAppView('chat');
+        }}
+      />
+    );
+  }
+
+  if (appView === 'server-settings' && currentServer) {
+    return (
+      <ServerSettings
+        server={currentServer}
+        currentUser={currentUser}
+        onClose={() => setAppView('chat')}
+        onUpdateServer={handleUpdateServer}
+      />
+    );
+  }
+
+  if (appView === 'user-settings') {
+    return (
+      <UserSettings
+        currentUser={currentUser}
+        onClose={() => setAppView('chat')}
+        onUpdateUser={handleUpdateCurrentUser}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  // Layout principal Desktop de tres niveles
+  return (
+    <div
+      style={{
+        display: 'flex',
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        backgroundColor: 'var(--bg-tertiary, #202225)',
+      }}
+    >
+      {/* Nivel 1: Carril de Servidores */}
+      <ServerRail
+        servers={servers}
+        selectedServerId={selectedServerId}
+        onSelectServer={handleSelectServer}
+        onAddServer={() => setActiveModal('create-server')}
+        onDiscoverServers={() => setActiveModal('join-server')}
+        homeBadgeCount={2}
+      />
+
+      {/* Nivel 2: Sidebar del Servidor activo */}
+      {selectedServerId !== 'home' && currentServer && (
+        <ChannelSidebar
+          server={currentServer}
+          activeChannelId={selectedChannelId}
+          onSelectChannel={handleSelectChannel}
+          currentUser={currentUser}
+          isVoiceConnected={inVoiceChannelId !== null}
+          activeVoiceChannelId={inVoiceChannelId}
+          isMuted={isMuted}
+          isDeafened={isDeafened}
+          onToggleMute={() => setIsMuted((m) => !m)}
+          onToggleDeafen={() => setIsDeafened((d) => !d)}
+          onOpenSettings={() => setAppView('user-settings')}
+          onDisconnectVoice={handleDisconnectVoice}
+          onJoinVoiceChannel={handleJoinVoiceChannel}
+          onOpenServerSettings={() => setAppView('server-settings')}
+          onInvitePeople={() => setActiveModal('invite')}
+          onOpenServerBoost={() => setAppView('server-settings')}
+          onOpenServerProfile={() => setAppView('server-settings')}
+          onLeaveServer={() => {
+            setConfirmAction('leave-server');
+            setConfirmTargetName(currentServer.name);
+            setActiveModal('confirm-action');
+          }}
+          onDeleteServer={() => {
+            setConfirmAction('delete-server');
+            setConfirmTargetName(currentServer.name);
+            setActiveModal('confirm-action');
+          }}
+          onChangeStatus={(st: Status) => setCurrentUser((u) => ({ ...u, status: st }))}
+          onSaveCustomStatus={(cs: string) => setCurrentUser((u) => ({ ...u, customStatus: cs }))}
+          onEditProfile={() => setAppView('own-profile')}
+          onBuyPoints={() => setAppView('user-settings')}
+          onSubscribePremium={() => setAppView('user-settings')}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {/* Nivel 3: Contenido Principal */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+        {selectedServerId === 'home' ? (
+          <HomeView
+            currentUserId={currentUser.id}
+            directMessages={directMessagesList}
+            activeDirectMessageId={selectedDmId}
+            onSelectDirectMessage={(id) => setSelectedDmId(id)}
+            onOpenUserProfile={handleOpenUserProfile}
+            onSendMessage={(_dmId, text) => handleSendMessage(text, undefined, undefined)}
+          />
+        ) : appView === 'voice' ? (
+          <VoiceView
+            channelName={currentChannel?.name || 'Voz'}
+            serverName={currentServer?.name}
+            currentUserId={currentUser.id}
+            participants={[currentUser, ...(USERS['u1'] ? [USERS['u1']] : []), ...(USERS['u5'] ? [USERS['u5']] : [])]}
+            isMuted={isMuted}
+            isDeafened={isDeafened}
+            isVideoOn={isVideoOn}
+            isScreenSharing={isScreenSharing}
+            onToggleMute={() => setIsMuted((m) => !m)}
+            onToggleDeafen={() => setIsDeafened((d) => !d)}
+            onToggleVideo={() => setIsVideoOn((v) => !v)}
+            onToggleScreenShare={() => setIsScreenSharing((s) => !s)}
+            onDisconnect={handleDisconnectVoice}
+            onSelectUser={(u) => handleOpenUserProfile(u.id)}
+          />
+        ) : (
+          <ChatView
+            channel={currentChannel}
+            messages={activeMessages}
+            currentUserId={currentUser.id}
+            users={USERS}
+            isMemberListOpen={isMemberListOpen}
+            onToggleMemberList={() => setIsMemberListOpen((v) => !v)}
+            onSendMessage={handleSendMessage}
+            onToggleReaction={handleToggleReaction}
+            onDeleteMessage={handleDeleteMessage}
+            onEditMessage={handleEditMessage}
+            onOpenUserProfile={handleOpenUserProfile}
+            onStartVoiceCall={() => {
+              const vChan = allServerChannels.find((c) => c.type === 'voice');
+              if (vChan) handleJoinVoiceChannel(vChan.id);
+            }}
+          />
+        )}
+
+        {/* Lista de Miembros (Panel derecho en canales de servidor) */}
+        {selectedServerId !== 'home' && isMemberListOpen && appView === 'chat' && (
+          <MemberList
+            members={Object.values(USERS)}
+            roles={currentServer?.roles || INITIAL_ROLES}
+            onSelectMember={(m) => handleOpenUserProfile(m.id)}
+            currentUserId={currentUser.id}
+          />
+        )}
       </div>
+
+      {/* ── MODALES GLOBALES ── */}
+
+      {activeModal === 'create-server' && (
+        <CreateServerModal
+          onClose={() => setActiveModal(null)}
+          onCreateServer={(data) => handleCreateServer(data.name, data.icon)}
+        />
+      )}
+
+      {activeModal === 'join-server' && (
+        <JoinServerModal
+          onClose={() => setActiveModal(null)}
+          onJoinServer={(inviteCode) => {
+            setActiveModal(null);
+            showToast(`Te has unido con la invitación: ${inviteCode}`, 'success');
+          }}
+        />
+      )}
+
+      {activeModal === 'invite' && currentServer && (
+        <InviteModal
+          server={currentServer}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal === 'user-profile' && selectedProfileUserId && USERS[selectedProfileUserId] && (
+        <UserProfileModal
+          user={USERS[selectedProfileUserId]}
+          currentUser={currentUser}
+          onClose={() => {
+            setActiveModal(null);
+            setSelectedProfileUserId(null);
+          }}
+          onSendDM={(uid: string) => {
+            setActiveModal(null);
+            setSelectedServerId('home');
+            setAppView('home');
+            const dm = directMessagesList.find((d) => (d.recipientId || d.userId) === uid);
+            if (dm) setSelectedDmId(dm.id);
+          }}
+          onEditProfile={() => {
+            setActiveModal(null);
+            setAppView('own-profile');
+          }}
+        />
+      )}
+
+      {activeModal === 'confirm-action' && confirmAction && (
+        <ConfirmDialog
+          action={confirmAction}
+          targetName={confirmTargetName}
+          onConfirm={() => {
+            if (confirmAction === 'delete-server' && currentServer) {
+              setServers((prev) => prev.filter((s) => s.id !== currentServer.id));
+              setSelectedServerId('home');
+              setAppView('home');
+              showToast(`Servidor "${confirmTargetName}" eliminado`, 'danger');
+            } else if (confirmAction === 'leave-server' && currentServer) {
+              setServers((prev) => prev.filter((s) => s.id !== currentServer.id));
+              setSelectedServerId('home');
+              setAppView('home');
+              showToast(`Has abandonado "${confirmTargetName}"`, 'info');
+            } else {
+              showToast('Acción confirmada', 'success');
+            }
+            setActiveModal(null);
+            setConfirmAction(null);
+          }}
+          onCancel={() => {
+            setActiveModal(null);
+            setConfirmAction(null);
+          }}
+        />
+      )}
+
+      {/* Centro de Notificaciones flotante */}
+      {isNotifCenterOpen && (
+        <NotificationCenter
+          notifications={notificationsList}
+          onClose={() => setIsNotifCenterOpen(false)}
+          onMarkRead={(id: string) => {
+            setNotificationsList((prev) =>
+              prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+            );
+          }}
+          onMarkAllRead={() => {
+            setNotificationsList((prev) => prev.map((n) => ({ ...n, read: true })));
+            showToast('Todas las notificaciones marcadas como leídas', 'success');
+          }}
+          onNotificationClick={(n) => {
+            setIsNotifCenterOpen(false);
+            if (n.serverId) {
+              setSelectedServerId(n.serverId);
+              if (n.channelId) setSelectedChannelId(n.channelId);
+              setAppView('chat');
+            }
+          }}
+        />
+      )}
+
+      {/* Búsqueda Global */}
+      <GlobalSearch
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelectResult={(result) => {
+          setIsSearchOpen(false);
+          if (result.type === 'channel') {
+            handleSelectChannel(result.id);
+          } else if (result.type === 'user') {
+            handleOpenUserProfile(result.id);
+          }
+        }}
+      />
+
+      {/* Modal de llamada entrante */}
+      {incomingCaller && (
+        <IncomingCallModal
+          caller={incomingCaller}
+          channelName="Llamada directa"
+          onAccept={() => {
+            setIncomingCaller(null);
+            setInVoiceChannelId('dm-call');
+            setAppView('voice');
+            showToast(`Llamada con ${incomingCaller.displayName || incomingCaller.name} iniciada`, 'success');
+          }}
+          onDecline={() => {
+            setIncomingCaller(null);
+            showToast('Llamada rechazada', 'info');
+          }}
+        />
+      )}
+
+      <ConnectionBanner />
+      {toast && <ToastNotification message={toast.message} type={toast.type} />}
     </div>
   );
 }
