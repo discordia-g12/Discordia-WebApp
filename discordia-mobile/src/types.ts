@@ -1,21 +1,7 @@
-/**
- * Definiciones de tipos fundamentales del cliente web Discordia.
- * Modela estados de usuario, jerarquía de servidores, canales, mensajería y UI.
- */
-
-/** Estados de presencia y disponibilidad de un usuario. */
-export type Status = 'online' | 'idle' | 'dnd' | 'offline' | 'invisible';
-
-/** Tipos de canal soportados en un servidor de Discordia. */
-export type ChannelType = 'text' | 'voice' | 'announcement';
-
-/** Naturaleza del mensaje dentro del flujo de chat. */
-export type MessageType = 'normal' | 'system' | 'deleted';
-
-/** Pantallas disponibles dentro del flujo de autenticación y seguridad. */
-export type AuthScreen = 'login' | 'register' | 'forgot' | '2fa' | 'verify-email';
-
-/** Vista principal activa renderizada en la aplicación. */
+export type Status = 'online' | 'idle' | 'dnd' | 'offline' | 'invisible'
+export type ChannelType = 'text' | 'voice' | 'announcement'
+export type MessageType = 'normal' | 'system' | 'deleted'
+export type AuthScreen = 'login' | 'register' | 'forgot' | '2fa' | 'verify-email'
 export type AppView =
   | 'chat'
   | 'voice'
@@ -25,9 +11,7 @@ export type AppView =
   | 'own-profile'
   | 'server-boost'
   | 'premium'
-  | 'notifications';
-
-/** Diálogos modales globales que pueden desplegarse en la interfaz. */
+  | 'notifications'
 export type Modal =
   | 'create-server'
   | 'join-server'
@@ -37,9 +21,8 @@ export type Modal =
   | 'confirm-action'
   | 'search'
   | 'edit-message'
-  | null;
+  | null
 
-/** Acciones críticas que requieren confirmación explícita del usuario. */
 export type ConfirmAction =
   | 'ban-member'
   | 'kick-member'
@@ -47,229 +30,156 @@ export type ConfirmAction =
   | 'delete-server'
   | 'leave-server'
   | 'transfer-ownership'
-  | null;
+  | null
 
-/** Adjunto multimedia o documental asociado a un mensaje. */
-export interface MessageAttachment {
-  id: string;
-  name: string;
-  url: string;
-  size?: string | number;
-  type?: string;
-}
-
-/** Previsualización incrustada de enlaces o contenido externo. */
-export interface MessageEmbed {
-  title?: string;
-  description?: string;
-  url?: string;
-  image?: string;
-  color?: string;
-}
-
-/** Reacción con emoji aplicada por uno o más usuarios a un mensaje. */
-export interface Reaction {
-  emoji: string;
-  count: number;
-  users: string[];
-  reacted?: boolean;
-  hasReacted?: boolean;
-}
-
-/** Entidad de usuario registrada en la plataforma. */
 export interface User {
-  id: string;
-  name?: string;
-  username: string;
-  discriminator?: string;
-  displayName: string;
-  color?: string;
-  avatar?: string;
-  avatarUrl?: string;
-  avatarPreview?: string;
-  banner?: string;
-  bannerColor?: string;
-  bio?: string;
-  customStatus?: string;
-  status: Status;
-  email?: string;
-  phone?: string;
-  isStaff?: boolean;
-  isPremium?: boolean;
-  isBoosting?: boolean;
-  isSuspended?: boolean;
-  suspended?: boolean;
-  premiumSince?: string;
-  badges?: string[];
-  joinedAt?: string;
-  createdAt?: string;
-  twoFactorEnabled?: boolean;
-  points?: number;
-  roleIds?: string[];
-  roles?: string[];
+  id: string
+  name: string
+  username: string
+  avatar: string | null
+  avatarPreview?: string | null
+  color: string
+  status: Status
+  customStatus?: string
+  bio?: string
+  joinedAt: string
+  roles?: string[]
+  isPremium?: boolean
+  isBoosting?: boolean
+  suspended?: boolean
+  bannerColor?: string
 }
 
-/** Errores de validación durante la edición del perfil de usuario. */
 export interface ProfileErrors {
-  name?: string;
-  username?: string;
-  displayName?: string;
-  customStatus?: string;
-  bio?: string;
-  email?: string;
-  currentPassword?: string;
-  newPassword?: string;
-  confirmPassword?: string;
+  name?: string
+  bio?: string
+  customStatus?: string
 }
 
-/** Rol asignable con permisos y estilo cromático en un servidor. */
 export interface Role {
-  id: string;
-  name: string;
-  color: string;
-  hoist?: boolean;
-  position?: number;
-  permissions: string[];
-  isDefault?: boolean;
-  memberCount?: number;
+  id: string
+  name: string
+  color: string
+  memberCount: number
+  position: number
+  permissions: Record<string, boolean>
 }
 
-/** Canal individual perteneciente a una categoría de servidor. */
 export interface Channel {
-  id: string;
-  serverId?: string;
-  name: string;
-  type: ChannelType;
-  topic?: string;
-  categoryId?: string;
-  position?: number;
-  isPrivate?: boolean;
-  unreadCount?: number;
-  unread?: number;
-  mentions?: number;
-  participants?: string[];
-  userLimit?: number;
-  bitrate?: number;
+  id: string
+  name: string
+  type: ChannelType
+  topic?: string
+  unread?: number
+  mentions?: number
+  participants?: string[]
+  position: number
 }
 
-/** Agrupador de canales en la barra lateral del servidor. */
 export interface Category {
-  id: string;
-  serverId?: string;
-  name: string;
-  channels: Channel[];
-  position?: number;
-  collapsed?: boolean;
+  id: string
+  name: string
+  channels: Channel[]
+  collapsed?: boolean
 }
 
-/** Comunidad o servidor que contiene categorías, canales y miembros. */
 export interface Server {
-  id: string;
-  name: string;
-  icon?: string;
-  iconUrl?: string;
-  banner?: string;
-  color?: string;
-  description?: string;
-  ownerId: string;
-  categories: Category[];
-  roles: Role[];
-  members: User[];
-  memberCount?: number;
-  boostLevel: number;
-  boostCount: number;
-  unreadCount?: number;
-  unread?: boolean;
-  mentions?: number;
-  muted?: boolean;
-  vanityUrl?: string;
-  createdAt?: string;
+  id: string
+  name: string
+  icon: string | null
+  color: string
+  ownerId: string
+  description?: string
+  memberCount: number
+  boostLevel: number
+  boostCount: number
+  categories: Category[]
+  roles: Role[]
+  members: string[]
+  unread?: boolean
+  mentions?: number
+  muted?: boolean
 }
 
-/** Mensaje individual publicado en un canal o chat directo. */
+export interface Reaction {
+  emoji: string
+  count: number
+  reacted: boolean
+}
+
 export interface Message {
-  id: string;
-  channelId: string;
-  authorId: string;
-  userId?: string;
-  author?: User;
-  content: string;
-  timestamp: string;
-  editedTimestamp?: string | null;
-  edited?: boolean;
-  type: MessageType;
-  reactions?: Reaction[];
-  attachments?: MessageAttachment[];
-  embeds?: MessageEmbed[];
-  mentions?: string[];
-  replyToId?: string | null;
-  replyTo?: Message | null;
-  isPinned?: boolean;
-  fileAttachment?: { name: string; size: string; type?: string };
-  imageUrl?: string;
-  hasMention?: boolean;
-  isNew?: boolean;
+  id: string
+  channelId: string
+  userId: string
+  content: string
+  timestamp: string
+  edited?: boolean
+  type: MessageType
+  reactions?: Reaction[]
+  imageUrl?: string
+  fileAttachment?: { name: string; size: string; type: string }
+  replyTo?: string
+  hasMention?: boolean
+  isNew?: boolean
 }
 
-/** Hilo o canal de conversación directa entre dos usuarios. */
 export interface DirectMessage {
-  id: string;
-  recipientId: string;
-  userId?: string;
-  recipient?: User;
-  lastMessage?: string;
-  lastMessageTimestamp?: string;
-  lastTimestamp?: string;
-  unreadCount?: number;
-  unread?: number;
-  pinned?: boolean;
+  id: string
+  userId: string
+  lastMessage: string
+  lastTimestamp: string
+  unread?: number
+  pinned?: boolean
 }
 
-/** Notificación de evento entrante relevante para el usuario autenticado. */
 export interface Notification {
-  id: string;
-  type: 'mention' | 'dm' | 'reply' | 'reaction' | 'system';
-  title: string;
-  body: string;
-  timestamp: string;
-  read: boolean;
-  actorId?: string;
-  actor?: User;
-  channelId?: string;
-  serverId?: string;
-  messageId?: string;
+  id: string
+  type: 'mention' | 'dm' | 'reply' | 'reaction'
+  userId: string
+  channelId?: string
+  serverId?: string
+  serverName?: string
+  channelName?: string
+  preview: string
+  timestamp: string
+  read: boolean
 }
 
-/** Registro de auditoría administrativa y moderación de un servidor. */
 export interface AuditEntry {
-  id: string;
-  action: string;
-  actorId: string;
-  actor?: User;
-  targetId?: string;
-  targetType?: 'user' | 'channel' | 'role' | 'server' | 'message';
-  reason?: string;
-  timestamp: string;
-  details?: Record<string, unknown>;
+  id: string
+  actorId: string
+  action: string
+  target: string
+  timestamp: string
+  details?: string
 }
 
-/** Estado global de interfaz y navegación de la aplicación web. */
 export interface AppState {
-  currentUserId: string;
-  activeServerId: string | null;
-  activeChannelId: string | null;
-  activeDirectMessageId: string | null;
-  currentView: AppView;
-  activeModal: Modal;
-  confirmAction: ConfirmAction;
-  confirmTarget?: unknown;
-  searchQuery: string;
-  isVoiceConnected: boolean;
-  activeVoiceChannelId: string | null;
-  isMuted: boolean;
-  isDeafened: boolean;
-  isScreenSharing: boolean;
-  userProfileModalId: string | null;
-  authScreen?: AuthScreen;
-  theme?: 'dark' | 'light';
+  view: 'auth' | 'app'
+  authScreen: AuthScreen
+  selectedServerId: string
+  selectedChannelId: string
+  appView: AppView
+  memberListOpen: boolean
+  activeModal: Modal
+  profileUserId: string | null
+  inVoiceChannelId: string | null
+  micMuted: boolean
+  deafened: boolean
+  cameraOn: boolean
+  screenSharing: boolean
+  notifOpen: boolean
+  searchOpen: boolean
+  searchQuery: string
+  messages: Record<string, Message[]>
+  contextMenu: { x: number; y: number; messageId?: string; userId?: string } | null
+  confirmAction: ConfirmAction
+  confirmTarget?: string
+  settingsTab: string
+  serverSettingsTab: string
+  categoryCollapsed: Record<string, boolean>
+  reactedMessages: Record<string, string[]>
+  toast: { message: string; type: 'success' | 'error' | 'info' } | null
+  editingMessageId: string | null
+  replyToMessageId: string | null
 }
