@@ -1,1182 +1,837 @@
 import React, { useState } from 'react';
 import {
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  User as UserIcon,
-  ShieldCheck,
-  ArrowLeft,
-  CheckCircle2,
+  ShieldAlert,
   AlertCircle,
   Loader2,
   Sparkles,
-  KeyRound,
+  LogIn,
+  UserPlus,
+  RefreshCw,
+  LogOut,
+  CheckCircle2,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  User as UserIcon,
+  Check,
+  X,
 } from 'lucide-react';
-import { AuthScreen, User } from '../types';
-import { USERS, CURRENT_USER_ID } from '../data/mock';
+import { useSession, authService } from '../auth/session';
+import { upsertMyProfile } from '../api/users';
+import { ApiError } from '../api/errors';
 
 export interface AuthViewProps {
-  initialScreen?: AuthScreen;
-  onSuccess?: (user: User) => void;
+  onSuccess?: () => void;
   onCancel?: () => void;
 }
 
-export const AuthView: React.FC<AuthViewProps> = ({
-  initialScreen = 'login',
-  onSuccess,
-  onCancel,
-}) => {
-  const [screen, setScreen] = useState<AuthScreen>(initialScreen);
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,32}$/;
 
-  // Form states
-  const [loginEmail, setLoginEmail] = useState('alex.rivera@discordia.gg');
-  const [loginPassword, setLoginPassword] = useState('SuperSecret2026!');
+export const AuthView: React.FC<AuthViewProps> = () => {
+  const { status, error, isMock } = useSession();
 
-  const [registerUsername, setRegisterUsername] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [agreeTerms, setAgreeTerms] = useState(false);
+  // Tab activo: 'login' o 'register'
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
 
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [twoFactorCode, setTwoFactorCode] = useState(['', '', '', '', '', '']);
-  const [useBackupCode, setUseBackupCode] = useState(false);
-  const [backupCode, setBackupCode] = useState('');
+  // Campos de Iniciar Sesión
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  const clearMessages = () => {
-    setErrorMessage(null);
-    setSuccessMessage(null);
-  };
+  // Campos de Registro
+  const [regUsername, setRegUsername] = useState('');
+  const [regDisplayName, setRegDisplayName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
-  const handleNavigate = (newScreen: AuthScreen) => {
-    clearMessages();
-    setScreen(newScreen);
-  };
+  // Estados de carga y error del formulario
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // Login handler
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  // Estados locales para el caso de resolución de conflicto de username (needs_profile)
+  const [conflictUsername, setConflictUsername] = useState('');
+  const [conflictDisplayName, setConflictDisplayName] = useState('');
+  const [isSubmittingConflict, setIsSubmittingConflict] = useState(false);
+  const [conflictError, setConflictError] = useState<string | null>(null);
+
+  // Reglas de contraseña para feedback visual en tiempo real
+  const passLength = regPassword.length >= 8;
+  const passUpper = /[A-Z]/.test(regPassword);
+  const passLower = /[a-z]/.test(regPassword);
+  const passNumber = /[0-9]/.test(regPassword);
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearMessages();
+    setFormError(null);
 
-    if (!loginEmail || !loginPassword) {
-      setErrorMessage('Please fill in all required fields.');
+    const email = loginEmail.trim();
+    const password = loginPassword;
+
+    // Validación básica en cliente
+    if (!email || !EMAIL_REGEX.test(email) || !password) {
+      // CA 2 & CA 3 Login: error genérico sin revelar qué campo falló
+      setFormError('El correo electrónico o la contraseña son incorrectos.');
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      // Check if user has 2FA enabled in mock data
-      const foundUser = Object.values(USERS).find(
-        (u) => u.email?.toLowerCase() === loginEmail.toLowerCase()
-      ) || USERS[CURRENT_USER_ID];
-
-      if (foundUser?.twoFactorEnabled) {
-        setScreen('2fa');
+    setIsSubmitting(true);
+    try {
+      await authService.loginWithCredentials({
+        email,
+        password,
+      });
+    } catch (err: any) {
+      const msg = err?.message || '';
+      if (msg.includes('suspendida') || msg.includes('access_denied')) {
+        setFormError('Tu cuenta se encuentra suspendida.');
       } else {
-        onSuccess?.(foundUser);
+        // CA 2 & CA 3 Login: error genérico
+        setFormError('El correo electrónico o la contraseña son incorrectos.');
       }
-    }, 900);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Google OAuth simulation
-  const handleGoogleLogin = () => {
-    clearMessages();
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      const user = USERS[CURRENT_USER_ID];
-      onSuccess?.(user);
-    }, 1100);
-  };
-
-  // Register handler
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearMessages();
+    setFormError(null);
 
-    if (!registerUsername.trim()) {
-      setErrorMessage('Username is required.');
-      return;
-    }
-    if (!registerEmail.trim() || !registerEmail.includes('@')) {
-      setErrorMessage('Please provide a valid email address.');
-      return;
-    }
-    if (registerPassword.length < 8) {
-      setErrorMessage('Password must be at least 8 characters long.');
-      return;
-    }
-    if (!agreeTerms) {
-      setErrorMessage('You must accept the Terms of Service to continue.');
+    const username = regUsername.trim().toLowerCase();
+    const displayName = regDisplayName.trim();
+    const email = regEmail.trim();
+    const password = regPassword;
+    const confirmPassword = regConfirmPassword;
+
+    // Validación de Username
+    if (!username || !USERNAME_REGEX.test(username)) {
+      setFormError('El nombre de usuario debe tener entre 3 y 32 caracteres (solo letras, números, guiones o puntos).');
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      const newUser: User = {
-        id: `u-${Date.now()}`,
-        username: registerUsername.toLowerCase().replace(/\s+/g, '_'),
-        displayName: registerUsername,
-        email: registerEmail,
-        status: 'online',
-        points: 100,
-        createdAt: new Date().toISOString(),
-        bio: '¡Hola! Acabo de unirme a Discordia.',
-        bannerColor: '#5865f2',
-      };
-      setSuccessMessage('Account created successfully! Welcome to Discordia.');
-      setTimeout(() => {
-        onSuccess?.(newUser);
-      }, 700);
-    }, 1200);
-  };
-
-  // Forgot password handler
-  const handleForgotSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    clearMessages();
-
-    if (!forgotEmail || !forgotEmail.includes('@')) {
-      setErrorMessage('Please enter a valid email address.');
+    // CA 3: Formato de email inválido
+    if (!email || !EMAIL_REGEX.test(email)) {
+      setFormError('El formato del correo electrónico no es válido.');
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      setSuccessMessage(
-        `Instructions to reset your password have been dispatched to ${forgotEmail}. Please check your inbox!`
+    // CA 4: Contraseña insegura (mínimo 8 caracteres, mayúscula, minúscula, número)
+    if (!passLength || !passUpper || !passLower || !passNumber) {
+      setFormError(
+        'La contraseña no cumple con los requisitos de seguridad: debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas y un número.'
       );
-    }, 1000);
-  };
-
-  // 2FA digit change
-  const handleDigitChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
-    const newCode = [...twoFactorCode];
-    newCode[index] = value.slice(-1);
-    setTwoFactorCode(newCode);
-
-    // Auto-focus next input
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`2fa-digit-${index + 1}`);
-      nextInput?.focus();
+      return;
     }
-  };
 
-  const handleDigitKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !twoFactorCode[index] && index > 0) {
-      const prevInput = document.getElementById(`2fa-digit-${index - 1}`);
-      prevInput?.focus();
+    // Coincidencia de contraseñas
+    if (password !== confirmPassword) {
+      setFormError('Las contraseñas no coinciden.');
+      return;
     }
-  };
 
-  const handleDigitPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').trim();
-    if (/^\d{6}$/.test(pasted)) {
-      const digits = pasted.split('');
-      setTwoFactorCode(digits);
-      const lastInput = document.getElementById('2fa-digit-5');
-      lastInput?.focus();
-    }
-  };
-
-  // 2FA Submit handler
-  const handle2FASubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    clearMessages();
-
-    if (useBackupCode) {
-      if (!backupCode.trim() || backupCode.trim().length < 8) {
-        setErrorMessage('Backup codes are 8 alphanumeric characters.');
-        return;
+    setIsSubmitting(true);
+    try {
+      // CA 1: Registro exitoso con datos válidos -> Crea la cuenta y accede a la plataforma
+      await authService.signupWithCredentials({
+        email,
+        password,
+        username,
+        displayName: displayName || username,
+      });
+    } catch (err: any) {
+      const msg = String(err?.message || '');
+      // CA 2: Email ya registrado
+      if (
+        msg.toLowerCase().includes('en uso') ||
+        msg.toLowerCase().includes('already in use') ||
+        msg.toLowerCase().includes('already exists') ||
+        msg.toLowerCase().includes('invalid sign up') ||
+        msg.toLowerCase().includes('invalid_signup')
+      ) {
+        setFormError('El correo ya está en uso.');
+      } else if (msg.toLowerCase().includes('requisitos de seguridad') || msg.toLowerCase().includes('password')) {
+        // CA 4: Indicación de requisitos de contraseña si Auth0 tenant impone una política superior
+        setFormError(msg);
+      } else {
+        setFormError(msg || 'Error al procesar el registro.');
       }
-    } else {
-      const code = twoFactorCode.join('');
-      if (code.length !== 6) {
-        setErrorMessage('Please enter all 6 digits of your authenticator code.');
-        return;
-      }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      const user = USERS[CURRENT_USER_ID];
-      setSuccessMessage('Two-Factor Authentication verified successfully!');
-      setTimeout(() => {
-        onSuccess?.(user);
-      }, 600);
-    }, 1000);
   };
 
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        width: '100%',
-        backgroundColor: '#1e1f22',
-        backgroundImage:
-          'radial-gradient(circle at 15% 15%, rgba(88, 101, 242, 0.15) 0%, transparent 40%), radial-gradient(circle at 85% 85%, rgba(235, 69, 158, 0.12) 0%, transparent 45%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        position: 'relative',
-        boxSizing: 'border-box',
-        overflowY: 'auto',
-      }}
-    >
-      {/* Optional Cancel/Back button if provided */}
-      {onCancel && (
-        <button
-          onClick={onCancel}
-          style={{
-            position: 'absolute',
-            top: 24,
-            left: 24,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            backgroundColor: 'rgba(43, 45, 49, 0.7)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            color: '#dbdee1',
-            padding: '8px 16px',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontSize: 14,
-            fontWeight: 500,
-            backdropFilter: 'blur(8px)',
-            transition: 'background-color 0.2s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(78, 80, 88, 0.7)')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(43, 45, 49, 0.7)')}
-        >
-          <ArrowLeft size={16} />
-          Back to App
-        </button>
-      )}
+  const handleConflictSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setConflictError(null);
 
-      {/* Main Auth Card */}
-      <div
-        style={{
-          width: '100%',
-          maxWidth: screen === 'register' ? '480px' : '440px',
-          backgroundColor: '#313338',
-          borderRadius: 16,
-          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06)',
-          padding: '36px 32px',
-          boxSizing: 'border-box',
-          animation: 'fadeIn 0.25s ease-out',
-        }}
-      >
-        {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 58,
-              height: 58,
-              borderRadius: 18,
-              background: 'linear-gradient(135deg, #5865f2 0%, #7289da 100%)',
-              boxShadow: '0 8px 20px rgba(88, 101, 242, 0.4)',
-              marginBottom: 16,
-            }}
-          >
-            <Sparkles size={30} color="#ffffff" />
+    const cleanUser = conflictUsername.trim().toLowerCase();
+    if (!cleanUser || !USERNAME_REGEX.test(cleanUser)) {
+      setConflictError('El nombre de usuario debe tener entre 3 y 32 caracteres alfanuméricos.');
+      return;
+    }
+
+    setIsSubmittingConflict(true);
+    try {
+      await upsertMyProfile({
+        username: cleanUser,
+        display_name: conflictDisplayName.trim() || cleanUser,
+      });
+      await authService.retryBootstrap();
+    } catch (err: any) {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflictError('Ese nombre de usuario ya está ocupado por otra persona. Por favor elige otro.');
+      } else {
+        setConflictError(err?.detail || err?.message || 'Error al guardar el perfil.');
+      }
+    } finally {
+      setIsSubmittingConflict(false);
+    }
+  };
+
+  // 1. Estado: Bootstrapping / Verificando sesión
+  if (status === 'bootstrapping') {
+    return (
+      <div className="auth-container" style={fullScreenCenter}>
+        <div style={cardStyle}>
+          <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+            <Loader2 className="animate-spin" size={42} color="var(--brand, #5865f2)" style={{ margin: '0 auto 16px' }} />
+            <h2 style={{ fontSize: '18px', color: '#f2f3f5', fontWeight: 600, marginBottom: '8px' }}>
+              Verificando sesión...
+            </h2>
+            <p style={{ fontSize: '14px', color: '#949ba4' }}>
+              Cargando tu perfil e información de Discordia.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Estado: Error recuperable con botón de reintento
+  if (status === 'error') {
+    return (
+      <div className="auth-container" style={fullScreenCenter}>
+        <div style={cardStyle}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ ...iconCircle, backgroundColor: 'rgba(237, 66, 69, 0.15)', color: '#ed4245' }}>
+              <AlertCircle size={32} />
+            </div>
+            <h2 style={{ fontSize: '20px', color: '#f2f3f5', fontWeight: 700, marginBottom: '8px' }}>
+              {error?.title || 'Error'}
+            </h2>
+            <p style={{ fontSize: '14px', color: '#949ba4', lineHeight: 1.5 }}>
+              {error?.message || 'Ocurrió un error al procesar tu cuenta.'}
+            </p>
+            {error?.detail && (
+              <p style={{ fontSize: '12px', color: '#da373c', marginTop: '8px', fontFamily: 'monospace' }}>
+                {error.detail}
+              </p>
+            )}
           </div>
 
-          <h1
+          <button
+            type="button"
+            onClick={() => authService.retryBootstrap()}
+            style={{ ...primaryButton, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            <RefreshCw size={16} />
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Estado: Cuenta Suspendida
+  if (status === 'suspended') {
+    return (
+      <div className="auth-container" style={fullScreenCenter}>
+        <div style={cardStyle}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ ...iconCircle, backgroundColor: 'rgba(237, 66, 69, 0.2)', color: '#ed4245' }}>
+              <ShieldAlert size={36} />
+            </div>
+            <h2 style={{ fontSize: '22px', color: '#f2f3f5', fontWeight: 700, marginBottom: '8px' }}>
+              Cuenta Suspendida
+            </h2>
+            <p style={{ fontSize: '14px', color: '#dbdee1', lineHeight: 1.5, marginBottom: '12px' }}>
+              Tu cuenta ha sido suspendida temporal o permanentemente por el equipo de moderación.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => authService.logout()}
+            style={{ ...secondaryButton, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            <LogOut size={16} />
+            Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. Estado: Conflicto de Username (needs_profile) tras auto-aprovisionamiento 409
+  if (status === 'needs_profile') {
+    return (
+      <div className="auth-container" style={fullScreenCenter}>
+        <div style={cardStyle}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ ...iconCircle, backgroundColor: 'rgba(88, 101, 242, 0.15)', color: 'var(--brand, #5865f2)' }}>
+              <Sparkles size={32} />
+            </div>
+            <h2 style={{ fontSize: '22px', color: '#f2f3f5', fontWeight: 700, marginBottom: '8px' }}>
+              Elige tu Nombre de Usuario
+            </h2>
+            <p style={{ fontSize: '14px', color: '#949ba4' }}>
+              Tu cuenta fue autenticada, pero el nombre de usuario ya está en uso. Elige uno disponible:
+            </p>
+          </div>
+
+          {conflictError && (
+            <div style={errorAlertStyle}>
+              <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>{conflictError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleConflictSubmit}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={labelStyle}>
+                NOMBRE DE USUARIO <span style={{ color: '#ed4245' }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={conflictUsername}
+                onChange={(e) => setConflictUsername(e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_.-]/g, '_'))}
+                placeholder="ej: alexr_2026"
+                style={inputStyle}
+                disabled={isSubmittingConflict}
+                autoFocus
+              />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={labelStyle}>NOMBRE PÚBLICO (OPCIONAL)</label>
+              <input
+                type="text"
+                value={conflictDisplayName}
+                onChange={(e) => setConflictDisplayName(e.target.value)}
+                placeholder="ej: Alex Rivera"
+                style={inputStyle}
+                disabled={isSubmittingConflict}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmittingConflict}
+              style={{
+                ...primaryButton,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+              }}
+            >
+              {isSubmittingConflict ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={18} />
+                  <span>Entrar a Discordia</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // 5. Estado: Sin sesión (unauthenticated) -> Formulario integrado de Iniciar Sesión / Registro
+  return (
+    <div className="auth-container" style={fullScreenCenter}>
+      {isMock && (
+        <div style={mockBannerStyle}>
+          ⚠️ <strong>MODO MOCK ACTIVO (DEV)</strong>: Autenticación simulada en memoria.
+        </div>
+      )}
+
+      <div style={cardStyle}>
+        {/* Encabezado */}
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <div
             style={{
-              fontSize: 24,
-              fontWeight: 700,
-              color: '#f2f3f5',
-              margin: '0 0 8px 0',
-              letterSpacing: '-0.02em',
+              width: '52px',
+              height: '52px',
+              borderRadius: '16px',
+              backgroundColor: 'var(--brand, #5865f2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px',
+              boxShadow: '0 8px 24px rgba(88, 101, 242, 0.35)',
             }}
           >
-            {screen === 'login' && 'Welcome back!'}
-            {screen === 'register' && 'Create an account'}
-            {screen === 'forgot' && 'Reset your password'}
-            {screen === '2fa' && 'Two-Factor Authentication'}
+            <Sparkles size={28} color="#ffffff" />
+          </div>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f2f3f5', marginBottom: '6px' }}>
+            {activeTab === 'login' ? '¡Te damos la bienvenida!' : 'Crear una cuenta'}
           </h1>
-
-          <p style={{ fontSize: 14, color: '#949ba4', margin: 0 }}>
-            {screen === 'login' && "We're so excited to see you again!"}
-            {screen === 'register' && 'Join the Discordia community today.'}
-            {screen === 'forgot' && "Enter your email and we'll send a password recovery link."}
-            {screen === '2fa' &&
-              (useBackupCode
-                ? 'Enter an 8-character backup code generated for your account.'
-                : 'Enter the 6-digit code from your authenticator app.')}
+          <p style={{ fontSize: '13px', color: '#949ba4' }}>
+            {activeTab === 'login'
+              ? 'Nos alegra verte de nuevo. Ingresa tus credenciales.'
+              : 'Regístrate para chatear, unirte y crear comunidades.'}
           </p>
         </div>
 
-        {/* Global Feedback Messages */}
-        {errorMessage && (
-          <div
+        {/* Pestañas de Selección */}
+        <div style={tabsContainerStyle} role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'login'}
+            data-testid="tab-login"
+            onClick={() => {
+              setActiveTab('login');
+              setFormError(null);
+            }}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              backgroundColor: 'rgba(218, 55, 60, 0.15)',
-              border: '1px solid #da373c',
-              borderRadius: 8,
-              padding: '10px 14px',
-              marginBottom: 20,
-              color: '#fa777c',
-              fontSize: 13,
+              ...tabButtonStyle,
+              borderBottom: activeTab === 'login' ? '2px solid var(--brand, #5865f2)' : '2px solid transparent',
+              color: activeTab === 'login' ? '#ffffff' : '#949ba4',
+              fontWeight: activeTab === 'login' ? 700 : 500,
             }}
           >
-            <AlertCircle size={18} style={{ flexShrink: 0 }} />
-            <span>{errorMessage}</span>
+            Iniciar Sesión
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'register'}
+            data-testid="tab-register"
+            onClick={() => {
+              setActiveTab('register');
+              setFormError(null);
+            }}
+            style={{
+              ...tabButtonStyle,
+              borderBottom: activeTab === 'register' ? '2px solid var(--brand, #5865f2)' : '2px solid transparent',
+              color: activeTab === 'register' ? '#ffffff' : '#949ba4',
+              fontWeight: activeTab === 'register' ? 700 : 500,
+            }}
+          >
+            Registrarse
+          </button>
+        </div>
+
+        {formError && (
+          <div style={errorAlertStyle}>
+            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+            <span>{formError}</span>
           </div>
         )}
 
-        {successMessage && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              backgroundColor: 'rgba(35, 165, 90, 0.15)',
-              border: '1px solid #23a55a',
-              borderRadius: 8,
-              padding: '10px 14px',
-              marginBottom: 20,
-              color: '#2dc770',
-              fontSize: 13,
-            }}
-          >
-            <CheckCircle2 size={18} style={{ flexShrink: 0 }} />
-            <span>{successMessage}</span>
-          </div>
-        )}
-
-        {/* 1. LOGIN SCREEN */}
-        {screen === 'login' && (
-          <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {/* Google OAuth Button */}
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={isLoading}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 12,
-                width: '100%',
-                padding: '11px 16px',
-                backgroundColor: '#ffffff',
-                color: '#2e3338',
-                borderRadius: 8,
-                border: 'none',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                transition: 'background-color 0.2s, transform 0.1s',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#f2f3f5';
-              }}
-              onMouseLeave={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#ffffff';
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              Continue with Google
-            </button>
-
-            {/* Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', margin: '4px 0' }}>
-              <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
-              <span style={{ padding: '0 12px', fontSize: 11, fontWeight: 700, color: '#949ba4', textTransform: 'uppercase' }}>
-                or with email
-              </span>
-              <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
-            </div>
-
-            {/* Email Field */}
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: '#b5bac1',
-                  marginBottom: 6,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                Email or Username <span style={{ color: '#da373c' }}>*</span>
+        {/* Formulario según la pestaña activa */}
+        {activeTab === 'login' ? (
+          <form onSubmit={handleLoginSubmit}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={labelStyle}>
+                CORREO ELECTRÓNICO <span style={{ color: '#ed4245' }}>*</span>
               </label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Mail
-                  size={18}
-                  style={{ position: 'absolute', left: 12, color: '#949ba4', pointerEvents: 'none' }}
-                />
+              <div style={inputWrapperStyle}>
+                <Mail size={16} color="#949ba4" style={{ marginRight: '8px' }} />
                 <input
                   type="email"
-                  required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="alex.rivera@discordia.gg"
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#1e1f22',
-                    color: '#dbdee1',
-                    border: '1px solid rgba(0, 0, 0, 0.3)',
-                    borderRadius: 6,
-                    padding: '10px 12px 10px 38px',
-                    fontSize: 14,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = '#5865f2')}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.3)')}
+                  placeholder="ejemplo@discordia.com"
+                  style={innerInputStyle}
+                  disabled={isSubmitting}
+                  autoComplete="email"
+                  required
                 />
               </div>
             </div>
 
-            {/* Password Field */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: '#b5bac1',
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  Password <span style={{ color: '#da373c' }}>*</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => handleNavigate('forgot')}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#00a8fc',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                  onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
-                >
-                  Forgot your password?
-                </button>
-              </div>
-
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Lock
-                  size={18}
-                  style={{ position: 'absolute', left: 12, color: '#949ba4', pointerEvents: 'none' }}
-                />
+            <div style={{ marginBottom: '22px' }}>
+              <label style={labelStyle}>
+                CONTRASEÑA <span style={{ color: '#ed4245' }}>*</span>
+              </label>
+              <div style={inputWrapperStyle}>
+                <Lock size={16} color="#949ba4" style={{ marginRight: '8px' }} />
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
+                  type={showLoginPassword ? 'text' : 'password'}
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#1e1f22',
-                    color: '#dbdee1',
-                    border: '1px solid rgba(0, 0, 0, 0.3)',
-                    borderRadius: 6,
-                    padding: '10px 40px 10px 38px',
-                    fontSize: 14,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = '#5865f2')}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(0, 0, 0, 0.3)')}
+                  placeholder="Tu contraseña"
+                  style={innerInputStyle}
+                  disabled={isSubmitting}
+                  autoComplete="current-password"
+                  required
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    background: 'none',
-                    border: 'none',
-                    color: '#949ba4',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 0,
-                  }}
+                  onClick={() => setShowLoginPassword((v) => !v)}
+                  style={eyeButtonStyle}
+                  aria-label="Alternar visibilidad de contraseña"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showLoginPassword ? <EyeOff size={16} color="#949ba4" /> : <Eye size={16} color="#949ba4" />}
                 </button>
               </div>
             </div>
 
-            {/* Sign In Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              data-testid="btn-submit-login"
+              disabled={isSubmitting}
               style={{
-                width: '100%',
-                padding: '12px 16px',
-                backgroundColor: '#5865f2',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: isLoading ? 'not-allowed' : 'pointer',
+                ...primaryButton,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
-                marginTop: 6,
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#4752c4';
-              }}
-              onMouseLeave={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#5865f2';
+                gap: '8px',
+                fontSize: '15px',
               }}
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 <>
-                  <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                  Signing In...
+                  <Loader2 className="animate-spin" size={18} />
+                  <span>Iniciando sesión...</span>
                 </>
               ) : (
-                'Sign In'
+                <>
+                  <LogIn size={18} />
+                  <span>Iniciar Sesión</span>
+                </>
               )}
             </button>
-
-            {/* Go to Register */}
-            <div style={{ fontSize: 13, color: '#949ba4', marginTop: 4 }}>
-              Need an account?{' '}
-              <button
-                type="button"
-                onClick={() => handleNavigate('register')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#00a8fc',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
-              >
-                Register
-              </button>
-            </div>
           </form>
-        )}
-
-        {/* 2. REGISTER SCREEN */}
-        {screen === 'register' && (
-          <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Username Field */}
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: '#b5bac1',
-                  marginBottom: 6,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                Username <span style={{ color: '#da373c' }}>*</span>
+        ) : (
+          <form onSubmit={handleRegisterSubmit}>
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>
+                NOMBRE DE USUARIO <span style={{ color: '#ed4245' }}>*</span>
               </label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <UserIcon
-                  size={18}
-                  style={{ position: 'absolute', left: 12, color: '#949ba4', pointerEvents: 'none' }}
-                />
+              <div style={inputWrapperStyle}>
+                <UserIcon size={16} color="#949ba4" style={{ marginRight: '8px' }} />
                 <input
                   type="text"
+                  value={regUsername}
+                  onChange={(e) => setRegUsername(e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_.-]/g, '_'))}
+                  placeholder="ej: alexr"
+                  style={innerInputStyle}
+                  disabled={isSubmitting}
+                  minLength={3}
+                  maxLength={32}
                   required
-                  value={registerUsername}
-                  onChange={(e) => setRegisterUsername(e.target.value)}
-                  placeholder="e.g. cyber_samurai"
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#1e1f22',
-                    color: '#dbdee1',
-                    border: '1px solid rgba(0, 0, 0, 0.3)',
-                    borderRadius: 6,
-                    padding: '10px 12px 10px 38px',
-                    fontSize: 14,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
+                />
+              </div>
+              <p style={{ fontSize: '11px', color: '#949ba4', marginTop: '4px' }}>
+                Tu nombre de usuario único en Discordia (mínimo 3 caracteres alfanuméricos).
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>NOMBRE PÚBLICO (OPCIONAL)</label>
+              <div style={inputWrapperStyle}>
+                <input
+                  type="text"
+                  value={regDisplayName}
+                  onChange={(e) => setRegDisplayName(e.target.value)}
+                  placeholder="ej: Alex Rivera"
+                  style={innerInputStyle}
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
-            {/* Email Field */}
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: '#b5bac1',
-                  marginBottom: 6,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                Email <span style={{ color: '#da373c' }}>*</span>
+            <div style={{ marginBottom: '14px' }}>
+              <label style={labelStyle}>
+                CORREO ELECTRÓNICO <span style={{ color: '#ed4245' }}>*</span>
               </label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Mail
-                  size={18}
-                  style={{ position: 'absolute', left: 12, color: '#949ba4', pointerEvents: 'none' }}
-                />
+              <div style={inputWrapperStyle}>
+                <Mail size={16} color="#949ba4" style={{ marginRight: '8px' }} />
                 <input
                   type="email"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="ejemplo@discordia.com"
+                  style={innerInputStyle}
+                  disabled={isSubmitting}
+                  autoComplete="email"
                   required
-                  value={registerEmail}
-                  onChange={(e) => setRegisterEmail(e.target.value)}
-                  placeholder="your.email@domain.com"
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#1e1f22',
-                    color: '#dbdee1',
-                    border: '1px solid rgba(0, 0, 0, 0.3)',
-                    borderRadius: 6,
-                    padding: '10px 12px 10px 38px',
-                    fontSize: 14,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
                 />
               </div>
             </div>
 
-            {/* Password Field with validation helper */}
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: '#b5bac1',
-                  marginBottom: 6,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                Password <span style={{ color: '#da373c' }}>*</span>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelStyle}>
+                CONTRASEÑA <span style={{ color: '#ed4245' }}>*</span>
               </label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Lock
-                  size={18}
-                  style={{ position: 'absolute', left: 12, color: '#949ba4', pointerEvents: 'none' }}
-                />
+              <div style={inputWrapperStyle}>
+                <Lock size={16} color="#949ba4" style={{ marginRight: '8px' }} />
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showRegPassword ? 'text' : 'password'}
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="Mínimo 8 caracteres"
+                  style={innerInputStyle}
+                  disabled={isSubmitting}
+                  autoComplete="new-password"
                   required
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#1e1f22',
-                    color: '#dbdee1',
-                    border: '1px solid rgba(0, 0, 0, 0.3)',
-                    borderRadius: 6,
-                    padding: '10px 40px 10px 38px',
-                    fontSize: 14,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    background: 'none',
-                    border: 'none',
-                    color: '#949ba4',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 0,
-                  }}
+                  onClick={() => setShowRegPassword((v) => !v)}
+                  style={eyeButtonStyle}
+                  aria-label="Alternar visibilidad"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showRegPassword ? <EyeOff size={16} color="#949ba4" /> : <Eye size={16} color="#949ba4" />}
                 </button>
               </div>
-              <div
-                style={{
-                  marginTop: 6,
-                  fontSize: 12,
-                  color: registerPassword.length >= 8 ? '#2dc770' : '#949ba4',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                {registerPassword.length >= 8 ? (
-                  <CheckCircle2 size={13} color="#2dc770" />
-                ) : (
-                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: '#949ba4' }} />
-                )}
-                Minimum 8 characters length
+
+              {/* Indicadores de requisitos de contraseña (CA 4) */}
+              <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '11px' }}>
+                <span style={{ color: passLength ? '#23a55a' : '#949ba4', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {passLength ? <Check size={12} /> : <X size={12} />} Mínimo 8 caracteres
+                </span>
+                <span style={{ color: passUpper && passLower ? '#23a55a' : '#949ba4', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {passUpper && passLower ? <Check size={12} /> : <X size={12} />} Mayúsculas y minúsculas
+                </span>
+                <span style={{ color: passNumber ? '#23a55a' : '#949ba4', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {passNumber ? <Check size={12} /> : <X size={12} />} Al menos un número
+                </span>
               </div>
             </div>
 
-            {/* Terms of Service Checkbox */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 4 }}>
-              <input
-                type="checkbox"
-                id="terms-check"
-                checked={agreeTerms}
-                onChange={(e) => setAgreeTerms(e.target.checked)}
-                style={{
-                  marginTop: 2,
-                  accentColor: '#5865f2',
-                  cursor: 'pointer',
-                  width: 16,
-                  height: 16,
-                }}
-              />
-              <label
-                htmlFor="terms-check"
-                style={{
-                  fontSize: 12,
-                  color: '#b5bac1',
-                  lineHeight: 1.4,
-                  cursor: 'pointer',
-                }}
-              >
-                I agree to Discordia&apos;s{' '}
-                <span style={{ color: '#00a8fc' }}>Terms of Service</span> and acknowledge having read the{' '}
-                <span style={{ color: '#00a8fc' }}>Privacy Policy</span>.
+            <div style={{ marginBottom: '22px' }}>
+              <label style={labelStyle}>
+                CONFIRMAR CONTRASEÑA <span style={{ color: '#ed4245' }}>*</span>
               </label>
-            </div>
-
-            {/* Create Account Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                backgroundColor: '#5865f2',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                marginTop: 8,
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#4752c4';
-              }}
-              onMouseLeave={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#5865f2';
-              }}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                  Creating Account...
-                </>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-
-            {/* Link back to login */}
-            <div style={{ fontSize: 13, color: '#949ba4', marginTop: 4 }}>
-              Already have an account?{' '}
-              <button
-                type="button"
-                onClick={() => handleNavigate('login')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#00a8fc',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
-              >
-                Sign In
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* 3. FORGOT PASSWORD SCREEN */}
-        {screen === 'forgot' && (
-          <form onSubmit={handleForgotSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: '#b5bac1',
-                  marginBottom: 6,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                Registered Email Address <span style={{ color: '#da373c' }}>*</span>
-              </label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Mail
-                  size={18}
-                  style={{ position: 'absolute', left: 12, color: '#949ba4', pointerEvents: 'none' }}
-                />
+              <div style={inputWrapperStyle}>
+                <Lock size={16} color="#949ba4" style={{ marginRight: '8px' }} />
                 <input
-                  type="email"
+                  type={showRegConfirmPassword ? 'text' : 'password'}
+                  value={regConfirmPassword}
+                  onChange={(e) => setRegConfirmPassword(e.target.value)}
+                  placeholder="Repite tu contraseña"
+                  style={innerInputStyle}
+                  disabled={isSubmitting}
+                  autoComplete="new-password"
                   required
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="name@domain.com"
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#1e1f22',
-                    color: '#dbdee1',
-                    border: '1px solid rgba(0, 0, 0, 0.3)',
-                    borderRadius: 6,
-                    padding: '10px 12px 10px 38px',
-                    fontSize: 14,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowRegConfirmPassword((v) => !v)}
+                  style={eyeButtonStyle}
+                  aria-label="Alternar visibilidad"
+                >
+                  {showRegConfirmPassword ? <EyeOff size={16} color="#949ba4" /> : <Eye size={16} color="#949ba4" />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={isLoading}
+              data-testid="btn-submit-register"
+              disabled={isSubmitting}
               style={{
-                width: '100%',
-                padding: '12px 16px',
-                backgroundColor: '#5865f2',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: isLoading ? 'not-allowed' : 'pointer',
+                ...primaryButton,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
-                marginTop: 4,
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#4752c4';
-              }}
-              onMouseLeave={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#5865f2';
+                gap: '8px',
+                fontSize: '15px',
               }}
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 <>
-                  <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                  Sending link...
+                  <Loader2 className="animate-spin" size={18} />
+                  <span>Creando cuenta...</span>
                 </>
               ) : (
-                'Send Reset Link'
+                <>
+                  <UserPlus size={18} />
+                  <span>Crear Cuenta y Entrar</span>
+                </>
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleNavigate('login')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#00a8fc',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
-            >
-              <ArrowLeft size={14} /> Back to Sign In
             </button>
           </form>
         )}
 
-        {/* 4. 2FA SCREEN */}
-        {screen === '2fa' && (
-          <form onSubmit={handle2FASubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                backgroundColor: 'rgba(88, 101, 242, 0.1)',
-                padding: '12px',
-                borderRadius: 8,
-                border: '1px solid rgba(88, 101, 242, 0.2)',
-              }}
-            >
-              <ShieldCheck size={20} color="#5865f2" />
-              <span style={{ fontSize: 13, color: '#dbdee1' }}>
-                {useBackupCode ? 'Backup Code Verification' : 'Authenticator Code'}
-              </span>
-            </div>
-
-            {!useBackupCode ? (
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    textAlign: 'center',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: '#b5bac1',
-                    marginBottom: 12,
-                  }}
-                >
-                  Enter 6-Digit Code
-                </label>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  {twoFactorCode.map((digit, index) => (
-                    <input
-                      key={index}
-                      id={`2fa-digit-${index}`}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleDigitChange(index, e.target.value)}
-                      onKeyDown={(e) => handleDigitKeyDown(index, e)}
-                      onPaste={index === 0 ? handleDigitPaste : undefined}
-                      style={{
-                        width: 44,
-                        height: 52,
-                        backgroundColor: '#1e1f22',
-                        border: '2px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: 8,
-                        textAlign: 'center',
-                        fontSize: 22,
-                        fontWeight: 700,
-                        color: '#f2f3f5',
-                        outline: 'none',
-                        transition: 'border-color 0.2s',
-                      }}
-                      onFocus={(e) => (e.currentTarget.style.borderColor = '#5865f2')}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)')}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: '#b5bac1',
-                    marginBottom: 6,
-                  }}
-                >
-                  8-Character Backup Code
-                </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <KeyRound
-                    size={18}
-                    style={{ position: 'absolute', left: 12, color: '#949ba4', pointerEvents: 'none' }}
-                  />
-                  <input
-                    type="text"
-                    required
-                    maxLength={10}
-                    value={backupCode}
-                    onChange={(e) => setBackupCode(e.target.value.toUpperCase())}
-                    placeholder="ABCD-1234"
-                    style={{
-                      width: '100%',
-                      backgroundColor: '#1e1f22',
-                      color: '#dbdee1',
-                      border: '1px solid rgba(0, 0, 0, 0.3)',
-                      borderRadius: 6,
-                      padding: '10px 12px 10px 38px',
-                      fontSize: 15,
-                      fontFamily: 'JetBrains Mono, monospace',
-                      letterSpacing: '0.1em',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Toggle Backup Code vs 6 Digits */}
-            <div style={{ textAlign: 'center' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  clearMessages();
-                  setUseBackupCode(!useBackupCode);
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#00a8fc',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
-              >
-                {useBackupCode ? 'Use 6-digit Authenticator Code instead' : 'Lost your device? Use a backup code'}
-              </button>
-            </div>
-
-            {/* Verify Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                backgroundColor: '#5865f2',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 6,
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#4752c4';
-              }}
-              onMouseLeave={(e) => {
-                if (!isLoading) e.currentTarget.style.backgroundColor = '#5865f2';
-              }}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
-                  Verifying...
-                </>
-              ) : (
-                'Verify'
-              )}
-            </button>
-
-            {/* Cancel back to login */}
-            <button
-              type="button"
-              onClick={() => handleNavigate('login')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#949ba4',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#dbdee1')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#949ba4')}
-            >
-              <ArrowLeft size={14} /> Back to Sign In
-            </button>
-          </form>
-        )}
+        <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <p style={{ fontSize: '11px', color: '#80848e', textAlign: 'center', lineHeight: 1.4 }}>
+            🔒 Tus credenciales se gestionan con cifrado de nivel empresarial. Al registrarte o iniciar sesión, accederás directamente a tus servidores y canales.
+          </p>
+        </div>
       </div>
-
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: scale(0.98); }
-          to { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
     </div>
   );
 };
 
-export default AuthView;
+// ==========================================
+// Estilos Inline
+// ==========================================
+
+const fullScreenCenter: React.CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  width: '100vw',
+  height: '100vh',
+  backgroundColor: '#1e1f22',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1000,
+  padding: '16px',
+};
+
+const cardStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '440px',
+  backgroundColor: '#313338',
+  borderRadius: '12px',
+  padding: '28px 32px',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
+  border: '1px solid rgba(255, 255, 255, 0.05)',
+};
+
+const tabsContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  marginBottom: '18px',
+};
+
+const tabButtonStyle: React.CSSProperties = {
+  flex: 1,
+  padding: '10px 0',
+  fontSize: '14px',
+  textAlign: 'center',
+  cursor: 'pointer',
+  background: 'none',
+  border: 'none',
+  transition: 'all 0.15s ease',
+};
+
+const iconCircle: React.CSSProperties = {
+  width: '60px',
+  height: '60px',
+  borderRadius: '50%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  margin: '0 auto 16px',
+};
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '11px',
+  fontWeight: 700,
+  color: '#b5bac1',
+  marginBottom: '6px',
+  letterSpacing: '0.02em',
+  textTransform: 'uppercase',
+};
+
+const inputWrapperStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  backgroundColor: '#1e1f22',
+  border: '1px solid rgba(0, 0, 0, 0.3)',
+  borderRadius: '4px',
+  padding: '0 12px',
+};
+
+const innerInputStyle: React.CSSProperties = {
+  flex: 1,
+  backgroundColor: 'transparent',
+  border: 'none',
+  padding: '10px 0',
+  color: '#f2f3f5',
+  fontSize: '14px',
+  outline: 'none',
+};
+
+const eyeButtonStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  cursor: 'pointer',
+  padding: '4px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  backgroundColor: '#1e1f22',
+  border: '1px solid transparent',
+  borderRadius: '4px',
+  padding: '10px 12px',
+  color: '#f2f3f5',
+  fontSize: '14px',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
+
+const primaryButton: React.CSSProperties = {
+  width: '100%',
+  backgroundColor: 'var(--brand, #5865f2)',
+  color: '#ffffff',
+  border: 'none',
+  borderRadius: '4px',
+  padding: '12px 16px',
+  fontWeight: 600,
+  cursor: 'pointer',
+  transition: 'background-color 0.15s ease',
+};
+
+const secondaryButton: React.CSSProperties = {
+  width: '100%',
+  backgroundColor: '#4e5058',
+  color: '#ffffff',
+  border: 'none',
+  borderRadius: '4px',
+  padding: '12px 16px',
+  fontWeight: 600,
+  cursor: 'pointer',
+  transition: 'background-color 0.15s ease',
+};
+
+const errorAlertStyle: React.CSSProperties = {
+  backgroundColor: 'rgba(237, 66, 69, 0.15)',
+  border: '1px solid #ed4245',
+  borderRadius: '4px',
+  padding: '10px 14px',
+  color: '#fa777c',
+  fontSize: '13px',
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: '10px',
+  marginBottom: '16px',
+};
+
+const mockBannerStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '20px',
+  backgroundColor: '#f0b232',
+  color: '#000000',
+  padding: '8px 16px',
+  borderRadius: '20px',
+  fontSize: '13px',
+  fontWeight: 600,
+  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+};

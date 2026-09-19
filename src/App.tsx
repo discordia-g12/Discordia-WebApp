@@ -4,7 +4,6 @@ import {
   User,
   Status,
   AppView,
-  AuthScreen,
   Modal,
   ConfirmAction,
   Message,
@@ -45,6 +44,8 @@ import {
   ServerSettings,
   UserSettings,
 } from './views';
+
+import { useSession, bootstrap, authService } from './auth/session';
 
 /**
  * Hook para detectar si el viewport corresponde a un dispositivo móvil (<768px).
@@ -149,10 +150,26 @@ function ToastNotification({
 
 export default function App() {
   const isMobile = useIsMobile();
+  const { status, profile } = useSession();
 
-  // Estados principales de navegación y sesión
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
-  const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
+  // Inicialización de sesión con protección contra StrictMode
+  useEffect(() => {
+    bootstrap();
+  }, []);
+
+  // Sincronizar usuario activo cuando se carga el perfil del backend
+  useEffect(() => {
+    if (profile) {
+      setCurrentUser((prev) => ({
+        ...prev,
+        ...profile,
+        displayName: profile.displayName || profile.display_name || profile.username,
+        avatar: profile.avatar || profile.avatar_url || prev.avatar,
+      }));
+    }
+  }, [profile]);
+
+  // Estados principales de navegación y servidor
   const [currentUser, setCurrentUser] = useState<User>(() => USERS[CURRENT_USER_ID] || Object.values(USERS)[0]);
   const [servers, setServers] = useState<Server[]>(() => [...SERVERS]);
   const [selectedServerId, setSelectedServerId] = useState<string | 'home'>('s1');
@@ -478,26 +495,13 @@ export default function App() {
 
   // Cerrar sesión
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    setAuthScreen('login');
+    authService.logout();
     showToast('Sesión cerrada', 'info');
   };
 
-  // Si no está autenticado, renderizar AuthView
-  if (!isAuthenticated) {
-    return (
-      <AuthView
-        initialScreen={authScreen}
-        onSuccess={(user) => {
-          setCurrentUser(user);
-          setIsAuthenticated(true);
-          showToast(`¡Bienvenido de nuevo, ${user.displayName || user.name}!`, 'success');
-        }}
-        onCancel={() => {
-          setIsAuthenticated(true);
-        }}
-      />
-    );
+  // Si no está autenticado (bootstrapping, unauthenticated, needs_profile, suspended, error), renderizar AuthView
+  if (status !== 'authenticated') {
+    return <AuthView />;
   }
 
   // Shell móvil para pantallas menores a 768px
