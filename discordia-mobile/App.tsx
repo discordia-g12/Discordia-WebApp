@@ -1,18 +1,17 @@
-import React, { useState } from 'react';
-import MobileShell from './src/components/MobileShell';
-import AuthView from './src/views/AuthView';
+import React from 'react'
+import { AppProviders, useAuth } from './src/providers/AppProviders'
+import MobileShell from './src/components/MobileShell'
+import AuthView from './src/views/AuthView'
+
+function Root() {
+  const { isAuthenticated } = useAuth()
+  return isAuthenticated ? <MobileShell /> : <AuthView />
+}
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  const handleAuthSuccess = (user: any) => {
-    console.log("Usuario autenticado:", user.username);
-    setIsAuthenticated(true);
-  };
-
-  if (!isAuthenticated) {
-    return <AuthView onSuccess={handleAuthSuccess} />;
-  }
-
-  return <MobileShell />;
+  return (
+    <AppProviders>
+      <Root />
+    </AppProviders>
+  )
 }
