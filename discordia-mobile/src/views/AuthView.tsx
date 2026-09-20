@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Eye, EyeOff } from 'lucide-react-native'
 import { useAuth } from '../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../theme'
 
@@ -20,12 +21,15 @@ export default function AuthView() {
   // Campos Login
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   // Campos Registro
   const [regUsername, setRegUsername] = useState('')
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
+  const [showRegPassword, setShowRegPassword] = useState(false)
   const [regConfirmPassword, setRegConfirmPassword] = useState('')
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false)
 
   // Campos Recuperación
   const [forgotEmail, setForgotEmail] = useState('')
@@ -59,8 +63,15 @@ export default function AuthView() {
       setErrorMessage('Las contraseñas no coinciden.')
       return
     }
-    if (regPassword.length < 6) {
-      setErrorMessage('La contraseña debe tener al menos 6 caracteres.')
+    const passLength = regPassword.length >= 8
+    const passUpper = /[A-Z]/.test(regPassword)
+    const passLower = /[a-z]/.test(regPassword)
+    const passNumber = /[0-9]/.test(regPassword)
+
+    if (!passLength || !passUpper || !passLower || !passNumber) {
+      setErrorMessage(
+        'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.'
+      )
       return
     }
     try {
@@ -133,32 +144,60 @@ export default function AuthView() {
                 />
 
                 <Text style={styles.label}>Contraseña</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textDim}
-                  secureTextEntry
-                  value={regPassword}
-                  onChangeText={(val) => {
-                    clearErrors()
-                    setRegPassword(val)
-                  }}
-                  editable={!isLoading}
-                />
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="••••••••"
+                    placeholderTextColor={colors.textDim}
+                    secureTextEntry={!showRegPassword}
+                    value={regPassword}
+                    onChangeText={(val) => {
+                      clearErrors()
+                      setRegPassword(val)
+                    }}
+                    editable={!isLoading}
+                  />
+                  <Pressable
+                    style={styles.eyeButton}
+                    onPress={() => setShowRegPassword((v) => !v)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel={showRegPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  >
+                    {showRegPassword ? (
+                      <EyeOff size={18} color={colors.textDim} />
+                    ) : (
+                      <Eye size={18} color={colors.textDim} />
+                    )}
+                  </Pressable>
+                </View>
 
                 <Text style={styles.label}>Confirmar contraseña</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textDim}
-                  secureTextEntry
-                  value={regConfirmPassword}
-                  onChangeText={(val) => {
-                    clearErrors()
-                    setRegConfirmPassword(val)
-                  }}
-                  editable={!isLoading}
-                />
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="••••••••"
+                    placeholderTextColor={colors.textDim}
+                    secureTextEntry={!showRegConfirmPassword}
+                    value={regConfirmPassword}
+                    onChangeText={(val) => {
+                      clearErrors()
+                      setRegConfirmPassword(val)
+                    }}
+                    editable={!isLoading}
+                  />
+                  <Pressable
+                    style={styles.eyeButton}
+                    onPress={() => setShowRegConfirmPassword((v) => !v)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel={showRegConfirmPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  >
+                    {showRegConfirmPassword ? (
+                      <EyeOff size={18} color={colors.textDim} />
+                    ) : (
+                      <Eye size={18} color={colors.textDim} />
+                    )}
+                  </Pressable>
+                </View>
 
                 <Pressable
                   style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
@@ -269,18 +308,32 @@ export default function AuthView() {
                 />
 
                 <Text style={styles.label}>Contraseña</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textDim}
-                  secureTextEntry
-                  value={password}
-                  onChangeText={(val) => {
-                    clearErrors()
-                    setPassword(val)
-                  }}
-                  editable={!isLoading}
-                />
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                    style={styles.passwordInput}
+                    placeholder="••••••••"
+                    placeholderTextColor={colors.textDim}
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={(val) => {
+                      clearErrors()
+                      setPassword(val)
+                    }}
+                    editable={!isLoading}
+                  />
+                  <Pressable
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword((v) => !v)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} color={colors.textDim} />
+                    ) : (
+                      <Eye size={18} color={colors.textDim} />
+                    )}
+                  </Pressable>
+                </View>
 
                 <Pressable
                   style={styles.forgotLink}
@@ -406,6 +459,27 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 2,
     color: colors.text,
     fontSize: 15,
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    color: colors.text,
+    fontSize: 15,
+  },
+  eyeButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   forgotLink: { alignSelf: 'flex-end', marginTop: spacing.sm },
   forgotText: { ...typography.helperText, color: colors.accent },

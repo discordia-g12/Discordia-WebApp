@@ -145,16 +145,36 @@ export async function signupWithCredentials(
 
   const data = await res.json()
   if (!res.ok) {
-    const errorMsg = data.description || data.message || data.error || ''
+    // Manejo de contraseña débil devuelto por Auth0
+    if (data.name === 'PasswordStrengthError') {
+      const minLength =
+        data.description?.rules?.find((r: any) => r.code === 'lengthAtLeast')?.format?.[0] || 8
+      throw new Error(
+        `La contraseña debe tener al menos ${minLength} caracteres, mayúscula, minúscula y número.`
+      )
+    }
+
+    const rawError =
+      typeof data.description === 'string'
+        ? data.description
+        : typeof data.message === 'string'
+        ? data.message
+        : typeof data.error === 'string'
+        ? data.error
+        : ''
+
+    const errorMsg = rawError.toLowerCase()
     if (
       res.status === 400 &&
-      (errorMsg.toLowerCase().includes('already exists') ||
-        errorMsg.toLowerCase().includes('already registered') ||
-        data.code === 'user_exists')
+      (data.code === 'user_exists' ||
+        data.code === 'invalid_signup' ||
+        errorMsg.includes('already exists') ||
+        errorMsg.includes('already registered') ||
+        errorMsg.includes('sign up'))
     ) {
       throw new Error('El correo o nombre de usuario ya está en uso.')
     }
-    throw new Error(errorMsg || 'No se pudo completar el registro.')
+    throw new Error(rawError || 'No se pudo completar el registro.')
   }
 
   // Login automático tras registro exitoso
