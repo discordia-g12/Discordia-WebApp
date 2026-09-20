@@ -42,7 +42,6 @@ export const AuthView: React.FC<AuthViewProps> = () => {
 
   // Campos de Registro
   const [regUsername, setRegUsername] = useState('');
-  const [regDisplayName, setRegDisplayName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
@@ -103,7 +102,6 @@ export const AuthView: React.FC<AuthViewProps> = () => {
     setFormError(null);
 
     const username = regUsername.trim().toLowerCase();
-    const displayName = regDisplayName.trim();
     const email = regEmail.trim();
     const password = regPassword;
     const confirmPassword = regConfirmPassword;
@@ -123,7 +121,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
     // CA 4: Contraseña insegura (mínimo 8 caracteres, mayúscula, minúscula, número)
     if (!passLength || !passUpper || !passLower || !passNumber) {
       setFormError(
-        'La contraseña no cumple con los requisitos de seguridad: debe tener al menos 8 caracteres e incluir mayúsculas, minúsculas y un número.'
+        'La contraseña debe tener al menos 8 caracteres, mayúscula, minúscula y número.'
       );
       return;
     }
@@ -141,19 +139,20 @@ export const AuthView: React.FC<AuthViewProps> = () => {
         email,
         password,
         username,
-        displayName: displayName || username,
+        displayName: username,
       });
     } catch (err: any) {
       const msg = String(err?.message || '');
-      // CA 2: Email ya registrado
+      // CA 2: Email o nombre de usuario ya registrado
       if (
         msg.toLowerCase().includes('en uso') ||
         msg.toLowerCase().includes('already in use') ||
         msg.toLowerCase().includes('already exists') ||
         msg.toLowerCase().includes('invalid sign up') ||
-        msg.toLowerCase().includes('invalid_signup')
+        msg.toLowerCase().includes('invalid_signup') ||
+        msg.toLowerCase().includes('user_exists')
       ) {
-        setFormError('El correo ya está en uso.');
+        setFormError('El correo o nombre de usuario ya está en uso.');
       } else if (msg.toLowerCase().includes('requisitos de seguridad') || msg.toLowerCase().includes('password')) {
         // CA 4: Indicación de requisitos de contraseña si Auth0 tenant impone una política superior
         setFormError(msg);
@@ -558,19 +557,6 @@ export const AuthView: React.FC<AuthViewProps> = () => {
               </p>
             </div>
 
-            <div style={{ marginBottom: '14px' }}>
-              <label style={labelStyle}>NOMBRE PÚBLICO (OPCIONAL)</label>
-              <div style={inputWrapperStyle}>
-                <input
-                  type="text"
-                  value={regDisplayName}
-                  onChange={(e) => setRegDisplayName(e.target.value)}
-                  placeholder="ej: Alex Rivera"
-                  style={innerInputStyle}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
 
             <div style={{ marginBottom: '14px' }}>
               <label style={labelStyle}>

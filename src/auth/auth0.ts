@@ -213,20 +213,24 @@ export const auth0Provider: AuthProvider = {
 
     const data = await res.json();
     if (!res.ok) {
-      // Criterio de Aceptación Registro CA 2: Email ya registrado
+      // Criterio de Aceptación Registro CA 2: Email o nombre de usuario ya registrado
+      const descStr = typeof data.description === 'string' ? data.description.toLowerCase() : '';
       if (
         data.code === 'invalid_signup' ||
-        (typeof data.description === 'string' && data.description.toLowerCase().includes('sign up'))
+        data.code === 'user_exists' ||
+        descStr.includes('sign up') ||
+        descStr.includes('already exists') ||
+        descStr.includes('already registered')
       ) {
-        throw new Error('El correo electrónico ya está en uso.');
+        throw new Error('El correo o nombre de usuario ya está en uso.');
       }
 
       // Criterio de Aceptación Registro CA 4: Contraseña insegura
       if (data.name === 'PasswordStrengthError') {
         const minLength =
-          data.description?.rules?.find((r: any) => r.code === 'lengthAtLeast')?.format?.[0] || 15;
+          data.description?.rules?.find((r: any) => r.code === 'lengthAtLeast')?.format?.[0] || 8;
         throw new Error(
-          `La contraseña no cumple con los requisitos de seguridad (mínimo ${minLength} caracteres).`
+          `La contraseña debe tener al menos ${minLength} caracteres, mayúscula, minúscula y número.`
         );
       }
 

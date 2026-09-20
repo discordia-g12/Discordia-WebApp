@@ -55,10 +55,28 @@ export default function AuthView() {
 
   const handleRegister = async () => {
     clearErrors()
-    if (!regUsername.trim() || !regEmail.trim() || !regPassword || !regConfirmPassword) {
+    const username = regUsername.trim().toLowerCase()
+    const email = regEmail.trim()
+
+    if (!username || !email || !regPassword || !regConfirmPassword) {
       setErrorMessage('Por favor completá todos los campos.')
       return
     }
+
+    const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,32}$/
+    if (!USERNAME_REGEX.test(username)) {
+      setErrorMessage(
+        'El nombre de usuario debe tener entre 3 y 32 caracteres (solo letras, números, guiones o puntos).'
+      )
+      return
+    }
+
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!EMAIL_REGEX.test(email)) {
+      setErrorMessage('El formato del correo electrónico no es válido.')
+      return
+    }
+
     if (regPassword !== regConfirmPassword) {
       setErrorMessage('Las contraseñas no coinciden.')
       return
@@ -70,12 +88,12 @@ export default function AuthView() {
 
     if (!passLength || !passUpper || !passLower || !passNumber) {
       setErrorMessage(
-        'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.'
+        'La contraseña debe tener al menos 8 caracteres, mayúscula, minúscula y número.'
       )
       return
     }
     try {
-      await register(regUsername.trim(), regEmail.trim(), regPassword)
+      await register(username, email, regPassword)
     } catch (err: any) {
       setErrorMessage(err?.message || 'Error al crear la cuenta.')
     }

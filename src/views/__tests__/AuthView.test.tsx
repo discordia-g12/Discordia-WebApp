@@ -62,7 +62,7 @@ describe('AuthView Component - Criterios de Aceptación', () => {
 
       fireEvent.click(screen.getByTestId('btn-submit-register'));
 
-      const errorMsg = await screen.findByText(/la contraseña no cumple con los requisitos de seguridad/i);
+      const errorMsg = await screen.findByText(/la contraseña debe tener al menos 8 caracteres/i);
       expect(errorMsg).toBeTruthy();
     });
 
@@ -88,7 +88,7 @@ describe('AuthView Component - Criterios de Aceptación', () => {
 
       fireEvent.click(screen.getByTestId('btn-submit-register'));
 
-      const errorMsg = await screen.findByText(/el correo ya está en uso/i);
+      const errorMsg = await screen.findByText(/el correo o nombre de usuario ya está en uso/i);
       expect(errorMsg).toBeTruthy();
     });
 
