@@ -17,6 +17,7 @@ import {
   Hash,
   Mic,
   MicOff,
+  LogOut,
   MessageCircle,
   Plus,
   Search,
@@ -24,7 +25,7 @@ import {
   UserPlus,
   Volume2,
 } from 'lucide-react-native'
-import { useData, useUI } from '../providers/AppProviders'
+import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../theme'
 import { statusColor } from '../theme/colors'
 import type { Category, Channel, Message } from '../types'
@@ -34,7 +35,16 @@ type MobileScreen = 'sidebar' | 'chat'
 const RAIL_WIDTH = 72
 
 export default function MobileShell() {
-  const { users, servers, messages, notifications, currentUserId, sendMessage } = useData()
+  const { logout } = useAuth()
+  const {
+    users,
+    servers,
+    messages,
+    notifications,
+    currentUserId,
+    sendMessage,
+    fetchChannelMessages,
+  } = useData()
   const {
     selectedServerId,
     selectedChannelId,
@@ -51,16 +61,23 @@ export default function MobileShell() {
   const allChannels: Channel[] = server ? server.categories.flatMap(c => c.channels) : []
   const channel = allChannels.find(c => c.id === selectedChannelId) ?? null
   const channelMessages: Message[] = channel ? messages[channel.id] ?? [] : []
-  const me = users[currentUserId]
+  const me = users[currentUserId] ?? {
+    id: currentUserId,
+    name: 'Usuario',
+    username: 'usuario',
+    avatar: null,
+    color: colors.accent,
+    status: 'online' as const,
+    joinedAt: '',
+  }
   const hasUnreadNotifications = useMemo(() => notifications.some(n => !n.read), [notifications])
 
   const handleSelectServer = (id: string) => selectServer(id)
 
   const handleSelectChannel = (ch: Channel) => {
     selectChannel(ch.id)
+    fetchChannelMessages(ch.id)
     if (ch.type !== 'voice') setScreen('chat')
-    // Canales de voz: la interfaz de llamada es una fase aparte, por ahora
-    // solo queda marcado como seleccionado.
   }
 
   const toggleCategory = (id: string) =>
@@ -218,6 +235,9 @@ export default function MobileShell() {
               <Pressable style={styles.iconButton}>
                 <Bell color={colors.text} size={18} />
                 {hasUnreadNotifications && <View style={styles.bellDot} />}
+              </Pressable>
+              <Pressable style={styles.iconButton} onPress={logout}>
+                <LogOut color={colors.textMuted} size={18} />
               </Pressable>
             </View>
           </View>

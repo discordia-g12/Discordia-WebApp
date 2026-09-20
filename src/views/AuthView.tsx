@@ -385,13 +385,29 @@ export const AuthView: React.FC<AuthViewProps> = () => {
           >
             <Sparkles size={28} color="#ffffff" />
           </div>
-          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#f2f3f5', marginBottom: '6px' }}>
-            {activeTab === 'login' ? '¡Te damos la bienvenida!' : 'Crear una cuenta'}
+          <h1
+            style={{
+              fontSize: '24px',
+              fontWeight: 800,
+              color: '#f2f3f5',
+              marginBottom: '6px',
+              lineHeight: '32px',
+              padding: '2px 0',
+            }}
+          >
+            {activeTab === 'login' ? 'Bienvenido de nuevo' : 'Crear una cuenta'}
           </h1>
-          <p style={{ fontSize: '13px', color: '#949ba4' }}>
+          <p
+            style={{
+              fontSize: '14px',
+              color: '#949ba4',
+              lineHeight: '20px',
+              margin: 0,
+            }}
+          >
             {activeTab === 'login'
-              ? 'Nos alegra verte de nuevo. Ingresa tus credenciales.'
-              : 'Regístrate para chatear, unirte y crear comunidades.'}
+              ? '¡Nos alegra verte otra vez!'
+              : '¡Comenzá a conversar y compartir con tu comunidad!'}
           </p>
         </div>
 
@@ -669,12 +685,6 @@ export const AuthView: React.FC<AuthViewProps> = () => {
             </button>
           </form>
         )}
-
-        <div style={{ marginTop: '20px', paddingTop: '14px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <p style={{ fontSize: '11px', color: '#80848e', textAlign: 'center', lineHeight: 1.4 }}>
-            🔒 Tus credenciales se gestionan con cifrado de nivel empresarial. Al registrarte o iniciar sesión, accederás directamente a tus servidores y canales.
-          </p>
-        </div>
       </div>
     </div>
   );

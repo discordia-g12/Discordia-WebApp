@@ -1,4 +1,11 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import {
   USERS,
   SERVERS,
@@ -17,6 +24,8 @@ import type {
   Notification,
   AuditEntry,
 } from '../types'
+import { useAuth } from './AuthProvider'
+import { apiFetch } from '../api/client'
 
 interface DataContextValue {
   currentUserId: string
@@ -28,47 +37,150 @@ interface DataContextValue {
   notifications: Notification[]
   auditLog: AuditEntry[]
 
-  // Mutaciones locales — solo cambian el estado en memoria, no hay backend.
+  // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string) => void
   editMessage: (channelId: string, messageId: string, content: string) => void
   deleteMessage: (channelId: string, messageId: string) => void
   toggleReaction: (channelId: string, messageId: string, emoji: string) => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
+  fetchChannelMessages: (channelId: string) => Promise<void>
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
 
-// TODO(persistencia opcional): si en algún momento quieren que el estado
-// sobreviva a reinicios de la app, acá es donde se leería/escribiría con
-// @react-native-async-storage/async-storage — guardando solo lo que cambió
-// (ej. `messages`), no todo el mock de una.
-
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [users] = useState<Record<string, User>>(USERS)
-  const [servers] = useState<Server[]>(SERVERS)
+  const { token, userProfile } = useAuth()
+
+  // Determinar ID de usuario actual según autenticación real o fallback
+  const activeUserId = userProfile?.id || CURRENT_USER_ID
+
+  const [users, setUsers] = useState<Record<string, User>>(USERS)
+  const [servers, setServers] = useState<Server[]>(SERVERS)
   const [messages, setMessages] = useState<Record<string, Message[]>>(MESSAGES)
   const [directMessages] = useState<DirectMessage[]>(DIRECT_MESSAGES)
   const [dmMessages, setDmMessages] = useState<Record<string, Message[]>>(DM_MESSAGES)
   const [notifications, setNotifications] = useState<Notification[]>(NOTIFICATIONS)
   const [auditLog] = useState<AuditEntry[]>(AUDIT_LOG)
 
+  // Sincronizar el perfil del usuario autenticado en el diccionario de usuarios
+  useEffect(() => {
+    if (!userProfile) return
+    const profileUser: User = {
+      id: userProfile.id,
+      name: userProfile.display_name || userProfile.username,
+      username: userProfile.username,
+      avatar: userProfile.avatar_url || null,
+      color: '#7c5cfc',
+      status: (userProfile.activity_status as any) || 'online',
+      customStatus: userProfile.custom_status,
+      bio: userProfile.bio,
+      joinedAt: new Date().toISOString(),
+    }
+    setUsers(prev => ({
+      ...prev,
+      [userProfile.id]: profileUser,
+    }))
+  }, [userProfile])
+
+  // Carga inicial de servidores desde el backend si el token está disponible
+  useEffect(() => {
+    if (!token) return
+
+    apiFetch<any[]>('/api/v1/servers')
+      .then(serverList => {
+        if (Array.isArray(serverList) && serverList.length > 0) {
+          // Adaptar servidores del backend manteniendo estructura compatible
+          const mapped: Server[] = serverList.map((s, idx) => ({
+            id: s.id || `srv-${idx}`,
+            name: s.name,
+            icon: s.icon_url || s.icon || null,
+            color: s.color || '#5865f2',
+            ownerId: s.owner_id || s.ownerId || activeUserId,
+            memberCount: s.member_count || s.members?.length || 1,
+            boostLevel: s.boost_level || 0,
+            boostCount: s.boost_count || 0,
+            categories: s.categories || [
+              {
+                id: `cat-${s.id}-gen`,
+                name: 'GENERAL',
+                channels: [
+                  { id: `ch-${s.id}-general`, name: 'general', type: 'text' },
+                ],
+              },
+            ],
+            members: Array.isArray(s.members) ? s.members : [activeUserId],
+            roles: s.roles || [],
+          }))
+          setServers(mapped)
+        }
+      })
+      .catch(() => {
+        // En caso de que el backend no tenga servidores o falle, conserva los mocks por defecto
+      })
+  }, [token])
+
   const isDm = useCallback((channelId: string) => channelId.startsWith('dm-'), [])
+
+  // Consulta de mensajes de canal en Chat-Engine-Service
+  const fetchChannelMessages = useCallback(
+    async (channelId: string) => {
+      if (!token || isDm(channelId)) return
+      try {
+        const rawMessages = await apiFetch<any[]>(
+          `/api/v1/chat/channels/${channelId}/messages?limit=50`,
+        )
+        if (Array.isArray(rawMessages)) {
+          const formatted: Message[] = rawMessages.map(m => ({
+            id: m.id || m._id || `msg-${Date.now()}`,
+            channelId: m.channel_id || m.channelId || channelId,
+            userId: m.user_id || m.userId || activeUserId,
+            content: m.content || '',
+            timestamp: m.created_at || m.timestamp || new Date().toISOString(),
+            type: m.type || 'normal',
+          }))
+          setMessages(prev => ({ ...prev, [channelId]: formatted }))
+        }
+      } catch {
+        // En caso de error, se preservan los mensajes locales en memoria
+      }
+    },
+    [token, activeUserId, isDm],
+  )
 
   const sendMessage = useCallback(
     (channelId: string, content: string) => {
+      const clientMessageId = `local-${Date.now()}`
       const newMessage: Message = {
-        id: `local-${Date.now()}`,
+        id: clientMessageId,
         channelId,
-        userId: CURRENT_USER_ID,
+        userId: activeUserId,
         content,
         timestamp: new Date().toISOString(),
         type: 'normal',
       }
+
+      // 1. Actualización optimista inmediata en la UI
       const setter = isDm(channelId) ? setDmMessages : setMessages
-      setter(prev => ({ ...prev, [channelId]: [...(prev[channelId] ?? []), newMessage] }))
+      setter(prev => ({
+        ...prev,
+        [channelId]: [...(prev[channelId] ?? []), newMessage],
+      }))
+
+      // 2. Envío asíncrono al backend si existe token activo y no es DM mock
+      if (token && !isDm(channelId)) {
+        apiFetch(`/api/v1/chat/channels/${channelId}/messages`, {
+          method: 'POST',
+          body: {
+            content,
+            clientMessageId,
+          },
+        }).catch(() => {
+          // El mensaje ya quedó de forma optimista en la interfaz
+        })
+      }
     },
-    [isDm],
+    [activeUserId, isDm, token],
   )
 
   const editMessage = useCallback(
@@ -90,7 +202,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setter(prev => ({
         ...prev,
         [channelId]: (prev[channelId] ?? []).map(m =>
-          m.id === messageId ? { ...m, type: 'deleted', content: '[This message was deleted]' } : m,
+          m.id === messageId
+            ? { ...m, type: 'deleted', content: '[This message was deleted]' }
+            : m,
         ),
       }))
     },
@@ -134,7 +248,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<DataContextValue>(
     () => ({
-      currentUserId: CURRENT_USER_ID,
+      currentUserId: activeUserId,
       users,
       servers,
       messages,
@@ -148,8 +262,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toggleReaction,
       markNotificationRead,
       markAllNotificationsRead,
+      fetchChannelMessages,
     }),
     [
+      activeUserId,
       users,
       servers,
       messages,
@@ -163,6 +279,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toggleReaction,
       markNotificationRead,
       markAllNotificationsRead,
+      fetchChannelMessages,
     ],
   )
 
