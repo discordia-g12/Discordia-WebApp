@@ -134,6 +134,36 @@ export interface Role {
   memberCount?: number;
 }
 
+/** DTO de canal retornado por Server-Roles-Core-Service */
+export interface ChannelBackendResponse {
+  id: string;
+  name: string;
+  type: ChannelType;
+  server_id: string;
+  category_id?: string | null;
+  position: number;
+}
+
+/** DTO de servidor retornado por Server-Roles-Core-Service */
+export interface ServerBackendResponse {
+  id: string;
+  name: string;
+  owner_id: string;
+  description?: string | null;
+  icon_url?: string | null;
+  created_at: string;
+  channels: ChannelBackendResponse[];
+}
+
+/** DTO de mensaje retornado por Chat-Engine-Service */
+export interface MessageBackendPayload {
+  id: string;
+  content: string;
+  authorId: string;
+  channelId: string;
+  createdAt: string;
+}
+
 /** Canal individual perteneciente a una categoría de servidor. */
 export interface Channel {
   id: string;
@@ -141,7 +171,7 @@ export interface Channel {
   name: string;
   type: ChannelType;
   topic?: string;
-  categoryId?: string;
+  categoryId?: string | null;
   position?: number;
   isPrivate?: boolean;
   unreadCount?: number;
@@ -166,12 +196,13 @@ export interface Category {
 export interface Server {
   id: string;
   name: string;
+  ownerId: string;
   icon?: string;
   iconUrl?: string;
   banner?: string;
   color?: string;
   description?: string;
-  ownerId: string;
+  channels?: Channel[];
   categories: Category[];
   roles: Role[];
   members: User[];
@@ -189,15 +220,16 @@ export interface Server {
 /** Mensaje individual publicado en un canal o chat directo. */
 export interface Message {
   id: string;
-  channelId: string;
+  content: string;
   authorId: string;
+  channelId: string;
+  createdAt?: string;
+  timestamp: string;
   userId?: string;
   author?: User;
-  content: string;
-  timestamp: string;
   editedTimestamp?: string | null;
   edited?: boolean;
-  type: MessageType;
+  type?: MessageType;
   reactions?: Reaction[];
   attachments?: MessageAttachment[];
   embeds?: MessageEmbed[];

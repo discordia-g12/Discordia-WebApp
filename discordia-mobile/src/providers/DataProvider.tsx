@@ -19,6 +19,7 @@ import {
 import type {
   User,
   Server,
+  ServerBackendResponse,
   Message,
   DirectMessage,
   Notification,
@@ -87,31 +88,42 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!token) return
 
-    apiFetch<any[]>('/api/v1/servers')
+    apiFetch<ServerBackendResponse[]>('/api/v1/servers')
       .then(serverList => {
         if (Array.isArray(serverList) && serverList.length > 0) {
-          // Adaptar servidores del backend manteniendo estructura compatible
-          const mapped: Server[] = serverList.map((s, idx) => ({
-            id: s.id || `srv-${idx}`,
-            name: s.name,
-            icon: s.icon_url || s.icon || null,
-            color: s.color || '#5865f2',
-            ownerId: s.owner_id || s.ownerId || activeUserId,
-            memberCount: s.member_count || s.members?.length || 1,
-            boostLevel: s.boost_level || 0,
-            boostCount: s.boost_count || 0,
-            categories: s.categories || [
-              {
-                id: `cat-${s.id}-gen`,
-                name: 'GENERAL',
-                channels: [
-                  { id: `ch-${s.id}-general`, name: 'general', type: 'text' },
-                ],
-              },
-            ],
-            members: Array.isArray(s.members) ? s.members : [activeUserId],
-            roles: s.roles || [],
-          }))
+          const mapped: Server[] = serverList.map((s, idx) => {
+            const mappedChannels = (s.channels || []).map(ch => ({
+              id: ch.id,
+              name: ch.name,
+              type: ch.type,
+              serverId: ch.server_id,
+              categoryId: ch.category_id,
+              position: ch.position,
+            }))
+            return {
+              id: s.id || `srv-${idx}`,
+              name: s.name,
+              icon: s.icon_url || null,
+              iconUrl: s.icon_url || null,
+              color: '#7c5cfc',
+              ownerId: s.owner_id || activeUserId,
+              memberCount: 1,
+              boostLevel: 0,
+              boostCount: 0,
+              channels: mappedChannels,
+              categories: [
+                {
+                  id: `cat-${s.id}-gen`,
+                  name: 'GENERAL',
+                  channels: mappedChannels.length > 0 ? mappedChannels : [
+                    { id: `ch-${s.id}-general`, name: 'general', type: 'text' as const },
+                  ],
+                },
+              ],
+              members: [activeUserId],
+              roles: [],
+            }
+          })
           setServers(mapped)
         }
       })
@@ -127,20 +139,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     async (channelId: string) => {
       if (!token || isDm(channelId)) return
       try {
-        const rawMessages = await apiFetch<any[]>(
+        const response = await apiFetch<{ messages: any[] } | any[]>(
           `/api/v1/chat/channels/${channelId}/messages?limit=50`,
         )
-        if (Array.isArray(rawMessages)) {
-          const formatted: Message[] = rawMessages.map(m => ({
-            id: m.id || m._id || `msg-${Date.now()}`,
-            channelId: m.channel_id || m.channelId || channelId,
-            userId: m.user_id || m.userId || activeUserId,
-            content: m.content || '',
-            timestamp: m.created_at || m.timestamp || new Date().toISOString(),
-            type: m.type || 'normal',
-          }))
-          setMessages(prev => ({ ...prev, [channelId]: formatted }))
-        }
+        const rawList = Array.isArray(response) ? response : response?.messages || []
+        const formatted: Message[] = rawList.map(m => ({
+          id: m.id || m._id || `msg-${Date.now()}`,
+          channelId: m.channelId || m.channel_id || channelId,
+          userId: m.authorId || m.author_id || m.userId || m.user_id || activeUserId,
+          authorId: m.authorId || m.author_id || m.userId || activeUserId,
+          content: m.content || '',
+          createdAt: m.createdAt || m.created_at || m.timestamp || new Date().toISOString(),
+          timestamp: m.createdAt || m.created_at || m.timestamp || new Date().toISOString(),
+          type: m.type || 'normal',
+        }))
+        setMessages(prev => ({ ...prev, [channelId]: formatted }))
       } catch {
         // En caso de error, se preservan los mensajes locales en memoria
       }
@@ -155,8 +168,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         id: clientMessageId,
         channelId,
         userId: activeUserId,
+        authorId: activeUserId,
         content,
         timestamp: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
         type: 'normal',
       }
 

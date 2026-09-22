@@ -42,3 +42,12 @@ export function getApiBaseUrl(): string {
   return envUrl || 'http://localhost:8000'
 }
 
+/**
+ * Resuelve la URL base de WebSockets del Gateway a partir de getApiBaseUrl(),
+ * transformando 'http://' en 'ws://' y 'https://' en 'wss://'.
+ */
+export function getWsBaseUrl(): string {
+  const httpUrl = getApiBaseUrl()
+  return httpUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:')
+}
+

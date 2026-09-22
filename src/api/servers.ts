@@ -1,5 +1,5 @@
 import { api } from './client';
-import { Server, Channel } from '../types';
+import { Server, Channel, ServerBackendResponse, ChannelBackendResponse } from '../types';
 
 export interface CreateServerRequest {
   name: string;
@@ -14,23 +14,70 @@ export interface CreateChannelRequest {
 }
 
 /**
+ * Adaptador: Convierte un canal del backend (snake_case) al modelo de dominio (camelCase).
+ */
+export function mapChannelFromBackend(raw: ChannelBackendResponse): Channel {
+  return {
+    id: raw.id,
+    name: raw.name,
+    type: raw.type,
+    serverId: raw.server_id,
+    categoryId: raw.category_id || undefined,
+    position: raw.position,
+  };
+}
+
+/**
+ * Adaptador: Convierte un servidor del backend (snake_case) al modelo de dominio (camelCase).
+ */
+export function mapServerFromBackend(raw: ServerBackendResponse): Server {
+  const channels = (raw.channels || []).map(mapChannelFromBackend);
+  return {
+    id: raw.id,
+    name: raw.name,
+    ownerId: raw.owner_id,
+    iconUrl: raw.icon_url || undefined,
+    icon: raw.icon_url || undefined,
+    description: raw.description || undefined,
+    channels,
+    categories: [
+      {
+        id: `cat-${raw.id}-general`,
+        serverId: raw.id,
+        name: 'GENERAL',
+        channels,
+      },
+    ],
+    roles: [],
+    members: [],
+    boostLevel: 0,
+    boostCount: 0,
+    createdAt: raw.created_at,
+  };
+}
+
+/**
  * Consulta la lista de servidores a los que pertenece el usuario.
  */
 export async function getServers(): Promise<Server[]> {
-  return await api.get<Server[]>('/api/v1/servers');
+  const rawServers = await api.get<ServerBackendResponse[]>('/api/v1/servers');
+  return (rawServers || []).map(mapServerFromBackend);
 }
 
 /**
  * Crea un nuevo servidor en Server-Roles-Core-Service.
  */
 export async function createServer(payload: CreateServerRequest): Promise<Server> {
+  let raw: ServerBackendResponse;
   if (payload.icon) {
     const formData = new FormData();
     formData.append('name', payload.name);
     formData.append('icon', payload.icon);
-    return await api.post<Server>('/api/v1/servers', formData);
+    raw = await api.post<ServerBackendResponse>('/api/v1/servers', formData);
+  } else {
+    raw = await api.post<ServerBackendResponse>('/api/v1/servers', { name: payload.name });
   }
-  return await api.post<Server>('/api/v1/servers', { name: payload.name });
+  return mapServerFromBackend(raw);
 }
 
 /**
@@ -40,7 +87,8 @@ export async function createChannel(
   serverId: string,
   payload: CreateChannelRequest
 ): Promise<Channel> {
-  return await api.post<Channel>(`/api/v1/servers/${serverId}/channels`, payload);
+  const raw = await api.post<ChannelBackendResponse>(`/api/v1/servers/${serverId}/channels`, payload);
+  return mapChannelFromBackend(raw);
 }
 
 /**

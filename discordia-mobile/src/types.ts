@@ -65,15 +65,47 @@ export interface Role {
   permissions: Record<string, boolean>
 }
 
+/** DTO de canal retornado por Server-Roles-Core-Service */
+export interface ChannelBackendResponse {
+  id: string
+  name: string
+  type: ChannelType
+  server_id: string
+  category_id?: string | null
+  position: number
+}
+
+/** DTO de servidor retornado por Server-Roles-Core-Service */
+export interface ServerBackendResponse {
+  id: string
+  name: string
+  owner_id: string
+  description?: string | null
+  icon_url?: string | null
+  created_at: string
+  channels: ChannelBackendResponse[]
+}
+
+/** DTO de mensaje retornado por Chat-Engine-Service */
+export interface MessageBackendPayload {
+  id: string
+  content: string
+  authorId: string
+  channelId: string
+  createdAt: string
+}
+
 export interface Channel {
   id: string
   name: string
   type: ChannelType
+  serverId?: string
   topic?: string
+  categoryId?: string | null
   unread?: number
   mentions?: number
   participants?: string[]
-  position: number
+  position?: number
 }
 
 export interface Category {
@@ -86,19 +118,22 @@ export interface Category {
 export interface Server {
   id: string
   name: string
-  icon: string | null
-  color: string
   ownerId: string
+  icon: string | null
+  iconUrl?: string | null
+  color: string
   description?: string
-  memberCount: number
-  boostLevel: number
-  boostCount: number
+  channels?: Channel[]
   categories: Category[]
   roles: Role[]
   members: string[]
+  memberCount: number
+  boostLevel: number
+  boostCount: number
   unread?: boolean
   mentions?: number
   muted?: boolean
+  createdAt?: string
 }
 
 export interface Reaction {
@@ -109,12 +144,14 @@ export interface Reaction {
 
 export interface Message {
   id: string
+  content: string
   channelId: string
   userId: string
-  content: string
   timestamp: string
+  authorId?: string
+  createdAt?: string
   edited?: boolean
-  type: MessageType
+  type?: MessageType
   reactions?: Reaction[]
   imageUrl?: string
   fileAttachment?: { name: string; size: string; type: string }
