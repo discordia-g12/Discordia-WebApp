@@ -19,6 +19,7 @@ import {
 import type {
   User,
   Server,
+  Channel,
   ServerBackendResponse,
   Message,
   DirectMessage,
@@ -27,6 +28,11 @@ import type {
 } from '../types'
 import { useAuth } from './AuthProvider'
 import { apiFetch } from '../api/client'
+import {
+  getServers,
+  createServer as apiCreateServer,
+  createChannel as apiCreateChannel,
+} from '../api/servers'
 
 interface DataContextValue {
   currentUserId: string
@@ -37,6 +43,14 @@ interface DataContextValue {
   dmMessages: Record<string, Message[]>
   notifications: Notification[]
   auditLog: AuditEntry[]
+
+  // Servidores y canales en vivo
+  refreshServers: () => Promise<void>
+  createServer: (name: string, icon?: any) => Promise<Server>
+  createChannel: (
+    serverId: string,
+    data: { name: string; type: 'text' | 'voice'; categoryId?: string },
+  ) => Promise<Channel>
 
   // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string) => void
@@ -84,53 +98,58 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [userProfile])
 
-  // Carga inicial de servidores desde el backend si el token está disponible
-  useEffect(() => {
+  // Carga y sincronización de servidores desde el backend
+  const refreshServers = useCallback(async () => {
     if (!token) return
+    try {
+      const serverList = await getServers()
+      if (Array.isArray(serverList)) {
+        setServers(serverList)
+      }
+    } catch {
+      // Si falla la red o el endpoint no responde, conserva los existentes
+    }
+  }, [token])
 
-    apiFetch<ServerBackendResponse[]>('/api/v1/servers')
-      .then(serverList => {
-        if (Array.isArray(serverList) && serverList.length > 0) {
-          const mapped: Server[] = serverList.map((s, idx) => {
-            const mappedChannels = (s.channels || []).map(ch => ({
-              id: ch.id,
-              name: ch.name,
-              type: ch.type,
-              serverId: ch.server_id,
-              categoryId: ch.category_id,
-              position: ch.position,
-            }))
+  useEffect(() => {
+    refreshServers()
+  }, [refreshServers])
+
+  const createServer = useCallback(async (name: string, icon?: any): Promise<Server> => {
+    const newServer = await apiCreateServer({ name, icon })
+    setServers(prev => [...prev, newServer])
+    return newServer
+  }, [])
+
+  const createChannel = useCallback(
+    async (
+      serverId: string,
+      data: { name: string; type: 'text' | 'voice'; categoryId?: string },
+    ): Promise<Channel> => {
+      const newChannel = await apiCreateChannel(serverId, data)
+      setServers(prev =>
+        prev.map(srv => {
+          if (srv.id !== serverId) return srv
+          const updatedChannels = [...(srv.channels || []), newChannel]
+          const updatedCategories = srv.categories.map((cat, idx) => {
+            const isTarget = data.categoryId ? cat.id === data.categoryId : idx === 0
+            if (!isTarget && srv.categories.length > 1) return cat
             return {
-              id: s.id || `srv-${idx}`,
-              name: s.name,
-              icon: s.icon_url || null,
-              iconUrl: s.icon_url || null,
-              color: '#7c5cfc',
-              ownerId: s.owner_id || activeUserId,
-              memberCount: 1,
-              boostLevel: 0,
-              boostCount: 0,
-              channels: mappedChannels,
-              categories: [
-                {
-                  id: `cat-${s.id}-gen`,
-                  name: 'GENERAL',
-                  channels: mappedChannels.length > 0 ? mappedChannels : [
-                    { id: `ch-${s.id}-general`, name: 'general', type: 'text' as const },
-                  ],
-                },
-              ],
-              members: [activeUserId],
-              roles: [],
+              ...cat,
+              channels: [...cat.channels, newChannel],
             }
           })
-          setServers(mapped)
-        }
-      })
-      .catch(() => {
-        // En caso de que el backend no tenga servidores o falle, conserva los mocks por defecto
-      })
-  }, [token])
+          return {
+            ...srv,
+            channels: updatedChannels,
+            categories: updatedCategories,
+          }
+        }),
+      )
+      return newChannel
+    },
+    [],
+  )
 
   const isDm = useCallback((channelId: string) => channelId.startsWith('dm-'), [])
 
@@ -271,6 +290,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       dmMessages,
       notifications,
       auditLog,
+      refreshServers,
+      createServer,
+      createChannel,
       sendMessage,
       editMessage,
       deleteMessage,
@@ -288,6 +310,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       dmMessages,
       notifications,
       auditLog,
+      refreshServers,
+      createServer,
+      createChannel,
       sendMessage,
       editMessage,
       deleteMessage,

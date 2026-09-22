@@ -29,6 +29,8 @@ import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../theme'
 import { statusColor } from '../theme/colors'
 import type { Category, Channel, Message } from '../types'
+import CreateServerModal from './CreateServerModal'
+import CreateChannelModal from './CreateChannelModal'
 
 type MobileScreen = 'sidebar' | 'chat'
 
@@ -56,6 +58,9 @@ export default function MobileShell() {
   const [screen, setScreen] = useState<MobileScreen>('sidebar')
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [draft, setDraft] = useState('')
+  const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
+  const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
+  const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
 
   const server = servers.find(s => s.id === selectedServerId) ?? servers[0]
   const allChannels: Channel[] = server ? server.categories.flatMap(c => c.channels) : []
@@ -122,7 +127,10 @@ export default function MobileShell() {
                   </Pressable>
                 )
               })}
-              <Pressable style={styles.railAddButton}>
+              <Pressable
+                style={styles.railAddButton}
+                onPress={() => setCreateServerModalOpen(true)}
+              >
                 <Plus color={colors.online} size={20} />
               </Pressable>
             </ScrollView>
@@ -134,7 +142,18 @@ export default function MobileShell() {
               <Text style={styles.sidebarTitle} numberOfLines={1}>
                 {server?.name}
               </Text>
-              <ChevronDown color={colors.textMuted} size={16} />
+              {server && (
+                <Pressable
+                  style={styles.addChannelButton}
+                  onPress={() => {
+                    setChannelModalCategoryId(null)
+                    setCreateChannelModalOpen(true)
+                  }}
+                  hitSlop={8}
+                >
+                  <Plus color={colors.textMuted} size={18} />
+                </Pressable>
+              )}
             </View>
 
             <View style={styles.searchRow}>
@@ -160,17 +179,29 @@ export default function MobileShell() {
                 const isCollapsed = collapsed[category.id]
                 return (
                   <View style={{ marginBottom: spacing.sm }}>
-                    <Pressable
-                      style={styles.categoryHeader}
-                      onPress={() => toggleCategory(category.id)}
-                    >
-                      {isCollapsed ? (
-                        <ChevronRight color={colors.textMuted} size={12} />
-                      ) : (
-                        <ChevronDown color={colors.textMuted} size={12} />
-                      )}
-                      <Text style={styles.categoryTitle}>{category.name}</Text>
-                    </Pressable>
+                    <View style={styles.categoryHeaderRow}>
+                      <Pressable
+                        style={styles.categoryHeader}
+                        onPress={() => toggleCategory(category.id)}
+                      >
+                        {isCollapsed ? (
+                          <ChevronRight color={colors.textMuted} size={12} />
+                        ) : (
+                          <ChevronDown color={colors.textMuted} size={12} />
+                        )}
+                        <Text style={styles.categoryTitle}>{category.name}</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.addChannelButton}
+                        onPress={() => {
+                          setChannelModalCategoryId(category.id === 'default' ? null : category.id)
+                          setCreateChannelModalOpen(true)
+                        }}
+                        hitSlop={8}
+                      >
+                        <Plus color={colors.textMuted} size={14} />
+                      </Pressable>
+                    </View>
                     {!isCollapsed &&
                       category.channels.map(ch => {
                         const active = selectedChannelId === ch.id
@@ -242,6 +273,20 @@ export default function MobileShell() {
             </View>
           </View>
         </View>
+
+        <CreateServerModal
+          visible={createServerModalOpen}
+          onClose={() => setCreateServerModalOpen(false)}
+        />
+        {server && (
+          <CreateChannelModal
+            visible={createChannelModalOpen}
+            serverId={server.id}
+            categories={server.categories}
+            categoryId={channelModalCategoryId}
+            onClose={() => setCreateChannelModalOpen(false)}
+          />
+        )}
       </SafeAreaView>
     )
   }
@@ -467,6 +512,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  categoryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: spacing.sm,
+  },
+  addChannelButton: {
+    padding: spacing.xs,
+    borderRadius: radii.sm,
+  },
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
