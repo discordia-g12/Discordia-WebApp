@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Server,
   User,
@@ -10,13 +11,11 @@ import {
   MessageAttachment,
 } from './types';
 import {
-  SERVERS,
   USERS,
   MESSAGES,
   DIRECT_MESSAGES,
   DM_MESSAGES,
   NOTIFICATIONS,
-  CURRENT_USER_ID,
   INITIAL_ROLES,
 } from './data/mock';
 
@@ -46,6 +45,7 @@ import {
 } from './views';
 
 import { useSession, bootstrap, authService } from './auth/session';
+import { useServersQuery, useCreateServerMutation } from './api/hooks/useApi';
 
 /**
  * Hook para detectar si el viewport corresponde a un dispositivo móvil (<768px).
@@ -170,9 +170,25 @@ export default function App() {
   }, [profile]);
 
   // Estados principales de navegación y servidor
-  const [currentUser, setCurrentUser] = useState<User>(() => USERS[CURRENT_USER_ID] || Object.values(USERS)[0]);
-  const [servers, setServers] = useState<Server[]>(() => [...SERVERS]);
-  const [selectedServerId, setSelectedServerId] = useState<string | 'home'>('s1');
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const p = useSession.getState().profile;
+    return {
+      id: p?.id || 'temp_id',
+      username: p?.username || 'user',
+      displayName: p?.displayName || p?.display_name || p?.username || 'User',
+      avatar: p?.avatar || p?.avatar_url || '',
+      status: 'online',
+      customStatus: '',
+      email: p?.email || '',
+    };
+  });
+  
+  const queryClient = useQueryClient();
+  const { data: realServers, isLoading: isLoadingServers } = useServersQuery();
+  const createServerMutation = useCreateServerMutation();
+  const servers = realServers || [];
+  
+  const [selectedServerId, setSelectedServerId] = useState<string | 'home'>('home');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>('ch-general');
   const [appView, setAppView] = useState<AppView>('chat');
   const [isMemberListOpen, setIsMemberListOpen] = useState<boolean>(true);
@@ -423,52 +439,18 @@ export default function App() {
   };
 
   // Creación de nuevo servidor
-  const handleCreateServer = (name: string, iconUrl?: string) => {
-    const newId = `s-${Date.now()}`;
-    const newServer: Server = {
-      id: newId,
-      name,
-      icon: iconUrl || undefined,
-      color: `hsl(${Math.floor(Math.random() * 360)}, 65%, 55%)`,
-      ownerId: currentUser.id,
-      description: `Comunidad creada por ${currentUser.displayName || currentUser.name || 'Alex'}`,
-      memberCount: 1,
-      boostLevel: 0,
-      boostCount: 0,
-      roles: [...INITIAL_ROLES],
-      members: [currentUser],
-      categories: [
-        {
-          id: `cat-${newId}-info`,
-          name: 'INFORMACIÓN',
-          channels: [
-            { id: `ch-${newId}-welcome`, name: 'bienvenida', type: 'announcement', position: 0 },
-            { id: `ch-${newId}-reglas`, name: 'reglas', type: 'text', position: 1 },
-          ],
-        },
-        {
-          id: `cat-${newId}-general`,
-          name: 'CANALES DE TEXTO',
-          channels: [
-            { id: `ch-${newId}-general`, name: 'general', type: 'text', position: 0 },
-          ],
-        },
-        {
-          id: `cat-${newId}-voice`,
-          name: 'CANALES DE VOZ',
-          channels: [
-            { id: `ch-${newId}-voice-gen`, name: 'General', type: 'voice', position: 0 },
-          ],
-        },
-      ],
-    };
-
-    setServers((prev) => [...prev, newServer]);
-    setSelectedServerId(newId);
-    setSelectedChannelId(`ch-${newId}-general`);
-    setAppView('chat');
-    setActiveModal(null);
-    showToast(`¡Servidor "${name}" creado exitosamente!`, 'success');
+  const handleCreateServer = async (name: string, icon?: string | File) => {
+    try {
+      const newServer = await createServerMutation.mutateAsync({ 
+        name,
+        icon: icon instanceof File ? icon : undefined 
+      });
+      setSelectedServerId(newServer.id);
+      setActiveModal(null);
+      showToast('Servidor creado', 'success');
+    } catch (error) {
+      showToast('Error al crear el servidor', 'danger');
+    }
   };
 
   // Actualizar usuario propio
@@ -479,7 +461,9 @@ export default function App() {
 
   // Actualizar servidor
   const handleUpdateServer = (updatedServer: Server) => {
-    setServers((prev) => prev.map((s) => (s.id === updatedServer.id ? updatedServer : s)));
+    queryClient.setQueryData<Server[]>(['servers'], (prev = []) => 
+      prev.map((s) => (s.id === updatedServer.id ? updatedServer : s))
+    );
     showToast('Configuración del servidor guardada', 'success');
   };
 
@@ -613,12 +597,14 @@ export default function App() {
         onAddServer={() => setActiveModal('create-server')}
         onDiscoverServers={() => setActiveModal('join-server')}
         homeBadgeCount={2}
+        isLoading={isLoadingServers}
       />
 
       {/* Nivel 2: Sidebar del Servidor activo */}
       {selectedServerId !== 'home' && currentServer && (
         <ChannelSidebar
           server={currentServer}
+          isLoading={isLoadingServers}
           activeChannelId={selectedChannelId}
           onSelectChannel={handleSelectChannel}
           currentUser={currentUser}
@@ -767,12 +753,12 @@ export default function App() {
           targetName={confirmTargetName}
           onConfirm={() => {
             if (confirmAction === 'delete-server' && currentServer) {
-              setServers((prev) => prev.filter((s) => s.id !== currentServer.id));
+              queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== currentServer.id));
               setSelectedServerId('home');
               setAppView('home');
               showToast(`Servidor "${confirmTargetName}" eliminado`, 'danger');
             } else if (confirmAction === 'leave-server' && currentServer) {
-              setServers((prev) => prev.filter((s) => s.id !== currentServer.id));
+              queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== currentServer.id));
               setSelectedServerId('home');
               setAppView('home');
               showToast(`Has abandonado "${confirmTargetName}"`, 'info');

@@ -68,16 +68,13 @@ export async function getServers(): Promise<Server[]> {
  * Crea un nuevo servidor en Server-Roles-Core-Service.
  */
 export async function createServer(payload: CreateServerRequest): Promise<Server> {
-  let raw: ServerBackendResponse;
+  const formData = new FormData();
+  formData.append('name', payload.name);
   if (payload.icon) {
-    const formData = new FormData();
-    formData.append('name', payload.name);
     formData.append('icon', payload.icon);
-    raw = await api.post<ServerBackendResponse>('/api/v1/servers', formData);
-  } else {
-    raw = await api.post<ServerBackendResponse>('/api/v1/servers', { name: payload.name });
   }
-  return mapServerFromBackend(raw);
+  const rawServer = await api.post<ServerBackendResponse>('/api/v1/servers', formData);
+  return mapServerFromBackend(rawServer);
 }
 
 /**
@@ -87,8 +84,8 @@ export async function createChannel(
   serverId: string,
   payload: CreateChannelRequest
 ): Promise<Channel> {
-  const raw = await api.post<ChannelBackendResponse>(`/api/v1/servers/${serverId}/channels`, payload);
-  return mapChannelFromBackend(raw);
+  const rawChannel = await api.post<ChannelBackendResponse>(`/api/v1/servers/${serverId}/channels`, payload);
+  return mapChannelFromBackend(rawChannel);
 }
 
 /**

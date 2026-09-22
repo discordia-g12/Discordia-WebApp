@@ -18,6 +18,8 @@ export interface ServerRailProps {
   onDiscoverServers?: () => void;
   /** Contador global opcional de menciones o mensajes directos pendientes en Home. */
   homeBadgeCount?: number;
+  /** Indica si los servidores se están cargando desde el backend. */
+  isLoading?: boolean;
 }
 
 /**
@@ -52,6 +54,7 @@ export const ServerRail: React.FC<ServerRailProps> = ({
   onAddServer,
   onDiscoverServers,
   homeBadgeCount = 0,
+  isLoading = false,
 }) => {
   const [tooltip, setTooltip] = useState<{ text: string; top: number } | null>(null);
 
@@ -139,7 +142,14 @@ export const ServerRail: React.FC<ServerRailProps> = ({
           width: '100%',
         }}
       >
-        {servers.map((server) => {
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={`sk-${i}`} className="server-item-wrapper" style={{ opacity: 0.5 }}>
+              <div className="server-item" style={{ backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))' }} />
+            </div>
+          ))
+        ) : (
+          servers.map((server) => {
           const isSelected = server.id === selectedServerId;
           const hasUnread = Boolean(server.unreadCount && server.unreadCount > 0);
           const iconUrl = server.iconUrl || server.icon;
@@ -176,7 +186,8 @@ export const ServerRail: React.FC<ServerRailProps> = ({
               </div>
             </div>
           );
-        })}
+        })
+        )}
       </div>
 
       {/* Botón Añadir Servidor */}

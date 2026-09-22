@@ -47,6 +47,8 @@ export interface ChannelSidebarProps {
   onSelectChannel: (channelId: string) => void;
   /** Usuario actualmente autenticado. */
   currentUser: User;
+  /** Indica si la carga del servidor o canales está en progreso. */
+  isLoading?: boolean;
   /** Estado de conexión a llamada de voz. */
   isVoiceConnected: boolean;
   /** Identificador del canal de voz activo en la llamada. */
@@ -120,6 +122,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   activeChannelId,
   onSelectChannel,
   currentUser,
+  isLoading = false,
   isVoiceConnected,
   activeVoiceChannelId,
   isMuted,
@@ -485,7 +488,18 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           paddingBottom: '8px',
         }}
       >
-        {server.categories.map((category) => {
+        {isLoading ? (
+          <div style={{ padding: '16px 8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+             {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: 0.5 }}>
+                   <div style={{ height: '12px', width: '40%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
+                   <div style={{ height: '24px', width: '80%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
+                   <div style={{ height: '24px', width: '70%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
+                </div>
+             ))}
+          </div>
+        ) : (
+          server.categories.map((category) => {
           const isCollapsed = Boolean(collapsedCategories[category.id]);
 
           return (
@@ -675,7 +689,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               )}
             </div>
           );
-        })}
+        })
+        )}
       </div>
 
       {/* Panel inferior del usuario integrado */}
