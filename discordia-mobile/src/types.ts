@@ -73,6 +73,7 @@ export interface ChannelBackendResponse {
   server_id: string
   category_id?: string | null
   position: number
+  topic?: string | null
 }
 
 /** DTO de servidor retornado por Server-Roles-Core-Service */
