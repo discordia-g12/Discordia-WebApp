@@ -22,6 +22,7 @@ import type {
   Channel,
   ServerBackendResponse,
   Message,
+  MessageBackendPayload,
   DirectMessage,
   Notification,
   AuditEntry,
@@ -54,6 +55,9 @@ interface DataContextValue {
 
   // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string) => void
+  addOptimisticMessage: (channelId: string, content: string) => string
+  confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
+  failOptimisticMessage: (channelId: string) => void
   editMessage: (channelId: string, messageId: string, content: string) => void
   deleteMessage: (channelId: string, messageId: string) => void
   toggleReaction: (channelId: string, messageId: string, emoji: string) => void
@@ -171,6 +175,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           createdAt: m.createdAt || m.created_at || m.timestamp || new Date().toISOString(),
           timestamp: m.createdAt || m.created_at || m.timestamp || new Date().toISOString(),
           type: m.type || 'normal',
+          status: 'sent' as const,
         }))
         setMessages(prev => ({ ...prev, [channelId]: formatted }))
       } catch {
@@ -179,6 +184,103 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     },
     [token, activeUserId, isDm],
   )
+
+  const addOptimisticMessage = useCallback(
+    (channelId: string, content: string): string => {
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      const now = new Date().toISOString()
+      const newMessage: Message = {
+        id: tempId,
+        channelId,
+        userId: activeUserId,
+        authorId: activeUserId,
+        content,
+        timestamp: now,
+        createdAt: now,
+        type: 'normal',
+        status: 'pending',
+      }
+      setMessages(prev => ({
+        ...prev,
+        [channelId]: [...(prev[channelId] ?? []), newMessage],
+      }))
+      return tempId
+    },
+    [activeUserId],
+  )
+
+  const confirmOptimisticMessage = useCallback(
+    (channelId: string, payload: MessageBackendPayload) => {
+      setMessages(prev => {
+        const list = prev[channelId] ?? []
+        // Si ya existe este ID exacto (por ejemplo reconexión/duplicado), asegurarse de que esté como sent
+        const existingIndex = list.findIndex(m => m.id === payload.id)
+        if (existingIndex !== -1) {
+          const updated = [...list]
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            status: 'sent',
+            content: payload.content,
+          }
+          return { ...prev, [channelId]: updated }
+        }
+
+        // Si es un mensaje emitido por el usuario activo, buscar el mensaje pendiente correspondiente
+        if (payload.authorId === activeUserId) {
+          let pendingIndex = list.findIndex(
+            m => m.status === 'pending' && m.content === payload.content,
+          )
+          if (pendingIndex === -1) {
+            pendingIndex = list.findIndex(m => m.status === 'pending')
+          }
+
+          if (pendingIndex !== -1) {
+            const updated = [...list]
+            updated[pendingIndex] = {
+              ...updated[pendingIndex],
+              id: payload.id,
+              authorId: payload.authorId,
+              userId: payload.authorId,
+              content: payload.content,
+              createdAt: payload.createdAt,
+              timestamp: payload.createdAt,
+              status: 'sent',
+            }
+            return { ...prev, [channelId]: updated }
+          }
+        }
+
+        // Si es de otro usuario o no se encontró pendiente, agregarlo a la lista
+        const newMsg: Message = {
+          id: payload.id,
+          channelId: payload.channelId || channelId,
+          userId: payload.authorId,
+          authorId: payload.authorId,
+          content: payload.content,
+          createdAt: payload.createdAt,
+          timestamp: payload.createdAt,
+          type: 'normal',
+          status: 'sent',
+        }
+        return { ...prev, [channelId]: [...list, newMsg] }
+      })
+    },
+    [activeUserId],
+  )
+
+  const failOptimisticMessage = useCallback((channelId: string) => {
+    setMessages(prev => {
+      const list = prev[channelId] ?? []
+      for (let i = list.length - 1; i >= 0; i--) {
+        if (list[i].status === 'pending') {
+          const updated = [...list]
+          updated[i] = { ...updated[i], status: 'failed' }
+          return { ...prev, [channelId]: updated }
+        }
+      }
+      return prev
+    })
+  }, [])
 
   const sendMessage = useCallback(
     (channelId: string, content: string) => {
@@ -294,6 +396,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createServer,
       createChannel,
       sendMessage,
+      addOptimisticMessage,
+      confirmOptimisticMessage,
+      failOptimisticMessage,
       editMessage,
       deleteMessage,
       toggleReaction,
@@ -314,6 +419,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createServer,
       createChannel,
       sendMessage,
+      addOptimisticMessage,
+      confirmOptimisticMessage,
+      failOptimisticMessage,
       editMessage,
       deleteMessage,
       toggleReaction,

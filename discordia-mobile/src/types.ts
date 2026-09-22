@@ -142,6 +142,8 @@ export interface Reaction {
   reacted: boolean
 }
 
+export type MessageStatus = 'pending' | 'sent' | 'failed'
+
 export interface Message {
   id: string
   content: string
@@ -152,6 +154,7 @@ export interface Message {
   createdAt?: string
   edited?: boolean
   type?: MessageType
+  status?: MessageStatus
   reactions?: Reaction[]
   imageUrl?: string
   fileAttachment?: { name: string; size: string; type: string }

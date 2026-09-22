@@ -1,6 +1,10 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,20 +19,21 @@ import {
   ChevronDown,
   ChevronRight,
   Hash,
-  Mic,
-  MicOff,
   LogOut,
   MessageCircle,
+  Paperclip,
   Plus,
   Search,
   Send,
   UserPlus,
   Volume2,
+  X,
 } from 'lucide-react-native'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../theme'
 import { statusColor } from '../theme/colors'
 import type { Category, Channel, Message } from '../types'
+import { useChannelSocket } from '../hooks/useChannelSocket'
 import CreateServerModal from './CreateServerModal'
 import CreateChannelModal from './CreateChannelModal'
 
@@ -36,8 +41,32 @@ type MobileScreen = 'sidebar' | 'chat'
 
 const RAIL_WIDTH = 72
 
+function formatMessageTimestamp(isoDate: string): string {
+  const date = new Date(isoDate)
+  if (isNaN(date.getTime())) return ''
+  const now = new Date()
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+
+  const timeStr = date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  if (isToday) {
+    return timeStr
+  }
+
+  const day = date.getDate().toString().padStart(2, '0')
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year} ${timeStr}`
+}
+
 export default function MobileShell() {
-  const { logout } = useAuth()
+  const { logout, token } = useAuth()
   const {
     users,
     servers,
@@ -46,14 +75,18 @@ export default function MobileShell() {
     currentUserId,
     sendMessage,
     fetchChannelMessages,
+    addOptimisticMessage,
+    confirmOptimisticMessage,
+    failOptimisticMessage,
   } = useData()
   const {
     selectedServerId,
     selectedChannelId,
     selectServer,
     selectChannel,
-    micMuted,
-    toggleMic,
+    toast,
+    showToast,
+    dismissToast,
   } = useUI()
   const [screen, setScreen] = useState<MobileScreen>('sidebar')
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
@@ -61,6 +94,21 @@ export default function MobileShell() {
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
   const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
+  const flatListRef = useRef<FlatList<Message>>(null)
+  const inputRef = useRef<TextInput>(null)
+
+  // Auto-desplazamiento al último mensaje cuando el teclado del celular se abre
+  useEffect(() => {
+    if (screen !== 'chat') return
+    const eventName = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
+    const sub = Keyboard.addListener(eventName, () => {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true })
+      }, 100)
+    })
+    return () => sub.remove()
+  }, [screen])
 
   const server = servers.find(s => s.id === selectedServerId) ?? servers[0]
   const allChannels: Channel[] = server ? server.categories.flatMap(c => c.channels) : []
@@ -77,6 +125,44 @@ export default function MobileShell() {
   }
   const hasUnreadNotifications = useMemo(() => notifications.some(n => !n.read), [notifications])
 
+  const lastMessageId = useMemo(() => {
+    for (let i = channelMessages.length - 1; i >= 0; i--) {
+      const m = channelMessages[i]
+      if (m.status !== 'pending' && m.status !== 'failed' && !m.id.startsWith('temp-')) {
+        return m.id
+      }
+    }
+    return undefined
+  }, [channelMessages])
+
+  const activeSocketChannelId =
+    channel && channel.type !== 'voice' && !channel.id.startsWith('dm-') ? channel.id : null
+
+  const socket = useChannelSocket({
+    channelId: activeSocketChannelId,
+    token,
+    currentUserId,
+    lastMessageIdSeen: lastMessageId,
+    onMessageReceived: payload => {
+      if (channel) {
+        confirmOptimisticMessage(channel.id, payload)
+      }
+    },
+    onErrorReceived: errMsg => {
+      if (channel) {
+        failOptimisticMessage(channel.id)
+        if (
+          errMsg.toLowerCase().includes('permission') ||
+          errMsg.toLowerCase().includes('permiso')
+        ) {
+          showToast('No tienes permisos para escribir en este canal.', 'error')
+        } else {
+          showToast(errMsg, 'error')
+        }
+      }
+    },
+  })
+
   const handleSelectServer = (id: string) => selectServer(id)
 
   const handleSelectChannel = (ch: Channel) => {
@@ -89,15 +175,50 @@ export default function MobileShell() {
     setCollapsed(prev => ({ ...prev, [id]: !prev[id] }))
 
   const handleSend = () => {
-    if (!channel || !draft.trim()) return
-    sendMessage(channel.id, draft.trim())
+    if (!channel) return
+    const trimmed = draft.trim()
+
+    // CA 2: Evitar envío si está vacío
+    if (!trimmed) return
+
+    // CA 4: Bloquear o advertir si supera los 2000 caracteres
+    if (trimmed.length > 2000) {
+      showToast('El mensaje no puede superar los 2000 caracteres.', 'error')
+      return
+    }
+
+    // CA 1: Actualización optimista
+    addOptimisticMessage(channel.id, trimmed)
     setDraft('')
+
+    // Envío por WebSocket si es un canal activo, o fallback
+    if (activeSocketChannelId) {
+      const sent = socket.sendMessage(trimmed)
+      if (!sent) {
+        failOptimisticMessage(channel.id)
+        showToast('No se pudo enviar el mensaje por WebSocket.', 'error')
+      }
+    } else {
+      sendMessage(channel.id, trimmed)
+    }
   }
 
   /* ---------- pantalla: rail + sidebar del servidor (estilo Discord) ---------- */
   if (screen === 'sidebar') {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        {toast && (
+          <Pressable
+            onPress={dismissToast}
+            style={[
+              styles.toastContainer,
+              toast.type === 'error' && styles.toastError,
+              toast.type === 'success' && styles.toastSuccess,
+            ]}
+          >
+            <Text style={styles.toastText}>{toast.message}</Text>
+          </Pressable>
+        )}
         <View style={styles.shellRow}>
           {/* Nivel 1 — server rail */}
           <View style={styles.rail}>
@@ -267,7 +388,10 @@ export default function MobileShell() {
                 <Bell color={colors.text} size={18} />
                 {hasUnreadNotifications && <View style={styles.bellDot} />}
               </Pressable>
-              <Pressable style={styles.iconButton} onPress={logout}>
+              <Pressable
+                style={styles.iconButton}
+                onPress={() => setLogoutConfirmOpen(true)}
+              >
                 <LogOut color={colors.textMuted} size={18} />
               </Pressable>
             </View>
@@ -287,6 +411,48 @@ export default function MobileShell() {
             onClose={() => setCreateChannelModalOpen(false)}
           />
         )}
+
+        {/* Modal de confirmación de cierre de sesión */}
+        <Modal
+          visible={logoutConfirmOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setLogoutConfirmOpen(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setLogoutConfirmOpen(false)}
+          >
+            <Pressable
+              style={styles.logoutModalContainer}
+              onPress={e => e.stopPropagation()}
+            >
+              <Text style={styles.logoutModalTitle}>Cerrar sesión</Text>
+              <Text style={styles.logoutModalBody}>
+                ¿Realmente quieres cerrar sesión?
+              </Text>
+
+              <View style={styles.logoutModalActions}>
+                <Pressable
+                  style={styles.logoutModalCancelButton}
+                  onPress={() => setLogoutConfirmOpen(false)}
+                >
+                  <Text style={styles.logoutModalCancelText}>Cancelar</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.logoutModalConfirmButton}
+                  onPress={() => {
+                    setLogoutConfirmOpen(false)
+                    logout()
+                  }}
+                >
+                  <Text style={styles.logoutModalConfirmText}>Cerrar sesión</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </SafeAreaView>
     )
   }
@@ -294,93 +460,129 @@ export default function MobileShell() {
   /* ---------- pantalla: chat de un canal ---------- */
   if (screen === 'chat' && channel) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.chatHeader}>
-          <Pressable onPress={() => setScreen('sidebar')} hitSlop={12}>
-            <ArrowLeft color={colors.text} size={20} />
-          </Pressable>
-          <View style={styles.headerChannel}>
-            <Hash color={colors.textMuted} size={16} />
-            <Text style={styles.headerTitle}>{channel.name}</Text>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={styles.chatKeyboardAvoid}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {toast && (
+            <Pressable
+              onPress={dismissToast}
+              style={[
+                styles.toastContainer,
+                toast.type === 'error' && styles.toastError,
+                toast.type === 'success' && styles.toastSuccess,
+              ]}
+            >
+              <Text style={styles.toastText}>{toast.message}</Text>
+            </Pressable>
+          )}
+
+          <View style={styles.chatHeader}>
+            <Pressable onPress={() => setScreen('sidebar')} hitSlop={12}>
+              <ArrowLeft color={colors.text} size={20} />
+            </Pressable>
+            <View style={styles.headerChannel}>
+              <Hash color={colors.textMuted} size={16} />
+              <Text style={styles.headerTitle}>{channel.name}</Text>
+              {!!activeSocketChannelId && (
+                <View
+                  style={[
+                    styles.socketDot,
+                    { backgroundColor: socket.isConnected ? colors.online : colors.idle },
+                  ]}
+                />
+              )}
+            </View>
+            <View style={{ width: 20 }} />
           </View>
-          <View style={{ width: 20 }} />
-        </View>
 
-        <FlatList
-          data={channelMessages}
-          keyExtractor={m => m.id}
-          contentContainerStyle={{ padding: spacing.md }}
-          renderItem={({ item }) => {
-            if (item.type === 'system') {
-              return <Text style={styles.systemMessage}>— {item.content} —</Text>
-            }
-            const author = users[item.userId]
-            const deleted = item.type === 'deleted'
-            return (
-              <View style={styles.messageRow}>
-                <View style={[styles.avatar, { backgroundColor: author?.color ?? colors.textDim }]}>
-                  <Text style={styles.avatarText}>{author?.name?.charAt(0) ?? '?'}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.messageMetaRow}>
-                    <Text style={[styles.username, { color: author?.color ?? colors.text }]}>
-                      {author?.name ?? 'Usuario'}
-                    </Text>
-                    <Text style={styles.timestamp}>
-                      {new Date(item.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Text>
-                    {item.edited && <Text style={styles.editedTag}>(editado)</Text>}
+          <FlatList
+            ref={flatListRef}
+            data={channelMessages}
+            keyExtractor={m => m.id}
+            contentContainerStyle={{ padding: spacing.md, flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            renderItem={({ item }) => {
+              if (item.type === 'system') {
+                return <Text style={styles.systemMessage}>— {item.content} —</Text>
+              }
+              const author = users[item.userId]
+              const deleted = item.type === 'deleted'
+              const isPending = item.status === 'pending'
+              const isFailed = item.status === 'failed'
+              return (
+                <View style={[styles.messageRow, isPending && { opacity: 0.6 }]}>
+                  <View style={[styles.avatar, { backgroundColor: author?.color ?? colors.textDim }]}>
+                    <Text style={styles.avatarText}>{author?.name?.charAt(0) ?? '?'}</Text>
                   </View>
-                  <Text style={[styles.messageText, deleted && styles.messageDeleted]}>
-                    {item.content}
-                  </Text>
-                  {!!item.reactions?.length && (
-                    <View style={styles.reactionsRow}>
-                      {item.reactions.map(r => (
-                        <View
-                          key={r.emoji}
-                          style={[styles.reactionPill, r.reacted && styles.reactionPillActive]}
-                        >
-                          <Text style={styles.reactionText}>
-                            {r.emoji} {r.count}
-                          </Text>
-                        </View>
-                      ))}
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.messageMetaRow}>
+                      <Text style={[styles.username, { color: author?.color ?? colors.text }]}>
+                        {author?.name ?? 'Usuario'}
+                      </Text>
+                      <Text style={styles.timestamp}>
+                        {formatMessageTimestamp(item.timestamp)}
+                      </Text>
+                      {item.edited && <Text style={styles.editedTag}>(editado)</Text>}
+                      {isPending && <Text style={styles.pendingTag}>(enviando...)</Text>}
+                      {isFailed && <Text style={styles.failedTag}>(error al enviar)</Text>}
                     </View>
-                  )}
+                    <Text style={[styles.messageText, deleted && styles.messageDeleted]}>
+                      {item.content}
+                    </Text>
+                    {!!item.reactions?.length && (
+                      <View style={styles.reactionsRow}>
+                        {item.reactions.map(r => (
+                          <View
+                            key={r.emoji}
+                            style={[styles.reactionPill, r.reacted && styles.reactionPillActive]}
+                          >
+                            <Text style={styles.reactionText}>
+                              {r.emoji} {r.count}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            )
-          }}
-        />
-
-        <View style={styles.composer}>
-          <TextInput
-            style={styles.composerInput}
-            placeholder={`Enviar mensaje en #${channel.name}`}
-            placeholderTextColor={colors.textDim}
-            value={draft}
-            onChangeText={setDraft}
-            multiline
+              )
+            }}
           />
-          <Pressable
-            style={[styles.micButton, micMuted && styles.micButtonMuted]}
-            onPress={toggleMic}
-            hitSlop={8}
-          >
-            {micMuted ? (
-              <MicOff color={colors.text} size={18} />
-            ) : (
-              <Mic color={colors.text} size={18} />
-            )}
-          </Pressable>
-          <Pressable style={styles.sendButton} onPress={handleSend} hitSlop={8}>
-            <Send color={colors.accentFg} size={18} />
-          </Pressable>
-        </View>
+
+          <View style={styles.composer}>
+            <Pressable style={styles.composerIconButton} hitSlop={8}>
+              <Paperclip color={colors.textMuted} size={20} />
+            </Pressable>
+            <TextInput
+              ref={inputRef}
+              style={styles.composerInput}
+              placeholder={`Enviar mensaje en #${channel.name}`}
+              placeholderTextColor={colors.textDim}
+              value={draft}
+              onChangeText={setDraft}
+              maxLength={2500}
+              multiline
+            />
+            <Pressable
+              style={[
+                styles.sendButton,
+                !draft.trim() && styles.sendButtonDisabled,
+              ]}
+              onPress={handleSend}
+              disabled={!draft.trim()}
+              hitSlop={8}
+            >
+              <Send
+                color={!draft.trim() ? colors.textDim : colors.accentFg}
+                size={18}
+              />
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     )
   }
@@ -625,7 +827,7 @@ const styles = StyleSheet.create({
   avatarText: { color: '#fff', fontWeight: '700' },
   messageMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   username: { ...typography.username },
-  timestamp: { ...typography.metadata, color: colors.textDim },
+  timestamp: { ...typography.metadata, color: '#949ba4', fontSize: 11 },
   editedTag: { ...typography.metadata, color: colors.textDim },
   messageText: { ...typography.messageText, color: colors.text },
   messageDeleted: { color: colors.textDim, fontStyle: 'italic' },
@@ -642,11 +844,12 @@ const styles = StyleSheet.create({
   reactionText: { fontSize: 12, color: colors.text },
   composer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.xs,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   composerInput: {
     flex: 1,
@@ -659,21 +862,121 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     maxHeight: 100,
   },
-  micButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.full,
-    backgroundColor: colors.surface,
+  composerIconButton: {
+    width: 38,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: radii.full,
   },
-  micButtonMuted: { backgroundColor: colors.danger },
   sendButton: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: radii.full,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: colors.surface,
+  },
+  pendingTag: {
+    ...typography.metadata,
+    color: colors.textDim,
+    fontStyle: 'italic',
+  },
+  failedTag: {
+    ...typography.metadata,
+    color: colors.danger,
+    fontWeight: '600',
+  },
+  socketDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: spacing.xs,
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: 50,
+    left: spacing.md,
+    right: spacing.md,
+    backgroundColor: colors.elevated,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.accent,
+    zIndex: 999,
+  },
+  toastError: {
+    borderLeftColor: colors.danger,
+  },
+  toastSuccess: {
+    borderLeftColor: colors.success,
+  },
+  toastText: {
+    ...typography.helperText,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  chatKeyboardAvoid: {
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.md,
+  },
+  logoutModalContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    width: '100%',
+    maxWidth: 320,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  logoutModalTitle: {
+    ...typography.pageTitle,
+    fontSize: 18,
+    lineHeight: 22,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  logoutModalBody: {
+    ...typography.helperText,
+    color: colors.textMuted,
+    marginBottom: spacing.lg,
+    lineHeight: 20,
+  },
+  logoutModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  logoutModalCancelButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.sm,
+  },
+  logoutModalCancelText: {
+    color: colors.text,
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  logoutModalConfirmButton: {
+    backgroundColor: colors.danger,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.sm,
+  },
+  logoutModalConfirmText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 14,
   },
 })

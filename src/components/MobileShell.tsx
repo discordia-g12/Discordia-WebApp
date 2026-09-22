@@ -57,6 +57,31 @@ export interface MobileShellProps {
   onConfirmAction?: (action: ConfirmAction, targetName?: string) => void;
 }
 
+function formatMessageTimestamp(isoDate?: string): string {
+  if (!isoDate) return '12:00';
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) return '';
+  const now = new Date();
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  const timeStr = date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  if (isToday) {
+    return timeStr;
+  }
+
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year} ${timeStr}`;
+}
+
 /* ==========================================================================
    COMPONENTE AUXILIAR: BOTTOM SHEET DESLIZABLE
    ========================================================================== */
@@ -342,10 +367,8 @@ export const MobileShell: React.FC<MobileShellProps> = ({
                         <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 13 }}>
                           {author.displayName}
                         </span>
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                          {msg.timestamp
-                            ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : '12:00'}
+                        <span style={{ fontSize: 11, color: 'var(--text-muted, #949ba4)' }}>
+                          {formatMessageTimestamp(msg.timestamp)}
                         </span>
                       </div>
                       <div

@@ -1,4 +1,12 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { Modal, ConfirmAction } from '../types'
 
 interface Toast {
@@ -7,8 +15,6 @@ interface Toast {
 }
 
 interface UIContextValue {
-  // Selección actual (servidor/canal), lo que reemplaza al prop-drilling
-  // de selectedServerId/selectedChannelId del App.tsx original.
   selectedServerId: string | null
   selectedChannelId: string | null
   selectServer: (id: string | null) => void
@@ -66,9 +72,33 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   const [screenSharing, setScreenSharing] = useState(false)
 
   const [toast, setToast] = useState<Toast | null>(null)
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const showToast = useCallback((message: string, type: Toast['type'] = 'info') => {
+  const dismissToast = useCallback(() => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current)
+      toastTimeoutRef.current = null
+    }
+    setToast(null)
+  }, [])
+
+  const showToast = useCallback((message: string, type: Toast['type'] = 'info', durationMs = 2500) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current)
+    }
     setToast({ message, type })
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast(null)
+      toastTimeoutRef.current = null
+    }, durationMs)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current)
+      }
+    }
   }, [])
 
   const value = useMemo<UIContextValue>(
@@ -118,7 +148,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
 
       toast,
       showToast,
-      dismissToast: () => setToast(null),
+      dismissToast,
     }),
     [
       selectedServerId,
@@ -135,6 +165,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
       screenSharing,
       toast,
       showToast,
+      dismissToast,
     ],
   )
 
