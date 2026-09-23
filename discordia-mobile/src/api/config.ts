@@ -16,14 +16,16 @@ export const AUTH0_CONNECTION = 'Username-Password-Authentication'
  * - Teléfono físico vía Expo Go (IP local de la computadora tomada de hostUri)
  */
 export function getApiBaseUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL
+  }
 
   // Si hay hostUri en Expo Go (ej. 192.168.1.50:8081), extraemos la IP del host
   const hostUri = Constants.expoConfig?.hostUri
   const hostIp = hostUri ? hostUri.split(':')[0] : null
 
   if (Platform.OS === 'web') {
-    return envUrl || 'http://localhost:8000'
+    return 'http://localhost:8000'
   }
 
   if (Platform.OS === 'android') {
@@ -31,7 +33,7 @@ export function getApiBaseUrl(): string {
     if (hostIp) {
       return `http://${hostIp}:8000`
     }
-    return 'http://10.0.2.2:8000'
+    return 'http://10.0.2.2:8000' //emulador Android
   }
 
   // iOS / default
@@ -39,7 +41,7 @@ export function getApiBaseUrl(): string {
     return `http://${hostIp}:8000`
   }
 
-  return envUrl || 'http://localhost:8000'
+  return 'http://localhost:8000' //simulador iOS
 }
 
 /**
