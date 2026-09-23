@@ -40,6 +40,8 @@ export interface ChatViewProps {
   currentUserId?: string;
   /** Directorio de usuarios para resolver autores y menciones. */
   users?: Record<string, User>;
+  /** Indica si los mensajes se están cargando desde el servidor. */
+  isLoading?: boolean;
   /** Callback al despachar un nuevo mensaje de texto o adjunto. */
   onSendMessage?: (content: string, attachment?: MessageAttachment, replyToId?: string) => void;
   /** Callback al alternar una reacción emoji. */
@@ -116,6 +118,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   channel,
   directMessage,
   messages: externalMessages,
+  isLoading = false,
   currentUserId = CURRENT_USER_ID,
   users = USERS,
   onSendMessage,
@@ -701,8 +704,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <span>Today</span>
         </div>
 
-        {/* Lista de Mensajes */}
-        {localMessages.map((msg, index) => {
+        {/* Loading Skeleton */}
+        {isLoading ? (
+          <div style={{ flex: 1, padding: '16px 0', overflow: 'hidden' }}>
+            <style>{`
+              @keyframes pulse {
+                0% { opacity: 0.4; }
+                50% { opacity: 0.8; }
+                100% { opacity: 0.4; }
+              }
+              .skeleton {
+                background-color: var(--bg-modifier-selected);
+                animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+              }
+            `}</style>
+            {[70, 45, 85, 55].map((width, idx) => (
+              <div key={idx} className="message-row" style={{ marginTop: 16 }}>
+                <div className="skeleton" style={{ width: 40, height: 40, borderRadius: '50%', marginRight: 16, flexShrink: 0 }} />
+                <div className="message-content-wrapper" style={{ width: '100%', pointerEvents: 'none' }}>
+                  <div className="message-header" style={{ marginBottom: 8, marginTop: 4 }}>
+                    <div className="skeleton" style={{ width: 120, height: 16, borderRadius: 4 }} />
+                  </div>
+                  <div className="skeleton" style={{ width: `${width}%`, height: 16, borderRadius: 4, marginTop: 6 }} />
+                  {idx % 2 !== 0 && (
+                    <div className="skeleton" style={{ width: `${width - 15}%`, height: 16, borderRadius: 4, marginTop: 6 }} />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            {/* Lista de Mensajes */}
+            {localMessages.map((msg, index) => {
           const prevMsg = index > 0 ? localMessages[index - 1] : null;
           const isSameAuthor = prevMsg && prevMsg.authorId === msg.authorId;
           const timeDiff = prevMsg
@@ -1106,6 +1140,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           );
         })}
+        </>
+        )}
 
         <div ref={messagesEndRef} />
       </div>

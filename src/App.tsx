@@ -12,7 +12,6 @@ import {
 } from './types';
 import {
   USERS,
-  MESSAGES,
   DIRECT_MESSAGES,
   DM_MESSAGES,
   NOTIFICATIONS,
@@ -45,7 +44,8 @@ import {
 } from './views';
 
 import { useSession, bootstrap, authService } from './auth/session';
-import { useServersQuery, useCreateServerMutation } from './api/hooks/useApi';
+import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery } from './api/hooks/useApi';
+import { useChatWebSocket } from './api/hooks/useChatWebSocket';
 
 /**
  * Hook para detectar si el viewport corresponde a un dispositivo móvil (<768px).
@@ -184,12 +184,22 @@ export default function App() {
   });
   
   const queryClient = useQueryClient();
-  const { data: realServers, isLoading: isLoadingServers } = useServersQuery();
+  const { data: activeServers, isLoading: isLoadingServers } = useServersQuery();
   const createServerMutation = useCreateServerMutation();
-  const servers = realServers || [];
+  const servers = activeServers || [];
   
   const [selectedServerId, setSelectedServerId] = useState<string | 'home'>('home');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>('ch-general');
+  
+  const { data: realMessages, isLoading: isLoadingMessages } = useChannelMessagesQuery(
+    selectedServerId !== 'home' ? selectedChannelId : null
+  );
+
+
+  const { sendMessageWs } = useChatWebSocket(
+    selectedServerId !== 'home' && selectedChannelId ? selectedChannelId : null,
+    currentUser.id
+  );
   const [appView, setAppView] = useState<AppView>('chat');
   const [isMemberListOpen, setIsMemberListOpen] = useState<boolean>(true);
 
@@ -202,7 +212,6 @@ export default function App() {
 
   // Estados de mensajes y canales
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() => ({
-    ...MESSAGES,
     ...DM_MESSAGES,
   }));
   const [directMessagesList, setDirectMessagesList] = useState(() => [...DIRECT_MESSAGES]);
@@ -257,10 +266,13 @@ export default function App() {
 
   // Mensajes del canal o DM activo
   const activeMessages = useMemo(() => {
-    const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
+    if (selectedServerId !== 'home') {
+      return realMessages || [];
+    }
+    const key = selectedDmId;
     if (!key) return [];
     return messagesMap[key] || [];
-  }, [selectedServerId, selectedDmId, selectedChannelId, messagesMap]);
+  }, [selectedServerId, selectedDmId, realMessages, messagesMap]);
 
   // Manejador de selección de servidor
   const handleSelectServer = (serverId: string | 'home') => {
@@ -314,12 +326,22 @@ export default function App() {
   };
 
   // Enviar mensaje en canal o DM
-  const handleSendMessage = (
+  const handleSendMessage = async (
     content: string,
     attachment?: MessageAttachment,
     replyToId?: string,
   ) => {
-    const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
+    if (selectedServerId !== 'home') {
+      if (!selectedChannelId) return;
+      try {
+        await sendMessageWs(content);
+      } catch (err) {
+        showToast('Error al enviar el mensaje por WebSocket', 'danger');
+      }
+      return;
+    }
+
+    const key = selectedDmId;
     if (!key) return;
 
     const newMsg: Message = {
@@ -345,7 +367,7 @@ export default function App() {
       [key]: [...(prev[key] || []), newMsg],
     }));
 
-    if (selectedServerId === 'home' && selectedDmId) {
+    if (selectedDmId) {
       setDirectMessagesList((prev) =>
         prev.map((dm) =>
           dm.id === selectedDmId
@@ -361,9 +383,8 @@ export default function App() {
     const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
     if (!key) return;
 
-    setMessagesMap((prev) => {
-      const list = prev[key] || [];
-      const updated = list.map((msg) => {
+    const updater = (list: Message[]) => {
+      return list.map((msg) => {
         if (msg.id !== messageId) return msg;
         const reactions = msg.reactions || [];
         const existing = reactions.find((r) => r.emoji === emoji);
@@ -402,23 +423,39 @@ export default function App() {
         }
         return { ...msg, reactions: nextReactions };
       });
-      return { ...prev, [key]: updated };
-    });
+    };
+
+    if (selectedServerId !== 'home') {
+      queryClient.setQueryData(['messages', key, undefined], (old: Message[] | undefined) => {
+        if (!old) return old;
+        return updater(old);
+      });
+      return;
+    }
+
+    setMessagesMap((prev) => ({ ...prev, [key]: updater(prev[key] || []) }));
   };
 
   // Eliminar mensaje
   const handleDeleteMessage = (messageId: string) => {
     const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
     if (!key) return;
-    setMessagesMap((prev) => {
-      const list = prev[key] || [];
-      return {
-        ...prev,
-        [key]: list.map((m) =>
-          m.id === messageId ? { ...m, type: 'deleted' as const, content: '' } : m,
-        ),
-      };
-    });
+
+    if (selectedServerId !== 'home') {
+      queryClient.setQueryData(['messages', key, undefined], (old: Message[] | undefined) => {
+        if (!old) return old;
+        return old.map((m) => (m.id === messageId ? { ...m, type: 'deleted' as const, content: '' } : m));
+      });
+      showToast('Backend deletion not implemented yet', 'info');
+      return;
+    }
+
+    setMessagesMap((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).map((m) =>
+        m.id === messageId ? { ...m, type: 'deleted' as const, content: '' } : m,
+      ),
+    }));
     showToast('Mensaje eliminado', 'info');
   };
 
@@ -426,15 +463,22 @@ export default function App() {
   const handleEditMessage = (messageId: string, newContent: string) => {
     const key = selectedServerId === 'home' ? selectedDmId : selectedChannelId;
     if (!key) return;
-    setMessagesMap((prev) => {
-      const list = prev[key] || [];
-      return {
-        ...prev,
-        [key]: list.map((m) =>
-          m.id === messageId ? { ...m, content: newContent, edited: true } : m,
-        ),
-      };
-    });
+
+    if (selectedServerId !== 'home') {
+      queryClient.setQueryData(['messages', key, undefined], (old: Message[] | undefined) => {
+        if (!old) return old;
+        return old.map((m) => (m.id === messageId ? { ...m, content: newContent, edited: true } : m));
+      });
+      showToast('Backend editing not implemented yet', 'info');
+      return;
+    }
+
+    setMessagesMap((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).map((m) =>
+        m.id === messageId ? { ...m, content: newContent, edited: true } : m,
+      ),
+    }));
     showToast('Mensaje editado', 'success');
   };
 
@@ -672,6 +716,7 @@ export default function App() {
           <ChatView
             channel={currentChannel}
             messages={activeMessages}
+            isLoading={isLoadingMessages}
             currentUserId={currentUser.id}
             users={USERS}
             isMemberListOpen={isMemberListOpen}
@@ -804,6 +849,7 @@ export default function App() {
       <GlobalSearch
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
+        servers={activeServers}
         onSelectResult={(result) => {
           setIsSearchOpen(false);
           if (result.type === 'channel') {

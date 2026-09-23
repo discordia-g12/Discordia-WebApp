@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient, request, api } from '../client';
 import { ApiError, NetworkError, TimeoutError } from '../errors';
@@ -28,7 +27,6 @@ describe('HttpClient & Interceptors', () => {
     const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
     const getItemSpy = vi.spyOn(Storage.prototype, 'getItem');
 
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
@@ -44,7 +42,6 @@ describe('HttpClient & Interceptors', () => {
 
   it('inyecta Authorization: Bearer, X-Correlation-ID y no envía cookies de API', async () => {
     let capturedRequest: { url: string; init?: RequestInit } | null = null;
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockImplementation((url, init) => {
       capturedRequest = { url, init };
       return Promise.resolve(
@@ -72,7 +69,6 @@ describe('HttpClient & Interceptors', () => {
       return 'initial-jwt-token';
     });
 
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockImplementation((_url, init) => {
       const headers = init?.headers as Record<string, string>;
       if (headers['Authorization'] === 'Bearer initial-jwt-token') {
@@ -114,7 +110,6 @@ describe('HttpClient & Interceptors', () => {
   it('reintenta una sola vez ante 401 y si vuelve a fallar invoca onAuthFailure sin loop', async () => {
     mockGetToken.mockResolvedValue('some-token');
 
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({ title: 'Unauthorized', detail: 'Invalid token' }),
@@ -132,7 +127,6 @@ describe('HttpClient & Interceptors', () => {
   });
 
   it('no reintenta ni renueva token ante 403 Forbidden', async () => {
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({ title: 'Forbidden', detail: 'Insufficient permissions' }),
@@ -156,7 +150,6 @@ describe('HttpClient & Interceptors', () => {
     );
 
     const capturedKeys: string[] = [];
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockImplementation((_url, init) => {
       const headers = init?.headers as Record<string, string>;
       capturedKeys.push(headers['Idempotency-Key']);
@@ -180,7 +173,6 @@ describe('HttpClient & Interceptors', () => {
   });
 
   it('lanza TimeoutError cuando se supera el tiempo límite', async () => {
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockImplementation((_url, init) => {
       return new Promise((_resolve, reject) => {
         init?.signal?.addEventListener('abort', () => {
@@ -195,7 +187,6 @@ describe('HttpClient & Interceptors', () => {
   });
 
   it('lanza NetworkError cuando fetch es rechazado', async () => {
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
 
     await expect(api.get('/api/v1/offline')).rejects.toThrow(NetworkError);
@@ -203,7 +194,6 @@ describe('HttpClient & Interceptors', () => {
 
   it('normaliza errores en formato RFC 7807, {detail: string} y 422 de FastAPI', async () => {
     // 1. RFC 7807 (Kong)
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -221,7 +211,6 @@ describe('HttpClient & Interceptors', () => {
     });
 
     // 2. FastAPI { detail: string }
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockResolvedValueOnce(
       new Response(JSON.stringify({ detail: 'User not found' }), {
         status: 404,
@@ -234,7 +223,6 @@ describe('HttpClient & Interceptors', () => {
     });
 
     // 3. FastAPI 422 { detail: [{ loc, msg }] }
-    // @ts-ignore
     globalThis.fetch = vi.fn().mockResolvedValueOnce(
       new Response(
         JSON.stringify({

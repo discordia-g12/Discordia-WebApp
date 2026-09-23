@@ -37,8 +37,6 @@ import {
   CURRENT_USER_ID,
   USERS,
   SERVERS,
-  MESSAGES,
-  NOTIFICATIONS,
 } from '../data/mock';
 
 /* ==========================================================================
@@ -1588,7 +1586,7 @@ type NotificationFilter = 'all' | 'mention' | 'dm' | 'reply' | 'unread';
  * Panel flotante con filtros por tipo, badges semánticas y marcado de lectura individual.
  */
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
-  notifications = NOTIFICATIONS,
+  notifications = [],
   isOpen = true,
   onClose,
   onMarkAllRead,
@@ -1856,6 +1854,7 @@ export interface GlobalSearchProps {
   isOpen?: boolean;
   onClose: () => void;
   onSelectResult?: (result: SearchResultItem) => void;
+  servers?: Server[];
 }
 
 /**
@@ -1865,6 +1864,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
   isOpen = true,
   onClose,
   onSelectResult,
+  servers = [],
 }) => {
   const [query, setQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'messages' | 'channels' | 'users'>('all');
@@ -1877,36 +1877,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
     }
   }, [isOpen]);
 
-  // Indexación y búsqueda sobre datos de prueba
   const searchResults: SearchResultItem[] = useMemo(() => {
     if (!query.trim()) {
-      // Sugerencias iniciales si el input está vacío
-      const defaultSuggestions: SearchResultItem[] = [
-        {
-          id: 'ch-sug-general',
-          type: 'channel',
-          title: '#general',
-          subtitle: 'Canal de texto en Indie Developers',
-          serverName: 'Indie Developers',
-          channelName: 'general',
-        },
-        {
-          id: 'ch-sug-frontend',
-          type: 'channel',
-          title: '#frontend',
-          subtitle: 'Canal de texto en Indie Developers',
-          serverName: 'Indie Developers',
-          channelName: 'frontend',
-        },
-        {
-          id: 'user-sug-sofia',
-          type: 'user',
-          title: USERS['u1'].displayName,
-          subtitle: `@${USERS['u1'].username} • Community Manager`,
-          author: USERS['u1'],
-        },
-      ];
-      return defaultSuggestions;
+      return [];
     }
 
     const q = query.toLowerCase();
@@ -1914,7 +1887,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
 
     // Buscar en Canales
     if (filterType === 'all' || filterType === 'channels') {
-      SERVERS.forEach((server) => {
+      servers.forEach((server) => {
         server.categories.forEach((cat) => {
           cat.channels.forEach((ch) => {
             if (ch.name.toLowerCase().includes(q) || (ch.topic && ch.topic.toLowerCase().includes(q))) {
@@ -1933,47 +1906,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
       });
     }
 
-    // Buscar en Mensajes
-    if (filterType === 'all' || filterType === 'messages') {
-      Object.entries(MESSAGES).forEach(([channelId, msgs]) => {
-        msgs.forEach((msg) => {
-          if (msg.content.toLowerCase().includes(q)) {
-            const author = msg.author || USERS[msg.authorId] || USERS[CURRENT_USER_ID];
-            results.push({
-              id: `msg-${msg.id}`,
-              type: 'message',
-              title: author.displayName,
-              subtitle: `#${channelId.replace('ch-', '')} • Indie Developers`,
-              detail: msg.content,
-              timestamp: msg.timestamp,
-              author,
-              channelName: channelId.replace('ch-', ''),
-              serverName: 'Indie Developers',
-            });
-          }
-        });
-      });
-    }
-
-    // Buscar en Usuarios
-    if (filterType === 'all' || filterType === 'users') {
-      Object.values(USERS).forEach((user) => {
-        if (
-          user.displayName.toLowerCase().includes(q) ||
-          user.username.toLowerCase().includes(q) ||
-          (user.bio && user.bio.toLowerCase().includes(q))
-        ) {
-          results.push({
-            id: `user-${user.id}`,
-            type: 'user',
-            title: user.displayName,
-            subtitle: `@${user.username}${user.discriminator ? `#${user.discriminator}` : ''}`,
-            detail: user.customStatus || user.bio,
-            author: user,
-          });
-        }
-      });
-    }
+    // La búsqueda de Mensajes y Usuarios a nivel global requeriría endpoints del backend
+    // que actualmente no existen (Elasticsearch, etc.). 
+    // Por ahora, el buscador solo filtra canales.
 
     return results;
   }, [query, filterType]);
