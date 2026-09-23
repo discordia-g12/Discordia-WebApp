@@ -11,11 +11,12 @@ export interface BackendProfile {
   user_id?: string
   username: string
   display_name?: string
+  bio?: string
   avatar_url?: string | null
   email?: string
   activity_status?: string
   custom_status?: string
-  bio?: string
+  created_at?: string
 }
 
 export interface AuthSession {
@@ -42,6 +43,7 @@ export async function getMyProfile(): Promise<BackendProfile> {
 export async function upsertMyProfile(data: {
   username: string
   display_name?: string
+  bio?: string
   avatar_url?: string
 }): Promise<BackendProfile> {
   // Limpieza de caracteres no permitidos en username
@@ -52,6 +54,7 @@ export async function upsertMyProfile(data: {
       username: cleanUsername,
       display_name: data.display_name || data.username,
       avatar_url: data.avatar_url,
+      bio: data.bio,
     },
   })
   return {

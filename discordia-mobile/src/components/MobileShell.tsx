@@ -38,6 +38,7 @@ import type { Category, Channel, Message } from '../types'
 import { useChannelSocket } from '../hooks/useChannelSocket'
 import CreateServerModal from './CreateServerModal'
 import CreateChannelModal from './CreateChannelModal'
+import ProfileModal from './ProfileModal'
 import EditChannelModal from './EditChannelModal'
 import DeleteChannelModal from './DeleteChannelModal'
 import RolesModal from '../features/roles/RolesModal'
@@ -104,6 +105,7 @@ export default function MobileShell() {
   const [editChannelModalOpen, setEditChannelModalOpen] = useState(false)
   const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
   const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
+  const [isProfileVisible, setIsProfileVisible] = useState(false)
   const flatListRef = useRef<FlatList<Message>>(null)
   const inputRef = useRef<TextInput>(null)
 
@@ -421,27 +423,29 @@ export default function MobileShell() {
 
             {/* User panel inferior */}
             <View style={styles.userPanel}>
-              <View style={styles.userPanelAvatarWrap}>
-                <View style={[styles.userPanelAvatar, { backgroundColor: me.color }]}>
-                  <Text style={styles.avatarText}>{me.name.charAt(0)}</Text>
+              <Pressable style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }} onPress={() => setIsProfileVisible(true)}>
+                <View style={styles.userPanelAvatarWrap}>
+                  <View style={[styles.userPanelAvatar, { backgroundColor: me.color }]}>
+                    <Text style={styles.avatarText}>{me.name.charAt(0)}</Text>
+                  </View>
+                  <View
+                    style={[styles.statusDot, { backgroundColor: statusColor[me.status] }]}
+                  />
                 </View>
-                <View
-                  style={[styles.statusDot, { backgroundColor: statusColor[me.status] }]}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.userPanelNameRow}>
-                  <Text style={styles.userPanelName} numberOfLines={1}>
-                    {me.name}
-                  </Text>
-                  <ChevronDown color={colors.textMuted} size={14} />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.userPanelNameRow}>
+                    <Text style={styles.userPanelName} numberOfLines={1}>
+                      {me.name}
+                    </Text>
+                    <ChevronDown color={colors.textMuted} size={14} />
+                  </View>
+                  {!!me.customStatus && (
+                    <Text style={styles.userPanelStatus} numberOfLines={1}>
+                      {me.customStatus}
+                    </Text>
+                  )}
                 </View>
-                {!!me.customStatus && (
-                  <Text style={styles.userPanelStatus} numberOfLines={1}>
-                    {me.customStatus}
-                  </Text>
-                )}
-              </View>
+              </Pressable>
               <Pressable style={styles.iconButton}>
                 <Bell color={colors.text} size={18} />
                 {hasUnreadNotifications && <View style={styles.bellDot} />}
@@ -473,6 +477,10 @@ export default function MobileShell() {
           visible={rolesModalOpen}
           serverId={server?.id ?? null}
           onClose={() => setRolesModalOpen(false)}
+        />
+        <ProfileModal
+          visible={isProfileVisible}
+          onClose={() => setIsProfileVisible(false)}
         />
 
         {server && (
