@@ -23,6 +23,7 @@ export function mapChannelFromBackend(raw: ChannelBackendResponse): Channel {
     serverId: raw.server_id,
     categoryId: raw.category_id || undefined,
     position: raw.position,
+    topic: raw.topic || undefined,
   }
 }
 
@@ -96,6 +97,37 @@ export async function createChannel(
       category_id: payload.categoryId || null,
     },
   })
+  return mapChannelFromBackend(raw)
+}
+
+export interface UpdateChannelRequest {
+  name?: string
+  topic?: string
+}
+
+/**
+ * Actualiza el nombre o tema de un canal de un servidor.
+ */
+export async function updateChannel(
+  serverId: string,
+  channelId: string,
+  payload: UpdateChannelRequest,
+): Promise<Channel> {
+  const body: Record<string, any> = {}
+  if (payload.name !== undefined) {
+    body.name = payload.name.trim()
+  }
+  if (payload.topic !== undefined) {
+    body.topic = payload.topic.trim()
+  }
+
+  const raw = await apiFetch<ChannelBackendResponse>(
+    `/api/v1/servers/${serverId}/channels/${channelId}`,
+    {
+      method: 'PATCH',
+      body,
+    },
+  )
   return mapChannelFromBackend(raw)
 }
 

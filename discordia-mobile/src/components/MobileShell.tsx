@@ -25,6 +25,8 @@ import {
   Plus,
   Search,
   Send,
+  Settings,
+  Shield,
   UserPlus,
   Volume2,
   X,
@@ -36,6 +38,9 @@ import type { Category, Channel, Message } from '../types'
 import { useChannelSocket } from '../hooks/useChannelSocket'
 import CreateServerModal from './CreateServerModal'
 import CreateChannelModal from './CreateChannelModal'
+import EditChannelModal from './EditChannelModal'
+import DeleteChannelModal from './DeleteChannelModal'
+import RolesModal from '../features/roles/RolesModal'
 
 type MobileScreen = 'sidebar' | 'chat'
 
@@ -94,7 +99,11 @@ export default function MobileShell() {
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
   const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
+  const [rolesModalOpen, setRolesModalOpen] = useState(false)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
+  const [editChannelModalOpen, setEditChannelModalOpen] = useState(false)
+  const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
+  const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
   const flatListRef = useRef<FlatList<Message>>(null)
   const inputRef = useRef<TextInput>(null)
 
@@ -162,6 +171,44 @@ export default function MobileShell() {
       }
     },
   })
+
+  const isServerAdmin = useMemo(() => {
+    if (!server) return false
+    return server.ownerId === currentUserId
+  }, [server, currentUserId])
+
+  const handleOpenEditChannel = (ch: Channel) => {
+    // CA 2: Sin permisos
+    if (!isServerAdmin) {
+      showToast('No tienes permisos de administración para editar este canal.', 'error')
+      return
+    }
+    setTargetChannelForAction(ch)
+    setEditChannelModalOpen(true)
+  }
+
+  const handleOpenDeleteChannel = (ch: Channel) => {
+    // CA 3: Sin permisos
+    if (!isServerAdmin) {
+      showToast('No tienes permisos de administración para eliminar este canal.', 'error')
+      return
+    }
+    setTargetChannelForAction(ch)
+    setDeleteChannelModalOpen(true)
+  }
+
+  const handleChannelDeleted = () => {
+    if (targetChannelForAction && targetChannelForAction.id === selectedChannelId) {
+      const remaining = allChannels.filter(c => c.id !== targetChannelForAction.id)
+      if (remaining.length > 0) {
+        selectChannel(remaining[0].id)
+      } else {
+        selectChannel(null)
+        setScreen('sidebar')
+      }
+    }
+    setTargetChannelForAction(null)
+  }
 
   const handleSelectServer = (id: string) => selectServer(id)
 
@@ -264,16 +311,25 @@ export default function MobileShell() {
                 {server?.name}
               </Text>
               {server && (
-                <Pressable
-                  style={styles.addChannelButton}
-                  onPress={() => {
-                    setChannelModalCategoryId(null)
-                    setCreateChannelModalOpen(true)
-                  }}
-                  hitSlop={8}
-                >
-                  <Plus color={colors.textMuted} size={18} />
-                </Pressable>
+                <View style={styles.sidebarHeaderActions}>
+                  <Pressable
+                    style={styles.addChannelButton}
+                    onPress={() => setRolesModalOpen(true)}
+                    hitSlop={8}
+                  >
+                    <Shield color={colors.textMuted} size={18} />
+                  </Pressable>
+                  <Pressable
+                    style={styles.addChannelButton}
+                    onPress={() => {
+                      setChannelModalCategoryId(null)
+                      setCreateChannelModalOpen(true)
+                    }}
+                    hitSlop={8}
+                  >
+                    <Plus color={colors.textMuted} size={18} />
+                  </Pressable>
+                </View>
               )}
             </View>
 
@@ -332,6 +388,8 @@ export default function MobileShell() {
                             key={ch.id}
                             style={[styles.channelRow, active && styles.channelRowActive]}
                             onPress={() => handleSelectChannel(ch)}
+                            onLongPress={() => handleOpenEditChannel(ch)}
+                            delayLongPress={350}
                           >
                             {ch.type === 'voice' ? (
                               <Volume2 color={colors.textMuted} size={18} />
@@ -409,6 +467,41 @@ export default function MobileShell() {
             categories={server.categories}
             categoryId={channelModalCategoryId}
             onClose={() => setCreateChannelModalOpen(false)}
+          />
+        )}
+        <RolesModal
+          visible={rolesModalOpen}
+          serverId={server?.id ?? null}
+          onClose={() => setRolesModalOpen(false)}
+        />
+
+        {server && (
+          <EditChannelModal
+            visible={editChannelModalOpen}
+            serverId={server.id}
+            channel={targetChannelForAction}
+            onClose={() => {
+              setEditChannelModalOpen(false)
+              setTargetChannelForAction(null)
+            }}
+            onRequestDelete={ch => {
+              setEditChannelModalOpen(false)
+              setTargetChannelForAction(ch)
+              setDeleteChannelModalOpen(true)
+            }}
+          />
+        )}
+
+        {server && (
+          <DeleteChannelModal
+            visible={deleteChannelModalOpen}
+            serverId={server.id}
+            channel={targetChannelForAction}
+            onClose={() => {
+              setDeleteChannelModalOpen(false)
+              setTargetChannelForAction(null)
+            }}
+            onSuccess={handleChannelDeleted}
           />
         )}
 
@@ -494,7 +587,12 @@ export default function MobileShell() {
                 />
               )}
             </View>
-            <View style={{ width: 20 }} />
+            <Pressable
+              onPress={() => handleOpenEditChannel(channel)}
+              hitSlop={12}
+            >
+              <Settings color={colors.textMuted} size={18} />
+            </Pressable>
           </View>
 
           <FlatList
@@ -583,6 +681,36 @@ export default function MobileShell() {
             </Pressable>
           </View>
         </KeyboardAvoidingView>
+
+        {server && (
+          <EditChannelModal
+            visible={editChannelModalOpen}
+            serverId={server.id}
+            channel={targetChannelForAction}
+            onClose={() => {
+              setEditChannelModalOpen(false)
+              setTargetChannelForAction(null)
+            }}
+            onRequestDelete={ch => {
+              setEditChannelModalOpen(false)
+              setTargetChannelForAction(ch)
+              setDeleteChannelModalOpen(true)
+            }}
+          />
+        )}
+
+        {server && (
+          <DeleteChannelModal
+            visible={deleteChannelModalOpen}
+            serverId={server.id}
+            channel={targetChannelForAction}
+            onClose={() => {
+              setDeleteChannelModalOpen(false)
+              setTargetChannelForAction(null)
+            }}
+            onSuccess={handleChannelDeleted}
+          />
+        )}
       </SafeAreaView>
     )
   }
@@ -687,6 +815,11 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   sidebarTitle: { ...typography.channelName, color: colors.text, flex: 1 },
+  sidebarHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',

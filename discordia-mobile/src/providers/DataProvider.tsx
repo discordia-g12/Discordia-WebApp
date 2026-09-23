@@ -33,6 +33,8 @@ import {
   getServers,
   createServer as apiCreateServer,
   createChannel as apiCreateChannel,
+  updateChannel as apiUpdateChannel,
+  deleteChannel as apiDeleteChannel,
 } from '../api/servers'
 
 interface DataContextValue {
@@ -52,6 +54,12 @@ interface DataContextValue {
     serverId: string,
     data: { name: string; type: 'text' | 'voice'; categoryId?: string },
   ) => Promise<Channel>
+  editChannel: (
+    serverId: string,
+    channelId: string,
+    data: { name?: string; topic?: string },
+  ) => Promise<Channel>
+  deleteChannel: (serverId: string, channelId: string) => Promise<void>
 
   // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string) => void
@@ -151,6 +159,65 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }),
       )
       return newChannel
+    },
+    [],
+  )
+
+  const editChannel = useCallback(
+    async (
+      serverId: string,
+      channelId: string,
+      data: { name?: string; topic?: string },
+    ): Promise<Channel> => {
+      const updatedChannel = await apiUpdateChannel(serverId, channelId, data)
+      setServers(prev =>
+        prev.map(srv => {
+          if (srv.id !== serverId) return srv
+          const updatedChannels = (srv.channels || []).map(ch =>
+            ch.id === channelId ? { ...ch, ...updatedChannel } : ch,
+          )
+          const updatedCategories = srv.categories.map(cat => ({
+            ...cat,
+            channels: cat.channels.map(ch =>
+              ch.id === channelId ? { ...ch, ...updatedChannel } : ch,
+            ),
+          }))
+          return {
+            ...srv,
+            channels: updatedChannels,
+            categories: updatedCategories,
+          }
+        }),
+      )
+      return updatedChannel
+    },
+    [],
+  )
+
+  const deleteChannel = useCallback(
+    async (serverId: string, channelId: string): Promise<void> => {
+      await apiDeleteChannel(serverId, channelId)
+      setServers(prev =>
+        prev.map(srv => {
+          if (srv.id !== serverId) return srv
+          const updatedChannels = (srv.channels || []).filter(ch => ch.id !== channelId)
+          const updatedCategories = srv.categories.map(cat => ({
+            ...cat,
+            channels: cat.channels.filter(ch => ch.id !== channelId),
+          }))
+          return {
+            ...srv,
+            channels: updatedChannels,
+            categories: updatedCategories,
+          }
+        }),
+      )
+      // Limpiar mensajes locales del canal eliminado
+      setMessages(prev => {
+        const copy = { ...prev }
+        delete copy[channelId]
+        return copy
+      })
     },
     [],
   )
@@ -395,6 +462,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       refreshServers,
       createServer,
       createChannel,
+      editChannel,
+      deleteChannel,
       sendMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,
@@ -418,6 +487,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       refreshServers,
       createServer,
       createChannel,
+      editChannel,
+      deleteChannel,
       sendMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,
