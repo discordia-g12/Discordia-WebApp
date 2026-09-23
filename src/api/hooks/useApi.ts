@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyProfile, upsertMyProfile, CreateProfileRequest } from '../users';
-import { getServers, createServer, CreateServerRequest } from '../servers';
+import { getServers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel } from '../servers';
 import { getMessages, sendMessage, GetMessagesOptions } from '../messages';
 import { useSession } from '../../auth/session';
 
@@ -83,3 +83,33 @@ export function useSendMessageMutation(channelId: string) {
   });
 }
 
+
+export function useCreateChannelMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serverId, payload }: { serverId: string; payload: CreateChannelRequest }) => createChannel(serverId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+    },
+  });
+}
+
+export function useEditChannelMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serverId, channelId, payload }: { serverId: string; channelId: string; payload: EditChannelRequest }) => editChannel(serverId, channelId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+    },
+  });
+}
+
+export function useDeleteChannelMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serverId, channelId }: { serverId: string; channelId: string }) => deleteChannel(serverId, channelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+    },
+  });
+}

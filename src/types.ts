@@ -37,6 +37,8 @@ export type Modal =
   | 'confirm-action'
   | 'search'
   | 'edit-message'
+  | 'create-channel'
+  | 'edit-channel'
   | null;
 
 /** Acciones críticas que requieren confirmación explícita del usuario. */

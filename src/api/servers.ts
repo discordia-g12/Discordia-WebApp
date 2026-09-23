@@ -84,7 +84,12 @@ export async function createChannel(
   serverId: string,
   payload: CreateChannelRequest
 ): Promise<Channel> {
-  const rawChannel = await api.post<ChannelBackendResponse>(`/api/v1/servers/${serverId}/channels`, payload);
+  const backendPayload = {
+    name: payload.name,
+    type: payload.type,
+    category_id: (payload.parentId && payload.parentId.startsWith("cat-")) ? undefined : payload.parentId,
+  };
+  const rawChannel = await api.post<ChannelBackendResponse>(`/api/v1/servers/${serverId}/channels`, backendPayload);
   return mapChannelFromBackend(rawChannel);
 }
 
@@ -95,3 +100,16 @@ export async function deleteChannel(serverId: string, channelId: string): Promis
   await api.delete(`/api/v1/servers/${serverId}/channels/${channelId}`);
 }
 
+
+export interface EditChannelRequest {
+  name?: string;
+  topic?: string;
+}
+
+/**
+ * Edita un canal de un servidor.
+ */
+export async function editChannel(serverId: string, channelId: string, payload: EditChannelRequest): Promise<Channel> {
+  const rawChannel = await api.patch<ChannelBackendResponse>(`/api/v1/servers/${serverId}/channels/${channelId}`, payload);
+  return mapChannelFromBackend(rawChannel);
+}

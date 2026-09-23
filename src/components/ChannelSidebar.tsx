@@ -71,6 +71,8 @@ export interface ChannelSidebarProps {
   onJoinVoiceChannel?: (channelId: string) => void;
   /** Acción para crear un nuevo canal en una categoría. */
   onCreateChannel?: (categoryId?: string) => void;
+  onEditChannel?: (channel: Channel) => void;
+  onDeleteChannel?: (channelId: string) => void;
   /** Acciones del menú desplegable del servidor */
   onOpenServerBoost?: () => void;
   onInvitePeople?: () => void;
@@ -134,7 +136,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   voiceParticipants = {},
   onJoinVoiceChannel,
   onCreateChannel,
-  onOpenServerBoost,
+    onEditChannel,
+    onOpenServerBoost,
   onInvitePeople,
   onOpenServerSettings,
   onOpenNotificationSettings,
@@ -151,6 +154,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onLogout,
 }) => {
   const [isServerMenuOpen, setIsServerMenuOpen] = useState(false);
+  const [hoveredChannelId, setHoveredChannelId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const headerRef = useRef<HTMLDivElement>(null);
 
@@ -563,6 +567,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                           className={`channel-item ${isActive ? 'active' : ''} ${
                             hasUnreads ? 'unread' : ''
                           }`}
+                          onMouseEnter={() => setHoveredChannelId(channel.id)}
+                          onMouseLeave={() => setHoveredChannelId(null)}
                           onClick={() => {
                             onSelectChannel(channel.id);
                             if (channel.type === 'voice' && onJoinVoiceChannel) {
@@ -577,6 +583,29 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                             {renderChannelIcon(channel)}
                             <span className="channel-name">{channel.name}</span>
                           </div>
+                          {hoveredChannelId === channel.id && onEditChannel && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditChannel(channel);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-muted)',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: 'var(--radius-sm)',
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.color = 'var(--text-normal)'}
+                              onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                            >
+                              <Settings size={14} />
+                            </button>
+                          )}
 
                           {/* Badges de no leído o límite de participantes */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

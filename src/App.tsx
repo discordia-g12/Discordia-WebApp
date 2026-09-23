@@ -18,6 +18,7 @@ import {
   INITIAL_ROLES,
 } from './data/mock';
 
+import { CreateChannelModal, EditChannelModal } from './components/ChannelModals';
 import {
   ServerRail,
   ChannelSidebar,
@@ -44,7 +45,7 @@ import {
 } from './views';
 
 import { useSession, bootstrap, authService } from './auth/session';
-import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery } from './api/hooks/useApi';
+import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation } from './api/hooks/useApi';
 import { useChatWebSocket } from './api/hooks/useChatWebSocket';
 
 /**
@@ -186,6 +187,9 @@ export default function App() {
   const queryClient = useQueryClient();
   const { data: activeServers, isLoading: isLoadingServers } = useServersQuery();
   const createServerMutation = useCreateServerMutation();
+  const createChannelMutation = useCreateChannelMutation();
+  const editChannelMutation = useEditChannelMutation();
+  const deleteChannelMutation = useDeleteChannelMutation();
   const servers = activeServers || [];
   
   const [selectedServerId, setSelectedServerId] = useState<string | 'home'>('home');
@@ -227,6 +231,8 @@ export default function App() {
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [confirmTargetName, setConfirmTargetName] = useState<string>('');
+  const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | undefined>();
+  const [targetChannelForAction, setTargetChannelForAction] = useState<any>(null);
 
   // Toast flotante
   const [toast, setToast] = useState<{ message: string; type?: 'success' | 'danger' | 'info' } | null>(null);
@@ -581,7 +587,44 @@ export default function App() {
         )}
 
         <ConnectionBanner />
-        {toast && <ToastNotification message={toast.message} type={toast.type} />}
+        
+      {activeModal === 'create-channel' && currentServer && (
+        <CreateChannelModal
+          categoryId={channelModalCategoryId}
+          onClose={() => setActiveModal(null)}
+          onCreate={async (name, type, catId) => {
+            await createChannelMutation.mutateAsync({
+              serverId: currentServer!.id,
+              payload: { name, type, parentId: catId }
+            });
+          }}
+        />
+      )}
+      
+      {activeModal === 'edit-channel' && targetChannelForAction && (
+        <EditChannelModal
+          channel={targetChannelForAction}
+          onClose={() => setActiveModal(null)}
+          onEdit={async (id, name) => {
+            await editChannelMutation.mutateAsync({
+              serverId: currentServer!.id,
+              channelId: id,
+              payload: { name }
+            });
+          }}
+          onDelete={async (id) => {
+            await deleteChannelMutation.mutateAsync({
+              serverId: currentServer!.id,
+              channelId: id
+            });
+            if (selectedChannelId === id) {
+              setSelectedChannelId(currentServer!.channels?.[0]?.id || null);
+            }
+          }}
+        />
+      )}
+
+      {toast && <ToastNotification message={toast.message} type={toast.type} />}
       </>
     );
   }
@@ -663,6 +706,14 @@ export default function App() {
           onJoinVoiceChannel={handleJoinVoiceChannel}
           onOpenServerSettings={() => setAppView('server-settings')}
           onInvitePeople={() => setActiveModal('invite')}
+          onCreateChannel={(catId) => {
+            setChannelModalCategoryId(catId);
+            setActiveModal('create-channel');
+          }}
+          onEditChannel={(channel) => {
+            setTargetChannelForAction(channel);
+            setActiveModal('edit-channel');
+          }}
           onOpenServerBoost={() => setAppView('server-settings')}
           onOpenServerProfile={() => setAppView('server-settings')}
           onLeaveServer={() => {
@@ -879,6 +930,43 @@ export default function App() {
       )}
 
       <ConnectionBanner />
+      
+      {activeModal === 'create-channel' && currentServer && (
+        <CreateChannelModal
+          categoryId={channelModalCategoryId}
+          onClose={() => setActiveModal(null)}
+          onCreate={async (name, type, catId) => {
+            await createChannelMutation.mutateAsync({
+              serverId: currentServer!.id,
+              payload: { name, type, parentId: catId }
+            });
+          }}
+        />
+      )}
+      
+      {activeModal === 'edit-channel' && targetChannelForAction && (
+        <EditChannelModal
+          channel={targetChannelForAction}
+          onClose={() => setActiveModal(null)}
+          onEdit={async (id, name) => {
+            await editChannelMutation.mutateAsync({
+              serverId: currentServer!.id,
+              channelId: id,
+              payload: { name }
+            });
+          }}
+          onDelete={async (id) => {
+            await deleteChannelMutation.mutateAsync({
+              serverId: currentServer!.id,
+              channelId: id
+            });
+            if (selectedChannelId === id) {
+              setSelectedChannelId(currentServer!.channels?.[0]?.id || null);
+            }
+          }}
+        />
+      )}
+
       {toast && <ToastNotification message={toast.message} type={toast.type} />}
     </div>
   );
