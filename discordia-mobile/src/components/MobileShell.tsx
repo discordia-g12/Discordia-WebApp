@@ -26,6 +26,7 @@ import {
   Search,
   Send,
   Settings,
+  Shield,
   UserPlus,
   Volume2,
   X,
@@ -39,6 +40,7 @@ import CreateServerModal from './CreateServerModal'
 import CreateChannelModal from './CreateChannelModal'
 import EditChannelModal from './EditChannelModal'
 import DeleteChannelModal from './DeleteChannelModal'
+import RolesModal from '../features/roles/RolesModal'
 
 type MobileScreen = 'sidebar' | 'chat'
 
@@ -97,6 +99,7 @@ export default function MobileShell() {
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
   const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
+  const [rolesModalOpen, setRolesModalOpen] = useState(false)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
   const [editChannelModalOpen, setEditChannelModalOpen] = useState(false)
   const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
@@ -308,16 +311,25 @@ export default function MobileShell() {
                 {server?.name}
               </Text>
               {server && (
-                <Pressable
-                  style={styles.addChannelButton}
-                  onPress={() => {
-                    setChannelModalCategoryId(null)
-                    setCreateChannelModalOpen(true)
-                  }}
-                  hitSlop={8}
-                >
-                  <Plus color={colors.textMuted} size={18} />
-                </Pressable>
+                <View style={styles.sidebarHeaderActions}>
+                  <Pressable
+                    style={styles.addChannelButton}
+                    onPress={() => setRolesModalOpen(true)}
+                    hitSlop={8}
+                  >
+                    <Shield color={colors.textMuted} size={18} />
+                  </Pressable>
+                  <Pressable
+                    style={styles.addChannelButton}
+                    onPress={() => {
+                      setChannelModalCategoryId(null)
+                      setCreateChannelModalOpen(true)
+                    }}
+                    hitSlop={8}
+                  >
+                    <Plus color={colors.textMuted} size={18} />
+                  </Pressable>
+                </View>
               )}
             </View>
 
@@ -457,6 +469,11 @@ export default function MobileShell() {
             onClose={() => setCreateChannelModalOpen(false)}
           />
         )}
+        <RolesModal
+          visible={rolesModalOpen}
+          serverId={server?.id ?? null}
+          onClose={() => setRolesModalOpen(false)}
+        />
 
         {server && (
           <EditChannelModal
@@ -798,6 +815,11 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   sidebarTitle: { ...typography.channelName, color: colors.text, flex: 1 },
+  sidebarHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
