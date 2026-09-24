@@ -1,6 +1,6 @@
 import React from 'react'
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
-import { colors, radii, spacing, typography } from '../theme'
+import { colors, radii, spacing, typography } from '../../theme'
 
 interface ConfirmModalProps {
     visible: boolean

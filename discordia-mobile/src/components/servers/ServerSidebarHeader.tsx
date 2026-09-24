@@ -1,8 +1,8 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Plus, Shield } from 'lucide-react-native'
-import { colors, radii, spacing, typography } from '../theme'
-import type { Server } from '../types'
+import { colors, radii, spacing, typography } from '../../theme'
+import type { Server } from '../../types'
 
 interface ServerSidebarHeaderProps {
     server?: Server

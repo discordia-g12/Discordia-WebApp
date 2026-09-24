@@ -1,9 +1,9 @@
 import React from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { MessageCircle, Plus } from 'lucide-react-native'
-import { colors, radii, spacing } from '../theme'
-import type { Server } from '../types'
-import Avatar from './Avatar'
+import { colors, radii, spacing } from '../../theme'
+import type { Server } from '../../types'
+import Avatar from '../shared/Avatar'
 
 const RAIL_WIDTH = 72
 

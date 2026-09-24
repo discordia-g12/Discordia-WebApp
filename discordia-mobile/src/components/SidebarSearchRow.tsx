@@ -2,7 +2,7 @@ import React from 'react'
 import { StyleSheet, TextInput, View } from 'react-native'
 import { Search, UserPlus } from 'lucide-react-native'
 import { colors, radii, spacing } from '../theme'
-import IconButton from './IconButton'
+import IconButton from './shared/IconButton'
 
 // La parte donde se busca o invita a un server
 export default function SidebarSearchRow() {

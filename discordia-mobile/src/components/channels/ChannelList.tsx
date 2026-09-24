@@ -1,7 +1,7 @@
 import React from 'react'
 import { FlatList } from 'react-native'
-import { spacing } from '../theme'
-import type { Category, Channel } from '../types'
+import { spacing } from '../../theme'
+import type { Category, Channel } from '../../types'
 import CategorySection from './CategorySection'
 
 interface ChannelListProps {

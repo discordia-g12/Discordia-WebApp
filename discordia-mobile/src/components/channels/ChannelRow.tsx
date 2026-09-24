@@ -1,8 +1,8 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Hash, Volume2 } from 'lucide-react-native'
-import { colors, radii, spacing, typography } from '../theme'
-import type { Channel } from '../types'
+import { colors, radii, spacing, typography } from '../../theme'
+import type { Channel } from '../../types'
 
 interface ChannelRowProps {
     channel: Channel

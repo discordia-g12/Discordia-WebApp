@@ -1,11 +1,11 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Bell, ChevronDown, LogOut } from 'lucide-react-native'
-import { colors, radii, spacing, typography } from '../theme'
-import { statusColor } from '../theme/colors'
-import type { User } from '../types'
-import Avatar from './Avatar'
-import IconButton from './IconButton'
+import { colors, radii, spacing, typography } from '../../theme'
+import { statusColor } from '../../theme/colors'
+import type { User } from '../../types'
+import Avatar from '../shared/Avatar'
+import IconButton from '../shared/IconButton'
 
 interface UserPanelProps {
     user: User

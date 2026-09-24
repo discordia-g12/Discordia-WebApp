@@ -11,9 +11,9 @@ import {
   View,
 } from 'react-native'
 import { Hash, Trash2, Volume2, X } from 'lucide-react-native'
-import { useData, useUI } from '../providers/AppProviders'
-import { colors, radii, spacing, typography } from '../theme'
-import type { Channel } from '../types'
+import { useData, useUI } from '../../providers/AppProviders'
+import { colors, radii, spacing, typography } from '../../theme'
+import type { Channel } from '../../types'
 
 interface EditChannelModalProps {
   visible: boolean

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ArrowLeft, Hash, Settings } from 'lucide-react-native'
-import { colors, spacing, typography } from '../theme'
+import { colors, spacing, typography } from '../../theme'
 
 interface ChatHeaderProps {
     channelName: string

@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { Modal, View, Text, StyleSheet, Pressable, Image, ActivityIndicator } from 'react-native'
 import { X, Edit2, LogOut } from 'lucide-react-native'
-import { colors, spacing, radii, typography } from '../theme'
-import { useAuth } from '../providers/AppProviders'
+import { colors, spacing, radii, typography } from '../../theme'
+import { useAuth } from '../../providers/AppProviders'
 import EditProfileModal from './EditProfileModal'
 
 interface ProfileModalProps {
@@ -73,10 +73,10 @@ export default function ProfileModal({ visible, onClose }: ProfileModalProps) {
                       userProfile.activity_status === 'online'
                         ? colors.online
                         : userProfile.activity_status === 'idle'
-                        ? colors.idle
-                        : userProfile.activity_status === 'dnd'
-                        ? colors.danger
-                        : colors.offline,
+                          ? colors.idle
+                          : userProfile.activity_status === 'dnd'
+                            ? colors.danger
+                            : colors.offline,
                   },
                 ]}
               />
@@ -104,13 +104,13 @@ export default function ProfileModal({ visible, onClose }: ProfileModalProps) {
               <Text style={styles.sectionTitle}>Miembro desde</Text>
               <Text style={styles.sectionContent}>{formatDate(userProfile.created_at)}</Text>
             </View>
-            
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Email</Text>
               <Text style={styles.sectionContent}>{userProfile.email || 'Oculto'}</Text>
             </View>
           </View>
-          
+
           <Pressable style={styles.logoutBtn} onPress={handleLogout}>
             <LogOut color={colors.danger} size={18} />
             <Text style={styles.logoutText}>Cerrar Sesión</Text>

@@ -11,9 +11,9 @@ import {
   View,
 } from 'react-native'
 import { X } from 'lucide-react-native'
-import { useData, useUI } from '../providers/AppProviders'
-import { colors, radii, spacing, typography } from '../theme'
-import type { Server } from '../types'
+import { useData, useUI } from '../../providers/AppProviders'
+import { colors, radii, spacing, typography } from '../../theme'
+import type { Server } from '../../types'
 
 interface CreateServerModalProps {
   visible: boolean

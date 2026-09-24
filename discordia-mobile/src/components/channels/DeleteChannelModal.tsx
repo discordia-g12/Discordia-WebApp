@@ -8,9 +8,9 @@ import {
   View,
 } from 'react-native'
 import { Trash2 } from 'lucide-react-native'
-import { useData, useUI } from '../providers/AppProviders'
-import { colors, radii, spacing, typography } from '../theme'
-import type { Channel } from '../types'
+import { useData, useUI } from '../../providers/AppProviders'
+import { colors, radii, spacing, typography } from '../../theme'
+import type { Channel } from '../../types'
 
 interface DeleteChannelModalProps {
   visible: boolean

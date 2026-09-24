@@ -1,8 +1,8 @@
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { colors, radii, spacing, typography } from '../theme'
-import type { Message, User } from '../types'
-import Avatar from './Avatar'
+import { colors, radii, spacing, typography } from '../../theme'
+import type { Message, User } from '../../types'
+import Avatar from '../shared/Avatar'
 
 // Capaz se pasa a una carpeta aparte (funciones?)
 export function formatMessageTimestamp(isoDate: string): string {

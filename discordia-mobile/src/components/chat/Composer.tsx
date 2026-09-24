@@ -1,7 +1,7 @@
 import React from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import { Paperclip, Send } from 'lucide-react-native'
-import { colors, radii, spacing } from '../theme'
+import { colors, radii, spacing } from '../../theme'
 
 interface ComposerProps {
     channelName: string

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { FlatList, Keyboard, Platform } from 'react-native'
-import { spacing } from '../theme'
-import type { Message, User } from '../types'
+import { spacing } from '../../theme'
+import type { Message, User } from '../../types'
 import MessageItem from './MessageItem'
 
 interface MessageListProps {

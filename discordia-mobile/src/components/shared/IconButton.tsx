@@ -1,6 +1,6 @@
 import React from 'react'
 import { Pressable, StyleSheet } from 'react-native'
-import { colors, radii } from '../theme'
+import { colors, radii } from '../../theme'
 
 interface IconButtonProps {
     onPress?: () => void

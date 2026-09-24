@@ -1,5 +1,5 @@
 import React from 'react'
-import type { Channel } from '../types'
+import type { Channel } from '../../types'
 import EditChannelModal from './EditChannelModal'
 import DeleteChannelModal from './DeleteChannelModal'
 

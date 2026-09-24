@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
 import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Alert } from 'react-native'
 import { X } from 'lucide-react-native'
-import { colors, spacing, radii, typography } from '../theme'
-import { useAuth } from '../providers/AppProviders'
-import { upsertMyProfile } from '../api/auth'
+import { colors, spacing, radii, typography } from '../../theme'
+import { useAuth } from '../../providers/AppProviders'
+import { upsertMyProfile } from '../../api/auth'
 
 interface EditProfileModalProps {
   visible: boolean
@@ -12,7 +12,7 @@ interface EditProfileModalProps {
 
 export default function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   const { userProfile } = useAuth()
-  
+
   const [displayName, setDisplayName] = useState(userProfile?.display_name || '')
   const [bio, setBio] = useState(userProfile?.bio || '')
   const [avatarUrl, setAvatarUrl] = useState(userProfile?.avatar_url || '')
@@ -39,7 +39,7 @@ export default function EditProfileModal({ visible, onClose }: EditProfileModalP
         avatar_url: avatarUrl,
         bio: bio,
       } as any)
-      
+
       Alert.alert('Éxito', 'Perfil actualizado correctamente. Los cambios se verán en tu próximo inicio de sesión o si recargas.', [{ text: 'OK', onPress: onClose }])
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Error al guardar perfil')
@@ -90,8 +90,8 @@ export default function EditProfileModal({ visible, onClose }: EditProfileModalP
               maxLength={190}
             />
 
-            <Pressable 
-              style={[styles.saveBtn, isLoading && styles.saveBtnDisabled]} 
+            <Pressable
+              style={[styles.saveBtn, isLoading && styles.saveBtnDisabled]}
               onPress={handleSave}
               disabled={isLoading}
             >

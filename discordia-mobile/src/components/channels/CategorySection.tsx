@@ -1,8 +1,8 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react-native'
-import { colors, radii, spacing, typography } from '../theme'
-import type { Category, Channel } from '../types'
+import { colors, radii, spacing, typography } from '../../theme'
+import type { Category, Channel } from '../../types'
 import ChannelRow from './ChannelRow'
 
 interface CategorySectionProps {

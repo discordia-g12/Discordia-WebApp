@@ -1,6 +1,6 @@
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { colors, radii } from '../theme'
+import { colors, radii } from '../../theme'
 
 interface AvatarProps {
     label: string
