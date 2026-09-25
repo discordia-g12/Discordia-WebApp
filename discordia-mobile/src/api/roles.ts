@@ -1,5 +1,5 @@
-import { apiFetch } from '../../api/client'
-import type { Role, RoleBackendResponse } from './types'
+import { apiFetch } from './client'
+import type { ServerRole, RoleBackendResponse } from '../types'
 
 export interface CreateRoleRequest {
   name: string
@@ -9,7 +9,7 @@ export interface CreateRoleRequest {
 /**
  * Adaptador: Convierte un rol del backend (snake_case) al modelo de dominio (camelCase).
  */
-export function mapRoleFromBackend(raw: RoleBackendResponse): Role {
+export function mapRoleFromBackend(raw: RoleBackendResponse): ServerRole {
   return {
     id: raw.id,
     name: raw.name,
@@ -23,7 +23,7 @@ export function mapRoleFromBackend(raw: RoleBackendResponse): Role {
 /**
  * Consulta la lista de roles de un servidor, ordenados por posición.
  */
-export async function getRoles(serverId: string): Promise<Role[]> {
+export async function getRoles(serverId: string): Promise<ServerRole[]> {
   const raw = await apiFetch<RoleBackendResponse[]>(`/api/v1/servers/${serverId}/roles`)
   return (raw || []).map(mapRoleFromBackend)
 }
@@ -31,7 +31,7 @@ export async function getRoles(serverId: string): Promise<Role[]> {
 /**
  * Crea un rol dentro de un servidor.
  */
-export async function createRole(serverId: string, payload: CreateRoleRequest): Promise<Role> {
+export async function createRole(serverId: string, payload: CreateRoleRequest): Promise<ServerRole> {
   const raw = await apiFetch<RoleBackendResponse>(`/api/v1/servers/${serverId}/roles`, {
     method: 'POST',
     body: {

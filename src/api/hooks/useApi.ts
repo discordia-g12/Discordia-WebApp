@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyProfile, upsertMyProfile, CreateProfileRequest } from '../users';
 import { getServers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel } from '../servers';
+import { getRoles, createRole, deleteRole, CreateRoleRequest } from '../roles';
 import { getMessages, sendMessage, GetMessagesOptions } from '../messages';
 import { useSession } from '../../auth/session';
 
@@ -110,6 +111,35 @@ export function useDeleteChannelMutation() {
     mutationFn: ({ serverId, channelId }: { serverId: string; channelId: string }) => deleteChannel(serverId, channelId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['servers'] });
+    },
+  });
+}
+
+export function useRolesQuery(serverId: string | null) {
+  const status = useSession((s) => s.status);
+  return useQuery({
+    queryKey: ['roles', serverId],
+    queryFn: () => getRoles(serverId as string),
+    enabled: status === 'authenticated' && Boolean(serverId),
+  });
+}
+
+export function useCreateRoleMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateRoleRequest) => createRole(serverId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles', serverId] });
+    },
+  });
+}
+
+export function useDeleteRoleMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (roleId: string) => deleteRole(serverId, roleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles', serverId] });
     },
   });
 }

@@ -15,8 +15,8 @@ import {
 import { Shield, Trash2, X } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
-import { useCreateRoleMutation, useDeleteRoleMutation, useRolesQuery } from './hooks'
-import type { Role } from './types'
+import { useCreateRoleMutation, useDeleteRoleMutation, useRolesQuery } from '../../hooks/useRoles'
+import type { ServerRole } from '../../types'
 
 interface RolesModalProps {
   visible: boolean
@@ -59,7 +59,7 @@ export default function RolesModal({ visible, serverId, onClose }: RolesModalPro
     }
   }
 
-  const handleDelete = (role: Role) => {
+  const handleDelete = (role: ServerRole) => {
     Alert.alert(
       'Eliminar rol',
       `¿Seguro que querés eliminar el rol "${role.name}"? Los miembros que lo tienen van a perder los permisos asociados.`,

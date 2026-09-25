@@ -19,7 +19,7 @@ import ServerSidebarHeader from './servers/ServerSidebarHeader'
 import SidebarSearchRow from './SidebarSearchRow'
 import Toast from './shared/Toast'
 import UserPanel from './profile/UserPanel'
-import RolesModal from '../features/roles/RolesModal'
+import RolesModal from './roles/RolesModal'
 
 type MobileScreen = 'sidebar' | 'chat'
 
