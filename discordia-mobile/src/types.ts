@@ -65,6 +65,26 @@ export interface Role {
   permissions: Record<string, boolean>
 }
 
+/** DTO de rol retornado por Server-Roles-Core-Service */
+export interface RoleBackendResponse {
+  id: string
+  name: string
+  color: string | null
+  position: number
+  permissions_bitmask: number
+  is_default: boolean
+}
+
+/** Rol de un servidor tal como lo devuelve el backend, en el modelo de dominio del cliente. */
+export interface ServerRole {
+  id: string
+  name: string
+  color: string | null
+  position: number
+  permissionsBitmask: number
+  isDefault: boolean
+}
+
 /** DTO de canal retornado por Server-Roles-Core-Service */
 export interface ChannelBackendResponse {
   id: string
