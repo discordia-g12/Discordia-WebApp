@@ -8,6 +8,8 @@ import {
   deleteRole,
   getRoles,
   mapRoleFromBackend,
+  permissionsToBitmask,
+  updateRolePermissions,
 } from '../roles';
 import type { RoleBackendResponse } from '../../types';
 
@@ -55,6 +57,21 @@ describe('bitmaskToPermissions', () => {
 
   it('decodifica ADMINISTRATOR (bit 20)', () => {
     expect(bitmaskToPermissions(1 << 20)).toEqual(['ADMINISTRATOR']);
+  });
+});
+
+describe('permissionsToBitmask', () => {
+  it('devuelve 0 para una lista vacía', () => {
+    expect(permissionsToBitmask([])).toBe(0);
+  });
+
+  it('es la inversa de bitmaskToPermissions', () => {
+    expect(permissionsToBitmask(bitmaskToPermissions(DEFAULT_BITMASK))).toBe(DEFAULT_BITMASK);
+    expect(permissionsToBitmask(bitmaskToPermissions(1 << 20))).toBe(1 << 20);
+  });
+
+  it('ignora ids sin bit en el backend (VIEW_AUDIT_LOG, STREAM)', () => {
+    expect(permissionsToBitmask(['SEND_MESSAGES', 'VIEW_AUDIT_LOG', 'STREAM'])).toBe(1 << 9);
   });
 });
 
@@ -137,6 +154,29 @@ describe('API de roles', () => {
       .mockResolvedValue(jsonResponse({ detail: 'You do not have permissions to manage roles in this server.' }, 403));
 
     await expect(createRole('srv-1', { name: 'X' })).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('updateRolePermissions hace PATCH con el bitmask y devuelve el rol mapeado', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(backendRole({ permissions_bitmask: (1 << 9) | (1 << 2) })));
+    globalThis.fetch = fetchMock;
+
+    const role = await updateRolePermissions('srv-1', 'role-1', ['SEND_MESSAGES', 'MANAGE_ROLES']);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/roles/role-1/permissions');
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body)).toEqual({ new_permissions_bitmask: (1 << 9) | (1 << 2) });
+    expect(role.permissions.sort()).toEqual(['MANAGE_ROLES', 'SEND_MESSAGES']);
+  });
+
+  it('updateRolePermissions propaga un ApiError si se quita ADMINISTRATOR del propio rol (403)', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ detail: 'You cannot remove the ADMINISTRATOR permission from your own role' }, 403));
+
+    await expect(updateRolePermissions('srv-1', 'role-1', [])).rejects.toBeInstanceOf(ApiError);
   });
 
   it('deleteRole hace DELETE al rol y tolera la respuesta 204', async () => {

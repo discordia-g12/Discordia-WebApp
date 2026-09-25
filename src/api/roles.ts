@@ -45,6 +45,14 @@ export function bitmaskToPermissions(bitmask: number): string[] {
     .map(([name]) => name);
 }
 
+/** Convierte la lista de ids de permisos de la UI en el bitmask del backend. Ignora ids sin bit. */
+export function permissionsToBitmask(permissions: string[]): number {
+  return permissions.reduce((mask, id) => {
+    const bit = PERMISSION_BITS[id];
+    return bit === undefined ? mask : mask | (1 << bit);
+  }, 0);
+}
+
 /**
  * Adaptador: Convierte un rol del backend (snake_case) al modelo de dominio (camelCase).
  */
@@ -75,6 +83,21 @@ export async function createRole(serverId: string, payload: CreateRoleRequest): 
     name: payload.name.trim(),
     color: payload.color ?? null,
   });
+  return mapRoleFromBackend(raw);
+}
+
+/**
+ * Reemplaza los permisos de un rol. El backend rechaza (403) quitar ADMINISTRATOR del propio rol.
+ */
+export async function updateRolePermissions(
+  serverId: string,
+  roleId: string,
+  permissions: string[]
+): Promise<Role> {
+  const raw = await api.patch<RoleBackendResponse>(
+    `/api/v1/servers/${serverId}/roles/${roleId}/permissions`,
+    { new_permissions_bitmask: permissionsToBitmask(permissions) }
+  );
   return mapRoleFromBackend(raw);
 }
 
