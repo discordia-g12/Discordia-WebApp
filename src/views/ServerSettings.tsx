@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Server, Role, Channel, User, AuditEntry, ChannelType } from '../types';
 import { SERVERS, USERS, CURRENT_USER_ID, AUDIT_LOG } from '../data/mock';
+import { useRolesQuery, useCreateRoleMutation, useDeleteRoleMutation } from '../api/hooks/useApi';
 
 export interface ServerSettingsProps {
   server?: Server;
@@ -116,9 +117,15 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
   const [serverDescription, setServerDescription] = useState(serverState.description || '');
   const [serverIcon, setServerIcon] = useState(serverState.iconUrl || serverState.icon || '');
 
-  // Roles Tab States
-  const [roles, setRoles] = useState<Role[]>(serverState.roles || []);
-  const [activeRoleId, setActiveRoleId] = useState<string>(roles[0]?.id || 'r-admin');
+  // Roles Tab States (datos reales de Server-Roles-Core-Service)
+  const rolesQuery = useRolesQuery(serverState.id);
+  const createRoleMutation = useCreateRoleMutation(serverState.id);
+  const deleteRoleMutation = useDeleteRoleMutation(serverState.id);
+  const roles: Role[] = rolesQuery.data ?? [];
+  const [activeRoleId, setActiveRoleId] = useState<string>('');
+  const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleColor, setNewRoleColor] = useState<string | null>(null);
+  const [roleError, setRoleError] = useState<string | null>(null);
 
   // Members Tab States
   const [memberSearch, setMemberSearch] = useState('');
@@ -199,50 +206,36 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
     }, 600);
   };
 
-  // Toggle permission for active role
-  const handleTogglePermission = (permId: string) => {
-    if (!activeRole) return;
-    const currentPerms = activeRole.permissions || [];
-    const hasPerm = currentPerms.includes(permId);
-    const updatedPerms = hasPerm
-      ? currentPerms.filter((p) => p !== permId)
-      : [...currentPerms, permId];
-
-    const updatedRoles = roles.map((r) =>
-      r.id === activeRole.id ? { ...r, permissions: updatedPerms } : r
-    );
-    setRoles(updatedRoles);
-  };
-
-  // Update active role color
-  const handleRoleColorChange = (color: string) => {
-    if (!activeRole) return;
-    const updatedRoles = roles.map((r) =>
-      r.id === activeRole.id ? { ...r, color } : r
-    );
-    setRoles(updatedRoles);
-  };
-
   // Create new role
-  const handleCreateRole = () => {
-    const newRole: Role = {
-      id: `role-${Date.now()}`,
-      name: 'New Role',
-      color: '#99aab5',
-      permissions: ['SEND_MESSAGES', 'CONNECT', 'SPEAK'],
-      position: roles.length + 1,
-      memberCount: 0,
-    };
-    setRoles([...roles, newRole]);
-    setActiveRoleId(newRole.id);
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newRoleName.trim();
+    if (!name) return;
+    setRoleError(null);
+    try {
+      const created = await createRoleMutation.mutateAsync({ name, color: newRoleColor ?? undefined });
+      setNewRoleName('');
+      setNewRoleColor(null);
+      setActiveRoleId(created.id);
+    } catch (err) {
+      setRoleError(err instanceof Error ? err.message : 'No se pudo crear el rol.');
+    }
   };
 
-  // Delete active role
-  const handleDeleteRole = (roleId: string) => {
-    if (roles.length <= 1) return;
-    const nextRoles = roles.filter((r) => r.id !== roleId);
-    setRoles(nextRoles);
-    setActiveRoleId(nextRoles[0]?.id || '');
+  // Delete role
+  const handleDeleteRole = async (role: Role) => {
+    if (role.isDefault) return;
+    const confirmed = window.confirm(
+      `Estás seguro que queres borrar el rol "${role.name}"? Los miembros que lo tengan perderán sus permisos.`
+    );
+    if (!confirmed) return;
+    setRoleError(null);
+    try {
+      await deleteRoleMutation.mutateAsync(role.id);
+      setActiveRoleId('');
+    } catch (err) {
+      setRoleError(err instanceof Error ? err.message : 'No se pudo eliminar el rol.');
+    }
   };
 
   // Kick member
@@ -837,31 +830,127 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                     overflowY: 'auto',
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={handleCreateRole}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 6,
-                      backgroundColor: '#5865f2',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '8px',
-                      borderRadius: 4,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      marginBottom: 8,
-                    }}
+                  <form
+                    onSubmit={handleCreateRole}
+                    style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}
                   >
-                    <Plus size={16} /> Create Role
-                  </button>
+                    <input
+                      type="text"
+                      value={newRoleName}
+                      onChange={(e) => setNewRoleName(e.target.value)}
+                      placeholder="Nombre del rol"
+                      maxLength={100}
+                      disabled={createRoleMutation.isPending}
+                      style={{
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        backgroundColor: '#1e1f22',
+                        color: '#dbdee1',
+                        border: '1px solid rgba(0, 0, 0, 0.3)',
+                        borderRadius: 4,
+                        padding: '8px 10px',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {PRESET_ROLE_COLORS.map((col) => (
+                        <button
+                          key={col}
+                          type="button"
+                          title={col}
+                          onClick={() => setNewRoleColor(newRoleColor === col ? null : col)}
+                          disabled={createRoleMutation.isPending}
+                          style={{
+                            width: 20,
+                            height: 20,
+                            padding: 0,
+                            borderRadius: '50%',
+                            backgroundColor: col,
+                            border: newRoleColor === col ? '2px solid #ffffff' : '1px solid rgba(0,0,0,0.3)',
+                            cursor: 'pointer',
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={!newRoleName.trim() || createRoleMutation.isPending}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        backgroundColor: '#5865f2',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '8px',
+                        borderRadius: 4,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: !newRoleName.trim() || createRoleMutation.isPending ? 'not-allowed' : 'pointer',
+                        opacity: !newRoleName.trim() || createRoleMutation.isPending ? 0.6 : 1,
+                      }}
+                    >
+                      {createRoleMutation.isPending ? (
+                        <>
+                          <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Creando...
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={16} /> Crear rol
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  {roleError && (
+                    <div
+                      style={{
+                        backgroundColor: 'rgba(218, 55, 60, 0.15)',
+                        border: '1px solid rgba(218, 55, 60, 0.3)',
+                        color: '#fa777c',
+                        borderRadius: 4,
+                        padding: '6px 8px',
+                        fontSize: 12,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {roleError}
+                    </div>
+                  )}
 
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#949ba4', textTransform: 'uppercase', margin: '4px 6px' }}>
                     Roles — {roles.length}
                   </div>
+
+                  {rolesQuery.isLoading && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#949ba4', fontSize: 12, padding: '8px 6px' }}>
+                      <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Cargando roles...
+                    </div>
+                  )}
+
+                  {rolesQuery.isError && (
+                    <div
+                      style={{
+                        backgroundColor: 'rgba(218, 55, 60, 0.15)',
+                        border: '1px solid rgba(218, 55, 60, 0.3)',
+                        color: '#fa777c',
+                        borderRadius: 4,
+                        padding: '6px 8px',
+                        fontSize: 12,
+                      }}
+                    >
+                      {rolesQuery.error instanceof Error ? rolesQuery.error.message : 'No se pudo cargar los roles.'}{' '}
+                      <button
+                        type="button"
+                        onClick={() => rolesQuery.refetch()}
+                        style={{ background: 'none', border: 'none', color: '#fa777c', textDecoration: 'underline', cursor: 'pointer', fontSize: 12, padding: 0 }}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
 
                   {roles.map((r) => {
                     const isSelected = r.id === activeRoleId;
@@ -930,14 +1019,15 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                           Edit Role — {activeRole.name}
                         </h3>
                         <span style={{ fontSize: 12, color: '#949ba4' }}>
-                          Manage permissions and cosmetic appearance for this role.
+                          Nombre, color y permisos son de solo lectura por ahora; la edición de los mismos llegará pronto.
                         </span>
                       </div>
 
                       {roles.length > 1 && !activeRole.isDefault && (
                         <button
                           type="button"
-                          onClick={() => handleDeleteRole(activeRole.id)}
+                          onClick={() => handleDeleteRole(activeRole)}
+                          disabled={deleteRoleMutation.isPending}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -966,10 +1056,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                         <input
                           type="text"
                           value={activeRole.name}
-                          onChange={(e) => {
-                            const newName = e.target.value;
-                            setRoles(roles.map((r) => (r.id === activeRole.id ? { ...r, name: newName } : r)));
-                          }}
+                          readOnly
                           style={{
                             width: '100%',
                             backgroundColor: '#1e1f22',
@@ -992,22 +1079,22 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                             <button
                               key={col}
                               type="button"
-                              onClick={() => handleRoleColorChange(col)}
+                              disabled
                               style={{
                                 width: 24,
                                 height: 24,
                                 borderRadius: '50%',
                                 backgroundColor: col,
                                 border: activeRole.color === col ? '2px solid #ffffff' : '1px solid rgba(0,0,0,0.3)',
-                                cursor: 'pointer',
+                                cursor: 'default',
                               }}
                             />
                           ))}
                           <input
                             type="color"
                             value={activeRole.color || '#99aab5'}
-                            onChange={(e) => handleRoleColorChange(e.target.value)}
-                            style={{ width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'pointer' }}
+                            disabled
+                            style={{ width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'default' }}
                           />
                         </div>
                       </div>
@@ -1050,7 +1137,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                                     <input
                                       type="checkbox"
                                       checked={isEnabled}
-                                      onChange={() => handleTogglePermission(perm.id)}
+                                      disabled
                                       style={{ opacity: 0, width: 0, height: 0 }}
                                     />
                                     <span

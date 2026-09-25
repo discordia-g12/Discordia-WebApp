@@ -136,6 +136,16 @@ export interface Role {
   memberCount?: number;
 }
 
+/** DTO de rol retornado por Server-Roles-Core-Service */
+export interface RoleBackendResponse {
+  id: string;
+  name: string;
+  color: string | null;
+  position: number;
+  permissions_bitmask: number;
+  is_default: boolean;
+}
+
 /** DTO de canal retornado por Server-Roles-Core-Service */
 export interface ChannelBackendResponse {
   id: string;
