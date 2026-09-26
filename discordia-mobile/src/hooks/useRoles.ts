@@ -3,6 +3,7 @@ import {
   createRole,
   deleteRole,
   getRoles,
+  setDefaultRole,
   updateRoleInfo,
   updateRolePermissions,
   type CreateRoleRequest,
@@ -50,6 +51,16 @@ export function useUpdateRoleInfoMutation(serverId: string) {
       queryClient.setQueryData<ServerRole[]>(['roles', serverId], old =>
         old?.map(r => (r.id === updated.id ? updated : r)),
       )
+    },
+  })
+}
+
+export function useSetDefaultRoleMutation(serverId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (roleId: string) => setDefaultRole(serverId, roleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles', serverId] })
     },
   })
 }

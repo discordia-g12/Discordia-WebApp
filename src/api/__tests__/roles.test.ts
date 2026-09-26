@@ -9,6 +9,7 @@ import {
   getRoles,
   mapRoleFromBackend,
   permissionsToBitmask,
+  setDefaultRole,
   updateRoleInfo,
   updateRolePermissions,
 } from '../roles';
@@ -213,6 +214,25 @@ describe('API de roles', () => {
       .mockResolvedValue(jsonResponse({ detail: 'Cannot change the name of the default server role.' }, 400));
 
     await expect(updateRoleInfo('srv-1', 'role-0', { name: 'Otro' })).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('setDefaultRole hace PATCH sin body y devuelve el rol como por defecto', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(backendRole({ is_default: true })));
+    globalThis.fetch = fetchMock;
+
+    const role = await setDefaultRole('srv-1', 'role-1');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/roles/role-1/default');
+    expect(init.method).toBe('PATCH');
+    expect(init.body).toBeUndefined();
+    expect(role.isDefault).toBe(true);
+  });
+
+  it('setDefaultRole propaga un ApiError si el rol no existe (404)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonResponse({ detail: 'Role not found.' }, 404));
+
+    await expect(setDefaultRole('srv-1', 'nope')).rejects.toBeInstanceOf(ApiError);
   });
 
   it('deleteRole hace DELETE al rol y tolera la respuesta 204', async () => {

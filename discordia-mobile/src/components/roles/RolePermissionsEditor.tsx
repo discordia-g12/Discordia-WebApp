@@ -13,7 +13,11 @@ import {
 import { ChevronLeft } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
-import { useUpdateRoleInfoMutation, useUpdateRolePermissionsMutation } from '../../hooks/useRoles'
+import {
+  useSetDefaultRoleMutation,
+  useUpdateRoleInfoMutation,
+  useUpdateRolePermissionsMutation,
+} from '../../hooks/useRoles'
 import type { ServerRole } from '../../types'
 import { PERMISSION_CATEGORIES, hasPermission, togglePermission } from './permissions'
 import { PRESET_ROLE_COLORS } from './roleColors'
@@ -28,6 +32,7 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
   const { showToast } = useUI()
   const updatePermissionsMutation = useUpdateRolePermissionsMutation(serverId)
   const updateInfoMutation = useUpdateRoleInfoMutation(serverId)
+  const setDefaultMutation = useSetDefaultRoleMutation(serverId)
 
   const [draft, setDraft] = useState(role.permissionsBitmask)
   const [nameDraft, setNameDraft] = useState(role.name)
@@ -72,6 +77,27 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
     } catch (err: any) {
       setError(err?.message || 'No se pudieron guardar los cambios del rol.')
     }
+  }
+
+  const handleSetDefault = () => {
+    Alert.alert(
+      'Rol por defecto',
+      `¿Querés que "${role.name}" sea el rol por defecto? Los nuevos miembros lo recibirán automáticamente y el rol por defecto actual dejará de serlo.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            try {
+              await setDefaultMutation.mutateAsync(role.id)
+              showToast?.(`"${role.name}" es ahora el rol por defecto.`, 'success')
+            } catch (err: any) {
+              showToast?.(err?.message || 'No se pudo definir el rol por defecto.', 'error')
+            }
+          },
+        },
+      ],
+    )
   }
 
   const handleBack = () => {
@@ -135,6 +161,27 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
               />
             ))}
           </View>
+        </View>
+
+        <View style={styles.category}>
+          <Text style={styles.categoryTitle}>Rol por defecto</Text>
+          {role.isDefault ? (
+            <Text style={styles.permissionDesc}>
+              Este es el rol por defecto: lo reciben automáticamente los nuevos miembros.
+            </Text>
+          ) : (
+            <Pressable
+              onPress={handleSetDefault}
+              disabled={setDefaultMutation.isPending || isSaving}
+              style={[styles.defaultButton, setDefaultMutation.isPending && styles.saveButtonDisabled]}
+            >
+              {setDefaultMutation.isPending ? (
+                <ActivityIndicator color={colors.accent} size="small" />
+              ) : (
+                <Text style={styles.defaultButtonText}>Usar como rol por defecto</Text>
+              )}
+            </Pressable>
+          )}
         </View>
 
         {PERMISSION_CATEGORIES.map(category => (
@@ -266,6 +313,21 @@ const styles = StyleSheet.create({
   },
   swatchSelected: {
     borderColor: colors.text,
+  },
+  defaultButton: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    minWidth: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  defaultButtonText: {
+    ...typography.button,
+    color: colors.accent,
   },
   permissionInfo: {
     flex: 1,

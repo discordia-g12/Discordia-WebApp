@@ -29,6 +29,7 @@ import {
   useDeleteRoleMutation,
   useUpdateRolePermissionsMutation,
   useUpdateRoleInfoMutation,
+  useSetDefaultRoleMutation,
 } from '../api/hooks/useApi';
 import { PERMISSION_BITS } from '../api/roles';
 
@@ -130,6 +131,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
   const deleteRoleMutation = useDeleteRoleMutation(serverState.id);
   const updatePermissionsMutation = useUpdateRolePermissionsMutation(serverState.id);
   const updateInfoMutation = useUpdateRoleInfoMutation(serverState.id);
+  const setDefaultRoleMutation = useSetDefaultRoleMutation(serverState.id);
   const isSavingRole = updatePermissionsMutation.isPending || updateInfoMutation.isPending;
   const roles: Role[] = rolesQuery.data ?? [];
   const [activeRoleId, setActiveRoleId] = useState<string>('');
@@ -291,6 +293,21 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
       }
     } catch (err) {
       setRoleEditError(err instanceof Error ? err.message : 'No se pudieron guardar los cambios del rol.');
+    }
+  };
+
+  // Set default role
+  const handleSetDefaultRole = async (role: Role) => {
+    if (role.isDefault) return;
+    const confirmed = window.confirm(
+      `¿Querés que "${role.name}" sea el rol por defecto? Los nuevos miembros lo recibirán automáticamente y el rol por defecto actual dejará de serlo.`
+    );
+    if (!confirmed) return;
+    setRoleError(null);
+    try {
+      await setDefaultRoleMutation.mutateAsync(role.id);
+    } catch (err) {
+      setRoleError(err instanceof Error ? err.message : 'No se pudo definir el rol por defecto.');
     }
   };
 
@@ -1095,27 +1112,56 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                         </span>
                       </div>
 
-                      {roles.length > 1 && !activeRole.isDefault && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteRole(activeRole)}
-                          disabled={deleteRoleMutation.isPending}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            backgroundColor: 'rgba(218, 55, 60, 0.15)',
-                            color: '#fa777c',
-                            border: '1px solid rgba(218, 55, 60, 0.3)',
-                            padding: '6px 12px',
-                            borderRadius: 4,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <Trash2 size={14} /> Delete Role
-                        </button>
+                      {!activeRole.isDefault && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleSetDefaultRole(activeRole)}
+                            disabled={setDefaultRoleMutation.isPending}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              backgroundColor: 'rgba(88, 101, 242, 0.15)',
+                              color: '#949cf7',
+                              border: '1px solid rgba(88, 101, 242, 0.3)',
+                              padding: '6px 12px',
+                              borderRadius: 4,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: setDefaultRoleMutation.isPending ? 'default' : 'pointer',
+                              opacity: setDefaultRoleMutation.isPending ? 0.6 : 1,
+                            }}
+                          >
+                            {setDefaultRoleMutation.isPending && (
+                              <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                            )}
+                            Set as default
+                          </button>
+
+                          {roles.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRole(activeRole)}
+                              disabled={deleteRoleMutation.isPending}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                backgroundColor: 'rgba(218, 55, 60, 0.15)',
+                                color: '#fa777c',
+                                border: '1px solid rgba(218, 55, 60, 0.3)',
+                                padding: '6px 12px',
+                                borderRadius: 4,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <Trash2 size={14} /> Delete Role
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
 
