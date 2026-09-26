@@ -1,11 +1,14 @@
 import { Auth0Client } from '@auth0/auth0-spa-js';
 import { AuthProvider, AuthUser } from './provider';
+import { AccountSuspendedError, AUTH_DENY_CODES, EmailNotVerifiedError } from './errors';
 
 const DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN || 'dev-dppme5iaqg60gkmo.us.auth0.com';
 const CLIENT_ID = import.meta.env.VITE_AUTH0_CLIENT_ID || 'f2H8PhlKDl3KSIm64G5mHAeQih7iFyIP';
 const AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE || 'https://api.discordia.com';
 const CONNECTION = 'Username-Password-Authentication';
 const SESSION_STORAGE_KEY = 'discordia_auth_session';
+/** Claim del ID token con el username elegido al registrarse (lo agrega la Auth0 Action). */
+const USERNAME_CLAIM = 'https://discordia.app/username';
 
 /* Instancia singleton de Auth0Client para compatibilidad */
 export const auth0Client = new Auth0Client({
@@ -110,7 +113,11 @@ export const auth0Provider: AuthProvider = {
       return currentAuthUser;
     }
     try {
-      return (await auth0Client.getUser()) as AuthUser;
+      // Flujo Universal Login: getUser() devuelve los claims crudos del ID token.
+      const claims = (await auth0Client.getUser()) as (AuthUser & Record<string, unknown>) | undefined;
+      if (!claims) return undefined;
+      const username = claims[USERNAME_CLAIM];
+      return { ...claims, username: typeof username === 'string' ? username : claims.username };
     } catch {
       return undefined;
     }
@@ -151,6 +158,17 @@ export const auth0Provider: AuthProvider = {
 
     const data = await res.json();
     if (!res.ok) {
+      // Rechazo de la Auth0 Action. Auth0 solo ejecuta la Action después de
+      // validar la contraseña, así que distinguir este caso no permite
+      // enumerar cuentas: solo lo ve quien ya ingresó credenciales correctas.
+      // Una contraseña incorrecta llega con error "invalid_grant", también 403.
+      if (data?.error === 'access_denied') {
+        if (data.error_description === AUTH_DENY_CODES.EMAIL_NOT_VERIFIED) {
+          throw new EmailNotVerifiedError(credentials.email);
+        }
+        throw new AccountSuspendedError();
+      }
+
       // Criterios de aceptación Login CA 2 y CA 3:
       // Error genérico sin revelar si el fallo fue el email o la contraseña
       if (res.status === 400 || res.status === 401 || res.status === 403) {
@@ -179,6 +197,7 @@ export const auth0Provider: AuthProvider = {
             nickname: payload.nickname || credentials.email.split('@')[0],
             name: payload.name || payload.nickname || credentials.email.split('@')[0],
             picture: payload.picture,
+            username: typeof payload[USERNAME_CLAIM] === 'string' ? payload[USERNAME_CLAIM] : undefined,
           };
         }
       } catch {
@@ -237,7 +256,11 @@ export const auth0Provider: AuthProvider = {
       throw new Error(data.description || data.message || 'Error al crear la cuenta.');
     }
 
-    // CA 1: Registro exitoso -> Autenticación automática e ingreso inmediato a la plataforma
+    // CA 1: Registro exitoso -> Autenticación automática.
+    // Con la verificación de email obligatoria, este login lanza
+    // EmailNotVerifiedError: la cuenta YA quedó creada en Auth0 (y el mail de
+    // verificación enviado), así que no es un fallo del registro. session.ts lo
+    // traduce al estado 'email_unverified'.
     await this.loginWithCredentials!({
       email: signupData.email,
       password: signupData.password,

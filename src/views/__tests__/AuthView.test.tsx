@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AuthView } from '../AuthView';
 import { useSession, authService } from '../../auth/session';
+import { AccountSuspendedError } from '../../auth/errors';
 
 describe('AuthView Component - Criterios de Aceptación', () => {
   beforeEach(() => {
@@ -11,6 +12,7 @@ describe('AuthView Component - Criterios de Aceptación', () => {
       profile: null,
       error: null,
       isMock: false,
+      pendingEmail: null,
     });
   });
 
@@ -162,6 +164,56 @@ describe('AuthView Component - Criterios de Aceptación', () => {
           password: 'Password123!',
         });
       });
+    });
+  });
+
+  describe('Verificación de email', () => {
+    it('muestra la pantalla de verificación con el email pendiente', () => {
+      useSession.setState({ status: 'email_unverified', pendingEmail: 'pepe@discordia.com' });
+
+      render(<AuthView />);
+
+      expect(screen.getByTestId('email-unverified-screen')).toBeTruthy();
+      expect(screen.getByText(/verificá tu email/i)).toBeTruthy();
+      expect(screen.getByText('pepe@discordia.com')).toBeTruthy();
+      // No debe mostrarse como cuenta suspendida
+      expect(screen.queryByText(/cuenta suspendida/i)).toBeNull();
+    });
+
+    it('"Ya lo verifiqué" vuelve al login con el email precargado y la contraseña vacía', async () => {
+      useSession.setState({ status: 'email_unverified', pendingEmail: 'pepe@discordia.com' });
+
+      render(<AuthView />);
+      fireEvent.click(screen.getByTestId('btn-verified-retry'));
+
+      const emailInput = (await screen.findByPlaceholderText(/ejemplo@discordia.com/i)) as HTMLInputElement;
+      const passInput = screen.getByPlaceholderText(/tu contraseña/i) as HTMLInputElement;
+      expect(useSession.getState().status).toBe('unauthenticated');
+      expect(emailInput.value).toBe('pepe@discordia.com');
+      expect(passInput.value).toBe('');
+    });
+
+    it('"Usar otra cuenta" cierra la sesión', async () => {
+      useSession.setState({ status: 'email_unverified', pendingEmail: 'pepe@discordia.com' });
+      const logoutSpy = vi.spyOn(authService, 'logout').mockResolvedValue();
+
+      render(<AuthView />);
+      fireEvent.click(screen.getByTestId('btn-use-other-account'));
+
+      await waitFor(() => expect(logoutSpy).toHaveBeenCalledTimes(1));
+    });
+
+    it('login de una cuenta suspendida muestra el mensaje de suspensión (por tipo de error, no por texto)', async () => {
+      vi.spyOn(authService, 'loginWithCredentials').mockRejectedValue(new AccountSuspendedError());
+
+      render(<AuthView />);
+      fireEvent.change(screen.getByPlaceholderText(/ejemplo@discordia.com/i), {
+        target: { value: 'suspendido@discordia.com' },
+      });
+      fireEvent.change(screen.getByPlaceholderText(/tu contraseña/i), { target: { value: 'Password123!' } });
+      fireEvent.click(screen.getByTestId('btn-submit-login'));
+
+      expect(await screen.findByText(/tu cuenta se encuentra suspendida/i)).toBeTruthy();
     });
   });
 });

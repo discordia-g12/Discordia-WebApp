@@ -20,6 +20,7 @@ import {
 import { useSession, authService } from '../auth/session';
 import { upsertMyProfile } from '../api/users';
 import { ApiError } from '../api/errors';
+import { AccountSuspendedError } from '../auth/errors';
 
 export interface AuthViewProps {
   onSuccess?: () => void;
@@ -30,7 +31,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,32}$/;
 
 export const AuthView: React.FC<AuthViewProps> = () => {
-  const { status, error, isMock } = useSession();
+  const { status, error, isMock, pendingEmail } = useSession();
 
   // Tab activo: 'login' o 'register'
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -86,7 +87,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
       });
     } catch (err: any) {
       const msg = err?.message || '';
-      if (msg.includes('suspendida') || msg.includes('access_denied')) {
+      if (err instanceof AccountSuspendedError || msg.includes('access_denied')) {
         setFormError('Tu cuenta se encuentra suspendida.');
       } else {
         // CA 2 & CA 3 Login: error genérico
@@ -276,7 +277,74 @@ export const AuthView: React.FC<AuthViewProps> = () => {
     );
   }
 
-  // 4. Estado: Conflicto de Username (needs_profile) tras auto-aprovisionamiento 409
+  // 4. Estado: Email sin verificar (la Auth0 Action rechazó el login hasta que se confirme el email)
+  if (status === 'email_unverified') {
+    const handleVerifiedRetry = () => {
+      // La contraseña no se guarda en ningún lado: el usuario la vuelve a ingresar.
+      setActiveTab('login');
+      setLoginEmail(pendingEmail ?? loginEmail);
+      setLoginPassword('');
+      setFormError(null);
+      authService.backToLogin();
+    };
+
+    const handleUseOtherAccount = async () => {
+      setActiveTab('login');
+      setLoginEmail('');
+      setLoginPassword('');
+      setFormError(null);
+      await authService.logout();
+    };
+
+    return (
+      <div className="auth-container" style={fullScreenCenter}>
+        <div style={cardStyle} data-testid="email-unverified-screen">
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ ...iconCircle, backgroundColor: 'rgba(88, 101, 242, 0.15)', color: 'var(--brand, #5865f2)' }}>
+              <Mail size={32} />
+            </div>
+            <h2 style={{ fontSize: '22px', color: '#f2f3f5', fontWeight: 700, marginBottom: '8px' }}>
+              Verificá tu email
+            </h2>
+            <p style={{ fontSize: '14px', color: '#dbdee1', lineHeight: 1.5, marginBottom: '12px' }}>
+              {pendingEmail ? (
+                <>
+                  Te enviamos un enlace de verificación a <strong>{pendingEmail}</strong>.
+                </>
+              ) : (
+                'Te enviamos un enlace de verificación a tu casilla de correo.'
+              )}{' '}
+              Abrilo para activar tu cuenta y después volvé a iniciar sesión.
+            </p>
+            <p style={{ fontSize: '12px', color: '#949ba4', lineHeight: 1.5 }}>
+              ¿No lo encontrás? Revisá la carpeta de spam o correo no deseado.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            data-testid="btn-verified-retry"
+            onClick={handleVerifiedRetry}
+            style={{ ...primaryButton, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '10px' }}
+          >
+            <LogIn size={16} />
+            Ya lo verifiqué, iniciar sesión
+          </button>
+          <button
+            type="button"
+            data-testid="btn-use-other-account"
+            onClick={handleUseOtherAccount}
+            style={{ ...secondaryButton, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            <LogOut size={16} />
+            Usar otra cuenta
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 5. Estado: Conflicto de Username (needs_profile) tras auto-aprovisionamiento 409
   if (status === 'needs_profile') {
     return (
       <div className="auth-container" style={fullScreenCenter}>
@@ -357,7 +425,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
     );
   }
 
-  // 5. Estado: Sin sesión (unauthenticated) -> Formulario integrado de Iniciar Sesión / Registro
+  // 6. Estado: Sin sesión (unauthenticated) -> Formulario integrado de Iniciar Sesión / Registro
   return (
     <div className="auth-container" style={fullScreenCenter}>
       {isMock && (

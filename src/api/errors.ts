@@ -17,6 +17,10 @@ export class TimeoutError extends Error {
   }
 }
 
+export const PROBLEM_TYPES = {
+  EMAIL_NOT_VERIFIED: 'https://discordia.app/problems/email-not-verified',
+} as const;
+
 export interface InvalidParam {
   name?: string;
   loc?: (string | number)[];
@@ -25,6 +29,7 @@ export interface InvalidParam {
 
 export class ApiError extends Error {
   readonly status: number;
+  readonly type?: string;
   readonly title?: string;
   readonly detail?: string;
   readonly invalidParams?: InvalidParam[];
@@ -32,6 +37,7 @@ export class ApiError extends Error {
 
   constructor(opts: {
     status: number;
+    type?: string;
     title?: string;
     detail?: string;
     invalidParams?: InvalidParam[];
@@ -41,6 +47,7 @@ export class ApiError extends Error {
     super(opts.detail || opts.title || opts.message || `Error HTTP ${opts.status}`);
     this.name = 'ApiError';
     this.status = opts.status;
+    this.type = opts.type;
     this.title = opts.title;
     this.detail = opts.detail;
     this.invalidParams = opts.invalidParams;
@@ -59,6 +66,7 @@ export async function parseErrorResponse(
   correlationId?: string
 ): Promise<ApiError> {
   const contentType = response.headers.get('content-type') || '';
+  let type: string | undefined;
   let title: string | undefined;
   let detail: string | undefined;
   let invalidParams: InvalidParam[] | undefined;
@@ -69,6 +77,7 @@ export async function parseErrorResponse(
 
       // Formato 1: RFC 7807 Problem Details (Kong)
       if (data.title || data.type || data.status) {
+        type = typeof data.type === 'string' ? data.type : undefined;
         title = data.title;
         detail = data.detail;
         if (Array.isArray(data.invalid_params)) {
@@ -105,10 +114,16 @@ export async function parseErrorResponse(
 
   return new ApiError({
     status: response.status,
+    type,
     title: title || `Error HTTP ${response.status}`,
     detail: detail || response.statusText,
     invalidParams,
     correlationId: correlationId || response.headers.get('x-correlation-id') || undefined,
   });
+}
+
+/** true si `err` es un ApiError con el `type` RFC 7807 indicado. */
+export function isProblemType(err: unknown, type: string): err is ApiError {
+  return err instanceof ApiError && err.type === type;
 }
 

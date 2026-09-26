@@ -8,8 +8,9 @@ import {
   setAuthProvider,
 } from '../session';
 import * as usersApi from '../../api/users';
-import { ApiError } from '../../api/errors';
+import { ApiError, PROBLEM_TYPES } from '../../api/errors';
 import { auth0Provider } from '../auth0';
+import { AccountSuspendedError, EmailNotVerifiedError } from '../errors';
 
 describe('Session Store & Bootstrap State Machine', () => {
   beforeEach(() => {
@@ -21,7 +22,9 @@ describe('Session Store & Bootstrap State Machine', () => {
       profile: null,
       error: null,
       isMock: false,
+      pendingEmail: null,
     });
+    sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -229,5 +232,154 @@ describe('Session Store & Bootstrap State Machine', () => {
     expect(upsertSpy).toHaveBeenCalled();
     expect(useSession.getState().status).toBe('authenticated');
     expect(useSession.getState().profile?.username).toBe('nuevousuario');
+  });
+});
+
+describe('Verificación de email (Auth0 Action deny: email_not_verified)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    setAuthProvider(auth0Provider);
+    window.history.replaceState({}, '', '/');
+    useSession.setState({ status: 'unauthenticated', profile: null, error: null, isMock: false, pendingEmail: null });
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('login con email sin verificar -> email_unverified con pendingEmail, sin bootstrap ni error de formulario', async () => {
+    vi.spyOn(auth0Provider, 'loginWithCredentials').mockRejectedValue(new EmailNotVerifiedError('pepe@discordia.com'));
+    const getTokenSpy = vi.spyOn(auth0Provider, 'getToken');
+
+    const { loginWithCredentials } = await import('../session');
+    await expect(
+      loginWithCredentials({ email: 'pepe@discordia.com', password: 'Password123!' }),
+    ).resolves.toBeUndefined();
+
+    expect(useSession.getState().status).toBe('email_unverified');
+    expect(useSession.getState().pendingEmail).toBe('pepe@discordia.com');
+    expect(getTokenSpy).not.toHaveBeenCalled();
+  });
+
+  it('CA 2/CA 3 Login: credenciales inválidas siguen llegando al formulario como error', async () => {
+    vi.spyOn(auth0Provider, 'loginWithCredentials').mockRejectedValue(
+      new Error('El correo electrónico o la contraseña son incorrectos.'),
+    );
+
+    const { loginWithCredentials } = await import('../session');
+    await expect(loginWithCredentials({ email: 'x@discordia.com', password: 'bad' })).rejects.toThrow(
+      /incorrectos/,
+    );
+    expect(useSession.getState().status).toBe('unauthenticated');
+  });
+
+  it('cuenta suspendida en login sigue llegando al formulario como AccountSuspendedError', async () => {
+    vi.spyOn(auth0Provider, 'loginWithCredentials').mockRejectedValue(new AccountSuspendedError());
+
+    const { loginWithCredentials } = await import('../session');
+    await expect(loginWithCredentials({ email: 'x@discordia.com', password: 'P4ssword!' })).rejects.toBeInstanceOf(
+      AccountSuspendedError,
+    );
+  });
+
+  it('registro exitoso + verificación pendiente -> email_unverified (no es un error del registro)', async () => {
+    vi.spyOn(auth0Provider, 'signupWithCredentials').mockRejectedValue(new EmailNotVerifiedError('nuevo@discordia.com'));
+    const getTokenSpy = vi.spyOn(auth0Provider, 'getToken');
+
+    const { signupWithCredentials } = await import('../session');
+    await expect(
+      signupWithCredentials({ email: 'nuevo@discordia.com', password: 'Password123!', username: 'nuevo_user' }),
+    ).resolves.toBeUndefined();
+
+    expect(useSession.getState().status).toBe('email_unverified');
+    expect(useSession.getState().pendingEmail).toBe('nuevo@discordia.com');
+    expect(getTokenSpy).not.toHaveBeenCalled();
+  });
+
+  it('callback de Universal Login con access_denied/email_not_verified -> email_unverified y limpia la URL', async () => {
+    window.history.replaceState({}, '', '/callback?error=access_denied&error_description=email_not_verified&state=xyz');
+    vi.spyOn(auth0Provider, 'handleCallback').mockRejectedValue(
+      Object.assign(new Error('email_not_verified'), { error: 'access_denied', error_description: 'email_not_verified' }),
+    );
+
+    await retryBootstrap();
+
+    expect(useSession.getState().status).toBe('email_unverified');
+    expect(window.location.pathname).toBe('/login');
+    expect(window.location.search).toBe('');
+  });
+
+  it('callback con access_denied por otro motivo -> suspended y también limpia la URL', async () => {
+    window.history.replaceState({}, '', '/callback?error=access_denied&error_description=user%20is%20blocked&state=xyz');
+    vi.spyOn(auth0Provider, 'handleCallback').mockRejectedValue(
+      Object.assign(new Error('user is blocked'), { error: 'access_denied', error_description: 'user is blocked' }),
+    );
+
+    await retryBootstrap();
+
+    expect(useSession.getState().status).toBe('suspended');
+    expect(window.location.search).toBe('');
+  });
+
+  it('auto-aprovisiona con el username del claim del ID token aunque no haya estado local del registro', async () => {
+    vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('token-123');
+    vi.spyOn(auth0Provider, 'getUser').mockResolvedValue({
+      email: 'nuevo@discordia.com',
+      nickname: 'nuevo',
+      username: 'cyber_knight',
+    });
+    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
+    const upsertSpy = vi.spyOn(usersApi, 'upsertMyProfile').mockResolvedValue({
+      id: 'u1',
+      username: 'cyber_knight',
+      displayName: 'cyber_knight',
+      status: 'online',
+    });
+
+    await retryBootstrap();
+
+    expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ username: 'cyber_knight' }));
+    expect(useSession.getState().status).toBe('authenticated');
+  });
+
+  it('segunda barrera: 403 email-not-verified del backend al crear el perfil -> email_unverified', async () => {
+    vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('token-viejo');
+    vi.spyOn(auth0Provider, 'getUser').mockResolvedValue({ email: 'viejo@discordia.com', nickname: 'viejo' });
+    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
+    vi.spyOn(usersApi, 'upsertMyProfile').mockRejectedValue(
+      new ApiError({ status: 403, type: PROBLEM_TYPES.EMAIL_NOT_VERIFIED, detail: 'Email address must be verified' }),
+    );
+
+    await retryBootstrap();
+
+    expect(useSession.getState().status).toBe('email_unverified');
+    expect(useSession.getState().pendingEmail).toBe('viejo@discordia.com');
+  });
+
+  it('un 403 genérico del backend al crear el perfil NO se confunde con verificación pendiente', async () => {
+    vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('token-123');
+    vi.spyOn(auth0Provider, 'getUser').mockResolvedValue({ email: 'x@discordia.com', nickname: 'x_user' });
+    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
+    vi.spyOn(usersApi, 'upsertMyProfile').mockRejectedValue(
+      new ApiError({ status: 403, type: 'about:blank', detail: 'Forbidden' }),
+    );
+
+    await retryBootstrap();
+
+    expect(useSession.getState().status).toBe('error');
+  });
+
+  it('backToLogin conserva pendingEmail; logout lo limpia', async () => {
+    useSession.setState({ status: 'email_unverified', pendingEmail: 'pepe@discordia.com' });
+    vi.spyOn(auth0Provider, 'logout').mockResolvedValue();
+
+    const { backToLogin } = await import('../session');
+    backToLogin();
+    expect(useSession.getState().status).toBe('unauthenticated');
+    expect(useSession.getState().pendingEmail).toBe('pepe@discordia.com');
+
+    await logout();
+    expect(useSession.getState().pendingEmail).toBeNull();
   });
 });

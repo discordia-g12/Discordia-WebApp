@@ -10,6 +10,13 @@ export function getAuthToken(): string | null {
   return currentAuthToken
 }
 
+/** Error lanzado por apiFetch ante una respuesta HTTP no exitosa. */
+export type ApiFetchError = Error & {
+  status: number
+  /** RFC 7807 `type` si el backend lo envió ("about:blank" = sin semántica extra). */
+  type?: string
+}
+
 export interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
   body?: any
   timeoutMs?: number
@@ -54,16 +61,19 @@ export async function apiFetch<T = any>(
 
     if (!res.ok) {
       let errorMessage = `HTTP Error ${res.status}`
+      let problemType: string | undefined
       try {
         const errorData = await res.json()
         errorMessage =
           errorData.detail || errorData.message || errorData.error || errorMessage
+        if (typeof errorData.type === 'string') problemType = errorData.type
       } catch {
         const text = await res.text()
         if (text) errorMessage = text
       }
-      const err = new Error(errorMessage) as Error & { status: number }
+      const err = new Error(errorMessage) as ApiFetchError
       err.status = res.status
+      err.type = problemType
       throw err
     }
 

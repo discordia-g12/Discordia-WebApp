@@ -11,12 +11,21 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Eye, EyeOff } from 'lucide-react-native'
+import { Eye, EyeOff, Mail } from 'lucide-react-native'
 import { useAuth } from '../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../theme'
 
 export default function AuthView() {
-  const { login, register, authScreen, setAuthScreen, isLoading } = useAuth()
+  const {
+    login,
+    register,
+    authScreen,
+    setAuthScreen,
+    isLoading,
+    pendingVerificationEmail,
+    backToLogin,
+    switchAccount,
+  } = useAuth()
 
   // Campos Login
   const [email, setEmail] = useState('')
@@ -94,9 +103,27 @@ export default function AuthView() {
     }
     try {
       await register(username, email, regPassword)
+      // Si quedó pendiente la verificación, no dejar las contraseñas cargadas en memoria.
+      setRegPassword('')
+      setRegConfirmPassword('')
     } catch (err: any) {
       setErrorMessage(err?.message || 'Error al crear la cuenta.')
     }
+  }
+
+  const handleVerifiedRetry = () => {
+    // La contraseña no se guarda: el usuario la vuelve a ingresar.
+    clearErrors()
+    setEmail(pendingVerificationEmail ?? email)
+    setPassword('')
+    backToLogin()
+  }
+
+  const handleSwitchAccount = () => {
+    clearErrors()
+    setEmail('')
+    setPassword('')
+    switchAccount()
   }
 
   const handleForgot = () => {
@@ -119,7 +146,44 @@ export default function AuthView() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.content}>
-            {authScreen === 'register' ? (
+            {authScreen === 'verify-email' ? (
+              <View style={styles.card}>
+                <View style={styles.iconCircle}>
+                  <Mail size={30} color={colors.accent} />
+                </View>
+                <Text style={styles.cardTitle}>Verificá tu email</Text>
+                <Text style={styles.cardSubtitle}>
+                  {pendingVerificationEmail ? (
+                    <>
+                      Te enviamos un enlace de verificación a{' '}
+                      <Text style={styles.emphasis}>{pendingVerificationEmail}</Text>.
+                    </>
+                  ) : (
+                    'Te enviamos un enlace de verificación a tu casilla de correo.'
+                  )}{' '}
+                  Abrilo para activar tu cuenta y después volvé a iniciar sesión.
+                </Text>
+                <Text style={styles.hintText}>
+                  ¿No lo encontrás? Revisá la carpeta de spam o correo no deseado.
+                </Text>
+
+                <Pressable
+                  style={styles.primaryButton}
+                  onPress={handleVerifiedRetry}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.primaryButtonText}>Ya lo verifiqué, iniciar sesión</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.secondaryButton}
+                  onPress={handleSwitchAccount}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.secondaryButtonText}>Usar otra cuenta</Text>
+                </Pressable>
+              </View>
+            ) : authScreen === 'register' ? (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Crear una cuenta</Text>
                 <Text style={styles.cardSubtitle}>
@@ -514,6 +578,33 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   primaryButtonText: { ...typography.button, color: colors.accentFg },
+  secondaryButton: {
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  secondaryButtonText: { ...typography.button, color: colors.text },
+  iconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.accentMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  emphasis: { color: colors.text, fontWeight: '600' },
+  hintText: {
+    ...typography.helperText,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'center',

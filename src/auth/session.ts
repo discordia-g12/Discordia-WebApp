@@ -2,13 +2,15 @@ import { create } from 'zustand';
 import { AuthProvider } from './provider';
 import { auth0Provider } from './auth0';
 import { getMyProfile, upsertMyProfile, UserProfile } from '../api/users';
-import { ApiError } from '../api/errors';
+import { ApiError, isProblemType, PROBLEM_TYPES } from '../api/errors';
 import { configureClient } from '../api/client';
+import { AuthDenial, classifyAuthDenial } from './errors';
 
 export type SessionStatus =
   | 'bootstrapping'   // resolviendo callback / silent auth
   | 'unauthenticated' // sin sesión: mostrar /login
   | 'needs_profile'   // autenticado en Auth0, sin perfil en Discordia
+  | 'email_unverified' // credenciales válidas, pero Auth0 exige verificar el email
   | 'authenticated'   // sesión + perfil cargado
   | 'suspended'       // cuenta bloqueada 
   | 'error';          // fallo de red/servicio: mostrar reintento
@@ -24,6 +26,7 @@ export interface SessionState {
   profile: UserProfile | null;
   error: SessionError | null;
   isMock: boolean;
+  pendingEmail: string | null;
   setStatus: (status: SessionStatus, extra?: Partial<SessionState>) => void;
 }
 
@@ -32,6 +35,7 @@ export const useSession = create<SessionState>((set) => ({
   profile: null,
   error: null,
   isMock: false,
+  pendingEmail: null,
   setStatus: (status, extra = {}) => set((state) => ({ ...state, status, ...extra })),
 }));
 
@@ -78,6 +82,24 @@ async function resolveProvider(): Promise<AuthProvider> {
 }
 
 /**
+ * Traduce un rechazo del IdP (ver auth/errors.ts) al estado de sesión correspondiente.
+ */
+function applyAuthDenial(denial: AuthDenial, email?: string | null) {
+  if (denial === 'email_not_verified') {
+    useSession.getState().setStatus('email_unverified', {
+      profile: null,
+      error: null,
+      pendingEmail: email ?? useSession.getState().pendingEmail ?? null,
+    });
+    return;
+  }
+  useSession.getState().setStatus('suspended', {
+    profile: null,
+    error: { title: 'Acceso Denegado', message: 'Tu cuenta se encuentra suspendida.' },
+  });
+}
+
+/**
  * Acción invocada cuando el cliente HTTP sufre un 401 que no pudo renovarse en plena sesión.
  */
 export async function handleAuthFailure() {
@@ -112,7 +134,7 @@ export async function logout() {
   if (onClearQueryCache) {
     onClearQueryCache();
   }
-  useSession.getState().setStatus('unauthenticated', { profile: null, error: null });
+  useSession.getState().setStatus('unauthenticated', { profile: null, error: null, pendingEmail: null });
   await activeProvider.logout();
 }
 
@@ -142,17 +164,18 @@ async function runBootstrap(): Promise<void> {
         window.history.replaceState({}, '', target);
       }
     } catch (err: any) {
-      const msg = String(err?.message || err?.error || '');
-      if (msg.includes('access_denied')) {
-        useSession.getState().setStatus('suspended', {
-          error: { title: 'Acceso Denegado', message: 'Tu cuenta se encuentra suspendida.' },
-        });
-        return;
-      }
-
+      // Limpiar ?error=...&state=... de la URL en TODAS las ramas: si queda,
+      // un refresh vuelve a procesar un state ya consumido ("Invalid state").
       if (typeof window !== 'undefined') {
         window.history.replaceState({}, '', '/login');
       }
+
+      const denial = classifyAuthDenial(err);
+      if (denial) {
+        applyAuthDenial(denial);
+        return;
+      }
+
       useSession.getState().setStatus('unauthenticated', { profile: null });
       return;
     }
@@ -163,10 +186,9 @@ async function runBootstrap(): Promise<void> {
   } catch (err: any) {
     const errorMsg = String(err?.message || err?.error || '');
 
-    if (errorMsg.includes('access_denied')) {
-      useSession.getState().setStatus('suspended', {
-        error: { title: 'Acceso Denegado', message: 'Tu cuenta se encuentra suspendida.' },
-      });
+    const denial = classifyAuthDenial(err);
+    if (denial) {
+      applyAuthDenial(denial);
       return;
     }
 
@@ -216,8 +238,9 @@ async function runBootstrap(): Promise<void> {
   } catch (err: any) {
     if (err instanceof ApiError && err.status === 404) {
       // Usuario autenticado en Auth0 sin perfil en Discordia: auto-aprovisionar con datos de registro o Auth0
+      let authUser: Awaited<ReturnType<AuthProvider['getUser']>>;
       try {
-        const authUser = await provider.getUser();
+        authUser = await provider.getUser();
         const pendingUsername = typeof sessionStorage !== 'undefined'
           ? sessionStorage.getItem('discordia_pending_username')
           : null;
@@ -229,7 +252,9 @@ async function runBootstrap(): Promise<void> {
           sessionStorage.removeItem('discordia_pending_display_name');
         }
 
-        const rawUsername = pendingUsername || authUser?.nickname || authUser?.email?.split('@')[0] || `user_${Date.now().toString().slice(-4)}`;
+        // Prioridad: username elegido al registrarse (claim del ID token, sobrevive a
+        // verificar el mail en otra pestaña/dispositivo) > el guardado en esta pestaña > derivados.
+        const rawUsername = authUser?.username || pendingUsername || authUser?.nickname || authUser?.email?.split('@')[0] || `user_${Date.now().toString().slice(-4)}`;
         const cleanUsername = rawUsername.toLowerCase().replace(/[^a-zA-Z0-9_.-]/g, '_').padEnd(3, '0').slice(0, 32);
 
         const autoProfile = await upsertMyProfile({
@@ -241,6 +266,13 @@ async function runBootstrap(): Promise<void> {
         useSession.getState().setStatus('authenticated', { profile: autoProfile, error: null });
         return;
       } catch (autoErr: any) {
+        // Segunda barrera: el backend rechaza crear el perfil si el email no está
+        // verificado (token emitido antes de activar la Action, o Action desactivada).
+        if (isProblemType(autoErr, PROBLEM_TYPES.EMAIL_NOT_VERIFIED)) {
+          applyAuthDenial('email_not_verified', authUser?.email);
+          return;
+        }
+
         // Si hay colisión de username (409), mostrar pantalla para que elija otro
         if (autoErr instanceof ApiError && autoErr.status === 409) {
           useSession.getState().setStatus('needs_profile', { profile: null, error: null });
@@ -278,7 +310,17 @@ export async function loginWithCredentials(credentials: { email: string; passwor
     throw new Error('El proveedor de autenticación no soporta inicio de sesión con credenciales directas.');
   }
 
-  await provider.loginWithCredentials(credentials);
+  try {
+    await provider.loginWithCredentials(credentials);
+  } catch (err) {
+    // Email sin verificar no es un error del formulario: es un estado de la sesión
+    // con su propia pantalla. Cualquier otro error sigue subiendo al formulario.
+    if (classifyAuthDenial(err) === 'email_not_verified') {
+      applyAuthDenial('email_not_verified', credentials.email);
+      return;
+    }
+    throw err;
+  }
   await retryBootstrap();
 }
 
@@ -303,8 +345,26 @@ export async function signupWithCredentials(data: {
     }
   }
 
-  await provider.signupWithCredentials(data);
+  try {
+    await provider.signupWithCredentials(data);
+  } catch (err) {
+    // El signup en Auth0 ya se completó y el login automático fue rechazado por
+    // falta de verificación: el registro fue exitoso, falta confirmar el email.
+    if (classifyAuthDenial(err) === 'email_not_verified') {
+      applyAuthDenial('email_not_verified', data.email);
+      return;
+    }
+    throw err;
+  }
   await retryBootstrap();
+}
+
+/**
+ * Vuelve al formulario de login desde la pantalla de verificación, conservando
+ * pendingEmail para precargar el campo de email.
+ */
+export function backToLogin() {
+  useSession.getState().setStatus('unauthenticated', { profile: null, error: null });
 }
 
 export const authService = {
@@ -312,6 +372,7 @@ export const authService = {
   loginWithCredentials,
   signupWithCredentials,
   logout,
+  backToLogin,
   bootstrap,
   retryBootstrap,
 };
