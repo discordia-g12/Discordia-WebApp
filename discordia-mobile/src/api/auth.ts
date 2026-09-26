@@ -5,6 +5,7 @@ import {
   AUTH0_CONNECTION,
 } from './config'
 import { apiFetch, setAuthToken } from './client'
+import { isProblemType, PROBLEM_TYPES, toAuthDenialError, EmailNotVerifiedError } from './authErrors'
 
 export interface BackendProfile {
   id: string
@@ -65,20 +66,57 @@ export async function upsertMyProfile(data: {
   }
 }
 
+/** Claim del ID token con el username elegido al registrarse (lo agrega la Auth0 Action). */
+const USERNAME_CLAIM = 'https://discordia.app/username'
+
+function sanitizeUsername(raw: string): string {
+  return raw.toLowerCase().replace(/[^a-z0-9_.-]/g, '_').slice(0, 32)
+}
+
+/**
+ * Lee el username sugerido del ID token. Solo se usa como sugerencia para crear
+ * el perfil
+ */
+function usernameFromIdToken(idToken: unknown): string | undefined {
+  if (typeof idToken !== 'string' || typeof atob !== 'function') return undefined
+  try {
+    const part = idToken.split('.')[1]
+    if (!part) return undefined
+    const base64 = part.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+    const payload = JSON.parse(atob(padded))
+    const value = payload?.[USERNAME_CLAIM]
+    return typeof value === 'string' && value.length > 0 ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** true si el error es de conectividad (timeout / sin red), no una respuesta HTTP del backend. */
+function isNetworkError(err: any): boolean {
+  return err?.status === undefined
+}
+
 /**
  * Autentica al usuario contra Auth0.
+ *
+ * Errores posibles:
+ *  - EmailNotVerifiedError: credenciales correctas, email sin verificar (deny de la Action).
+ *  - AccountSuspendedError: Auth0 denegó el acceso por otro motivo.
+ *  - Error genérico de credenciales (CA 2/CA 3 Login) o de conexión.
  */
 export async function loginWithCredentials(
   email: string,
   password: string,
 ): Promise<AuthSession> {
+  const cleanEmail = email.trim()
   const res = await fetch(`https://${AUTH0_DOMAIN}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       grant_type: 'http://auth0.com/oauth/grant-type/password-realm',
       client_id: AUTH0_CLIENT_ID,
-      username: email.trim(),
+      username: cleanEmail,
       password,
       realm: AUTH0_CONNECTION,
       audience: AUTH0_AUDIENCE,
@@ -88,6 +126,11 @@ export async function loginWithCredentials(
 
   const data = await res.json()
   if (!res.ok) {
+    // Rechazo de la Auth0 Action. Auth0 ejecuta la Action solo después de validar
+    // la contraseña, así que distinguir este caso no permite enumerar cuentas.
+    const denial = toAuthDenialError(data, cleanEmail)
+    if (denial) throw denial
+
     if (res.status === 400 || res.status === 401 || res.status === 403) {
       throw new Error('El correo electrónico o la contraseña son incorrectos.')
     }
@@ -103,20 +146,33 @@ export async function loginWithCredentials(
     profile = await getMyProfile()
   } catch (err: any) {
     if (err?.status === 404 || err?.message?.includes('404')) {
-      const fallbackName = email.split('@')[0]
-      profile = await upsertMyProfile({
-        username: fallbackName,
-        display_name: fallbackName,
-      })
-    } else {
-      // Si el backend Gateway no está alcanzable temporalmente, usamos un perfil derivado
-      const fallbackName = email.split('@')[0]
+      // Prioridad del username: el elegido al registrarse (claim del ID token, sobrevive a
+      // verificar el mail en otro dispositivo) > derivado del email.
+      const username = usernameFromIdToken(data.id_token) || cleanEmail.split('@')[0]
+      try {
+        profile = await upsertMyProfile({ username, display_name: username })
+      } catch (provisionErr: any) {
+        // Segunda barrera: el backend rechaza crear el perfil si el email no está verificado.
+        setAuthToken(null)
+        if (isProblemType(provisionErr, PROBLEM_TYPES.EMAIL_NOT_VERIFIED)) {
+          throw new EmailNotVerifiedError(cleanEmail)
+        }
+        throw provisionErr
+      }
+    } else if (isNetworkError(err)) {
+      // Gateway temporalmente inalcanzable: se entra con un perfil derivado.
+      // Solo ante fallos de conectividad: una respuesta HTTP de error (401/403/5xx)
+      // no debe dejar entrar al usuario con una identidad inventada.
+      const fallbackName = cleanEmail.split('@')[0]
       profile = {
         id: `usr-${fallbackName}`,
         username: fallbackName,
         display_name: fallbackName,
-        email,
+        email: cleanEmail,
       }
+    } else {
+      setAuthToken(null)
+      throw err
     }
   }
 
@@ -125,14 +181,14 @@ export async function loginWithCredentials(
 
 /**
  * Crea una nueva cuenta en Auth0 mediante la API de base de datos (/dbconnections/signup),
- * y posteriormente inicia sesión automáticamente.
+ * y posteriormente inicia sesión automáticamente (pantalla de verificación)
  */
 export async function signupWithCredentials(
   username: string,
   email: string,
   password: string,
 ): Promise<AuthSession> {
-  const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_.-]/g, '_').slice(0, 32)
+  const cleanUsername = sanitizeUsername(username)
 
   const res = await fetch(`https://${AUTH0_DOMAIN}/dbconnections/signup`, {
     method: 'POST',
@@ -143,6 +199,10 @@ export async function signupWithCredentials(
       password,
       connection: AUTH0_CONNECTION,
       username: cleanUsername,
+      user_metadata: {
+        name: username,
+        username: cleanUsername,
+      },
     }),
   })
 
