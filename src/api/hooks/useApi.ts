@@ -1,9 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { getMyProfile, upsertMyProfile, CreateProfileRequest } from '../users';
-import { getServers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel } from '../servers';
+import { getServers, getServerMembers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel } from '../servers';
 import {
   getRoles,
   getRoleMembers,
+  assignRoleToMember,
+  removeRoleFromMember,
   createRole,
   deleteRole,
   updateRolePermissions,
@@ -45,6 +47,20 @@ export function useServersQuery() {
     queryKey: ['servers'],
     queryFn: getServers,
     enabled: status === 'authenticated',
+  });
+}
+
+export function useServerMembersQuery(serverId: string | null) {
+  const status = useSession((s) => s.status);
+  return useInfiniteQuery({
+    queryKey: ['server-members', serverId],
+    queryFn: ({ pageParam }) => getServerMembers(serverId as string, { offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const loaded = lastPage.offset + lastPage.items.length;
+      return loaded < lastPage.total ? loaded : undefined;
+    },
+    enabled: status === 'authenticated' && Boolean(serverId),
   });
 }
 
@@ -141,6 +157,30 @@ export function useRoleMembersQuery(serverId: string | null, roleId: string | nu
     queryKey: ['role-members', serverId, roleId],
     queryFn: () => getRoleMembers(serverId as string, roleId as string),
     enabled: status === 'authenticated' && Boolean(serverId) && Boolean(roleId),
+  });
+}
+
+export function useAssignRoleMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roleId, userId }: { roleId: string; userId: string }) =>
+      assignRoleToMember(serverId, roleId, userId),
+    onSuccess: (_data, { roleId }) => {
+      queryClient.invalidateQueries({ queryKey: ['server-members', serverId] });
+      queryClient.invalidateQueries({ queryKey: ['role-members', serverId, roleId] });
+    },
+  });
+}
+
+export function useRemoveRoleMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roleId, userId }: { roleId: string; userId: string }) =>
+      removeRoleFromMember(serverId, roleId, userId),
+    onSuccess: (_data, { roleId }) => {
+      queryClient.invalidateQueries({ queryKey: ['server-members', serverId] });
+      queryClient.invalidateQueries({ queryKey: ['role-members', serverId, roleId] });
+    },
   });
 }
 

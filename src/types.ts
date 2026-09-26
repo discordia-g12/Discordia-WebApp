@@ -162,6 +162,38 @@ export interface RoleMember {
   joinedAt: string;
 }
 
+/** DTO de miembro de un servidor retornado por Server-Roles-Core-Service */
+export interface ServerMemberBackendResponse {
+  id: string;
+  user_id: string;
+  nickname: string | null;
+  role_ids: string[];
+}
+
+/** DTO de una página de miembros retornada por Server-Roles-Core-Service */
+export interface ServerMemberPageBackendResponse {
+  items: ServerMemberBackendResponse[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** Miembro de un servidor con los ids de los roles que tiene asignados. */
+export interface ServerMember {
+  id: string;
+  userId: string;
+  nickname: string | null;
+  roleIds: string[];
+}
+
+/** Página de miembros de un servidor. */
+export interface ServerMemberPage {
+  items: ServerMember[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 /** DTO de canal retornado por Server-Roles-Core-Service */
 export interface ChannelBackendResponse {
   id: string;

@@ -1,12 +1,13 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Plus, Shield } from 'lucide-react-native'
+import { Plus, Shield, Users } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Server } from '../../types'
 
 interface ServerSidebarHeaderProps {
     server?: Server
     onOpenRoles: () => void
+    onOpenMembers: () => void
     onAddChannel: () => void
 }
 
@@ -14,6 +15,7 @@ interface ServerSidebarHeaderProps {
 export default function ServerSidebarHeader({
     server,
     onOpenRoles,
+    onOpenMembers,
     onAddChannel,
 }: ServerSidebarHeaderProps) {
     return (
@@ -23,6 +25,9 @@ export default function ServerSidebarHeader({
             </Text>
             {server && (
                 <View style={styles.actions}>
+                    <Pressable style={styles.actionButton} onPress={onOpenMembers} hitSlop={8}>
+                        <Users color={colors.textMuted} size={18} />
+                    </Pressable>
                     <Pressable style={styles.actionButton} onPress={onOpenRoles} hitSlop={8}>
                         <Shield color={colors.textMuted} size={18} />
                     </Pressable>

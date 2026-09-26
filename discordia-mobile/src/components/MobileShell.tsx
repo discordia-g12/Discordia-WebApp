@@ -20,6 +20,7 @@ import SidebarSearchRow from './SidebarSearchRow'
 import Toast from './shared/Toast'
 import UserPanel from './profile/UserPanel'
 import RolesModal from './roles/RolesModal'
+import MembersModal from './members/MembersModal'
 
 type MobileScreen = 'sidebar' | 'chat'
 
@@ -45,6 +46,7 @@ export default function MobileShell() {
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
   const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
   const [rolesModalOpen, setRolesModalOpen] = useState(false)
+  const [membersModalOpen, setMembersModalOpen] = useState(false)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
   const [editChannelModalOpen, setEditChannelModalOpen] = useState(false)
   const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
@@ -230,6 +232,7 @@ export default function MobileShell() {
             <ServerSidebarHeader
               server={server}
               onOpenRoles={() => setRolesModalOpen(true)}
+              onOpenMembers={() => setMembersModalOpen(true)}
               onAddChannel={() => handleAddChannel(null)}
             />
             <SidebarSearchRow />
@@ -268,6 +271,12 @@ export default function MobileShell() {
           visible={rolesModalOpen}
           serverId={server?.id ?? null}
           onClose={() => setRolesModalOpen(false)}
+        />
+        <MembersModal
+          visible={membersModalOpen}
+          serverId={server?.id ?? null}
+          ownerId={server?.ownerId ?? null}
+          onClose={() => setMembersModalOpen(false)}
         />
         <ProfileModal visible={isProfileVisible} onClose={() => setIsProfileVisible(false)} />
 

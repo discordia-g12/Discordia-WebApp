@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  assignRoleToMember,
   createRole,
   deleteRole,
   getRoleMembers,
   getRoles,
+  removeRoleFromMember,
   setDefaultRole,
   updateRoleInfo,
   updateRolePermissions,
@@ -25,6 +27,30 @@ export function useRoleMembersQuery(serverId: string | null, roleId: string | nu
     queryKey: ['role-members', serverId, roleId],
     queryFn: () => getRoleMembers(serverId as string, roleId as string),
     enabled: Boolean(serverId) && Boolean(roleId),
+  })
+}
+
+export function useAssignRoleMutation(serverId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ roleId, userId }: { roleId: string; userId: string }) =>
+      assignRoleToMember(serverId, roleId, userId),
+    onSuccess: (_data, { roleId }) => {
+      queryClient.invalidateQueries({ queryKey: ['server-members', serverId] })
+      queryClient.invalidateQueries({ queryKey: ['role-members', serverId, roleId] })
+    },
+  })
+}
+
+export function useRemoveRoleMutation(serverId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ roleId, userId }: { roleId: string; userId: string }) =>
+      removeRoleFromMember(serverId, roleId, userId),
+    onSuccess: (_data, { roleId }) => {
+      queryClient.invalidateQueries({ queryKey: ['server-members', serverId] })
+      queryClient.invalidateQueries({ queryKey: ['role-members', serverId, roleId] })
+    },
   })
 }
 
