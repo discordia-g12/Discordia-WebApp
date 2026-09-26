@@ -60,6 +60,29 @@ export async function updateRolePermissions(
   return mapRoleFromBackend(raw)
 }
 
+export interface UpdateRoleInfoRequest {
+  name?: string
+  color?: string
+}
+
+/**
+ * Edita el nombre y/o color de un rol. El backend rechaza (400) renombrar el rol por defecto.
+ */
+export async function updateRoleInfo(
+  serverId: string,
+  roleId: string,
+  payload: UpdateRoleInfoRequest,
+): Promise<ServerRole> {
+  const raw = await apiFetch<RoleBackendResponse>(`/api/v1/servers/${serverId}/roles/${roleId}`, {
+    method: 'PATCH',
+    body: {
+      ...(payload.name !== undefined && { name: payload.name.trim() }),
+      ...(payload.color !== undefined && { color: payload.color }),
+    },
+  })
+  return mapRoleFromBackend(raw)
+}
+
 /**
  * Elimina un rol de un servidor. El backend rechaza borrar el rol por defecto (400).
  */

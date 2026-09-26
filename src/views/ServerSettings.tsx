@@ -28,6 +28,7 @@ import {
   useCreateRoleMutation,
   useDeleteRoleMutation,
   useUpdateRolePermissionsMutation,
+  useUpdateRoleInfoMutation,
 } from '../api/hooks/useApi';
 import { PERMISSION_BITS } from '../api/roles';
 
@@ -128,13 +129,16 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
   const createRoleMutation = useCreateRoleMutation(serverState.id);
   const deleteRoleMutation = useDeleteRoleMutation(serverState.id);
   const updatePermissionsMutation = useUpdateRolePermissionsMutation(serverState.id);
+  const updateInfoMutation = useUpdateRoleInfoMutation(serverState.id);
+  const isSavingRole = updatePermissionsMutation.isPending || updateInfoMutation.isPending;
   const roles: Role[] = rolesQuery.data ?? [];
   const [activeRoleId, setActiveRoleId] = useState<string>('');
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleColor, setNewRoleColor] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
   const [permissionDrafts, setPermissionDrafts] = useState<Record<string, string[]>>({});
-  const [permissionsError, setPermissionsError] = useState<string | null>(null);
+  const [infoDrafts, setInfoDrafts] = useState<Record<string, { name?: string; color?: string }>>({});
+  const [roleEditError, setRoleEditError] = useState<string | null>(null);
 
   // Members Tab States
   const [memberSearch, setMemberSearch] = useState('');
@@ -181,6 +185,13 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
     !!activeDraft &&
     (activeDraft.length !== (activeRole.permissions ?? []).length ||
       activeDraft.some((p) => !(activeRole.permissions ?? []).includes(p)));
+  const activeInfoDraft = activeRole ? infoDrafts[activeRole.id] : undefined;
+  const activeName = activeInfoDraft?.name ?? activeRole?.name ?? '';
+  const activeColor = activeInfoDraft?.color ?? activeRole?.color ?? '#99aab5';
+  const nameChanged = !!activeRole && activeName.trim() !== activeRole.name;
+  const colorChanged = !!activeRole && activeColor !== activeRole.color;
+  const hasUnsavedRole = hasUnsavedPermissions || nameChanged || colorChanged;
+  const isRoleNameInvalid = nameChanged && activeName.trim().length === 0;
 
   // Icon upload handler
   const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,24 +255,42 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
     const next = current.includes(permissionId)
       ? current.filter((p) => p !== permissionId)
       : [...current, permissionId];
-    setPermissionsError(null);
+    setRoleEditError(null);
     setPermissionDrafts((drafts) => ({ ...drafts, [role.id]: next }));
   };
 
-  const discardPermissionDraft = (roleId: string) => {
-    setPermissionsError(null);
-    setPermissionDrafts(({ [roleId]: _discarded, ...rest }) => rest);
+  const handleChangeRoleInfo = (role: Role, changes: { name?: string; color?: string }) => {
+    setRoleEditError(null);
+    setInfoDrafts((drafts) => ({ ...drafts, [role.id]: { ...drafts[role.id], ...changes } }));
   };
 
-  const handleSavePermissions = async (role: Role) => {
-    const draft = permissionDrafts[role.id];
-    if (!draft) return;
-    setPermissionsError(null);
+  const discardRoleDrafts = (roleId: string) => {
+    setRoleEditError(null);
+    setPermissionDrafts(({ [roleId]: _discarded, ...rest }) => rest);
+    setInfoDrafts(({ [roleId]: _discarded, ...rest }) => rest);
+  };
+
+  // Guarda nombre/color y permisos; cada parte limpia su borrador apenas se guarda, así un fallo no pierde lo pendiente
+  const handleSaveRole = async (role: Role) => {
+    setRoleEditError(null);
     try {
-      await updatePermissionsMutation.mutateAsync({ roleId: role.id, permissions: draft });
-      setPermissionDrafts(({ [role.id]: _saved, ...rest }) => rest);
+      if (nameChanged || colorChanged) {
+        await updateInfoMutation.mutateAsync({
+          roleId: role.id,
+          payload: {
+            ...(nameChanged && { name: activeName }),
+            ...(colorChanged && { color: activeColor }),
+          },
+        });
+        setInfoDrafts(({ [role.id]: _saved, ...rest }) => rest);
+      }
+      const permissionsDraft = permissionDrafts[role.id];
+      if (hasUnsavedPermissions && permissionsDraft) {
+        await updatePermissionsMutation.mutateAsync({ roleId: role.id, permissions: permissionsDraft });
+        setPermissionDrafts(({ [role.id]: _saved, ...rest }) => rest);
+      }
     } catch (err) {
-      setPermissionsError(err instanceof Error ? err.message : 'No se pudieron guardar los permisos.');
+      setRoleEditError(err instanceof Error ? err.message : 'No se pudieron guardar los cambios del rol.');
     }
   };
 
@@ -1062,7 +1091,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                           Edit Role — {activeRole.name}
                         </h3>
                         <span style={{ fontSize: 12, color: '#949ba4' }}>
-                          Los cambios de permisos se aplican al presionar "Guardar cambios". Nombre y color son de solo lectura por ahora; su edición llegará pronto.
+                          Los cambios de nombre, color y permisos se aplican al presionar "Guardar cambios".
                         </span>
                       </div>
 
@@ -1098,17 +1127,21 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                         </label>
                         <input
                           type="text"
-                          value={activeRole.name}
-                          readOnly
+                          value={activeName}
+                          onChange={(e) => handleChangeRoleInfo(activeRole, { name: e.target.value })}
+                          maxLength={100}
+                          disabled={activeRole.isDefault || isSavingRole}
+                          title={activeRole.isDefault ? 'El rol por defecto no se puede renombrar.' : undefined}
                           style={{
                             width: '100%',
                             backgroundColor: '#1e1f22',
                             color: '#dbdee1',
-                            border: '1px solid rgba(0, 0, 0, 0.3)',
+                            border: `1px solid ${isRoleNameInvalid ? 'rgba(218, 55, 60, 0.6)' : 'rgba(0, 0, 0, 0.3)'}`,
                             borderRadius: 4,
                             padding: '8px 10px',
                             fontSize: 14,
                             outline: 'none',
+                            opacity: activeRole.isDefault ? 0.6 : 1,
                           }}
                         />
                       </div>
@@ -1122,22 +1155,24 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                             <button
                               key={col}
                               type="button"
-                              disabled
+                              onClick={() => handleChangeRoleInfo(activeRole, { color: col })}
+                              disabled={isSavingRole}
                               style={{
                                 width: 24,
                                 height: 24,
                                 borderRadius: '50%',
                                 backgroundColor: col,
-                                border: activeRole.color === col ? '2px solid #ffffff' : '1px solid rgba(0,0,0,0.3)',
-                                cursor: 'default',
+                                border: activeColor === col ? '2px solid #ffffff' : '1px solid rgba(0,0,0,0.3)',
+                                cursor: isSavingRole ? 'default' : 'pointer',
                               }}
                             />
                           ))}
                           <input
                             type="color"
-                            value={activeRole.color || '#99aab5'}
-                            disabled
-                            style={{ width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'default' }}
+                            value={activeColor}
+                            onChange={(e) => handleChangeRoleInfo(activeRole, { color: e.target.value })}
+                            disabled={isSavingRole}
+                            style={{ width: 28, height: 28, border: 'none', background: 'transparent', cursor: isSavingRole ? 'default' : 'pointer' }}
                           />
                         </div>
                       </div>
@@ -1159,7 +1194,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                             {cat.permissions.map((perm) => {
                               const isEnabled = activePermissions.includes(perm.id);
                               const isSupported = perm.id in PERMISSION_BITS;
-                              const isLocked = !isSupported || updatePermissionsMutation.isPending;
+                              const isLocked = !isSupported || isSavingRole;
                               return (
                                 <div
                                   key={perm.id}
@@ -1224,7 +1259,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                       ))}
                     </div>
 
-                    {(hasUnsavedPermissions || permissionsError) && (
+                    {(hasUnsavedRole || roleEditError) && (
                       <div
                         style={{
                           position: 'sticky',
@@ -1236,24 +1271,24 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                           gap: 12,
                           padding: '10px 14px',
                           backgroundColor: '#111214',
-                          border: `1px solid ${permissionsError ? 'rgba(218, 55, 60, 0.5)' : 'rgba(255, 255, 255, 0.08)'}`,
+                          border: `1px solid ${roleEditError ? 'rgba(218, 55, 60, 0.5)' : 'rgba(255, 255, 255, 0.08)'}`,
                           borderRadius: 6,
                         }}
                       >
-                        <span style={{ fontSize: 13, color: permissionsError ? '#fa777c' : '#dbdee1' }}>
-                          {permissionsError ?? 'Tenés cambios sin guardar.'}
+                        <span style={{ fontSize: 13, color: roleEditError ? '#fa777c' : '#dbdee1' }}>
+                          {roleEditError ?? 'Tenés cambios sin guardar.'}
                         </span>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                           <button
                             type="button"
-                            onClick={() => discardPermissionDraft(activeRole.id)}
-                            disabled={updatePermissionsMutation.isPending}
+                            onClick={() => discardRoleDrafts(activeRole.id)}
+                            disabled={isSavingRole}
                             style={{
                               background: 'transparent',
                               color: '#dbdee1',
                               border: 'none',
                               fontSize: 13,
-                              cursor: updatePermissionsMutation.isPending ? 'default' : 'pointer',
+                              cursor: isSavingRole ? 'default' : 'pointer',
                               padding: '6px 12px',
                             }}
                           >
@@ -1261,8 +1296,8 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleSavePermissions(activeRole)}
-                            disabled={updatePermissionsMutation.isPending || !hasUnsavedPermissions}
+                            onClick={() => handleSaveRole(activeRole)}
+                            disabled={isSavingRole || !hasUnsavedRole || isRoleNameInvalid}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -1274,11 +1309,11 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                               fontSize: 13,
                               fontWeight: 600,
                               padding: '6px 14px',
-                              cursor: updatePermissionsMutation.isPending ? 'default' : 'pointer',
-                              opacity: updatePermissionsMutation.isPending || !hasUnsavedPermissions ? 0.6 : 1,
+                              cursor: isSavingRole ? 'default' : 'pointer',
+                              opacity: isSavingRole || !hasUnsavedRole || isRoleNameInvalid ? 0.6 : 1,
                             }}
                           >
-                            {updatePermissionsMutation.isPending && (
+                            {isSavingRole && (
                               <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
                             )}
                             Guardar cambios
