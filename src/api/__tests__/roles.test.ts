@@ -9,6 +9,7 @@ import {
   getRoles,
   mapRoleFromBackend,
   permissionsToBitmask,
+  updateRoleInfo,
   updateRolePermissions,
 } from '../roles';
 import type { RoleBackendResponse } from '../../types';
@@ -177,6 +178,41 @@ describe('API de roles', () => {
       .mockResolvedValue(jsonResponse({ detail: 'You cannot remove the ADMINISTRATOR permission from your own role' }, 403));
 
     await expect(updateRolePermissions('srv-1', 'role-1', [])).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('updateRoleInfo hace PATCH con nombre recortado y color, y devuelve el rol mapeado', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(backendRole({ name: 'Admins', color: '#da373c' })));
+    globalThis.fetch = fetchMock;
+
+    const role = await updateRoleInfo('srv-1', 'role-1', { name: '  Admins  ', color: '#da373c' });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/roles/role-1');
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body)).toEqual({ name: 'Admins', color: '#da373c' });
+    expect(role.name).toBe('Admins');
+    expect(role.color).toBe('#da373c');
+  });
+
+  it('updateRoleInfo envía solo los campos que cambian', async () => {
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse(backendRole())));
+    globalThis.fetch = fetchMock;
+
+    await updateRoleInfo('srv-1', 'role-1', { color: '#eb459e' });
+    await updateRoleInfo('srv-1', 'role-1', { name: 'Solo nombre' });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ color: '#eb459e' });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ name: 'Solo nombre' });
+  });
+
+  it('updateRoleInfo propaga un ApiError si se renombra el rol por defecto (400)', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ detail: 'Cannot change the name of the default server role.' }, 400));
+
+    await expect(updateRoleInfo('srv-1', 'role-0', { name: 'Otro' })).rejects.toBeInstanceOf(ApiError);
   });
 
   it('deleteRole hace DELETE al rol y tolera la respuesta 204', async () => {
