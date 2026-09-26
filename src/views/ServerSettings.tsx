@@ -30,6 +30,7 @@ import {
   useUpdateRolePermissionsMutation,
   useUpdateRoleInfoMutation,
   useSetDefaultRoleMutation,
+  useRoleMembersQuery,
 } from '../api/hooks/useApi';
 import { PERMISSION_BITS } from '../api/roles';
 
@@ -180,6 +181,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
 
   // Active Role Object
   const activeRole = roles.find((r) => r.id === activeRoleId) || roles[0];
+  const roleMembersQuery = useRoleMembersQuery(serverState.id, activeRole?.id ?? null);
   const activeDraft = activeRole ? permissionDrafts[activeRole.id] : undefined;
   const activePermissions = activeDraft ?? activeRole?.permissions ?? [];
   const hasUnsavedPermissions =
@@ -1222,6 +1224,94 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                           />
                         </div>
                       </div>
+                    </div>
+
+                    {/* Members with this role */}
+                    <div style={{ marginBottom: 24 }}>
+                      <h4 style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', color: '#f2f3f5', marginBottom: 12 }}>
+                        Members{roleMembersQuery.data ? ` — ${roleMembersQuery.data.length}` : ''}
+                      </h4>
+
+                      {roleMembersQuery.isLoading && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#949ba4', fontSize: 13 }}>
+                          <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Cargando miembros...
+                        </div>
+                      )}
+
+                      {roleMembersQuery.isError && (
+                        <div style={{ fontSize: 13, color: '#fa777c' }}>
+                          {roleMembersQuery.error instanceof Error
+                            ? roleMembersQuery.error.message
+                            : 'No se pudieron cargar los miembros.'}{' '}
+                          <button
+                            type="button"
+                            onClick={() => roleMembersQuery.refetch()}
+                            style={{ background: 'none', border: 'none', color: '#00a8fc', cursor: 'pointer', padding: 0, fontSize: 13 }}
+                          >
+                            Reintentar
+                          </button>
+                        </div>
+                      )}
+
+                      {roleMembersQuery.isSuccess && roleMembersQuery.data.length === 0 && (
+                        <div style={{ fontSize: 13, color: '#949ba4' }}>Ningún miembro tiene este rol.</div>
+                      )}
+
+                      {roleMembersQuery.isSuccess && roleMembersQuery.data.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {roleMembersQuery.data.map((member) => {
+                            const displayName = member.nickname || member.userId;
+                            return (
+                              <div
+                                key={member.id}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 10,
+                                  padding: '8px 12px',
+                                  backgroundColor: '#1e1f22',
+                                  borderRadius: 6,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: '50%',
+                                    backgroundColor: activeColor,
+                                    color: '#ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {displayName.charAt(0).toUpperCase()}
+                                </div>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: 600,
+                                      color: '#f2f3f5',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {displayName}
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: 12, color: '#949ba4', flexShrink: 0 }}>
+                                  Se unió el {new Date(member.joinedAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Permissions Matrix */}

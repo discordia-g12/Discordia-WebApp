@@ -3,6 +3,7 @@ import { getMyProfile, upsertMyProfile, CreateProfileRequest } from '../users';
 import { getServers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel } from '../servers';
 import {
   getRoles,
+  getRoleMembers,
   createRole,
   deleteRole,
   updateRolePermissions,
@@ -131,6 +132,15 @@ export function useRolesQuery(serverId: string | null) {
     queryKey: ['roles', serverId],
     queryFn: () => getRoles(serverId as string),
     enabled: status === 'authenticated' && Boolean(serverId),
+  });
+}
+
+export function useRoleMembersQuery(serverId: string | null, roleId: string | null) {
+  const status = useSession((s) => s.status);
+  return useQuery({
+    queryKey: ['role-members', serverId, roleId],
+    queryFn: () => getRoleMembers(serverId as string, roleId as string),
+    enabled: status === 'authenticated' && Boolean(serverId) && Boolean(roleId),
   });
 }
 
