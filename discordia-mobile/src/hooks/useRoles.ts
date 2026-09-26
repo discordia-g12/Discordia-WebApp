@@ -3,8 +3,10 @@ import {
   createRole,
   deleteRole,
   getRoles,
+  updateRoleInfo,
   updateRolePermissions,
   type CreateRoleRequest,
+  type UpdateRoleInfoRequest,
 } from '../api/roles'
 import type { ServerRole } from '../types'
 
@@ -31,6 +33,19 @@ export function useUpdateRolePermissionsMutation(serverId: string) {
   return useMutation({
     mutationFn: ({ roleId, permissionsBitmask }: { roleId: string; permissionsBitmask: number }) =>
       updateRolePermissions(serverId, roleId, permissionsBitmask),
+    onSuccess: updated => {
+      queryClient.setQueryData<ServerRole[]>(['roles', serverId], old =>
+        old?.map(r => (r.id === updated.id ? updated : r)),
+      )
+    },
+  })
+}
+
+export function useUpdateRoleInfoMutation(serverId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRoleInfoRequest }) =>
+      updateRoleInfo(serverId, roleId, payload),
     onSuccess: updated => {
       queryClient.setQueryData<ServerRole[]>(['roles', serverId], old =>
         old?.map(r => (r.id === updated.id ? updated : r)),

@@ -18,24 +18,13 @@ import { useUI } from '../../providers/AppProviders'
 import { useCreateRoleMutation, useDeleteRoleMutation, useRolesQuery } from '../../hooks/useRoles'
 import type { ServerRole } from '../../types'
 import RolePermissionsEditor from './RolePermissionsEditor'
+import { PRESET_ROLE_COLORS } from './roleColors'
 
 interface RolesModalProps {
   visible: boolean
   serverId: string | null
   onClose: () => void
 }
-
-// Misma paleta que usa el cliente web (ServerSettings.tsx) para consistencia visual.
-const PRESET_ROLE_COLORS = [
-  '#99aab5',
-  '#5865f2',
-  '#23a55a',
-  '#f0b232',
-  '#eb459e',
-  '#da373c',
-  '#00a8fc',
-  '#9b59b6',
-]
 
 export default function RolesModal({ visible, serverId, onClose }: RolesModalProps) {
   const { showToast } = useUI()

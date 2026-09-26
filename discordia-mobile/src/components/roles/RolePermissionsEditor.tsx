@@ -1,11 +1,22 @@
 import React, { useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native'
 import { ChevronLeft } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
-import { useUpdateRolePermissionsMutation } from '../../hooks/useRoles'
+import { useUpdateRoleInfoMutation, useUpdateRolePermissionsMutation } from '../../hooks/useRoles'
 import type { ServerRole } from '../../types'
 import { PERMISSION_CATEGORIES, hasPermission, togglePermission } from './permissions'
+import { PRESET_ROLE_COLORS } from './roleColors'
 
 interface RolePermissionsEditorProps {
   serverId: string
@@ -15,13 +26,20 @@ interface RolePermissionsEditorProps {
 
 export default function RolePermissionsEditor({ serverId, role, onBack }: RolePermissionsEditorProps) {
   const { showToast } = useUI()
-  const updateMutation = useUpdateRolePermissionsMutation(serverId)
+  const updatePermissionsMutation = useUpdateRolePermissionsMutation(serverId)
+  const updateInfoMutation = useUpdateRoleInfoMutation(serverId)
 
   const [draft, setDraft] = useState(role.permissionsBitmask)
+  const [nameDraft, setNameDraft] = useState(role.name)
+  const [colorDraft, setColorDraft] = useState(role.color)
   const [error, setError] = useState<string | null>(null)
 
-  const hasChanges = draft !== role.permissionsBitmask
-  const isSaving = updateMutation.isPending
+  const permissionsChanged = draft !== role.permissionsBitmask
+  const nameChanged = nameDraft.trim() !== role.name
+  const colorChanged = colorDraft !== role.color
+  const hasChanges = permissionsChanged || nameChanged || colorChanged
+  const isNameInvalid = nameChanged && nameDraft.trim().length === 0
+  const isSaving = updatePermissionsMutation.isPending || updateInfoMutation.isPending
 
   const handleToggle = (bit: number) => {
     setError(null)
@@ -31,15 +49,28 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
   const handleDiscard = () => {
     setError(null)
     setDraft(role.permissionsBitmask)
+    setNameDraft(role.name)
+    setColorDraft(role.color)
   }
 
   const handleSave = async () => {
     setError(null)
     try {
-      await updateMutation.mutateAsync({ roleId: role.id, permissionsBitmask: draft })
-      showToast?.(`Permisos de "${role.name}" guardados.`, 'success')
+      if (nameChanged || colorChanged) {
+        await updateInfoMutation.mutateAsync({
+          roleId: role.id,
+          payload: {
+            ...(nameChanged && { name: nameDraft }),
+            ...(colorChanged && colorDraft && { color: colorDraft }),
+          },
+        })
+      }
+      if (permissionsChanged) {
+        await updatePermissionsMutation.mutateAsync({ roleId: role.id, permissionsBitmask: draft })
+      }
+      showToast?.('Cambios del rol guardados.', 'success')
     } catch (err: any) {
-      setError(err?.message || 'No se pudieron guardar los permisos.')
+      setError(err?.message || 'No se pudieron guardar los cambios del rol.')
     }
   }
 
@@ -48,7 +79,7 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
       onBack()
       return
     }
-    Alert.alert('Cambios sin guardar', '¿Querés descartar los cambios de permisos?', [
+    Alert.alert('Cambios sin guardar', '¿Querés descartar los cambios del rol?', [
       { text: 'Seguir editando', style: 'cancel' },
       { text: 'Descartar', style: 'destructive', onPress: onBack },
     ])
@@ -60,13 +91,52 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
         <Pressable onPress={handleBack} style={styles.backButton} hitSlop={8}>
           <ChevronLeft color={colors.text} size={20} />
         </Pressable>
-        <View style={[styles.roleDot, { backgroundColor: role.color || colors.textMuted }]} />
+        <View style={[styles.roleDot, { backgroundColor: colorDraft || colors.textMuted }]} />
         <Text style={styles.title} numberOfLines={1}>
           {role.name}
         </Text>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: spacing.md }}>
+        <View style={styles.category}>
+          <Text style={styles.categoryTitle}>Nombre y color</Text>
+          <TextInput
+            style={[
+              styles.nameInput,
+              isNameInvalid && styles.nameInputInvalid,
+              role.isDefault && styles.nameInputDisabled,
+            ]}
+            value={nameDraft}
+            onChangeText={text => {
+              setError(null)
+              setNameDraft(text)
+            }}
+            maxLength={100}
+            editable={!role.isDefault && !isSaving}
+            placeholder="Nombre del rol"
+            placeholderTextColor={colors.textDim}
+          />
+          {role.isDefault && <Text style={styles.permissionDesc}>El rol por defecto no se puede renombrar.</Text>}
+          <View style={styles.swatchRow}>
+            {PRESET_ROLE_COLORS.map(color => (
+              <Pressable
+                key={color}
+                onPress={() => {
+                  setError(null)
+                  setColorDraft(color)
+                }}
+                disabled={isSaving}
+                style={[
+                  styles.swatch,
+                  { backgroundColor: color },
+                  colorDraft === color && styles.swatchSelected,
+                ]}
+                hitSlop={4}
+              />
+            ))}
+          </View>
+        </View>
+
         {PERMISSION_CATEGORIES.map(category => (
           <View key={category.category} style={styles.category}>
             <Text style={styles.categoryTitle}>{category.category}</Text>
@@ -99,8 +169,11 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
             </Pressable>
             <Pressable
               onPress={handleSave}
-              disabled={isSaving || !hasChanges}
-              style={[styles.saveButton, (isSaving || !hasChanges) && styles.saveButtonDisabled]}
+              disabled={isSaving || !hasChanges || isNameInvalid}
+              style={[
+                styles.saveButton,
+                (isSaving || !hasChanges || isNameInvalid) && styles.saveButtonDisabled,
+              ]}
             >
               {isSaving ? (
                 <ActivityIndicator color={colors.accentFg} size="small" />
@@ -159,6 +232,40 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     borderRadius: radii.sm,
     marginBottom: spacing.xs,
+  },
+  nameInput: {
+    backgroundColor: colors.bg,
+    color: colors.text,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.xs,
+  },
+  nameInputInvalid: {
+    borderColor: colors.danger,
+  },
+  nameInputDisabled: {
+    opacity: 0.6,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  swatch: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  swatchSelected: {
+    borderColor: colors.text,
   },
   permissionInfo: {
     flex: 1,
