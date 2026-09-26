@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../client';
 import { ApiError } from '../errors';
+import { getServerMembers } from '../servers';
 import {
   DEFAULT_ROLE_COLOR,
+  assignRoleToMember,
+  removeRoleFromMember,
   bitmaskToPermissions,
   createRole,
   deleteRole,
@@ -268,6 +271,82 @@ describe('API de roles', () => {
     globalThis.fetch = vi.fn().mockResolvedValue(jsonResponse({ detail: 'Role not found.' }, 404));
 
     await expect(setDefaultRole('srv-1', 'nope')).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('getServerMembers pide la página indicada y mapea los miembros con sus roles', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        items: [
+          { id: 'm1', user_id: 'auth0|abc', nickname: 'Mateo', role_ids: ['r0', 'r1'] },
+          { id: 'm2', user_id: 'auth0|def', nickname: null, role_ids: [] },
+        ],
+        total: 120,
+        limit: 50,
+        offset: 50,
+      })
+    );
+    globalThis.fetch = fetchMock;
+
+    const page = await getServerMembers('srv-1', { offset: 50 });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/members?offset=50');
+    expect(init.method).toBe('GET');
+    expect(page.total).toBe(120);
+    expect(page.offset).toBe(50);
+    expect(page.items).toEqual([
+      { id: 'm1', userId: 'auth0|abc', nickname: 'Mateo', roleIds: ['r0', 'r1'] },
+      { id: 'm2', userId: 'auth0|def', nickname: null, roleIds: [] },
+    ]);
+  });
+
+  it('getServerMembers sin opciones no manda parámetros y el backend usa su página por defecto', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ items: [], total: 0, limit: 50, offset: 0 }));
+    globalThis.fetch = fetchMock;
+
+    await getServerMembers('srv-1');
+
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8000/api/v1/servers/srv-1/members');
+  });
+
+  it('getServerMembers propaga un ApiError si el usuario no pertenece al servidor (403)', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ detail: 'You are not a member of this server.' }, 403));
+
+    await expect(getServerMembers('srv-1')).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('assignRoleToMember hace PUT al miembro del rol y tolera la respuesta 204', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    globalThis.fetch = fetchMock;
+
+    await expect(assignRoleToMember('srv-1', 'role-1', 'auth0|abc')).resolves.toBeUndefined();
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/roles/role-1/members/auth0%7Cabc');
+    expect(init.method).toBe('PUT');
+  });
+
+  it('removeRoleFromMember hace DELETE al miembro del rol y tolera la respuesta 204', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    globalThis.fetch = fetchMock;
+
+    await expect(removeRoleFromMember('srv-1', 'role-1', 'auth0|abc')).resolves.toBeUndefined();
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/roles/role-1/members/auth0%7Cabc');
+    expect(init.method).toBe('DELETE');
+  });
+
+  it('removeRoleFromMember propaga un ApiError si el miembro no tenía el rol (404)', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ detail: 'Member does not have this role assigned.' }, 404));
+
+    await expect(removeRoleFromMember('srv-1', 'role-1', 'auth0|abc')).rejects.toBeInstanceOf(ApiError);
   });
 
   it('deleteRole hace DELETE al rol y tolera la respuesta 204', async () => {

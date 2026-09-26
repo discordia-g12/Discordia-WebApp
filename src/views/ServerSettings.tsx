@@ -14,8 +14,6 @@ import {
   Plus,
   Trash2,
   Edit3,
-  Crown,
-  Search,
   Check,
   Loader2,
   Sliders,
@@ -34,6 +32,7 @@ import {
   useRoleMembersQuery,
 } from '../api/hooks/useApi';
 import { PERMISSION_BITS } from '../api/roles';
+import { ServerMembersTab } from '../components/ServerMembersTab';
 
 export interface ServerSettingsProps {
   server?: Server;
@@ -145,8 +144,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
   const [roleEditError, setRoleEditError] = useState<string | null>(null);
 
   // Members Tab States
-  const [memberSearch, setMemberSearch] = useState('');
-  const [members, setMembers] = useState<User[]>(serverState.members || Object.values(USERS));
+  const [members] = useState<User[]>(serverState.members || Object.values(USERS));
 
   // Channels Tab States
   const [categories, setCategories] = useState(serverState.categories || []);
@@ -333,13 +331,6 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
     }
   };
 
-  // Kick member
-  const handleKickMember = (memberId: string) => {
-    const confirmKick = window.confirm('Are you sure you want to kick this member?');
-    if (!confirmKick) return;
-    setMembers(members.filter((m) => m.id !== memberId));
-  };
-
   // Create channel handler
   const handleCreateChannel = (e: React.FormEvent) => {
     e.preventDefault();
@@ -457,10 +448,6 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
     setTimeout(() => setBoostFeedback(null), 4000);
   };
 
-  // Filter members
-  const filteredMembers = members.filter((m) =>
-    (m.displayName || m.username).toLowerCase().includes(memberSearch.toLowerCase())
-  );
 
   return (
     <div
@@ -1487,111 +1474,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
 
             {/* 3. MEMBERS TAB */}
             {activeTab === 'members' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#f2f3f5' }}>
-                    Server Members ({members.length})
-                  </div>
-
-                  {/* Search bar */}
-                  <div style={{ position: 'relative', width: 260 }}>
-                    <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: '#949ba4' }} />
-                    <input
-                      type="text"
-                      value={memberSearch}
-                      onChange={(e) => setMemberSearch(e.target.value)}
-                      placeholder="Search members..."
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#1e1f22',
-                        color: '#dbdee1',
-                        border: '1px solid rgba(0, 0, 0, 0.3)',
-                        borderRadius: 4,
-                        padding: '8px 12px 8px 34px',
-                        fontSize: 13,
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Members List */}
-                <div style={{ backgroundColor: '#2b2d31', borderRadius: 8, overflow: 'hidden' }}>
-                  {filteredMembers.map((member) => {
-                    const isOwner = member.id === serverState.ownerId;
-                    return (
-                      <div
-                        key={member.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '12px 16px',
-                          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                        }}
-                      >
-                        {/* Member Info */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <img
-                            src={member.avatarUrl || member.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60'}
-                            alt={member.displayName}
-                            style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }}
-                          />
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontSize: 14, fontWeight: 600, color: '#f2f3f5' }}>
-                                {member.displayName}
-                              </span>
-                              {isOwner && (
-                                <span title="Server Owner" style={{ color: '#faa81a', display: 'flex', alignItems: 'center' }}>
-                                  <Crown size={15} />
-                                </span>
-                              )}
-                            </div>
-                            <span style={{ fontSize: 12, color: '#949ba4' }}>@{member.username}</span>
-                          </div>
-                        </div>
-
-                        {/* Roles and Actions */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span
-                            style={{
-                              backgroundColor: 'rgba(88, 101, 242, 0.15)',
-                              color: '#5865f2',
-                              padding: '2px 8px',
-                              borderRadius: 4,
-                              fontSize: 11,
-                              fontWeight: 600,
-                            }}
-                          >
-                            Member
-                          </span>
-
-                          {!isOwner && (
-                            <button
-                              type="button"
-                              onClick={() => handleKickMember(member.id)}
-                              style={{
-                                backgroundColor: 'transparent',
-                                color: '#fa777c',
-                                border: '1px solid rgba(218, 55, 60, 0.3)',
-                                padding: '4px 10px',
-                                borderRadius: 4,
-                                fontSize: 12,
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Kick
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <ServerMembersTab serverId={serverState.id} ownerId={serverState.ownerId} />
             )}
 
             {/* 4. CHANNELS TAB */}
