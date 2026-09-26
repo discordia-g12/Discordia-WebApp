@@ -116,6 +116,24 @@ export async function updateRoleInfo(
 }
 
 /**
+ * Asigna un rol a un miembro del servidor. Requiere permisos para gestionar roles.
+ */
+export async function assignRoleToMember(serverId: string, roleId: string, userId: string): Promise<void> {
+  await apiFetch(`/api/v1/servers/${serverId}/roles/${roleId}/members/${encodeURIComponent(userId)}`, {
+    method: 'PUT',
+  })
+}
+
+/**
+ * Quita un rol a un miembro del servidor. El backend responde 404 si el miembro no lo tenía.
+ */
+export async function removeRoleFromMember(serverId: string, roleId: string, userId: string): Promise<void> {
+  await apiFetch(`/api/v1/servers/${serverId}/roles/${roleId}/members/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+  })
+}
+
+/**
  * Elimina un rol de un servidor. El backend rechaza borrar el rol por defecto (400).
  */
 export async function deleteRole(serverId: string, roleId: string): Promise<void> {

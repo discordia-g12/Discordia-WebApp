@@ -172,15 +172,14 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
             );
 
             return (
+              <div key={member.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
               <div
-                key={member.id}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: 12,
                   padding: '12px 16px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -229,7 +228,6 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
                     flexWrap: 'wrap',
                     justifyContent: 'flex-end',
                     gap: 6,
-                    position: 'relative',
                   }}
                 >
                   {memberRoles.map((role) => (
@@ -293,57 +291,53 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
                     <Plus size={12} />
                   </button>
 
-                  {pickerMemberId === member.id && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 28,
-                        right: 0,
-                        zIndex: 5,
-                        minWidth: 180,
-                        maxHeight: 200,
-                        overflowY: 'auto',
-                        backgroundColor: '#111214',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: 6,
-                        padding: 4,
-                      }}
-                    >
-                      {assignableRoles.length === 0 ? (
-                        <div style={{ padding: '6px 8px', fontSize: 12, color: '#949ba4' }}>
-                          No hay más roles para asignar.
-                        </div>
-                      ) : (
-                        assignableRoles.map((role) => (
-                          <button
-                            key={role.id}
-                            type="button"
-                            onClick={() => handleAssign(member, role.id)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              width: '100%',
-                              background: 'none',
-                              border: 'none',
-                              borderRadius: 4,
-                              padding: '6px 8px',
-                              color: '#dbdee1',
-                              fontSize: 13,
-                              cursor: 'pointer',
-                              textAlign: 'left',
-                            }}
-                          >
-                            <span
-                              style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: role.color, flexShrink: 0 }}
-                            />
-                            {role.name}
-                          </button>
-                        ))
-                      )}
-                    </div>
+                </div>
+              </div>
+
+              {pickerMemberId === member.id && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '0 16px 12px 64px',
+                  }}
+                >
+                  {assignableRoles.length === 0 ? (
+                    <span style={{ fontSize: 12, color: '#949ba4' }}>No hay más roles para asignar.</span>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: 12, color: '#949ba4' }}>Asignar rol:</span>
+                      {assignableRoles.map((role) => (
+                        <button
+                          key={role.id}
+                          type="button"
+                          onClick={() => handleAssign(member, role.id)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                            color: '#dbdee1',
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            borderRadius: 4,
+                            padding: '3px 8px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <span
+                            style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: role.color, flexShrink: 0 }}
+                          />
+                          {role.name}
+                        </button>
+                      ))}
+                    </>
                   )}
                 </div>
+              )}
               </div>
             );
           })}

@@ -1,5 +1,14 @@
 import { apiFetch } from './client'
-import type { Server, Channel, ServerBackendResponse, ChannelBackendResponse } from '../types'
+import type {
+  Server,
+  Channel,
+  ServerBackendResponse,
+  ChannelBackendResponse,
+  ServerMember,
+  ServerMemberPage,
+  ServerMemberBackendResponse,
+  ServerMemberPageBackendResponse,
+} from '../types'
 
 export interface CreateServerRequest {
   name: string
@@ -10,6 +19,34 @@ export interface CreateChannelRequest {
   name: string
   type: 'text' | 'voice'
   categoryId?: string
+}
+
+/**
+ * Adaptador: Convierte un miembro del backend (snake_case) al modelo de dominio (camelCase).
+ */
+export function mapServerMemberFromBackend(raw: ServerMemberBackendResponse): ServerMember {
+  return {
+    id: raw.id,
+    userId: raw.user_id,
+    nickname: raw.nickname,
+    roleIds: raw.role_ids,
+  }
+}
+
+/**
+ * Consulta una página de miembros de un servidor, con los roles de cada uno.
+ * El backend pagina de a 50 por defecto.
+ */
+export async function getServerMembers(serverId: string, offset = 0): Promise<ServerMemberPage> {
+  const raw = await apiFetch<ServerMemberPageBackendResponse>(
+    `/api/v1/servers/${serverId}/members?offset=${offset}`,
+  )
+  return {
+    items: (raw.items || []).map(mapServerMemberFromBackend),
+    total: raw.total,
+    limit: raw.limit,
+    offset: raw.offset,
+  }
 }
 
 /**
