@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createRole, deleteRole, getRoles, type CreateRoleRequest } from '../api/roles'
+import {
+  createRole,
+  deleteRole,
+  getRoles,
+  updateRolePermissions,
+  type CreateRoleRequest,
+} from '../api/roles'
+import type { ServerRole } from '../types'
 
 export function useRolesQuery(serverId: string | null) {
   return useQuery({
@@ -15,6 +22,19 @@ export function useCreateRoleMutation(serverId: string) {
     mutationFn: (payload: CreateRoleRequest) => createRole(serverId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles', serverId] })
+    },
+  })
+}
+
+export function useUpdateRolePermissionsMutation(serverId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ roleId, permissionsBitmask }: { roleId: string; permissionsBitmask: number }) =>
+      updateRolePermissions(serverId, roleId, permissionsBitmask),
+    onSuccess: updated => {
+      queryClient.setQueryData<ServerRole[]>(['roles', serverId], old =>
+        old?.map(r => (r.id === updated.id ? updated : r)),
+      )
     },
   })
 }

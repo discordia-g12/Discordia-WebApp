@@ -43,6 +43,24 @@ export async function createRole(serverId: string, payload: CreateRoleRequest): 
 }
 
 /**
+ * Reemplaza los permisos de un rol. El backend rechaza (403) quitar ADMINISTRATOR del propio rol.
+ */
+export async function updateRolePermissions(
+  serverId: string,
+  roleId: string,
+  permissionsBitmask: number,
+): Promise<ServerRole> {
+  const raw = await apiFetch<RoleBackendResponse>(
+    `/api/v1/servers/${serverId}/roles/${roleId}/permissions`,
+    {
+      method: 'PATCH',
+      body: { new_permissions_bitmask: permissionsBitmask },
+    },
+  )
+  return mapRoleFromBackend(raw)
+}
+
+/**
  * Elimina un rol de un servidor. El backend rechaza borrar el rol por defecto (400).
  */
 export async function deleteRole(serverId: string, roleId: string): Promise<void> {
