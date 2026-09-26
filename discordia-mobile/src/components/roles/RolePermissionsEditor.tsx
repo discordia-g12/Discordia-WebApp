@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { ChevronLeft } from 'lucide-react-native'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
 import {
@@ -34,7 +34,9 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
   const updatePermissionsMutation = useUpdateRolePermissionsMutation(serverId)
   const updateInfoMutation = useUpdateRoleInfoMutation(serverId)
   const setDefaultMutation = useSetDefaultRoleMutation(serverId)
-  const membersQuery = useRoleMembersQuery(serverId, role.id)
+  // La lista de miembros se pide solo al desplegarla: un rol puede tener miles de miembros
+  const [membersExpanded, setMembersExpanded] = useState(false)
+  const membersQuery = useRoleMembersQuery(serverId, membersExpanded ? role.id : null)
 
   const [draft, setDraft] = useState(role.permissionsBitmask)
   const [nameDraft, setNameDraft] = useState(role.name)
@@ -187,11 +189,24 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
         </View>
 
         <View style={styles.category}>
-          <Text style={styles.categoryTitle}>
-            Miembros{membersQuery.data ? ` — ${membersQuery.data.length}` : ''}
-          </Text>
-          {membersQuery.isLoading && <ActivityIndicator color={colors.accent} size="small" />}
-          {membersQuery.isError && (
+          <Pressable
+            onPress={() => setMembersExpanded(expanded => !expanded)}
+            style={styles.membersHeader}
+            hitSlop={8}
+          >
+            {membersExpanded ? (
+              <ChevronDown color={colors.accent} size={16} />
+            ) : (
+              <ChevronRight color={colors.accent} size={16} />
+            )}
+            <Text style={[styles.categoryTitle, styles.membersTitle]}>
+              Miembros{membersQuery.data ? ` — ${membersQuery.data.length}` : ''}
+            </Text>
+          </Pressable>
+          {membersExpanded && membersQuery.isLoading && (
+            <ActivityIndicator color={colors.accent} size="small" />
+          )}
+          {membersExpanded && membersQuery.isError && (
             <View>
               <Text style={styles.membersError}>
                 {(membersQuery.error as any)?.message || 'No se pudieron cargar los miembros.'}
@@ -201,28 +216,31 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
               </Pressable>
             </View>
           )}
-          {membersQuery.isSuccess && membersQuery.data.length === 0 && (
+          {membersExpanded && membersQuery.isSuccess && membersQuery.data.length === 0 && (
             <Text style={styles.permissionDesc}>Ningún miembro tiene este rol.</Text>
           )}
-          {membersQuery.isSuccess &&
-            membersQuery.data.map(member => {
-              const displayName = member.nickname || member.userId
-              return (
-                <View key={member.id} style={styles.memberRow}>
-                  <View style={[styles.memberAvatar, { backgroundColor: colorDraft || colors.textMuted }]}>
-                    <Text style={styles.memberAvatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+          {membersExpanded && membersQuery.isSuccess && membersQuery.data.length > 0 && (
+            <ScrollView style={styles.membersList} nestedScrollEnabled>
+              {membersQuery.data.map(member => {
+                const displayName = member.nickname || member.userId
+                return (
+                  <View key={member.id} style={styles.memberRow}>
+                    <View style={[styles.memberAvatar, { backgroundColor: colorDraft || colors.textMuted }]}>
+                      <Text style={styles.memberAvatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.permissionInfo}>
+                      <Text style={styles.permissionName} numberOfLines={1}>
+                        {displayName}
+                      </Text>
+                      <Text style={styles.permissionDesc}>
+                        Se unió el {new Date(member.joinedAt).toLocaleDateString()}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.permissionInfo}>
-                    <Text style={styles.permissionName} numberOfLines={1}>
-                      {displayName}
-                    </Text>
-                    <Text style={styles.permissionDesc}>
-                      Se unió el {new Date(member.joinedAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
-              )
-            })}
+                )
+              })}
+            </ScrollView>
+          )}
         </View>
 
         {PERMISSION_CATEGORIES.map(category => (
@@ -369,6 +387,18 @@ const styles = StyleSheet.create({
   defaultButtonText: {
     ...typography.button,
     color: colors.accent,
+  },
+  membersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  membersTitle: {
+    marginBottom: 0,
+  },
+  membersList: {
+    maxHeight: 220,
   },
   memberRow: {
     flexDirection: 'row',

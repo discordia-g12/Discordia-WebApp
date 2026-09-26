@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   X,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Hash,
@@ -181,7 +182,10 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
 
   // Active Role Object
   const activeRole = roles.find((r) => r.id === activeRoleId) || roles[0];
-  const roleMembersQuery = useRoleMembersQuery(serverState.id, activeRole?.id ?? null);
+  // La lista de miembros se pide solo al desplegarla: un rol puede tener miles de miembros
+  const [membersExpandedRoleId, setMembersExpandedRoleId] = useState<string | null>(null);
+  const isMembersExpanded = !!activeRole && membersExpandedRoleId === activeRole.id;
+  const roleMembersQuery = useRoleMembersQuery(serverState.id, isMembersExpanded ? activeRole.id : null);
   const activeDraft = activeRole ? permissionDrafts[activeRole.id] : undefined;
   const activePermissions = activeDraft ?? activeRole?.permissions ?? [];
   const hasUnsavedPermissions =
@@ -1228,17 +1232,36 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
 
                     {/* Members with this role */}
                     <div style={{ marginBottom: 24 }}>
-                      <h4 style={{ fontSize: 14, fontWeight: 700, textTransform: 'uppercase', color: '#f2f3f5', marginBottom: 12 }}>
+                      <button
+                        type="button"
+                        onClick={() => setMembersExpandedRoleId(isMembersExpanded ? null : activeRole.id)}
+                        aria-expanded={isMembersExpanded}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          marginBottom: isMembersExpanded ? 12 : 0,
+                          cursor: 'pointer',
+                          fontSize: 14,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          color: '#f2f3f5',
+                        }}
+                      >
+                        {isMembersExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                         Members{roleMembersQuery.data ? ` — ${roleMembersQuery.data.length}` : ''}
-                      </h4>
+                      </button>
 
-                      {roleMembersQuery.isLoading && (
+                      {isMembersExpanded && roleMembersQuery.isLoading && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#949ba4', fontSize: 13 }}>
                           <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Cargando miembros...
                         </div>
                       )}
 
-                      {roleMembersQuery.isError && (
+                      {isMembersExpanded && roleMembersQuery.isError && (
                         <div style={{ fontSize: 13, color: '#fa777c' }}>
                           {roleMembersQuery.error instanceof Error
                             ? roleMembersQuery.error.message
@@ -1253,12 +1276,12 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                         </div>
                       )}
 
-                      {roleMembersQuery.isSuccess && roleMembersQuery.data.length === 0 && (
+                      {isMembersExpanded && roleMembersQuery.isSuccess && roleMembersQuery.data.length === 0 && (
                         <div style={{ fontSize: 13, color: '#949ba4' }}>Ningún miembro tiene este rol.</div>
                       )}
 
-                      {roleMembersQuery.isSuccess && roleMembersQuery.data.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {isMembersExpanded && roleMembersQuery.isSuccess && roleMembersQuery.data.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
                           {roleMembersQuery.data.map((member) => {
                             const displayName = member.nickname || member.userId;
                             return (
