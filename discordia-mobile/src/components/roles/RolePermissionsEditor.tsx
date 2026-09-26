@@ -14,6 +14,7 @@ import { ChevronLeft } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
 import {
+  useRoleMembersQuery,
   useSetDefaultRoleMutation,
   useUpdateRoleInfoMutation,
   useUpdateRolePermissionsMutation,
@@ -33,6 +34,7 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
   const updatePermissionsMutation = useUpdateRolePermissionsMutation(serverId)
   const updateInfoMutation = useUpdateRoleInfoMutation(serverId)
   const setDefaultMutation = useSetDefaultRoleMutation(serverId)
+  const membersQuery = useRoleMembersQuery(serverId, role.id)
 
   const [draft, setDraft] = useState(role.permissionsBitmask)
   const [nameDraft, setNameDraft] = useState(role.name)
@@ -184,6 +186,45 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
           )}
         </View>
 
+        <View style={styles.category}>
+          <Text style={styles.categoryTitle}>
+            Miembros{membersQuery.data ? ` — ${membersQuery.data.length}` : ''}
+          </Text>
+          {membersQuery.isLoading && <ActivityIndicator color={colors.accent} size="small" />}
+          {membersQuery.isError && (
+            <View>
+              <Text style={styles.membersError}>
+                {(membersQuery.error as any)?.message || 'No se pudieron cargar los miembros.'}
+              </Text>
+              <Pressable onPress={() => membersQuery.refetch()} hitSlop={8}>
+                <Text style={styles.membersRetry}>Reintentar</Text>
+              </Pressable>
+            </View>
+          )}
+          {membersQuery.isSuccess && membersQuery.data.length === 0 && (
+            <Text style={styles.permissionDesc}>Ningún miembro tiene este rol.</Text>
+          )}
+          {membersQuery.isSuccess &&
+            membersQuery.data.map(member => {
+              const displayName = member.nickname || member.userId
+              return (
+                <View key={member.id} style={styles.memberRow}>
+                  <View style={[styles.memberAvatar, { backgroundColor: colorDraft || colors.textMuted }]}>
+                    <Text style={styles.memberAvatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.permissionInfo}>
+                    <Text style={styles.permissionName} numberOfLines={1}>
+                      {displayName}
+                    </Text>
+                    <Text style={styles.permissionDesc}>
+                      Se unió el {new Date(member.joinedAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+              )
+            })}
+        </View>
+
         {PERMISSION_CATEGORIES.map(category => (
           <View key={category.category} style={styles.category}>
             <Text style={styles.categoryTitle}>{category.category}</Text>
@@ -326,6 +367,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   defaultButtonText: {
+    ...typography.button,
+    color: colors.accent,
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.bg,
+    borderRadius: radii.sm,
+    marginBottom: spacing.xs,
+  },
+  memberAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberAvatarText: {
+    ...typography.metadata,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  membersError: {
+    ...typography.metadata,
+    color: colors.danger,
+    marginBottom: spacing.xs,
+  },
+  membersRetry: {
     ...typography.button,
     color: colors.accent,
   },

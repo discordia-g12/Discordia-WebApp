@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createRole,
   deleteRole,
+  getRoleMembers,
   getRoles,
   setDefaultRole,
   updateRoleInfo,
@@ -16,6 +17,14 @@ export function useRolesQuery(serverId: string | null) {
     queryKey: ['roles', serverId],
     queryFn: () => getRoles(serverId as string),
     enabled: Boolean(serverId),
+  })
+}
+
+export function useRoleMembersQuery(serverId: string | null, roleId: string | null) {
+  return useQuery({
+    queryKey: ['role-members', serverId, roleId],
+    queryFn: () => getRoleMembers(serverId as string, roleId as string),
+    enabled: Boolean(serverId) && Boolean(roleId),
   })
 }
 
