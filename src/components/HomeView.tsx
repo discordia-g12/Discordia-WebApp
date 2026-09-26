@@ -42,6 +42,8 @@ export interface HomeViewProps {
   onStartVideoCall?: (userId: string) => void;
   /** Callback opcional al enviar mensaje en un DM. */
   onSendMessage?: (dmId: string, content: string) => void;
+  /** Panel del usuario (perfil y controles de audio) anclado al pie del sidebar de mensajes directos. */
+  userPanel?: React.ReactNode;
 }
 
 /**
@@ -65,6 +67,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartVoiceCall,
   onStartVideoCall,
   onSendMessage,
+  userPanel,
 }) => {
   // Estado local para DM seleccionado si no es controlado exteriormente
   const [internalActiveDmId, setInternalActiveDmId] = useState<string | null>(null);
@@ -324,6 +327,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             );
           })}
         </div>
+
+        {userPanel}
       </aside>
 
       {/* ==========================================================================

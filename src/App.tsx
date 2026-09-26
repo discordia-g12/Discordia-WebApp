@@ -22,6 +22,7 @@ import { CreateChannelModal, EditChannelModal } from './components/ChannelModals
 import {
   ServerRail,
   ChannelSidebar,
+  UserPanel,
   ChatView,
   VoiceView,
   MemberList,
@@ -665,6 +666,13 @@ export default function App() {
     );
   }
 
+  // Canal de voz activo (puede pertenecer a un servidor distinto al seleccionado, p. ej. estando en Home)
+  const activeVoice = inVoiceChannelId
+    ? servers
+        .flatMap((srv) => srv.categories.flatMap((cat) => cat.channels.map((ch) => ({ srv, ch }))))
+        .find(({ ch }) => ch.id === inVoiceChannelId)
+    : undefined;
+
   // Layout principal Desktop de tres niveles
   return (
     <div
@@ -739,6 +747,26 @@ export default function App() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         {selectedServerId === 'home' ? (
           <HomeView
+            userPanel={
+              <UserPanel
+                currentUser={currentUser}
+                isMuted={isMuted}
+                isDeafened={isDeafened}
+                onToggleMute={() => setIsMuted((m) => !m)}
+                onToggleDeafen={() => setIsDeafened((d) => !d)}
+                onOpenSettings={() => setAppView('user-settings')}
+                inVoiceChannel={inVoiceChannelId !== null}
+                voiceChannelName={activeVoice?.ch.name}
+                voiceServerName={activeVoice?.srv.name}
+                onDisconnectVoice={handleDisconnectVoice}
+                onChangeStatus={(st: Status) => setCurrentUser((u) => ({ ...u, status: st }))}
+                onSaveCustomStatus={(cs: string) => setCurrentUser((u) => ({ ...u, customStatus: cs }))}
+                onEditProfile={() => setAppView('own-profile')}
+                onBuyPoints={() => setAppView('user-settings')}
+                onSubscribePremium={() => setAppView('user-settings')}
+                onLogout={handleLogout}
+              />
+            }
             currentUserId={currentUser.id}
             directMessages={directMessagesList}
             activeDirectMessageId={selectedDmId}
