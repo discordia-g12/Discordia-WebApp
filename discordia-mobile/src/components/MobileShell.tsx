@@ -10,6 +10,7 @@ import ChannelList from './channels/ChannelList'
 import ChatHeader from './chat/ChatHeader'
 import Composer from './chat/Composer'
 import ConfirmModal from './shared/ConfirmModal'
+import InviteModal from './servers/InviteModal'
 import CreateChannelModal from './channels/CreateChannelModal'
 import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
@@ -34,6 +35,7 @@ export default function MobileShell() {
     currentUserId,
     sendMessage,
     fetchChannelMessages,
+    leaveServer,
     addOptimisticMessage,
     confirmOptimisticMessage,
     failOptimisticMessage,
@@ -48,6 +50,8 @@ export default function MobileShell() {
   const [rolesModalOpen, setRolesModalOpen] = useState(false)
   const [membersModalOpen, setMembersModalOpen] = useState(false)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
+  const [leaveServerConfirmOpen, setLeaveServerConfirmOpen] = useState(false)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [editChannelModalOpen, setEditChannelModalOpen] = useState(false)
   const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
   const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
@@ -231,6 +235,9 @@ export default function MobileShell() {
           <View style={styles.sidebar}>
             <ServerSidebarHeader
               server={server}
+              canLeave={!isServerAdmin}
+              onLeaveServer={() => setLeaveServerConfirmOpen(true)}
+              onOpenInvite={() => setInviteModalOpen(true)}
               onOpenRoles={() => setRolesModalOpen(true)}
               onOpenMembers={() => setMembersModalOpen(true)}
               onAddChannel={() => handleAddChannel(null)}
@@ -282,6 +289,35 @@ export default function MobileShell() {
 
         {channelActionModals}
 
+
+        
+        <InviteModal
+          visible={inviteModalOpen}
+          server={server || undefined}
+          onClose={() => setInviteModalOpen(false)}
+        />
+        <ConfirmModal
+          visible={leaveServerConfirmOpen}
+          title="Abandonar servidor"
+          message={`¿Realmente quieres abandonar el servidor "${server?.name}"?`}
+          confirmLabel="Abandonar"
+          onCancel={() => setLeaveServerConfirmOpen(false)}
+          onConfirm={async () => {
+            if (!server) return
+            setLeaveServerConfirmOpen(false)
+            try {
+              await leaveServer(server.id)
+              showToast('Abandonaste el servidor', 'success')
+              // El DataProvider actualizará 'servers' automáticamente.
+              // Opcionalmente podemos seleccionar otro servidor aquí.
+              const remaining = servers.filter(s => s.id !== server.id)
+              selectServer(remaining.length > 0 ? remaining[0].id : null)
+              selectChannel(null)
+            } catch (error) {
+              showToast('Error al abandonar el servidor', 'error')
+            }
+          }}
+        />
         <ConfirmModal
           visible={logoutConfirmOpen}
           title="Cerrar sesión"

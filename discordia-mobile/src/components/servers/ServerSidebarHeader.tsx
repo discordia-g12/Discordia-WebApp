@@ -1,6 +1,6 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Plus, Shield, Users } from 'lucide-react-native'
+import { Plus, Shield, Users, LogOut, Link as LinkIcon } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Server } from '../../types'
 
@@ -9,6 +9,9 @@ interface ServerSidebarHeaderProps {
     onOpenRoles: () => void
     onOpenMembers: () => void
     onAddChannel: () => void
+    canLeave?: boolean
+    onLeaveServer?: () => void
+    onOpenInvite?: () => void
 }
 
 // Nombre de server + opciones
@@ -17,6 +20,9 @@ export default function ServerSidebarHeader({
     onOpenRoles,
     onOpenMembers,
     onAddChannel,
+    canLeave,
+    onLeaveServer,
+    onOpenInvite,
 }: ServerSidebarHeaderProps) {
     return (
         <View style={styles.header}>
@@ -25,6 +31,16 @@ export default function ServerSidebarHeader({
             </Text>
             {server && (
                 <View style={styles.actions}>
+                                        {onOpenInvite && (
+                        <Pressable style={styles.actionButton} onPress={onOpenInvite} hitSlop={8}>
+                            <LinkIcon color={colors.textMuted} size={18} />
+                        </Pressable>
+                    )}
+                    {canLeave && onLeaveServer && (
+                        <Pressable style={styles.actionButton} onPress={onLeaveServer} hitSlop={8}>
+                            <LogOut color={colors.textMuted} size={18} />
+                        </Pressable>
+                    )}
                     <Pressable style={styles.actionButton} onPress={onOpenMembers} hitSlop={8}>
                         <Users color={colors.textMuted} size={18} />
                     </Pressable>

@@ -176,3 +176,31 @@ export async function deleteChannel(serverId: string, channelId: string): Promis
     method: 'DELETE',
   })
 }
+
+/**
+ * Deja un servidor.
+ */
+export async function leaveServer(serverId: string): Promise<void> {
+  await apiFetch(`/api/v1/servers/${serverId}/leave`, {
+    method: 'DELETE',
+  })
+}
+
+/**
+ * Crea una invitación para un servidor.
+ */
+export async function createInvite(serverId: string, payload: { maxUses: number, expiresInSeconds: number }): Promise<{ code: string }> {
+  return await apiFetch(`/api/v1/servers/${serverId}/invites`, {
+    method: 'POST',
+    body: { max_uses: payload.maxUses, expires_in_seconds: payload.expiresInSeconds },
+  })
+}
+
+/**
+ * Se une a un servidor mediante un código de invitación.
+ */
+export async function joinServerViaInvite(code: string): Promise<{ server_id: string }> {
+  return await apiFetch(`/api/v1/invites/${code}/join`, {
+    method: 'POST',
+  })
+}

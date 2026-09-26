@@ -35,6 +35,7 @@ import {
   createChannel as apiCreateChannel,
   updateChannel as apiUpdateChannel,
   deleteChannel as apiDeleteChannel,
+  leaveServer as apiLeaveServer,
 } from '../api/servers'
 
 interface DataContextValue {
@@ -60,6 +61,7 @@ interface DataContextValue {
     data: { name?: string; topic?: string },
   ) => Promise<Channel>
   deleteChannel: (serverId: string, channelId: string) => Promise<void>
+  leaveServer: (serverId: string) => Promise<void>
 
   // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string) => void
@@ -218,6 +220,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         delete copy[channelId]
         return copy
       })
+    },
+    [],
+  )
+
+
+  const leaveServer = useCallback(
+    async (serverId: string): Promise<void> => {
+      await apiLeaveServer(serverId)
+      setServers(prev => prev.filter(srv => srv.id !== serverId))
     },
     [],
   )
@@ -464,6 +475,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createChannel,
       editChannel,
       deleteChannel,
+      leaveServer,
       sendMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,
@@ -489,6 +501,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createChannel,
       editChannel,
       deleteChannel,
+      leaveServer,
       sendMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,

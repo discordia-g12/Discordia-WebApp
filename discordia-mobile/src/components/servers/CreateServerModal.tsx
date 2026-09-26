@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 import { X } from 'lucide-react-native'
 import { useData, useUI } from '../../providers/AppProviders'
+import { joinServerViaInvite } from '../../api/servers'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Server } from '../../types'
 
@@ -31,6 +32,8 @@ export default function CreateServerModal({
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isJoining, setIsJoining] = useState(false)
+  const [inviteCode, setInviteCode] = useState('')
 
   const handleCreate = async () => {
     const trimmed = name.trim()
@@ -59,10 +62,39 @@ export default function CreateServerModal({
     }
   }
 
+  const { refreshServers } = useData()
+
+  const handleJoin = async () => {
+    const trimmed = inviteCode.trim()
+    if (!trimmed) {
+      setError('El código no puede estar vacío.')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const res = await joinServerViaInvite(trimmed)
+      await refreshServers() // Refresh server list
+      setInviteCode('')
+      setIsJoining(false)
+      onClose()
+      selectServer(res.server_id)
+      showToast?.(`Te uniste al servidor con éxito.`, 'success')
+    } catch (err: any) {
+      setError(err?.message || 'Código inválido o expirado.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleClose = () => {
     if (loading) return
     setError(null)
     setName('')
+    setInviteCode('')
+    setIsJoining(false)
     onClose()
   }
 
@@ -79,14 +111,16 @@ export default function CreateServerModal({
       >
         <View style={styles.card}>
           <View style={styles.header}>
-            <Text style={styles.title}>Creá tu servidor</Text>
+            <Text style={styles.title}>{isJoining ? 'Unirse a un servidor' : 'Creá tu servidor'}</Text>
             <Pressable onPress={handleClose} disabled={loading} style={styles.closeButton}>
               <X color={colors.textMuted} size={20} />
             </Pressable>
           </View>
 
           <Text style={styles.subtitle}>
-            Tu servidor es donde tus amigos y vos pueden reunirse. Dale un nombre para empezar.
+            {isJoining 
+              ? 'Ingresá el código de invitación para unirte a una comunidad existente.' 
+              : 'Tu servidor es donde tus amigos y vos pueden reunirse. Dale un nombre para empezar.'}
           </Text>
 
           {!!error && (
@@ -95,15 +129,16 @@ export default function CreateServerModal({
             </View>
           )}
 
-          <Text style={styles.label}>NOMBRE DEL SERVIDOR</Text>
+          <Text style={styles.label}>{isJoining ? 'CÓDIGO DE INVITACIÓN' : 'NOMBRE DEL SERVIDOR'}</Text>
           <TextInput
             style={styles.input}
-            value={name}
+            value={isJoining ? inviteCode : name}
             onChangeText={t => {
-              setName(t)
+              if (isJoining) setInviteCode(t)
+              else setName(t)
               if (error) setError(null)
             }}
-            placeholder="Ej. Servidor de Juegos"
+            placeholder={isJoining ? "Ej. xyz123" : "Ej. Servidor de Juegos"}
             placeholderTextColor={colors.textDim}
             maxLength={100}
             autoFocus
@@ -113,27 +148,39 @@ export default function CreateServerModal({
           <View style={styles.actions}>
             <Pressable
               style={styles.cancelButton}
-              onPress={handleClose}
+              onPress={() => {
+                if (isJoining) setIsJoining(false)
+                else handleClose()
+              }}
               disabled={loading}
             >
-              <Text style={styles.cancelText}>Cancelar</Text>
+              <Text style={styles.cancelText}>{isJoining ? 'Atrás' : 'Cancelar'}</Text>
             </Pressable>
 
             <Pressable
               style={[
                 styles.submitButton,
-                (!name.trim() || loading) && styles.submitButtonDisabled,
+                ((isJoining ? !inviteCode.trim() : !name.trim()) || loading) && styles.submitButtonDisabled,
               ]}
-              onPress={handleCreate}
-              disabled={!name.trim() || loading}
+              onPress={isJoining ? handleJoin : handleCreate}
+              disabled={(isJoining ? !inviteCode.trim() : !name.trim()) || loading}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.submitText}>Crear Servidor</Text>
+                <Text style={styles.submitText}>{isJoining ? 'Unirse' : 'Crear'}</Text>
               )}
             </Pressable>
           </View>
+          
+          {!isJoining && (
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>¿Ya tenés una invitación?</Text>
+              <Pressable onPress={() => { setError(null); setIsJoining(true); }} hitSlop={8}>
+                <Text style={styles.footerLink}>Unirse a un servidor</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -234,9 +281,27 @@ const styles = StyleSheet.create({
   submitButtonDisabled: {
     opacity: 0.5,
   },
+
   submitText: {
     ...typography.button,
     color: colors.accentFg,
     fontWeight: '600',
+  },
+  footer: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  footerText: {
+    ...typography.metadata,
+    color: colors.textMuted,
+  },
+  footerLink: {
+    ...typography.button,
+    color: colors.accent,
+    fontSize: 14,
   },
 })
