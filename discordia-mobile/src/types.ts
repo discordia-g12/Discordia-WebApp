@@ -85,6 +85,22 @@ export interface ServerRole {
   isDefault: boolean
 }
 
+/** DTO de miembro de un rol retornado por Server-Roles-Core-Service */
+export interface RoleMemberBackendResponse {
+  id: string
+  user_id: string
+  nickname: string | null
+  joined_at: string
+}
+
+/** Miembro de un servidor que tiene asignado un rol determinado. */
+export interface RoleMember {
+  id: string
+  userId: string
+  nickname: string | null
+  joinedAt: string
+}
+
 /** DTO de canal retornado por Server-Roles-Core-Service */
 export interface ChannelBackendResponse {
   id: string

@@ -1,5 +1,5 @@
 import { api } from './client';
-import { Role, RoleBackendResponse } from '../types';
+import { Role, RoleBackendResponse, RoleMember, RoleMemberBackendResponse } from '../types';
 
 export interface CreateRoleRequest {
   name: string;
@@ -68,11 +68,31 @@ export function mapRoleFromBackend(raw: RoleBackendResponse): Role {
 }
 
 /**
+ * Adaptador: Convierte un miembro de rol del backend (snake_case) al modelo de dominio (camelCase).
+ */
+export function mapRoleMemberFromBackend(raw: RoleMemberBackendResponse): RoleMember {
+  return {
+    id: raw.id,
+    userId: raw.user_id,
+    nickname: raw.nickname,
+    joinedAt: raw.joined_at,
+  };
+}
+
+/**
  * Consulta los roles de un servidor, ordenados por posición.
  */
 export async function getRoles(serverId: string): Promise<Role[]> {
   const raw = await api.get<RoleBackendResponse[]>(`/api/v1/servers/${serverId}/roles`);
   return (raw || []).map(mapRoleFromBackend);
+}
+
+/**
+ * Consulta los miembros que tienen asignado un rol. Requiere permisos para gestionar roles.
+ */
+export async function getRoleMembers(serverId: string, roleId: string): Promise<RoleMember[]> {
+  const raw = await api.get<RoleMemberBackendResponse[]>(`/api/v1/servers/${serverId}/roles/${roleId}/members`);
+  return (raw || []).map(mapRoleMemberFromBackend);
 }
 
 /**

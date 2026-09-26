@@ -6,6 +6,7 @@ import {
   bitmaskToPermissions,
   createRole,
   deleteRole,
+  getRoleMembers,
   getRoles,
   mapRoleFromBackend,
   permissionsToBitmask,
@@ -126,6 +127,40 @@ describe('API de roles', () => {
     expect(init.headers['Authorization']).toBe('Bearer jwt-token');
     expect(roles.map((r) => r.name)).toEqual(['@everyone', 'Moderator']);
     expect(roles[0].isDefault).toBe(true);
+  });
+
+  it('getRoleMembers hace GET a los miembros del rol y los mapea', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse([
+        { id: 'm1', user_id: 'auth0|abc', nickname: 'Mateo', joined_at: '2026-09-20T12:00:00Z' },
+        { id: 'm2', user_id: 'auth0|def', nickname: null, joined_at: '2026-09-21T12:00:00Z' },
+      ])
+    );
+    globalThis.fetch = fetchMock;
+
+    const members = await getRoleMembers('srv-1', 'role-1');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/roles/role-1/members');
+    expect(init.method).toBe('GET');
+    expect(members).toEqual([
+      { id: 'm1', userId: 'auth0|abc', nickname: 'Mateo', joinedAt: '2026-09-20T12:00:00Z' },
+      { id: 'm2', userId: 'auth0|def', nickname: null, joinedAt: '2026-09-21T12:00:00Z' },
+    ]);
+  });
+
+  it('getRoleMembers devuelve una lista vacía si el rol no tiene miembros', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonResponse([]));
+
+    await expect(getRoleMembers('srv-1', 'role-1')).resolves.toEqual([]);
+  });
+
+  it('getRoleMembers propaga un ApiError si no hay permisos (403)', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ detail: 'You do not have permissions to manage roles in this server.' }, 403));
+
+    await expect(getRoleMembers('srv-1', 'role-1')).rejects.toBeInstanceOf(ApiError);
   });
 
   it('createRole hace POST con el nombre recortado y el color', async () => {
