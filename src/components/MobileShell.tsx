@@ -187,7 +187,7 @@ export const MobileShell: React.FC<MobileShellProps> = ({
   // Estados de navegación
   const [screen, setScreen] = useState<MobileScreen>(initialScreen);
   const [activeServerId, setActiveServerId] = useState<string>(servers[0]?.id || 's1');
-  const [activeChannelId, setActiveChannelId] = useState<string>('ch-general');
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [activeDmId, setActiveDmId] = useState<string>(DIRECT_MESSAGES[0]?.id || 'dm-1');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>('none');
 
@@ -212,7 +212,7 @@ export const MobileShell: React.FC<MobileShellProps> = ({
   // Manejo de envío de mensajes en Chat
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!chatInput.trim() || !activeChannelId) return;
 
     const newMessage: Message = {
       id: `msg-${Date.now()}`,
@@ -232,7 +232,7 @@ export const MobileShell: React.FC<MobileShellProps> = ({
     setChatInput('');
   };
 
-  const channelMessages = localMessages[activeChannelId] || [];
+  const channelMessages = activeChannelId ? (localMessages[activeChannelId] || []) : [];
 
   return (
     <div

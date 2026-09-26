@@ -194,7 +194,7 @@ export default function App() {
   const servers = activeServers || [];
   
   const [selectedServerId, setSelectedServerId] = useState<string | 'home'>('home');
-  const [selectedChannelId, setSelectedChannelId] = useState<string | null>('ch-general');
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   
   const { data: realMessages, isLoading: isLoadingMessages } = useChannelMessagesQuery(
     selectedServerId !== 'home' ? selectedChannelId : null
