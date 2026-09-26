@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 import { X } from 'lucide-react-native'
 import { useData, useUI } from '../../providers/AppProviders'
-import { joinServerViaInvite } from '../../api/servers'
+import { joinServerViaInvite } from '@shared/api/servers'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Server } from '../../types'
 

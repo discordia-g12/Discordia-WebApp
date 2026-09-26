@@ -2,6 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
+import { configureClient } from './api/client';
+
+configureClient({
+  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+});
+
 import { registerQueryCacheCleaner } from './auth/session';
 import './index.css';
 

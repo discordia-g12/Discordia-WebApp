@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getWsBaseUrl } from '../api/config'
+import { getWsBaseUrl } from '../utils/config'
 import type { MessageBackendPayload } from '../types'
 
 export interface UseChannelSocketOptions {

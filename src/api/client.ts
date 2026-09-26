@@ -8,7 +8,7 @@ export interface ClientConfig {
 }
 
 let clientConfig: ClientConfig = {
-  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseUrl: 'http://localhost:8000',
   getToken: async () => '',
   onAuthFailure: () => {},
   timeoutMs: 15_000,

@@ -836,8 +836,13 @@ export default function App() {
         <JoinServerModal
           onClose={() => setActiveModal(null)}
           onJoinServer={(inviteCode) => {
-            setActiveModal(null);
-            showToast(`Te has unido con la invitación: ${inviteCode}`, 'success');
+            joinServerViaInvite(inviteCode).then(() => {
+              queryClient.invalidateQueries({ queryKey: ['servers'] });
+              setActiveModal(null);
+              showToast(`Te has unido con la invitación: ${inviteCode}`, 'success');
+            }).catch(() => {
+              showToast(`Error al unirse al servidor`, 'danger');
+            });
           }}
         />
       )}
@@ -882,10 +887,14 @@ export default function App() {
               setAppView('home');
               showToast(`Servidor "${confirmTargetName}" eliminado`, 'danger');
             } else if (confirmAction === 'leave-server' && currentServer) {
-              queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== currentServer.id));
-              setSelectedServerId('home');
-              setAppView('home');
-              showToast(`Has abandonado "${confirmTargetName}"`, 'info');
+              leaveServer(currentServer.id).then(() => {
+                queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== currentServer.id));
+                setSelectedServerId('home');
+                setAppView('home');
+                showToast(`Has abandonado "${confirmTargetName}"`, 'info');
+              }).catch(() => {
+                showToast(`Error al abandonar "${confirmTargetName}"`, 'danger');
+              });
             } else {
               showToast('Acción confirmada', 'success');
             }

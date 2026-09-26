@@ -611,10 +611,34 @@ export const InviteModal: React.FC<InviteModalProps> = ({
   const [expiration, setExpiration] = useState('7d');
   const [maxUses, setMaxUses] = useState('0');
   const [invitedFriends, setInvitedFriends] = useState<Record<string, boolean>>({});
+  const [inviteLink, setInviteLink] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const inviteLink = `https://discordia.gg/invite/${server.id}-${expiration}-${maxUses}`;
+  const handleGenerateInvite = async () => {
+    setIsLoading(true);
+    try {
+      const expiresInSeconds = expiration === '7d' ? 604800 : expiration === '1d' ? 86400 : 0;
+      const res = await createInvite(server.id, {
+        maxUses: parseInt(maxUses, 10),
+        expiresInSeconds
+      });
+      setInviteLink(`https://discordia.gg/invite/${res.code}`);
+    } catch (e) {
+      console.error(e);
+      setInviteLink('Error al crear invitación');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  useEffect(() => {
+    if (isOpen) {
+      handleGenerateInvite();
+    }
+  }, [isOpen, expiration, maxUses]);
 
   const handleCopy = async () => {
     try {

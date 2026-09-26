@@ -11,7 +11,7 @@ import {
   updateRolePermissions,
   type CreateRoleRequest,
   type UpdateRoleInfoRequest,
-} from '../api/roles'
+} from '@shared/api/roles'
 import type { ServerRole } from '../types'
 
 export function useRolesQuery(serverId: string | null) {

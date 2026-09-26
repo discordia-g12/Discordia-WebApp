@@ -4,8 +4,9 @@ import {
   BackendProfile,
   loginWithCredentials,
   signupWithCredentials,
+  setAuthToken,
 } from '../api/auth'
-import { setAuthToken } from '../api/client'
+
 import { EmailNotVerifiedError } from '../api/authErrors'
 
 export interface AuthContextValue {
