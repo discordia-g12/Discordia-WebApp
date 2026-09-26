@@ -9,6 +9,12 @@ export interface AuthUser {
   nickname?: string;
   name?: string;
   picture?: string;
+  /**
+   * Username elegido al registrarse (claim https://discordia.app/username del
+   * ID token, lo agrega la Auth0 Action desde user_metadata). Es una
+   * sugerencia para crear el perfil: el backend vuelve a validarlo.
+   */
+  username?: string;
 }
 
 export interface AuthProvider {
