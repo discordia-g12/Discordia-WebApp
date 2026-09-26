@@ -7,6 +7,7 @@ import {
   deleteRole,
   updateRolePermissions,
   updateRoleInfo,
+  setDefaultRole,
   CreateRoleRequest,
   UpdateRoleInfoRequest,
 } from '../roles';
@@ -165,6 +166,17 @@ export function useUpdateRoleInfoMutation(serverId: string) {
       queryClient.setQueryData<Role[]>(['roles', serverId], (old) =>
         old?.map((r) => (r.id === updated.id ? updated : r))
       );
+    },
+  });
+}
+
+export function useSetDefaultRoleMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (roleId: string) => setDefaultRole(serverId, roleId),
+    // El backend también desmarca al rol por defecto anterior, así que se recarga toda la lista
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles', serverId] });
     },
   });
 }

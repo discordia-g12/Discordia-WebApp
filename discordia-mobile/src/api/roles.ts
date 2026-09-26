@@ -60,6 +60,16 @@ export async function updateRolePermissions(
   return mapRoleFromBackend(raw)
 }
 
+/**
+ * Define un rol como el rol por defecto del servidor. El rol que lo era antes deja de serlo.
+ */
+export async function setDefaultRole(serverId: string, roleId: string): Promise<ServerRole> {
+  const raw = await apiFetch<RoleBackendResponse>(`/api/v1/servers/${serverId}/roles/${roleId}/default`, {
+    method: 'PATCH',
+  })
+  return mapRoleFromBackend(raw)
+}
+
 export interface UpdateRoleInfoRequest {
   name?: string
   color?: string
