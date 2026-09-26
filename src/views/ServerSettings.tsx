@@ -23,7 +23,13 @@ import {
 } from 'lucide-react';
 import { Server, Role, Channel, User, AuditEntry, ChannelType } from '../types';
 import { SERVERS, USERS, CURRENT_USER_ID, AUDIT_LOG } from '../data/mock';
-import { useRolesQuery, useCreateRoleMutation, useDeleteRoleMutation } from '../api/hooks/useApi';
+import {
+  useRolesQuery,
+  useCreateRoleMutation,
+  useDeleteRoleMutation,
+  useUpdateRolePermissionsMutation,
+} from '../api/hooks/useApi';
+import { PERMISSION_BITS } from '../api/roles';
 
 export interface ServerSettingsProps {
   server?: Server;
@@ -121,11 +127,14 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
   const rolesQuery = useRolesQuery(serverState.id);
   const createRoleMutation = useCreateRoleMutation(serverState.id);
   const deleteRoleMutation = useDeleteRoleMutation(serverState.id);
+  const updatePermissionsMutation = useUpdateRolePermissionsMutation(serverState.id);
   const roles: Role[] = rolesQuery.data ?? [];
   const [activeRoleId, setActiveRoleId] = useState<string>('');
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleColor, setNewRoleColor] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
+  const [permissionDrafts, setPermissionDrafts] = useState<Record<string, string[]>>({});
+  const [permissionsError, setPermissionsError] = useState<string | null>(null);
 
   // Members Tab States
   const [memberSearch, setMemberSearch] = useState('');
@@ -165,6 +174,13 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
 
   // Active Role Object
   const activeRole = roles.find((r) => r.id === activeRoleId) || roles[0];
+  const activeDraft = activeRole ? permissionDrafts[activeRole.id] : undefined;
+  const activePermissions = activeDraft ?? activeRole?.permissions ?? [];
+  const hasUnsavedPermissions =
+    !!activeRole &&
+    !!activeDraft &&
+    (activeDraft.length !== (activeRole.permissions ?? []).length ||
+      activeDraft.some((p) => !(activeRole.permissions ?? []).includes(p)));
 
   // Icon upload handler
   const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,6 +235,33 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
       setActiveRoleId(created.id);
     } catch (err) {
       setRoleError(err instanceof Error ? err.message : 'No se pudo crear el rol.');
+    }
+  };
+
+  // Toggle a permission: solo modifica el borrador, se guarda con el botón "Guardar cambios"
+  const handleTogglePermission = (role: Role, permissionId: string) => {
+    const current = permissionDrafts[role.id] ?? role.permissions ?? [];
+    const next = current.includes(permissionId)
+      ? current.filter((p) => p !== permissionId)
+      : [...current, permissionId];
+    setPermissionsError(null);
+    setPermissionDrafts((drafts) => ({ ...drafts, [role.id]: next }));
+  };
+
+  const discardPermissionDraft = (roleId: string) => {
+    setPermissionsError(null);
+    setPermissionDrafts(({ [roleId]: _discarded, ...rest }) => rest);
+  };
+
+  const handleSavePermissions = async (role: Role) => {
+    const draft = permissionDrafts[role.id];
+    if (!draft) return;
+    setPermissionsError(null);
+    try {
+      await updatePermissionsMutation.mutateAsync({ roleId: role.id, permissions: draft });
+      setPermissionDrafts(({ [role.id]: _saved, ...rest }) => rest);
+    } catch (err) {
+      setPermissionsError(err instanceof Error ? err.message : 'No se pudieron guardar los permisos.');
     }
   };
 
@@ -1019,7 +1062,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                           Edit Role — {activeRole.name}
                         </h3>
                         <span style={{ fontSize: 12, color: '#949ba4' }}>
-                          Nombre, color y permisos son de solo lectura por ahora; la edición de los mismos llegará pronto.
+                          Los cambios de permisos se aplican al presionar "Guardar cambios". Nombre y color son de solo lectura por ahora; su edición llegará pronto.
                         </span>
                       </div>
 
@@ -1114,10 +1157,13 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {cat.permissions.map((perm) => {
-                              const isEnabled = (activeRole.permissions || []).includes(perm.id);
+                              const isEnabled = activePermissions.includes(perm.id);
+                              const isSupported = perm.id in PERMISSION_BITS;
+                              const isLocked = !isSupported || updatePermissionsMutation.isPending;
                               return (
                                 <div
                                   key={perm.id}
+                                  title={isSupported ? undefined : 'Este permiso todavía no está disponible en el backend.'}
                                   style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -1125,6 +1171,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                                     padding: '10px 14px',
                                     backgroundColor: '#1e1f22',
                                     borderRadius: 6,
+                                    opacity: isSupported ? 1 : 0.5,
                                   }}
                                 >
                                   <div>
@@ -1137,14 +1184,15 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                                     <input
                                       type="checkbox"
                                       checked={isEnabled}
-                                      disabled
+                                      disabled={isLocked}
+                                      onChange={() => handleTogglePermission(activeRole, perm.id)}
                                       style={{ opacity: 0, width: 0, height: 0 }}
                                     />
                                     <span
                                       className="slider"
                                       style={{
                                         position: 'absolute',
-                                        cursor: 'pointer',
+                                        cursor: isLocked ? 'default' : 'pointer',
                                         top: 0,
                                         left: 0,
                                         right: 0,
@@ -1175,6 +1223,69 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                         </div>
                       ))}
                     </div>
+
+                    {(hasUnsavedPermissions || permissionsError) && (
+                      <div
+                        style={{
+                          position: 'sticky',
+                          bottom: 0,
+                          marginTop: 20,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          padding: '10px 14px',
+                          backgroundColor: '#111214',
+                          border: `1px solid ${permissionsError ? 'rgba(218, 55, 60, 0.5)' : 'rgba(255, 255, 255, 0.08)'}`,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <span style={{ fontSize: 13, color: permissionsError ? '#fa777c' : '#dbdee1' }}>
+                          {permissionsError ?? 'Tenés cambios sin guardar.'}
+                        </span>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => discardPermissionDraft(activeRole.id)}
+                            disabled={updatePermissionsMutation.isPending}
+                            style={{
+                              background: 'transparent',
+                              color: '#dbdee1',
+                              border: 'none',
+                              fontSize: 13,
+                              cursor: updatePermissionsMutation.isPending ? 'default' : 'pointer',
+                              padding: '6px 12px',
+                            }}
+                          >
+                            Descartar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSavePermissions(activeRole)}
+                            disabled={updatePermissionsMutation.isPending || !hasUnsavedPermissions}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              backgroundColor: '#23a55a',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: 4,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              padding: '6px 14px',
+                              cursor: updatePermissionsMutation.isPending ? 'default' : 'pointer',
+                              opacity: updatePermissionsMutation.isPending || !hasUnsavedPermissions ? 0.6 : 1,
+                            }}
+                          >
+                            {updatePermissionsMutation.isPending && (
+                              <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                            )}
+                            Guardar cambios
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
