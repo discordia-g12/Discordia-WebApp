@@ -12,11 +12,12 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { Shield, Trash2, X } from 'lucide-react-native'
+import { ChevronRight, Shield, Trash2, X } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
 import { useCreateRoleMutation, useDeleteRoleMutation, useRolesQuery } from '../../hooks/useRoles'
 import type { ServerRole } from '../../types'
+import RolePermissionsEditor from './RolePermissionsEditor'
 
 interface RolesModalProps {
   visible: boolean
@@ -44,6 +45,14 @@ export default function RolesModal({ visible, serverId, onClose }: RolesModalPro
 
   const [newRoleName, setNewRoleName] = useState('')
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null)
+
+  const editingRole = rolesQuery.data?.find(r => r.id === editingRoleId) ?? null
+
+  const handleClose = () => {
+    setEditingRoleId(null)
+    onClose()
+  }
 
   const handleCreate = async () => {
     const trimmed = newRoleName.trim()
@@ -82,7 +91,7 @@ export default function RolesModal({ visible, serverId, onClose }: RolesModalPro
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.overlay}
@@ -93,18 +102,27 @@ export default function RolesModal({ visible, serverId, onClose }: RolesModalPro
               <Shield color={colors.text} size={18} />
               <Text style={styles.title}>Roles del servidor</Text>
             </View>
-            <Pressable onPress={onClose} style={styles.closeButton}>
+            <Pressable onPress={handleClose} style={styles.closeButton}>
               <X color={colors.textMuted} size={20} />
             </Pressable>
           </View>
 
-          {rolesQuery.isLoading && (
+          {editingRole && serverId && (
+            <RolePermissionsEditor
+              key={editingRole.id}
+              serverId={serverId}
+              role={editingRole}
+              onBack={() => setEditingRoleId(null)}
+            />
+          )}
+
+          {!editingRole && rolesQuery.isLoading && (
             <View style={styles.centerBox}>
               <ActivityIndicator color={colors.accent} />
             </View>
           )}
 
-          {rolesQuery.isError && (
+          {!editingRole && rolesQuery.isError && (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>
                 {(rolesQuery.error as any)?.message || 'No se pudieron cargar los roles.'}
@@ -115,7 +133,7 @@ export default function RolesModal({ visible, serverId, onClose }: RolesModalPro
             </View>
           )}
 
-          {rolesQuery.isSuccess && (
+          {!editingRole && rolesQuery.isSuccess && (
             <FlatList
               data={rolesQuery.data}
               keyExtractor={r => r.id}
@@ -123,7 +141,7 @@ export default function RolesModal({ visible, serverId, onClose }: RolesModalPro
               contentContainerStyle={{ paddingVertical: spacing.xs }}
               renderItem={({ item: role }) => (
                 <View style={styles.roleRow}>
-                  <View style={styles.roleInfo}>
+                  <Pressable style={styles.roleInfo} onPress={() => setEditingRoleId(role.id)}>
                     <View style={[styles.roleDot, { backgroundColor: role.color || colors.textMuted }]} />
                     <Text style={styles.roleName} numberOfLines={1}>
                       {role.name}
@@ -133,7 +151,8 @@ export default function RolesModal({ visible, serverId, onClose }: RolesModalPro
                         <Text style={styles.defaultBadgeText}>por defecto</Text>
                       </View>
                     )}
-                  </View>
+                    <ChevronRight color={colors.textDim} size={16} />
+                  </Pressable>
 
                   {!role.isDefault && (
                     <Pressable
@@ -153,52 +172,54 @@ export default function RolesModal({ visible, serverId, onClose }: RolesModalPro
             />
           )}
 
-          <View style={styles.createSection}>
-            <View style={styles.swatchRow}>
-              {PRESET_ROLE_COLORS.map(color => {
-                const isSelected = selectedColor === color
-                return (
-                  <Pressable
-                    key={color}
-                    onPress={() => setSelectedColor(isSelected ? null : color)}
-                    disabled={createRoleMutation.isPending}
-                    style={[
-                      styles.swatch,
-                      { backgroundColor: color },
-                      isSelected && styles.swatchSelected,
-                    ]}
-                    hitSlop={4}
-                  />
-                )
-              })}
-            </View>
+          {!editingRole && (
+            <View style={styles.createSection}>
+              <View style={styles.swatchRow}>
+                {PRESET_ROLE_COLORS.map(color => {
+                  const isSelected = selectedColor === color
+                  return (
+                    <Pressable
+                      key={color}
+                      onPress={() => setSelectedColor(isSelected ? null : color)}
+                      disabled={createRoleMutation.isPending}
+                      style={[
+                        styles.swatch,
+                        { backgroundColor: color },
+                        isSelected && styles.swatchSelected,
+                      ]}
+                      hitSlop={4}
+                    />
+                  )
+                })}
+              </View>
 
-            <View style={styles.createRow}>
-              <TextInput
-                style={styles.input}
-                value={newRoleName}
-                onChangeText={setNewRoleName}
-                placeholder="Nombre del nuevo rol"
-                placeholderTextColor={colors.textDim}
-                maxLength={100}
-                editable={!createRoleMutation.isPending}
-              />
-              <Pressable
-                style={[
-                  styles.createButton,
-                  (!newRoleName.trim() || createRoleMutation.isPending) && styles.createButtonDisabled,
-                ]}
-                onPress={handleCreate}
-                disabled={!newRoleName.trim() || createRoleMutation.isPending}
-              >
-                {createRoleMutation.isPending ? (
-                  <ActivityIndicator color={colors.accentFg} size="small" />
-                ) : (
-                  <Text style={styles.createButtonText}>Crear</Text>
-                )}
-              </Pressable>
+              <View style={styles.createRow}>
+                <TextInput
+                  style={styles.input}
+                  value={newRoleName}
+                  onChangeText={setNewRoleName}
+                  placeholder="Nombre del nuevo rol"
+                  placeholderTextColor={colors.textDim}
+                  maxLength={100}
+                  editable={!createRoleMutation.isPending}
+                />
+                <Pressable
+                  style={[
+                    styles.createButton,
+                    (!newRoleName.trim() || createRoleMutation.isPending) && styles.createButtonDisabled,
+                  ]}
+                  onPress={handleCreate}
+                  disabled={!newRoleName.trim() || createRoleMutation.isPending}
+                >
+                  {createRoleMutation.isPending ? (
+                    <ActivityIndicator color={colors.accentFg} size="small" />
+                  ) : (
+                    <Text style={styles.createButtonText}>Crear</Text>
+                  )}
+                </Pressable>
+              </View>
             </View>
-          </View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>
