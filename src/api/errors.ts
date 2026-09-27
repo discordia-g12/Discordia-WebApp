@@ -19,6 +19,7 @@ export class TimeoutError extends Error {
 
 export const PROBLEM_TYPES = {
   EMAIL_NOT_VERIFIED: 'https://discordia.app/problems/email-not-verified',
+  PASSWORD_RESET_THROTTLED: 'https://discordia.app/problems/password-reset-throttled',
 } as const;
 
 export interface InvalidParam {
@@ -34,6 +35,7 @@ export class ApiError extends Error {
   readonly detail?: string;
   readonly invalidParams?: InvalidParam[];
   readonly correlationId?: string;
+  readonly retryAfterSeconds?: number;
 
   constructor(opts: {
     status: number;
@@ -42,6 +44,7 @@ export class ApiError extends Error {
     detail?: string;
     invalidParams?: InvalidParam[];
     correlationId?: string;
+    retryAfterSeconds?: number;
     message?: string;
   }) {
     super(opts.detail || opts.title || opts.message || `Error HTTP ${opts.status}`);
@@ -52,7 +55,14 @@ export class ApiError extends Error {
     this.detail = opts.detail;
     this.invalidParams = opts.invalidParams;
     this.correlationId = opts.correlationId;
+    this.retryAfterSeconds = opts.retryAfterSeconds;
   }
+}
+
+/** Retry-After en segundos. La forma de fecha HTTP no se usa en esta API y se ignora. */
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value || !/^\d+$/.test(value.trim())) return undefined;
+  return Number(value.trim());
 }
 
 /**
@@ -119,6 +129,7 @@ export async function parseErrorResponse(
     detail: detail || response.statusText,
     invalidParams,
     correlationId: correlationId || response.headers.get('x-correlation-id') || undefined,
+    retryAfterSeconds: parseRetryAfter(response.headers.get('retry-after')),
   });
 }
 

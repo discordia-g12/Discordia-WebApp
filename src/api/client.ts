@@ -29,6 +29,7 @@ export interface RequestOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
   headers?: Record<string, string>;
+  skipAuth?: boolean;
   _isRetry?: boolean;
   _overrideToken?: string;
 }
@@ -67,6 +68,7 @@ export async function request<T = any>(
     signal,
     timeoutMs = clientConfig.timeoutMs,
     headers: customHeaders = {},
+    skipAuth = false,
     _isRetry = false,
     _overrideToken,
   } = options;
@@ -87,8 +89,8 @@ export async function request<T = any>(
   }
 
   // Obtener access token en memoria
-  let token = _overrideToken || '';
-  if (!token) {
+  let token = skipAuth ? '' : _overrideToken || '';
+  if (!token && !skipAuth) {
     try {
       token = await clientConfig.getToken();
     } catch (err) {
@@ -162,7 +164,7 @@ export async function request<T = any>(
   }
 
   // Interceptor 401 con Deduplicación y Reintento único
-  if (response.status === 401) {
+  if (response.status === 401 && !skipAuth) {
     if (_isRetry) {
       clientConfig.onAuthFailure();
       throw await parseErrorResponse(response, correlationId);

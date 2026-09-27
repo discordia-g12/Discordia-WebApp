@@ -13,7 +13,24 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Eye, EyeOff, Mail } from 'lucide-react-native'
 import { useAuth } from '../providers/AppProviders'
+import { requestPasswordReset } from '../api/auth'
 import { colors, radii, spacing, typography } from '../theme'
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const PASSWORD_RESET_SENT_MESSAGE =
+  'Si el correo está registrado, vas a recibir un enlace para elegir una contraseña nueva. ' +
+  'El enlace vence en 1 hora y sirve una sola vez.'
+
+function describePasswordResetError(err: any): string {
+  if (err?.status === 429) {
+    return 'Hiciste demasiados pedidos de recupero. Probá de nuevo en unos minutos.'
+  }
+  if (err?.status === 422) {
+    return 'El formato del correo electrónico no es válido.'
+  }
+  return 'No pudimos procesar el pedido. Intentá de nuevo en unos minutos.'
+}
 
 export default function AuthView() {
   const {
@@ -43,6 +60,7 @@ export default function AuthView() {
   // Campos Recuperación
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotSubmitted, setForgotSubmitted] = useState(false)
+  const [isSendingReset, setIsSendingReset] = useState(false)
 
   // Feedback de error
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -80,7 +98,6 @@ export default function AuthView() {
       return
     }
 
-    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!EMAIL_REGEX.test(email)) {
       setErrorMessage('El formato del correo electrónico no es válido.')
       return
@@ -126,13 +143,26 @@ export default function AuthView() {
     switchAccount()
   }
 
-  const handleForgot = () => {
+  const handleForgot = async () => {
     clearErrors()
-    if (!forgotEmail.trim()) {
+    const cleanEmail = forgotEmail.trim()
+    if (!cleanEmail) {
       setErrorMessage('Por favor ingresá tu correo electrónico.')
       return
     }
-    setForgotSubmitted(true)
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      setErrorMessage('El formato del correo electrónico no es válido.')
+      return
+    }
+    setIsSendingReset(true)
+    try {
+      await requestPasswordReset(cleanEmail)
+      setForgotSubmitted(true)
+    } catch (err: any) {
+      setErrorMessage(describePasswordResetError(err))
+    } finally {
+      setIsSendingReset(false)
+    }
   }
 
   return (
@@ -320,11 +350,14 @@ export default function AuthView() {
                 )}
 
                 {forgotSubmitted ? (
-                  <View style={styles.successBox}>
-                    <Text style={styles.successText}>
-                      ¡Listo! Si el correo existe en nuestro sistema, recibirás un enlace en breve.
+                  <>
+                    <View style={styles.successBox}>
+                      <Text style={styles.successText}>{PASSWORD_RESET_SENT_MESSAGE}</Text>
+                    </View>
+                    <Text style={styles.hintText}>
+                      ¿No lo encontrás? Revisá la carpeta de spam o correo no deseado.
                     </Text>
-                  </View>
+                  </>
                 ) : (
                   <>
                     <Text style={styles.label}>Email</Text>
@@ -339,11 +372,19 @@ export default function AuthView() {
                         clearErrors()
                         setForgotEmail(val)
                       }}
-                      editable={!isLoading}
+                      editable={!isSendingReset}
                     />
 
-                    <Pressable style={styles.primaryButton} onPress={handleForgot}>
-                      <Text style={styles.primaryButtonText}>Enviar enlace</Text>
+                    <Pressable
+                      style={[styles.primaryButton, isSendingReset && styles.buttonDisabled]}
+                      onPress={handleForgot}
+                      disabled={isSendingReset}
+                    >
+                      {isSendingReset ? (
+                        <ActivityIndicator color={colors.accentFg} />
+                      ) : (
+                        <Text style={styles.primaryButtonText}>Enviar enlace</Text>
+                      )}
                     </Pressable>
                   </>
                 )}
@@ -356,6 +397,7 @@ export default function AuthView() {
                       setForgotSubmitted(false)
                       setAuthScreen('login')
                     }}
+                    disabled={isSendingReset}
                   >
                     <Text style={styles.registerLink}>Iniciar sesión</Text>
                   </Pressable>
@@ -421,6 +463,8 @@ export default function AuthView() {
                   style={styles.forgotLink}
                   onPress={() => {
                     clearErrors()
+                    setForgotEmail(email.trim())
+                    setForgotSubmitted(false)
                     setAuthScreen('forgot')
                   }}
                   disabled={isLoading}

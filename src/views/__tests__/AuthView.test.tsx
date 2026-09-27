@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AuthView } from '../AuthView';
+import { AuthView, PASSWORD_RESET_SENT_MESSAGE } from '../AuthView';
 import { useSession, authService } from '../../auth/session';
 import { AccountSuspendedError } from '../../auth/errors';
 
@@ -214,6 +214,107 @@ describe('AuthView Component - Criterios de Aceptación', () => {
       fireEvent.click(screen.getByTestId('btn-submit-login'));
 
       expect(await screen.findByText(/tu cuenta se encuentra suspendida/i)).toBeTruthy();
+    });
+  });
+  describe('Recupero de contraseña', () => {
+    const jsonResponse = (status: number, body: unknown, headers: Record<string, string> = {}) =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { 'content-type': status >= 400 ? 'application/problem+json' : 'application/json', ...headers },
+      });
+
+    const openForgotAndSubmit = async (email: string) => {
+      fireEvent.click(screen.getByTestId('link-forgot-password'));
+      fireEvent.change(screen.getByTestId('input-forgot-email'), { target: { value: email } });
+      fireEvent.click(screen.getByTestId('btn-submit-forgot'));
+    };
+
+    it('el link "¿Olvidaste tu contraseña?" abre el formulario con el email del login precargado', () => {
+      render(<AuthView />);
+      fireEvent.change(screen.getByPlaceholderText(/ejemplo@discordia.com/i), { target: { value: 'ana@discordia.com' } });
+
+      fireEvent.click(screen.getByTestId('link-forgot-password'));
+
+      expect(screen.getByText('Recuperar contraseña')).toBeTruthy();
+      expect((screen.getByTestId('input-forgot-email') as HTMLInputElement).value).toBe('ana@discordia.com');
+      expect(screen.queryByTestId('tab-login')).toBeNull();
+    });
+
+    it('CA 1: envía el pedido al endpoint público, sin Authorization, y muestra el mensaje genérico', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(202, { detail: 'accepted' }));
+      render(<AuthView />);
+
+      await openForgotAndSubmit('ana@discordia.com');
+
+      expect(await screen.findByTestId('forgot-sent')).toBeTruthy();
+      expect(screen.getByText(PASSWORD_RESET_SENT_MESSAGE)).toBeTruthy();
+      const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toMatch(/\/api\/v1\/auth\/password-reset$/);
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(String(init.body))).toEqual({ email: 'ana@discordia.com' });
+      expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+    });
+
+    it('CA 4: el mensaje de éxito es el mismo para cualquier email (no depende de la respuesta)', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(202, { detail: 'cualquier texto del backend' }));
+      render(<AuthView />);
+
+      await openForgotAndSubmit('noexiste@discordia.com');
+
+      expect(await screen.findByText(PASSWORD_RESET_SENT_MESSAGE)).toBeTruthy();
+      expect(screen.queryByText('cualquier texto del backend')).toBeNull();
+    });
+
+    it('valida el formato del email en el cliente y no llama al backend', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      render(<AuthView />);
+
+      await openForgotAndSubmit('correo-invalido');
+
+      expect(await screen.findByText(/el formato del correo electrónico no es válido/i)).toBeTruthy();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('CA 5: ante un 429 informa el límite con el tiempo de espera de Retry-After', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse(
+          429,
+          { type: 'https://discordia.app/problems/password-reset-throttled', title: 'Too Many Requests', status: 429 },
+          { 'retry-after': '600' },
+        ),
+      );
+      render(<AuthView />);
+
+      await openForgotAndSubmit('ana@discordia.com');
+
+      expect(await screen.findByText(/demasiados pedidos de recupero. Probá de nuevo en 10 minutos/i)).toBeTruthy();
+      expect(screen.queryByTestId('forgot-sent')).toBeNull();
+    });
+
+    it('un 429 sin Retry-After (límite por IP de Kong) muestra un aviso genérico', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ message: 'API rate limit exceeded' }), {
+          status: 429,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+      render(<AuthView />);
+
+      await openForgotAndSubmit('ana@discordia.com');
+
+      expect(await screen.findByText(/Probá de nuevo en unos minutos/i)).toBeTruthy();
+    });
+
+    it('un error del servidor muestra un mensaje genérico sin detalles', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse(503, { title: 'Service Unavailable', status: 503, detail: 'detalle interno' }),
+      );
+      render(<AuthView />);
+
+      await openForgotAndSubmit('ana@discordia.com');
+
+      expect(await screen.findByText(/No pudimos procesar el pedido/i)).toBeTruthy();
+      expect(screen.queryByText(/detalle interno/i)).toBeNull();
     });
   });
 });

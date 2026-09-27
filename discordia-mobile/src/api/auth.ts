@@ -64,6 +64,22 @@ export async function upsertMyProfile(data: {
   }
 }
 
+/**
+ * Pide el email de recupero de contraseña (POST /api/v1/auth/password-reset, público; ADR-006).
+ *
+ * El backend responde 202 con el mismo mensaje exista o no la cuenta (CA4). Errores de apiFetch
+ * (con `status`):
+ *  - 422: formato de email inválido.
+ *  - 429: demasiados pedidos (límite por email del servicio o por IP de Kong).
+ *  - 503: Auth0 no disponible.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiFetch('/api/v1/auth/password-reset', {
+    method: 'POST',
+    body: { email: email.trim() },
+  })
+}
+
 /** Claim del ID token con el username elegido al registrarse (lo agrega la Auth0 Action). */
 const USERNAME_CLAIM = 'https://discordia.app/username'
 
