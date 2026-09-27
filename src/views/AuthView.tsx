@@ -16,9 +16,12 @@ import {
   User as UserIcon,
   Check,
   X,
+  KeyRound,
+  ArrowLeft,
 } from 'lucide-react';
 import { useSession, authService } from '../auth/session';
 import { upsertMyProfile } from '../api/users';
+import { requestPasswordReset } from '../api/passwordReset';
 import { ApiError } from '../api/errors';
 import { AccountSuspendedError } from '../auth/errors';
 
@@ -30,11 +33,34 @@ export interface AuthViewProps {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,32}$/;
 
+type AuthTab = 'login' | 'register' | 'forgot';
+
+/** Mismo texto exista o no la cuenta (CA4): no depende de la respuesta del backend. */
+export const PASSWORD_RESET_SENT_MESSAGE =
+  'Si el correo está registrado, vas a recibir un enlace para elegir una contraseña nueva. ' +
+  'El enlace vence en 1 hora y sirve una sola vez.';
+
+function describePasswordResetError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 429) {
+      if (err.retryAfterSeconds) {
+        const minutes = Math.max(1, Math.ceil(err.retryAfterSeconds / 60));
+        return `Hiciste demasiados pedidos de recupero. Probá de nuevo en ${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}.`;
+      }
+      return 'Hiciste demasiados pedidos de recupero. Probá de nuevo en unos minutos.';
+    }
+    if (err.status === 422) {
+      return 'El formato del correo electrónico no es válido.';
+    }
+  }
+  return 'No pudimos procesar el pedido. Intentá de nuevo en unos minutos.';
+}
+
 export const AuthView: React.FC<AuthViewProps> = () => {
   const { status, error, isMock, pendingEmail } = useSession();
 
-  // Tab activo: 'login' o 'register'
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  // Tab activo: 'login', 'register' o 'forgot' (recupero de contraseña)
+  const [activeTab, setActiveTab] = useState<AuthTab>('login');
 
   // Campos de Iniciar Sesión
   const [loginEmail, setLoginEmail] = useState('');
@@ -48,6 +74,10 @@ export const AuthView: React.FC<AuthViewProps> = () => {
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
+
+  // Campos de Recupero de contraseña
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
 
   // Estados de carga y error del formulario
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,6 +94,39 @@ export const AuthView: React.FC<AuthViewProps> = () => {
   const passUpper = /[A-Z]/.test(regPassword);
   const passLower = /[a-z]/.test(regPassword);
   const passNumber = /[0-9]/.test(regPassword);
+
+  const openForgot = (email: string) => {
+    setActiveTab('forgot');
+    setForgotEmail(email);
+    setForgotSent(false);
+    setFormError(null);
+  };
+
+  const backToLoginTab = () => {
+    setActiveTab('login');
+    setFormError(null);
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    const email = forgotEmail.trim();
+    if (!email || !EMAIL_REGEX.test(email)) {
+      setFormError('El formato del correo electrónico no es válido.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await requestPasswordReset(email);
+      setForgotSent(true);
+    } catch (err) {
+      setFormError(describePasswordResetError(err));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -462,7 +525,11 @@ export const AuthView: React.FC<AuthViewProps> = () => {
               padding: '2px 0',
             }}
           >
-            {activeTab === 'login' ? 'Bienvenido de nuevo' : 'Crear una cuenta'}
+            {activeTab === 'login'
+              ? 'Bienvenido de nuevo'
+              : activeTab === 'register'
+                ? 'Crear una cuenta'
+                : 'Recuperar contraseña'}
           </h1>
           <p
             style={{
@@ -474,11 +541,14 @@ export const AuthView: React.FC<AuthViewProps> = () => {
           >
             {activeTab === 'login'
               ? '¡Nos alegra verte otra vez!'
-              : '¡Comenzá a conversar y compartir con tu comunidad!'}
+              : activeTab === 'register'
+                ? '¡Comenzá a conversar y compartir con tu comunidad!'
+                : 'Ingresá tu correo y te enviamos un enlace para elegir una contraseña nueva.'}
           </p>
         </div>
 
-        {/* Pestañas de Selección */}
+        {/* Pestañas de Selección (ocultas en el recupero de contraseña) */}
+        {activeTab !== 'forgot' && (
         <div style={tabsContainerStyle} role="tablist">
           <button
             type="button"
@@ -517,6 +587,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
             Registrarse
           </button>
         </div>
+        )}
 
         {formError && (
           <div style={errorAlertStyle}>
@@ -526,7 +597,86 @@ export const AuthView: React.FC<AuthViewProps> = () => {
         )}
 
         {/* Formulario según la pestaña activa */}
-        {activeTab === 'login' ? (
+        {activeTab === 'forgot' ? (
+          forgotSent ? (
+            <div data-testid="forgot-sent">
+              <div style={successAlertStyle} role="status">
+                <Mail size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>{PASSWORD_RESET_SENT_MESSAGE}</span>
+              </div>
+              <p style={{ fontSize: '12px', color: '#949ba4', lineHeight: 1.5, marginBottom: '16px' }}>
+                ¿No lo encontrás? Revisá la carpeta de spam o correo no deseado.
+              </p>
+              <button
+                type="button"
+                data-testid="btn-forgot-back-to-login"
+                onClick={backToLoginTab}
+                style={{ ...secondaryButton, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <ArrowLeft size={16} />
+                Volver a iniciar sesión
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotSubmit} noValidate>
+              <div style={{ marginBottom: '22px' }}>
+                <label style={labelStyle}>
+                  CORREO ELECTRÓNICO <span style={{ color: '#ed4245' }}>*</span>
+                </label>
+                <div style={inputWrapperStyle}>
+                  <Mail size={16} color="#949ba4" style={{ marginRight: '8px' }} />
+                  <input
+                    type="email"
+                    data-testid="input-forgot-email"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="ejemplo@discordia.com"
+                    style={innerInputStyle}
+                    disabled={isSubmitting}
+                    autoComplete="email"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                data-testid="btn-submit-forgot"
+                disabled={isSubmitting}
+                style={{
+                  ...primaryButton,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontSize: '15px',
+                  marginBottom: '12px',
+                }}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    <span>Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound size={18} />
+                    <span>Enviar enlace</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                data-testid="btn-forgot-back-to-login"
+                onClick={backToLoginTab}
+                disabled={isSubmitting}
+                style={{ ...linkButtonStyle, display: 'block', margin: '0 auto' }}
+              >
+                Volver a iniciar sesión
+              </button>
+            </form>
+          )
+        ) : activeTab === 'login' ? (
           <form onSubmit={handleLoginSubmit}>
             <div style={{ marginBottom: '16px' }}>
               <label style={labelStyle}>
@@ -570,6 +720,17 @@ export const AuthView: React.FC<AuthViewProps> = () => {
                   aria-label="Alternar visibilidad de contraseña"
                 >
                   {showLoginPassword ? <EyeOff size={16} color="#949ba4" /> : <Eye size={16} color="#949ba4" />}
+                </button>
+              </div>
+              <div style={{ textAlign: 'right', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  data-testid="link-forgot-password"
+                  onClick={() => openForgot(loginEmail.trim())}
+                  disabled={isSubmitting}
+                  style={linkButtonStyle}
+                >
+                  ¿Olvidaste tu contraseña?
                 </button>
               </div>
             </div>
@@ -886,6 +1047,30 @@ const errorAlertStyle: React.CSSProperties = {
   alignItems: 'flex-start',
   gap: '10px',
   marginBottom: '16px',
+};
+
+const successAlertStyle: React.CSSProperties = {
+  backgroundColor: 'rgba(35, 165, 90, 0.15)',
+  border: '1px solid #23a55a',
+  borderRadius: '4px',
+  padding: '10px 14px',
+  color: '#57d68d',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: '10px',
+  marginBottom: '16px',
+};
+
+const linkButtonStyle: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  color: '#00a8fc',
+  fontSize: '13px',
+  fontWeight: 500,
+  cursor: 'pointer',
 };
 
 const mockBannerStyle: React.CSSProperties = {
