@@ -10,7 +10,7 @@ import {
 } from './Modals';
 import { CreateChannelModal, EditChannelModal } from './ChannelModals';
 import { Server, User, Modal, ConfirmAction, Channel, AppView } from '../types';
-import { leaveServer, joinServerViaInvite } from '../api/servers';
+import { leaveServer, joinServerViaInvite, deleteServer } from '../api/servers';
 
 interface GlobalModalsProps {
   activeModal: Modal | null;
@@ -97,8 +97,14 @@ export const GlobalModals: React.FC<GlobalModalsProps> = (props) => {
         <ConfirmDialog
           action={props.confirmAction}
           targetName={props.confirmTargetName}
-          onConfirm={() => {
+          onConfirm={async () => {
             if (props.confirmAction === 'delete-server' && props.currentServer) {
+              try {
+                await deleteServer(props.currentServer.id);
+              } catch (e) {
+                props.showToast("Error al eliminar servidor", "danger");
+                return;
+              }
               queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== props.currentServer!.id));
               props.setSelectedServerId('home');
               props.setAppView('home');

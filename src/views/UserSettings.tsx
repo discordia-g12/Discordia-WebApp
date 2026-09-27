@@ -21,6 +21,7 @@ import {
   Circle,
 } from 'lucide-react';
 import { User, Status } from '../types';
+import { Avatar } from '../components/Avatar';
 
 
 export interface UserSettingsProps {
@@ -495,7 +496,7 @@ export const UserSettings: React.FC<UserSettingsProps> = ({
                   <div style={{ padding: '0 20px 20px 20px', marginTop: -36 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                       <img
-                        src={baseUser.avatarUrl || baseUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120'}
+                        src={baseUser.avatarUrl || baseUser.avatar || ''}
                         alt={displayName}
                         style={{
                           width: 72,
@@ -1349,11 +1350,7 @@ export const UserSettings: React.FC<UserSettingsProps> = ({
                   >
                     {displayMode === 'cozy' ? (
                       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                        <img
-                          src={baseUser.avatarUrl || baseUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=60'}
-                          alt="preview"
-                          style={{ width: 40, height: 40, borderRadius: '50%' }}
-                        />
+                        <Avatar user={{ ...baseUser, avatar: baseUser.avatarUrl || baseUser.avatar || "" } as any} size={40} />
                         <div>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                             <span style={{ fontWeight: 600, color: '#f2f3f5' }}>{displayName}</span>

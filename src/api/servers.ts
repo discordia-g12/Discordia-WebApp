@@ -170,3 +170,7 @@ export async function joinServerViaInvite(code: string): Promise<{ server_id: st
 export async function leaveServer(serverId: string): Promise<void> {
   await api.delete(`/api/v1/servers/${serverId}/leave`);
 }
+
+export async function deleteServer(serverId: string): Promise<void> {
+  await api.delete(`/api/v1/servers/${serverId}`);
+}

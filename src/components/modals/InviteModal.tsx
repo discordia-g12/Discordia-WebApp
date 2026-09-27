@@ -57,7 +57,7 @@ export const InviteModal: React.FC<InviteModalProps> = ({
         maxUses: parseInt(maxUses, 10),
         expiresInSeconds
       });
-      setInviteLink(`https://discordia.gg/invite/${res.code}`);
+      setInviteLink(`${window.location.origin}/invite/${res.code}`);
     } catch (e) {
       console.error(e);
       setInviteLink('Error al crear invitación');

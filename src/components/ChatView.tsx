@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { Channel, DirectMessage, Message, User, MessageAttachment, Reaction } from '../types';
 
+import { Avatar } from './Avatar';
+
 
 /**
  * Propiedades de configuración para el componente ChatView.
@@ -381,7 +383,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const mockAtt: MessageAttachment = {
       id: `att-${Date.now()}`,
       name: 'discordia-preview.png',
-      url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+      url: '',
       size: '1.2 MB',
       type: 'image/png',
     };
@@ -442,14 +444,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden' }}>
           {isDirectMessage ? (
             <div style={{ position: 'relative', width: 28, height: 28 }}>
-              <img
-                src={
-                  directMessage?.recipient?.avatar ||
-                  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
-                }
-                alt={chatTitle}
-                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-              />
+              <Avatar user={directMessage?.recipient || { id: "unknown", username: chatTitle, displayName: chatTitle } as any} size={28} />
               <span
                 className={`status-dot ${directMessage?.recipient?.status || 'offline'}`}
                 style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8 }}
@@ -925,15 +920,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   {formatCompactTime(msg.timestamp)}
                 </div>
               ) : (
-                <img
-                  src={
-                    authorUser?.avatar ||
-                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
-                  }
-                  alt={authorUser?.displayName || 'User'}
-                  className="message-avatar"
-                  onClick={() => authorUser && onOpenUserProfile?.(authorUser.id)}
-                />
+                <Avatar user={authorUser || { id: "unknown", username: "Desconocido" } as any} size={40} onClick={() => authorUser && onOpenUserProfile && onOpenUserProfile(authorUser.id)} />
               )}
 
               {/* Contenido del Mensaje */}
@@ -1240,11 +1227,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 className="mention-candidate-item"
                 onClick={() => handleSelectMention(candidate)}
               >
-                <img
-                  src={candidate.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
-                  alt={candidate.displayName}
-                  style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }}
-                />
+                <Avatar user={candidate} size={24} />
                 <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 13 }}>
                   {candidate.displayName}
                 </span>

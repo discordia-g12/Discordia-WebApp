@@ -13,6 +13,7 @@ import {
 import { User, Status } from '../types';
 import { Role } from '../types';
 
+import { Avatar } from '../components/Avatar';
 export type ProfileMode = 'view' | 'edit' | 'saving';
 
 export interface OwnProfileViewProps {
@@ -62,7 +63,7 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
     baseUser.avatarUrl || baseUser.avatar || ''
   );
   const [defaultAvatar] = useState<string>(
-    baseUser.avatarUrl || baseUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+    baseUser.avatarUrl || baseUser.avatar || ''
   );
 
   // Validation
@@ -413,19 +414,7 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
                   height: 80,
                 }}
               >
-                <img
-                  src={avatarUrl}
-                  alt={displayName}
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '6px solid #111214',
-                    backgroundColor: '#1e1f22',
-                    boxSizing: 'border-box',
-                  }}
-                />
+                <Avatar user={{ ...baseUser, avatar: avatarUrl } as any} size={80} />
                 {/* Status Indicator Dot */}
                 <span
                   title={status}
@@ -648,17 +637,7 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
                   Avatar
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                  <img
-                    src={avatarUrl}
-                    alt="Current avatar"
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      border: '2px solid rgba(255, 255, 255, 0.1)',
-                    }}
-                  />
+                  <Avatar user={{ ...baseUser, avatar: avatarUrl } as any} size={72} />
                   {mode !== 'view' ? (
                     <div style={{ display: 'flex', gap: 12 }}>
                       <label

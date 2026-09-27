@@ -708,7 +708,7 @@ export default function App() {
         onSelectServer={handleSelectServer}
         onAddServer={() => setActiveModal('create-server')}
         onDiscoverServers={() => setActiveModal('join-server')}
-        homeBadgeCount={2}
+        homeBadgeCount={0}
         isLoading={isLoadingServers}
       />
 

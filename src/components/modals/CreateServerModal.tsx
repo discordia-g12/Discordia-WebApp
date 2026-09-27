@@ -42,10 +42,10 @@ const SERVER_TEMPLATES = [
 ];
 
 const PRESET_ICONS = [
-  'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=120&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=120&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=120&auto=format&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=120&auto=format&fit=crop&q=80',
+  '',
+  '',
+  '',
+  '',
 ];
 
 /**
@@ -59,7 +59,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedTemplate, setSelectedTemplate] = useState('custom');
-  const [serverName, setServerName] = useState(`Servidor de ${currentUser?.displayName || 'Alex'}`);
+  const [serverName, setServerName] = useState(`Servidor de ${currentUser?.displayName || 'Usuario'}`);
   const [serverIcon, setServerIcon] = useState(PRESET_ICONS[0]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

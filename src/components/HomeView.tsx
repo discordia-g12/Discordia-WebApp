@@ -10,12 +10,10 @@ import {
   Check,
   MoreHorizontal,
   UserX,
-  Sparkles,
-  Headphones,
-  Code,
-  Palette,
+  Sparkles
 } from 'lucide-react';
 import { DirectMessage, User } from '../types';
+import { Avatar } from './Avatar';
 
 import { ChatView } from './ChatView';
 
@@ -260,14 +258,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               >
                 {/* Avatar con punto de estado */}
                 <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
-                  <img
-                    src={
-                      recipient?.avatar ||
-                      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
-                    }
-                    alt={recipient?.displayName || 'User'}
-                    style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
-                  />
+                  <Avatar user={recipient || { id: "unknown", displayName: "Usuario" } as any} size={32} />
                   <span
                     className={`status-dot ${recipient?.status || 'offline'}`}
                     style={{
@@ -535,11 +526,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <img
-                              src={req.user.avatar}
-                              alt={req.user.displayName}
-                              style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
-                            />
+                            <Avatar user={req.user} size={40} />
                             <div>
                               <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 14 }}>
                                 {req.user.displayName}
@@ -660,11 +647,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               onClick={() => onOpenUserProfile?.(friend.id)}
                             >
                               <div style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
-                                <img
-                                  src={friend.avatar}
-                                  alt={friend.displayName}
-                                  style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
-                                />
+                                <Avatar user={friend} size={40} />
                                 <span
                                   className={`status-dot ${friend.status || 'offline'}`}
                                   style={{
@@ -827,116 +810,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   Activo ahora
                 </h3>
 
-                {/* Tarjetas de Actividad de Amigos */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {/* Tarjeta 1: Spotify */}
-                  <div
-                    style={{
-                      backgroundColor: 'var(--bg-secondary)',
-                      padding: 14,
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                      <img
-                        src={""}
-                        alt="Sofia"
-                        style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
-                      />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--header-primary)' }}>
-                          Sofia Rossi
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Escuchando Spotify</div>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontSize: 12,
-                        color: 'var(--status-online)',
-                      }}
-                    >
-                      <Headphones size={16} />
-                      <span style={{ fontWeight: 500 }}>Daft Punk - Instant Crush</span>
-                    </div>
+                {/* Tarjetas de Actividad de Amigos (Vacío) */}
+                <div style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--header-secondary)', marginBottom: 8 }}>
+                    Por ahora todo está tranquilo
                   </div>
-
-                  {/* Tarjeta 2: Coding */}
-                  <div
-                    style={{
-                      backgroundColor: 'var(--bg-secondary)',
-                      padding: 14,
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                      <img
-                        src={""}
-                        alt="Martín"
-                        style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
-                      />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--header-primary)' }}>
-                          Martín Méndez
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                          En Visual Studio Code
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontSize: 12,
-                        color: 'var(--brand)',
-                      }}
-                    >
-                      <Code size={16} />
-                      <span style={{ fontWeight: 500 }}>RabbitMQ Topic Exchange Consumer</span>
-                    </div>
-                  </div>
-
-                  {/* Tarjeta 3: Figma */}
-                  <div
-                    style={{
-                      backgroundColor: 'var(--bg-secondary)',
-                      padding: 14,
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                      <img
-                        src={""}
-                        alt="Emma"
-                        style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
-                      />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--header-primary)' }}>
-                          Emma Watson
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Diseñando en Figma</div>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontSize: 12,
-                        color: 'var(--text-warning)',
-                      }}
-                    >
-                      <Palette size={16} />
-                      <span style={{ fontWeight: 500 }}>Discordia Dark UI Design System</span>
-                    </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    Cuando un amigo empiece una actividad, aparecerá aquí.
                   </div>
                 </div>
               </aside>

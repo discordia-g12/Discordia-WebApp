@@ -107,8 +107,7 @@ export const MemberList: React.FC<MemberListProps> = ({
                   <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
                     <img
                       src={
-                        user.avatar ||
-                        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
+                        user.avatar || ''
                       }
                       alt={user.displayName}
                       style={{
