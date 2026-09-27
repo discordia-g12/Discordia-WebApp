@@ -38,6 +38,7 @@ import {
 import { useSession, bootstrap, authService } from './auth/session';
 import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useServerMembersQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation } from './api/hooks/useApi';
 import { useChatWebSocket } from './api/hooks/useChatWebSocket';
+import { updateMyProfile } from './api/users';
 
 /**
  * Hook para detectar si el viewport corresponde a un dispositivo móvil (<768px).
@@ -534,8 +535,17 @@ export default function App() {
 
   // Actualizar usuario propio
   const handleUpdateCurrentUser = (updatedUser: User) => {
-    setCurrentUser(updatedUser);
-    showToast('Perfil actualizado con éxito', 'success');
+    updateMyProfile({
+      display_name: updatedUser.displayName,
+      avatar_url: updatedUser.avatarUrl || updatedUser.avatar,
+      bio: updatedUser.bio,
+      custom_status: updatedUser.customStatus,
+    }).then(() => {
+      setCurrentUser(updatedUser);
+      showToast('Perfil actualizado con éxito', 'success');
+    }).catch(() => {
+      showToast('Error al actualizar el perfil', 'danger');
+    });
   };
 
   // Actualizar servidor

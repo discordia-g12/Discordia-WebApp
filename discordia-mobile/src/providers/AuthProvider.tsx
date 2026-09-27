@@ -25,6 +25,7 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (username: string, email: string, password: string) => Promise<void>
   logout: () => void
+  updateUserProfile: (profile: BackendProfile) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -89,6 +90,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleBackToLogin = () => setAuthScreen('login')
 
+  const handleUpdateUserProfile = (profile: BackendProfile) => {
+    setUserProfile(profile)
+  }
+
   const handleSwitchAccount = () => {
     setPendingVerificationEmail(null)
     setAuthScreen('login')
@@ -108,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login: handleLogin,
       register: handleRegister,
       logout: handleLogout,
+      updateUserProfile: handleUpdateUserProfile,
     }),
     [isAuthenticated, authScreen, token, userProfile, isLoading, pendingVerificationEmail],
   )

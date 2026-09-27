@@ -134,10 +134,7 @@ export const JoinServerModal: React.FC<JoinServerModalProps> = ({
                       {previewServer?.description}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, fontSize: 11 }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-positive)' }}>
-                        <span className="status-dot online" style={{ width: 8, height: 8 }} />
-                        5 En línea
-                      </span>
+
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)' }}>
                         <span className="status-dot offline" style={{ width: 8, height: 8 }} />
                         {previewServer?.membersCount || 1} Miembros totales

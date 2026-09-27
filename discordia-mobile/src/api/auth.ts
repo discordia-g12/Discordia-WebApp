@@ -255,3 +255,13 @@ export async function signupWithCredentials(
   return session
 }
 
+
+export async function updateMyProfile(payload: {
+  display_name?: string
+  avatar_url?: string
+  bio?: string
+  custom_status?: string
+}): Promise<BackendProfile> {
+  const res = await api.patch<any>('/api/v1/users/me/profile', payload)
+  return res as BackendProfile
+}

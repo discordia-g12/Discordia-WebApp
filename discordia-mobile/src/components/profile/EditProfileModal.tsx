@@ -3,7 +3,7 @@ import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator,
 import { X } from 'lucide-react-native'
 import { colors, spacing, radii, typography } from '../../theme'
 import { useAuth } from '../../providers/AppProviders'
-import { upsertMyProfile } from '../../api/auth'
+import { updateMyProfile } from '../../api/auth'
 
 interface EditProfileModalProps {
   visible: boolean
@@ -11,7 +11,7 @@ interface EditProfileModalProps {
 }
 
 export default function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
-  const { userProfile } = useAuth()
+  const { userProfile, updateUserProfile } = useAuth()
 
   const [displayName, setDisplayName] = useState(userProfile?.display_name || '')
   const [bio, setBio] = useState(userProfile?.bio || '')
@@ -33,14 +33,20 @@ export default function EditProfileModal({ visible, onClose }: EditProfileModalP
     try {
       // El backend en /api/v1/users/me requiere username, bio, avatar_url en el POST. 
       // El backend no tiene display_name en el Pydantic pero el Frontend API le pasa display_name y mapea.
-      await upsertMyProfile({
-        username: userProfile.username, // el username no se puede cambiar por diseño, es inmutable
+      const updatedProfile = await updateMyProfile({
         display_name: displayName,
         avatar_url: avatarUrl,
         bio: bio,
-      } as any)
+      })
+      
+      updateUserProfile({
+        ...userProfile,
+        display_name: updatedProfile.display_name,
+        avatar_url: updatedProfile.avatar_url,
+        bio: updatedProfile.bio
+      })
 
-      Alert.alert('Éxito', 'Perfil actualizado correctamente. Los cambios se verán en tu próximo inicio de sesión o si recargas.', [{ text: 'OK', onPress: onClose }])
+      Alert.alert('Éxito', 'Perfil actualizado correctamente.', [{ text: 'OK', onPress: onClose }])
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Error al guardar perfil')
     } finally {
