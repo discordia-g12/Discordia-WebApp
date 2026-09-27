@@ -16,7 +16,7 @@ import {
   Palette,
 } from 'lucide-react';
 import { DirectMessage, User } from '../types';
-import { CURRENT_USER_ID, USERS, DIRECT_MESSAGES, DM_MESSAGES } from '../data/mock';
+
 import { ChatView } from './ChatView';
 
 /** Pestañas disponibles dentro de la sección de Amigos. */
@@ -59,8 +59,8 @@ interface FriendRequest {
  * Vista de inicio de Discordia con panel de Mensajes Directos y vista de Amigos.
  */
 export const HomeView: React.FC<HomeViewProps> = ({
-  currentUserId = CURRENT_USER_ID,
-  directMessages = DIRECT_MESSAGES,
+  currentUserId,
+  directMessages = [],
   activeDirectMessageId: externalActiveDmId,
   onSelectDirectMessage,
   onOpenUserProfile,
@@ -84,20 +84,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [addFriendSuccess, setAddFriendSuccess] = useState<string | null>(null);
 
   // Lista local de solicitudes pendientes
-  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([
-    {
-      id: 'req-1',
-      user: USERS.u6,
-      type: 'incoming',
-    },
-  ]);
+  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
 
   // Lista de usuarios bloqueados simulados
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
 
   // Directorio de todos los amigos (excluyendo al usuario actual)
   const allFriends = useMemo(() => {
-    return Object.values(USERS).filter((u) => u.id !== currentUserId);
+    return ([] as User[]).filter((u) => u.id !== currentUserId);
   }, [currentUserId]);
 
   // Amigos conectados (status != offline)
@@ -255,7 +249,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {/* Lista de Mensajes Directos Recientes */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 16 }} className="scrollbar-thin">
           {filteredDms.map((dm) => {
-            const recipient = dm.recipient || USERS[dm.recipientId];
+            const recipient = dm.recipient || { id: dm.recipientId || 'unknown', name: 'Usuario', displayName: 'Usuario' } as any;
             const isSelected = activeDmId === dm.id;
 
             return (
@@ -341,9 +335,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
              ======================================================================== */
           <ChatView
             directMessage={activeDm}
-            messages={DM_MESSAGES[activeDm.id] || []}
+            messages={[]}
             currentUserId={currentUserId}
-            users={USERS}
+            users={{}}
             onOpenUserProfile={onOpenUserProfile}
             onStartVoiceCall={() => onStartVoiceCall?.(activeDm.recipientId)}
             onStartVideoCall={() => onStartVideoCall?.(activeDm.recipientId)}
@@ -846,7 +840,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                       <img
-                        src={USERS.u1.avatar}
+                        src={""}
                         alt="Sofia"
                         style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
                       />
@@ -882,7 +876,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                       <img
-                        src={USERS.u2.avatar}
+                        src={""}
                         alt="Martín"
                         style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
                       />
@@ -920,7 +914,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                       <img
-                        src={USERS.u3.avatar}
+                        src={""}
                         alt="Emma"
                         style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
                       />

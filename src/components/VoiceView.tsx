@@ -14,7 +14,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { User } from '../types';
-import { CURRENT_USER_ID, USERS } from '../data/mock';
+
 
 /**
  * Propiedades para la vista de sala de voz y video en tiempo real.
@@ -67,7 +67,7 @@ function getInitials(name: string): string {
 export const VoiceView: React.FC<VoiceViewProps> = ({
   channelName = 'Voz General',
   serverName = 'Indie Developers',
-  currentUserId = CURRENT_USER_ID,
+  currentUserId = '',
   participants: externalParticipants,
   isMuted: initialMuted = false,
   isDeafened: initialDeafened = false,
@@ -82,7 +82,7 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
 }) => {
   // Lista de participantes por defecto (u0, u1, u2, u4)
   const defaultParticipants: User[] = useMemo(
-    () => [USERS.u0, USERS.u1, USERS.u2, USERS.u4].filter(Boolean),
+    () => [],
     []
   );
 
@@ -559,7 +559,7 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           {/* Selector interactivo de prueba para simular orador activo */}
           <button
             onClick={() =>
-              setSpeakingUserId((prev) => (prev === 'u1' ? 'u4' : prev === 'u4' ? currentUserId : 'u1'))
+              setSpeakingUserId((prev) => (prev === 'u1' ? 'u4' : prev === 'u4' ? currentUserId || 'u1' : 'u1'))
             }
             title="Simular cambio de orador activo"
             style={{

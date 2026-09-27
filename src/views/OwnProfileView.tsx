@@ -11,7 +11,7 @@ import {
   Circle,
 } from 'lucide-react';
 import { User, Status } from '../types';
-import { USERS, CURRENT_USER_ID, INITIAL_ROLES } from '../data/mock';
+import { Role } from '../types';
 
 export type ProfileMode = 'view' | 'edit' | 'saving';
 
@@ -47,7 +47,7 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
   onBack,
   onSave,
 }) => {
-  const baseUser: User = initialUserProp || USERS[CURRENT_USER_ID];
+  const baseUser: User = initialUserProp || ({ id: '' } as any);
 
   const [mode, setMode] = useState<ProfileMode>('view');
   const [savedIndicator, setSavedIndicator] = useState(false);
@@ -128,10 +128,10 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
     }, 750);
   };
 
-  // Resolve user roles from INITIAL_ROLES
+  // Resolve user roles from []
   const userRoles = (baseUser.roleIds || ['r-admin', 'r-core'])
-    .map((rid) => INITIAL_ROLES.find((r) => r.id === rid))
-    .filter(Boolean);
+    .map((rid) => ([] as Role[]).find((r) => r.id === rid))
+    .filter((r): r is Role => Boolean(r));
 
   const currentStatusColor =
     status === 'online'

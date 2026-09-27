@@ -21,7 +21,7 @@ import {
   Circle,
 } from 'lucide-react';
 import { User, Status } from '../types';
-import { USERS, CURRENT_USER_ID } from '../data/mock';
+
 
 export interface UserSettingsProps {
   currentUser?: User;
@@ -66,7 +66,7 @@ export const UserSettings: React.FC<UserSettingsProps> = ({
   onUpdateUser,
   onLogout,
 }) => {
-  const baseUser = initialUser || USERS[CURRENT_USER_ID];
+  const baseUser = initialUser || ({ id: '' } as any);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);

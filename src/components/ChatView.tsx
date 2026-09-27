@@ -24,7 +24,7 @@ import {
   Video,
 } from 'lucide-react';
 import { Channel, DirectMessage, Message, User, MessageAttachment, Reaction } from '../types';
-import { CURRENT_USER_ID, USERS, MESSAGES } from '../data/mock';
+
 
 /**
  * Propiedades de configuración para el componente ChatView.
@@ -119,8 +119,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   directMessage,
   messages: externalMessages,
   isLoading = false,
-  currentUserId = CURRENT_USER_ID,
-  users = USERS,
+  currentUserId,
+  users = {},
   onSendMessage,
   onToggleReaction,
   onDeleteMessage,
@@ -135,7 +135,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Inicialización de mensajes locales
   const initialList = useMemo(() => {
     if (externalMessages) return externalMessages;
-    if (channel) return MESSAGES[channel.id] || [];
+    if (channel) return [];
     return [];
   }, [externalMessages, channel]);
 
@@ -226,7 +226,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (onSendMessage) {
       onSendMessage(sanitized, attachment || undefined, replyingTo?.id);
     } else {
-      const authorUser = users[currentUserId] || {
+      const authorUser = users[currentUserId || ''] || {
         id: currentUserId,
         username: 'currentUser',
         displayName: 'Current User',
@@ -236,7 +236,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       const newMsg: Message = {
         id: `msg-${Date.now()}`,
         channelId: channel?.id || directMessage?.id || 'ch-custom',
-        authorId: currentUserId,
+        authorId: currentUserId || '',
         author: authorUser,
         content: sanitized,
         timestamp: new Date().toISOString(),
@@ -282,9 +282,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         if (existingIdx >= 0) {
           const r = currentReactions[existingIdx];
-          const hasReacted = r.hasReacted || r.users.includes(currentUserId);
+          const hasReacted = r.hasReacted || r.users.includes(currentUserId || '');
           if (hasReacted) {
-            const updatedUsers = r.users.filter((uid) => uid !== currentUserId);
+            const updatedUsers = r.users.filter((uid) => uid !== (currentUserId || ''));
             if (updatedUsers.length === 0) {
               currentReactions.splice(existingIdx, 1);
             } else {
@@ -299,7 +299,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             currentReactions[existingIdx] = {
               ...r,
               count: r.count + 1,
-              users: [...r.users, currentUserId],
+              users: [...r.users, currentUserId || ''],
               hasReacted: true,
             };
           }
@@ -307,7 +307,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           currentReactions.push({
             emoji,
             count: 1,
-            users: [currentUserId],
+            users: [currentUserId || ''],
             hasReacted: true,
           });
         }
@@ -772,14 +772,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
             );
           }
 
-          const isAuthor = msg.authorId === currentUserId;
-          const authorUser = msg.author || users[msg.authorId];
+          const isAuthor = msg.authorId === (currentUserId || '');
+          const authorUser = msg.author || users[msg.authorId] || { id: msg.authorId, username: 'Desconocido', displayName: 'Desconocido', avatar: '', status: 'offline' };
           const isReplying = replyingTo?.id === msg.id;
 
           return (
             <div
               key={msg.id}
-              className={`message-row ${msg.content.includes('@' + (users[currentUserId]?.username || '')) ? 'mentioned' : ''}`}
+              className={`message-row ${msg.content.includes('@' + (users[currentUserId || '']?.username || '')) ? 'mentioned' : ''}`}
               style={{
                 marginTop: isConsecutive ? 0 : 12,
                 backgroundColor: isReplying ? 'rgba(88, 101, 242, 0.08)' : undefined,
@@ -1110,7 +1110,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 {msg.reactions && msg.reactions.length > 0 && (
                   <div className="message-reactions">
                     {msg.reactions.map((r, rIdx) => {
-                      const active = r.hasReacted || r.users.includes(currentUserId);
+                      const active = r.hasReacted || r.users.includes(currentUserId || '');
                       return (
                         <button
                           key={rIdx}
