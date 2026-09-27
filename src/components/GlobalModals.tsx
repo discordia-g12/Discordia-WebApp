@@ -46,21 +46,33 @@ export const GlobalModals: React.FC<GlobalModalsProps> = (props) => {
       {props.activeModal === 'create-server' && (
         <CreateServerModal
           onClose={() => props.setActiveModal(null)}
+          onJoinExisting={() => props.setActiveModal('join-server')}
           onCreateServer={(data) => props.handleCreateServer(data.name, data.icon)}
         />
       )}
 
       {props.activeModal === 'join-server' && (
         <JoinServerModal
-          onClose={() => props.setActiveModal(null)}
+          onClose={() => {
+            props.setActiveModal(null);
+            if (window.location.pathname.startsWith('/invite/')) {
+              window.history.replaceState({}, document.title, '/');
+            }
+          }}
           onJoinServer={(inviteCode) => {
             const rawCode = inviteCode.split('/').pop() || inviteCode;
             joinServerViaInvite(rawCode).then(() => {
               queryClient.invalidateQueries({ queryKey: ['servers'] });
               props.setActiveModal(null);
               props.showToast(`Te has unido con la invitación`, 'success');
+              if (window.location.pathname.startsWith('/invite/')) {
+                window.history.replaceState({}, document.title, '/');
+              }
             }).catch(() => {
-              props.showToast(`Error al unirse al servidor`, 'danger');
+              props.showToast(`El código es inválido o expiró`, 'danger');
+              if (window.location.pathname.startsWith('/invite/')) {
+                window.history.replaceState({}, document.title, '/');
+              }
             });
           }}
         />

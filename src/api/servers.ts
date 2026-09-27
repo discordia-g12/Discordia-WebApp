@@ -159,8 +159,11 @@ export async function editChannel(serverId: string, channelId: string, payload: 
   return mapChannelFromBackend(rawChannel);
 }
 
-export async function createInvite(serverId: string, payload: { maxUses: number, expiresInSeconds: number }): Promise<{ code: string }> {
-  return await api.post(`/api/v1/servers/${serverId}/invites`, payload);
+export async function createInvite(serverId: string, payload: { maxUses?: number, expiresInSeconds?: number }): Promise<{ code: string }> {
+  return await api.post(`/api/v1/servers/${serverId}/invites`, {
+    max_uses: payload.maxUses || undefined,
+    expires_in_seconds: payload.expiresInSeconds || undefined
+  });
 }
 
 export async function joinServerViaInvite(code: string): Promise<{ server_id: string }> {
@@ -173,4 +176,9 @@ export async function leaveServer(serverId: string): Promise<void> {
 
 export async function deleteServer(serverId: string): Promise<void> {
   await api.delete(`/api/v1/servers/${serverId}`);
+}
+
+
+export async function getInvitePreview(code: string): Promise<any> {
+  return await api.get(`/api/v1/invites/${code}`);
 }

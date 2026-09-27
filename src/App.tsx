@@ -260,6 +260,17 @@ export default function App() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  // Parseo de link de invitación desde URL
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    
+    const path = window.location.pathname;
+    if (path.startsWith('/invite/')) {
+      setActiveModal('join-server');
+    }
+  }, [status]);
+
+
   // Llamada entrante simulada para testing
   const [incomingCaller, setIncomingCaller] = useState<User | null>(null);
   useEffect(() => {

@@ -11,6 +11,7 @@ export interface CreateServerModalProps {
   onClose: () => void;
   onCreateServer?: (serverData: { name: string; template: string; icon?: string }) => void;
   currentUser?: User;
+  onJoinExisting?: () => void;
 }
 
 const SERVER_TEMPLATES = [
@@ -56,6 +57,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
   onClose,
   onCreateServer,
   currentUser,
+  onJoinExisting,
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedTemplate, setSelectedTemplate] = useState('custom');
@@ -179,7 +181,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
               <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                 ¿Tienes una invitación?{' '}
                 <button
-                  onClick={onClose}
+                  onClick={onJoinExisting || onClose}
                   className="btn-link"
                   style={{ color: 'var(--text-link)', fontSize: 13, fontWeight: 500 }}
                 >
