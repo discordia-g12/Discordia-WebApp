@@ -34,13 +34,7 @@ import {
   Modal,
   ConfirmAction,
 } from '../types';
-import {
-  CURRENT_USER_ID,
-  USERS,
-  SERVERS,
-  MESSAGES,
-  DIRECT_MESSAGES,
-} from '../data/mock';
+
 
 /* ==========================================================================
    TIPOS Y PROPS PARA EL SHELL MÓVIL
@@ -179,8 +173,8 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
 
 export const MobileShell: React.FC<MobileShellProps> = ({
   initialScreen = 'channels',
-  servers = SERVERS,
-  currentUser = USERS[CURRENT_USER_ID],
+  servers = [],
+  currentUser = { id: '' } as any,
   onOpenModal,
   onConfirmAction,
 }) => {
@@ -188,7 +182,7 @@ export const MobileShell: React.FC<MobileShellProps> = ({
   const [screen, setScreen] = useState<MobileScreen>(initialScreen);
   const [activeServerId, setActiveServerId] = useState<string>(servers[0]?.id || 's1');
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
-  const [activeDmId, setActiveDmId] = useState<string>(DIRECT_MESSAGES[0]?.id || 'dm-1');
+  const [activeDmId, setActiveDmId] = useState<string>('dm-1');
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>('none');
 
   // Estados de audio y presencia
@@ -201,13 +195,13 @@ export const MobileShell: React.FC<MobileShellProps> = ({
 
   // Mensaje en chat activo
   const [chatInput, setChatInput] = useState('');
-  const [localMessages, setLocalMessages] = useState<Record<string, Message[]>>(MESSAGES);
+  const [localMessages, setLocalMessages] = useState<Record<string, Message[]>>({});
 
   // Servidor y Canal actuales
   const activeServer = servers.find((s) => s.id === activeServerId) || servers[0];
   const allChannels = activeServer.categories.flatMap((cat) => cat.channels);
   const activeChannel = allChannels.find((c) => c.id === activeChannelId) || allChannels[0];
-  const activeDm = DIRECT_MESSAGES.find((d) => d.id === activeDmId) || DIRECT_MESSAGES[0];
+  const activeDm = ([] as DirectMessage[]).find((d) => d.id === activeDmId);
 
   // Manejo de envío de mensajes en Chat
   const handleSendMessage = (e: React.FormEvent) => {
@@ -340,7 +334,7 @@ export const MobileShell: React.FC<MobileShellProps> = ({
           >
             {channelMessages.length > 0 ? (
               channelMessages.map((msg) => {
-                const author = msg.author || USERS[msg.authorId] || currentUser;
+                const author = msg.author || currentUser;
                 return (
                   <div
                     key={msg.id}
@@ -594,12 +588,12 @@ export const MobileShell: React.FC<MobileShellProps> = ({
               }}
             >
               <img
-                src={USERS['u1'].avatarUrl || USERS['u1'].avatar}
-                alt={USERS['u1'].displayName}
+                src={""}
+                alt="Perfil"
                 style={{ width: 60, height: 60, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
               />
               <span style={{ marginTop: 8, fontSize: 13, fontWeight: 600, color: 'var(--header-primary)' }}>
-                {USERS['u1'].displayName}
+                Perfil
               </span>
               <div
                 style={{
@@ -1027,8 +1021,8 @@ export const MobileShell: React.FC<MobileShellProps> = ({
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', padding: '4px 8px', textTransform: 'uppercase' }}>
                     MENSAJES DIRECTOS
                   </div>
-                  {DIRECT_MESSAGES.map((dm: DirectMessage) => {
-                    const recipient = dm.recipient || USERS[dm.recipientId] || USERS['u1'];
+                  {[].map((dm: DirectMessage) => {
+                    const recipient = dm.recipient || ({ id: 'unknown' } as any);
                     return (
                       <div
                         key={dm.id}
@@ -1623,7 +1617,7 @@ const AddFriendSheetContent: React.FC = () => {
           SUGERENCIAS DE AMIGOS
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {Object.values(USERS).slice(2, 6).map((user) => (
+          {([] as any[]).slice(2, 6).map((user) => (
             <div
               key={user.id}
               style={{

@@ -3,8 +3,9 @@ import {
   AUTH0_CLIENT_ID,
   AUTH0_AUDIENCE,
   AUTH0_CONNECTION,
-} from './config'
-import { apiFetch, setAuthToken } from './client'
+} from '../utils/config'
+import { api, configureClient } from '@shared/api/client'
+export const setAuthToken = (token: string | null) => configureClient({ getToken: async () => token || '' });
 import { isProblemType, PROBLEM_TYPES, toAuthDenialError, EmailNotVerifiedError } from './authErrors'
 
 export interface BackendProfile {
@@ -29,7 +30,7 @@ export interface AuthSession {
  * Consulta el perfil del usuario autenticado en Auth-User-Service vía Kong Gateway.
  */
 export async function getMyProfile(): Promise<BackendProfile> {
-  const res = await apiFetch<any>('/api/v1/users/me')
+  const res = await api.get<any>('/api/v1/users/me')
   return {
     ...res,
     id: res.user_id || res.id,
@@ -49,14 +50,11 @@ export async function upsertMyProfile(data: {
 }): Promise<BackendProfile> {
   // Limpieza de caracteres no permitidos en username
   const cleanUsername = data.username.toLowerCase().replace(/[^a-z0-9_.-]/g, '_').slice(0, 32)
-  const res = await apiFetch<any>('/api/v1/users/me', {
-    method: 'POST',
-    body: {
-      username: cleanUsername,
-      display_name: data.display_name || data.username,
-      avatar_url: data.avatar_url,
-      bio: data.bio,
-    },
+  const res = await api.post<any>('/api/v1/users/me', {
+    username: cleanUsername,
+    display_name: data.display_name || data.username,
+    avatar_url: data.avatar_url,
+    bio: data.bio,
   })
   return {
     ...res,
@@ -257,3 +255,13 @@ export async function signupWithCredentials(
   return session
 }
 
+
+export async function updateMyProfile(payload: {
+  display_name?: string
+  avatar_url?: string
+  bio?: string
+  custom_status?: string
+}): Promise<BackendProfile> {
+  const res = await api.patch<any>('/api/v1/users/me/profile', payload)
+  return res as BackendProfile
+}

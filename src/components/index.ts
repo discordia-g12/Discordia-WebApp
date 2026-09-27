@@ -11,3 +11,4 @@ export * from './HomeView';
 export * from './Modals';
 export * from './MobileShell';
 
+export * from './GlobalModals';

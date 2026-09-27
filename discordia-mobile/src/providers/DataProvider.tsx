@@ -28,7 +28,7 @@ import type {
   AuditEntry,
 } from '../types'
 import { useAuth } from './AuthProvider'
-import { apiFetch } from '../api/client'
+import { api } from '@shared/api/client'
 import {
   getServers,
   createServer as apiCreateServer,
@@ -36,7 +36,7 @@ import {
   updateChannel as apiUpdateChannel,
   deleteChannel as apiDeleteChannel,
   leaveServer as apiLeaveServer,
-} from '../api/servers'
+} from '@shared/api/servers'
 
 interface DataContextValue {
   currentUserId: string
@@ -240,7 +240,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     async (channelId: string) => {
       if (!token || isDm(channelId)) return
       try {
-        const response = await apiFetch<{ messages: any[] } | any[]>(
+        const response = await api.get<{ messages: any[] } | any[]>(
           `/api/v1/chat/channels/${channelId}/messages?limit=50`,
         )
         const rawList = Array.isArray(response) ? response : response?.messages || []
@@ -383,12 +383,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Envío asíncrono al backend si existe token activo y no es DM mock
       if (token && !isDm(channelId)) {
-        apiFetch(`/api/v1/chat/channels/${channelId}/messages`, {
-          method: 'POST',
-          body: {
+        api.post(`/api/v1/chat/channels/${channelId}/messages`, {
             content,
             clientMessageId,
-          },
         }).catch(() => {
           // El mensaje ya quedó de forma optimista en la interfaz
         })

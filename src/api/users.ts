@@ -111,5 +111,5 @@ export async function upsertMyProfile(payload: CreateProfileRequest): Promise<Us
  * Actualiza atributos modificables del perfil de usuario.
  */
 export async function updateMyProfile(payload: UpdateProfileRequest): Promise<UserProfile> {
-  return await api.patch<UserProfile>('/api/v1/users/me', payload);
+  return await api.patch<UserProfile>('/api/v1/users/me/profile', payload);
 }

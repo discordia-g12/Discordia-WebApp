@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { getServerMembers } from '../api/servers'
+import { getServerMembers } from '@shared/api/servers'
 
 export function useServerMembersQuery(serverId: string | null) {
   return useInfiniteQuery({

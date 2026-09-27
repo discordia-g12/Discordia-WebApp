@@ -21,7 +21,7 @@ import {
   Smile,
 } from 'lucide-react';
 import { Server, Role, Channel, User, AuditEntry, ChannelType } from '../types';
-import { SERVERS, USERS, CURRENT_USER_ID, AUDIT_LOG } from '../data/mock';
+
 import {
   useRolesQuery,
   useCreateRoleMutation,
@@ -60,7 +60,7 @@ const PERMISSION_CATEGORIES = [
       { id: 'MANAGE_SERVER', name: 'Manage Server', desc: 'Change server name, region, icon and vanity URL.' },
       { id: 'MANAGE_ROLES', name: 'Manage Roles', desc: 'Create, edit and delete roles lower than this one.' },
       { id: 'MANAGE_CHANNELS', name: 'Manage Channels', desc: 'Create, organize and delete channels in this server.' },
-      { id: 'VIEW_AUDIT_LOG', name: 'View Audit Log', desc: 'View administrative actions executed in this server.' },
+      { id: 'VIEW_[]', name: 'View Audit Log', desc: 'View administrative actions executed in this server.' },
     ],
   },
   {
@@ -112,8 +112,8 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
   onClose,
   onUpdateServer,
 }) => {
-  const currentServer = initialServer || SERVERS[0];
-  const user = initialUser || USERS[CURRENT_USER_ID];
+  const currentServer = initialServer || null as any;
+  const user = initialUser || ({ id: '' } as any);
 
   const [serverState, setServerState] = useState<Server>({ ...currentServer });
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -144,7 +144,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
   const [roleEditError, setRoleEditError] = useState<string | null>(null);
 
   // Members Tab States
-  const [members] = useState<User[]>(serverState.members || Object.values(USERS));
+  const [members] = useState<User[]>(serverState.members || []);
 
   // Channels Tab States
   const [categories, setCategories] = useState(serverState.categories || []);
@@ -168,9 +168,9 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
 
   // Emojis Tab States
   const [customEmojis, setCustomEmojis] = useState([
-    { id: 'e1', name: 'kekw', url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=48&auto=format&fit=crop&q=80' },
-    { id: 'e2', name: 'discordia_cat', url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=48&auto=format&fit=crop&q=80' },
-    { id: 'e3', name: 'pepe_hype', url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=48&auto=format&fit=crop&q=80' },
+    { id: 'e1', name: 'kekw', url: '' },
+    { id: 'e2', name: 'discordia_cat', url: '' },
+    { id: 'e3', name: 'pepe_hype', url: '' },
   ]);
 
   // Boost Tab States
@@ -751,7 +751,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                     </label>
                     <div style={{ position: 'relative', width: 100, height: 100 }}>
                       <img
-                        src={serverIcon || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200'}
+                        src={serverIcon || ''}
                         alt={serverName}
                         style={{
                           width: 100,
@@ -2032,7 +2032,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {AUDIT_LOG.slice(0, 15).map((entry: AuditEntry) => (
+                  {[].slice(0, 15).map((entry: AuditEntry) => (
                     <div
                       key={entry.id}
                       style={{

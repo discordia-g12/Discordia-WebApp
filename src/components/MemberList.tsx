@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Sparkles, Shield, ShieldCheck } from 'lucide-react';
 import { User, Role } from '../types';
-import { USERS, INITIAL_ROLES, CURRENT_USER_ID } from '../data/mock';
+
 
 /**
  * Propiedades del componente MemberList.
@@ -37,10 +37,10 @@ function getMemberRoleColor(user: User, rolesMap: Map<string, Role>): string {
  * Barra lateral derecha que muestra los miembros del servidor agrupados por jerarquía.
  */
 export const MemberList: React.FC<MemberListProps> = ({
-  members = Object.values(USERS),
-  roles = INITIAL_ROLES,
+  members = [],
+  roles = [],
   onSelectMember,
-  currentUserId = CURRENT_USER_ID,
+  currentUserId = '',
 }) => {
   const rolesMap = useMemo(() => {
     const map = new Map<string, Role>();
@@ -107,8 +107,7 @@ export const MemberList: React.FC<MemberListProps> = ({
                   <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
                     <img
                       src={
-                        user.avatar ||
-                        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
+                        user.avatar || ''
                       }
                       alt={user.displayName}
                       style={{

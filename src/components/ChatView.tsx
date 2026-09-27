@@ -24,7 +24,9 @@ import {
   Video,
 } from 'lucide-react';
 import { Channel, DirectMessage, Message, User, MessageAttachment, Reaction } from '../types';
-import { CURRENT_USER_ID, USERS, MESSAGES } from '../data/mock';
+
+import { Avatar } from './Avatar';
+
 
 /**
  * Propiedades de configuración para el componente ChatView.
@@ -119,8 +121,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   directMessage,
   messages: externalMessages,
   isLoading = false,
-  currentUserId = CURRENT_USER_ID,
-  users = USERS,
+  currentUserId,
+  users = {},
   onSendMessage,
   onToggleReaction,
   onDeleteMessage,
@@ -135,7 +137,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Inicialización de mensajes locales
   const initialList = useMemo(() => {
     if (externalMessages) return externalMessages;
-    if (channel) return MESSAGES[channel.id] || [];
+    if (channel) return [];
     return [];
   }, [externalMessages, channel]);
 
@@ -226,7 +228,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (onSendMessage) {
       onSendMessage(sanitized, attachment || undefined, replyingTo?.id);
     } else {
-      const authorUser = users[currentUserId] || {
+      const authorUser = users[currentUserId || ''] || {
         id: currentUserId,
         username: 'currentUser',
         displayName: 'Current User',
@@ -236,7 +238,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       const newMsg: Message = {
         id: `msg-${Date.now()}`,
         channelId: channel?.id || directMessage?.id || 'ch-custom',
-        authorId: currentUserId,
+        authorId: currentUserId || '',
         author: authorUser,
         content: sanitized,
         timestamp: new Date().toISOString(),
@@ -282,9 +284,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         if (existingIdx >= 0) {
           const r = currentReactions[existingIdx];
-          const hasReacted = r.hasReacted || r.users.includes(currentUserId);
+          const hasReacted = r.hasReacted || r.users.includes(currentUserId || '');
           if (hasReacted) {
-            const updatedUsers = r.users.filter((uid) => uid !== currentUserId);
+            const updatedUsers = r.users.filter((uid) => uid !== (currentUserId || ''));
             if (updatedUsers.length === 0) {
               currentReactions.splice(existingIdx, 1);
             } else {
@@ -299,7 +301,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             currentReactions[existingIdx] = {
               ...r,
               count: r.count + 1,
-              users: [...r.users, currentUserId],
+              users: [...r.users, currentUserId || ''],
               hasReacted: true,
             };
           }
@@ -307,7 +309,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           currentReactions.push({
             emoji,
             count: 1,
-            users: [currentUserId],
+            users: [currentUserId || ''],
             hasReacted: true,
           });
         }
@@ -381,7 +383,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const mockAtt: MessageAttachment = {
       id: `att-${Date.now()}`,
       name: 'discordia-preview.png',
-      url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80',
+      url: '',
       size: '1.2 MB',
       type: 'image/png',
     };
@@ -442,14 +444,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden' }}>
           {isDirectMessage ? (
             <div style={{ position: 'relative', width: 28, height: 28 }}>
-              <img
-                src={
-                  directMessage?.recipient?.avatar ||
-                  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
-                }
-                alt={chatTitle}
-                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-              />
+              <Avatar user={directMessage?.recipient || { id: "unknown", username: chatTitle, displayName: chatTitle } as any} size={28} />
               <span
                 className={`status-dot ${directMessage?.recipient?.status || 'offline'}`}
                 style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8 }}
@@ -772,14 +767,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
             );
           }
 
-          const isAuthor = msg.authorId === currentUserId;
-          const authorUser = msg.author || users[msg.authorId];
+          const isAuthor = msg.authorId === (currentUserId || '');
+          const authorUser = msg.author || users[msg.authorId] || { id: msg.authorId, username: 'Desconocido', displayName: 'Desconocido', avatar: '', status: 'offline' };
           const isReplying = replyingTo?.id === msg.id;
 
           return (
             <div
               key={msg.id}
-              className={`message-row ${msg.content.includes('@' + (users[currentUserId]?.username || '')) ? 'mentioned' : ''}`}
+              className={`message-row ${msg.content.includes('@' + (users[currentUserId || '']?.username || '')) ? 'mentioned' : ''}`}
               style={{
                 marginTop: isConsecutive ? 0 : 12,
                 backgroundColor: isReplying ? 'rgba(88, 101, 242, 0.08)' : undefined,
@@ -925,15 +920,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   {formatCompactTime(msg.timestamp)}
                 </div>
               ) : (
-                <img
-                  src={
-                    authorUser?.avatar ||
-                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'
-                  }
-                  alt={authorUser?.displayName || 'User'}
-                  className="message-avatar"
-                  onClick={() => authorUser && onOpenUserProfile?.(authorUser.id)}
-                />
+                <Avatar user={authorUser || { id: "unknown", username: "Desconocido" } as any} size={40} onClick={() => authorUser && onOpenUserProfile && onOpenUserProfile(authorUser.id)} />
               )}
 
               {/* Contenido del Mensaje */}
@@ -1110,7 +1097,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 {msg.reactions && msg.reactions.length > 0 && (
                   <div className="message-reactions">
                     {msg.reactions.map((r, rIdx) => {
-                      const active = r.hasReacted || r.users.includes(currentUserId);
+                      const active = r.hasReacted || r.users.includes(currentUserId || '');
                       return (
                         <button
                           key={rIdx}
@@ -1240,11 +1227,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 className="mention-candidate-item"
                 onClick={() => handleSelectMention(candidate)}
               >
-                <img
-                  src={candidate.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
-                  alt={candidate.displayName}
-                  style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }}
-                />
+                <Avatar user={candidate} size={24} />
                 <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 13 }}>
                   {candidate.displayName}
                 </span>

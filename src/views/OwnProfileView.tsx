@@ -11,8 +11,9 @@ import {
   Circle,
 } from 'lucide-react';
 import { User, Status } from '../types';
-import { USERS, CURRENT_USER_ID, INITIAL_ROLES } from '../data/mock';
+import { Role } from '../types';
 
+import { Avatar } from '../components/Avatar';
 export type ProfileMode = 'view' | 'edit' | 'saving';
 
 export interface OwnProfileViewProps {
@@ -47,7 +48,7 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
   onBack,
   onSave,
 }) => {
-  const baseUser: User = initialUserProp || USERS[CURRENT_USER_ID];
+  const baseUser: User = initialUserProp || ({ id: '' } as any);
 
   const [mode, setMode] = useState<ProfileMode>('view');
   const [savedIndicator, setSavedIndicator] = useState(false);
@@ -62,7 +63,7 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
     baseUser.avatarUrl || baseUser.avatar || ''
   );
   const [defaultAvatar] = useState<string>(
-    baseUser.avatarUrl || baseUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
+    baseUser.avatarUrl || baseUser.avatar || ''
   );
 
   // Validation
@@ -128,10 +129,10 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
     }, 750);
   };
 
-  // Resolve user roles from INITIAL_ROLES
+  // Resolve user roles from []
   const userRoles = (baseUser.roleIds || ['r-admin', 'r-core'])
-    .map((rid) => INITIAL_ROLES.find((r) => r.id === rid))
-    .filter(Boolean);
+    .map((rid) => ([] as Role[]).find((r) => r.id === rid))
+    .filter((r): r is Role => Boolean(r));
 
   const currentStatusColor =
     status === 'online'
@@ -413,19 +414,7 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
                   height: 80,
                 }}
               >
-                <img
-                  src={avatarUrl}
-                  alt={displayName}
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '6px solid #111214',
-                    backgroundColor: '#1e1f22',
-                    boxSizing: 'border-box',
-                  }}
-                />
+                <Avatar user={{ ...baseUser, avatar: avatarUrl } as any} size={80} />
                 {/* Status Indicator Dot */}
                 <span
                   title={status}
@@ -648,17 +637,7 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = ({
                   Avatar
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                  <img
-                    src={avatarUrl}
-                    alt="Current avatar"
-                    style={{
-                      width: 72,
-                      height: 72,
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      border: '2px solid rgba(255, 255, 255, 0.1)',
-                    }}
-                  />
+                  <Avatar user={{ ...baseUser, avatar: avatarUrl } as any} size={72} />
                   {mode !== 'view' ? (
                     <div style={{ display: 'flex', gap: 12 }}>
                       <label

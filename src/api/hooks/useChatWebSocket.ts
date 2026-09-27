@@ -45,7 +45,7 @@ export function useChatWebSocket(channelId: string | null, userId: string) {
                     id: profile.id,
                     username: profile.email?.split('@')[0] || profile.username || 'User',
                     displayName: profile.displayName || profile.display_name || 'User',
-                    avatar: profile.avatar || profile.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100',
+                    avatar: profile.avatar || profile.avatar_url || '',
                     status: profile.status ||'online',
                   };
                 }

@@ -9,16 +9,11 @@ import {
   ConfirmAction,
   Message,
   MessageAttachment,
+  DirectMessage,
 } from './types';
-import {
-  USERS,
-  DIRECT_MESSAGES,
-  DM_MESSAGES,
-  NOTIFICATIONS,
-  INITIAL_ROLES,
-} from './data/mock';
 
 import { CreateChannelModal, EditChannelModal } from './components/ChannelModals';
+import { GlobalModals } from './components/GlobalModals';
 import {
   ServerRail,
   ChannelSidebar,
@@ -30,12 +25,7 @@ import {
   MobileShell,
   CreateServerModal,
   JoinServerModal,
-  InviteModal,
   UserProfileModal,
-  IncomingCallModal,
-  ConfirmDialog,
-  NotificationCenter,
-  GlobalSearch,
 } from './components';
 
 import {
@@ -46,8 +36,9 @@ import {
 } from './views';
 
 import { useSession, bootstrap, authService } from './auth/session';
-import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation } from './api/hooks/useApi';
+import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useServerMembersQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation } from './api/hooks/useApi';
 import { useChatWebSocket } from './api/hooks/useChatWebSocket';
+import { updateMyProfile } from './api/users';
 
 /**
  * Hook para detectar si el viewport corresponde a un dispositivo móvil (<768px).
@@ -150,6 +141,11 @@ function ToastNotification({
   );
 }
 
+
+function str_hash(str: string) {
+  return str.substring(str.length - 4);
+}
+
 export default function App() {
   const isMobile = useIsMobile();
   const { status, profile } = useSession();
@@ -186,14 +182,39 @@ export default function App() {
   });
   
   const queryClient = useQueryClient();
+
   const { data: activeServers, isLoading: isLoadingServers } = useServersQuery();
+  const [selectedServerId, setSelectedServerId] = useState<string | 'home'>('home');
+  const { data: serverMembersData } = useServerMembersQuery(selectedServerId === 'home' ? null : selectedServerId);
+
+  const serverMembersAsUsers = useMemo(() => {
+    if (!serverMembersData) return [];
+    return serverMembersData.pages.flatMap(p => p.items).map(m => ({
+      id: m.userId,
+      username: m.userId,
+      displayName: m.nickname || `User ${str_hash(m.userId)}`,
+      roleIds: m.roleIds,
+      status: 'online' as Status,
+      avatar: undefined
+    }));
+  }, [serverMembersData]);
+
   const createServerMutation = useCreateServerMutation();
   const createChannelMutation = useCreateChannelMutation();
   const editChannelMutation = useEditChannelMutation();
   const deleteChannelMutation = useDeleteChannelMutation();
   const servers = activeServers || [];
   
-  const [selectedServerId, setSelectedServerId] = useState<string | 'home'>('home');
+  
+
+  const usersMap = useMemo(() => {
+    const map: Record<string, User> = {};
+    serverMembersAsUsers.forEach(u => {
+      map[u.id] = u;
+    });
+    map[currentUser.id] = currentUser;
+    return map;
+  }, [serverMembersAsUsers, currentUser]);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   
   const { data: realMessages, isLoading: isLoadingMessages } = useChannelMessagesQuery(
@@ -217,16 +238,13 @@ export default function App() {
 
   // Estados de mensajes y canales
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() => ({
-    ...DM_MESSAGES,
+    ...{},
   }));
-  const [directMessagesList, setDirectMessagesList] = useState(() => [...DIRECT_MESSAGES]);
+  const [directMessagesList, setDirectMessagesList] = useState<DirectMessage[]>([]);
   const [selectedDmId, setSelectedDmId] = useState<string | null>(null);
 
   // Notificaciones y búsqueda
-  const [notificationsList, setNotificationsList] = useState(() => [...NOTIFICATIONS]);
-  const [isNotifCenterOpen, setIsNotifCenterOpen] = useState<boolean>(false);
-  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
-
+      
   // Modales
   const [activeModal, setActiveModal] = useState<Modal>(null);
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
@@ -243,13 +261,24 @@ export default function App() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  // Parseo de link de invitación desde URL
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    
+    const path = window.location.pathname;
+    if (path.startsWith('/invite/')) {
+      setActiveModal('join-server');
+    }
+  }, [status]);
+
+
   // Llamada entrante simulada para testing
   const [incomingCaller, setIncomingCaller] = useState<User | null>(null);
   useEffect(() => {
     const timer = setTimeout(() => {
       // Simular llamada de Sofia después de 12 segundos
-      if (USERS['u1']) {
-        setIncomingCaller(USERS['u1']);
+      if (usersMap['u1']) {
+        setIncomingCaller(usersMap['u1']);
       }
     }, 12000);
     return () => clearTimeout(timer);
@@ -506,8 +535,17 @@ export default function App() {
 
   // Actualizar usuario propio
   const handleUpdateCurrentUser = (updatedUser: User) => {
-    setCurrentUser(updatedUser);
-    showToast('Perfil actualizado con éxito', 'success');
+    updateMyProfile({
+      display_name: updatedUser.displayName,
+      avatar_url: updatedUser.avatarUrl || updatedUser.avatar,
+      bio: updatedUser.bio,
+      custom_status: updatedUser.customStatus,
+    }).then(() => {
+      setCurrentUser(updatedUser);
+      showToast('Perfil actualizado con éxito', 'success');
+    }).catch(() => {
+      showToast('Error al actualizar el perfil', 'danger');
+    });
   };
 
   // Actualizar servidor
@@ -570,9 +608,9 @@ export default function App() {
             }}
           />
         )}
-        {activeModal === 'user-profile' && selectedProfileUserId && USERS[selectedProfileUserId] && (
+        {activeModal === 'user-profile' && selectedProfileUserId && usersMap[selectedProfileUserId] && (
           <UserProfileModal
-            user={USERS[selectedProfileUserId]}
+            user={usersMap[selectedProfileUserId]}
             currentUser={currentUser}
             onClose={() => setActiveModal(null)}
             onSendDM={() => {
@@ -691,7 +729,7 @@ export default function App() {
         onSelectServer={handleSelectServer}
         onAddServer={() => setActiveModal('create-server')}
         onDiscoverServers={() => setActiveModal('join-server')}
-        homeBadgeCount={2}
+        homeBadgeCount={0}
         isLoading={isLoadingServers}
       />
 
@@ -779,7 +817,7 @@ export default function App() {
             channelName={currentChannel?.name || 'Voz'}
             serverName={currentServer?.name}
             currentUserId={currentUser.id}
-            participants={[currentUser, ...(USERS['u1'] ? [USERS['u1']] : []), ...(USERS['u5'] ? [USERS['u5']] : [])]}
+            participants={[currentUser]}
             isMuted={isMuted}
             isDeafened={isDeafened}
             isVideoOn={isVideoOn}
@@ -797,7 +835,7 @@ export default function App() {
             messages={activeMessages}
             isLoading={isLoadingMessages}
             currentUserId={currentUser.id}
-            users={USERS}
+            users={usersMap}
             isMemberListOpen={isMemberListOpen}
             onToggleMemberList={() => setIsMemberListOpen((v) => !v)}
             onSendMessage={handleSendMessage}
@@ -815,8 +853,8 @@ export default function App() {
         {/* Lista de Miembros (Panel derecho en canales de servidor) */}
         {selectedServerId !== 'home' && isMemberListOpen && appView === 'chat' && (
           <MemberList
-            members={Object.values(USERS)}
-            roles={currentServer?.roles || INITIAL_ROLES}
+            members={serverMembersAsUsers}
+            roles={currentServer?.roles || []}
             onSelectMember={(m) => handleOpenUserProfile(m.id)}
             currentUserId={currentUser.id}
           />
@@ -824,178 +862,32 @@ export default function App() {
       </div>
 
       {/* ── MODALES GLOBALES ── */}
-
-      {activeModal === 'create-server' && (
-        <CreateServerModal
-          onClose={() => setActiveModal(null)}
-          onCreateServer={(data) => handleCreateServer(data.name, data.icon)}
-        />
-      )}
-
-      {activeModal === 'join-server' && (
-        <JoinServerModal
-          onClose={() => setActiveModal(null)}
-          onJoinServer={(inviteCode) => {
-            setActiveModal(null);
-            showToast(`Te has unido con la invitación: ${inviteCode}`, 'success');
-          }}
-        />
-      )}
-
-      {activeModal === 'invite' && currentServer && (
-        <InviteModal
-          server={currentServer}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
-
-      {activeModal === 'user-profile' && selectedProfileUserId && USERS[selectedProfileUserId] && (
-        <UserProfileModal
-          user={USERS[selectedProfileUserId]}
-          currentUser={currentUser}
-          onClose={() => {
-            setActiveModal(null);
-            setSelectedProfileUserId(null);
-          }}
-          onSendDM={(uid: string) => {
-            setActiveModal(null);
-            setSelectedServerId('home');
-            setAppView('home');
-            const dm = directMessagesList.find((d) => (d.recipientId || d.userId) === uid);
-            if (dm) setSelectedDmId(dm.id);
-          }}
-          onEditProfile={() => {
-            setActiveModal(null);
-            setAppView('own-profile');
-          }}
-        />
-      )}
-
-      {activeModal === 'confirm-action' && confirmAction && (
-        <ConfirmDialog
-          action={confirmAction}
-          targetName={confirmTargetName}
-          onConfirm={() => {
-            if (confirmAction === 'delete-server' && currentServer) {
-              queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== currentServer.id));
-              setSelectedServerId('home');
-              setAppView('home');
-              showToast(`Servidor "${confirmTargetName}" eliminado`, 'danger');
-            } else if (confirmAction === 'leave-server' && currentServer) {
-              queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== currentServer.id));
-              setSelectedServerId('home');
-              setAppView('home');
-              showToast(`Has abandonado "${confirmTargetName}"`, 'info');
-            } else {
-              showToast('Acción confirmada', 'success');
-            }
-            setActiveModal(null);
-            setConfirmAction(null);
-          }}
-          onCancel={() => {
-            setActiveModal(null);
-            setConfirmAction(null);
-          }}
-        />
-      )}
-
-      {/* Centro de Notificaciones flotante */}
-      {isNotifCenterOpen && (
-        <NotificationCenter
-          notifications={notificationsList}
-          onClose={() => setIsNotifCenterOpen(false)}
-          onMarkRead={(id: string) => {
-            setNotificationsList((prev) =>
-              prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-            );
-          }}
-          onMarkAllRead={() => {
-            setNotificationsList((prev) => prev.map((n) => ({ ...n, read: true })));
-            showToast('Todas las notificaciones marcadas como leídas', 'success');
-          }}
-          onNotificationClick={(n) => {
-            setIsNotifCenterOpen(false);
-            if (n.serverId) {
-              setSelectedServerId(n.serverId);
-              if (n.channelId) setSelectedChannelId(n.channelId);
-              setAppView('chat');
-            }
-          }}
-        />
-      )}
-
-      {/* Búsqueda Global */}
-      <GlobalSearch
-        isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
-        servers={activeServers}
-        onSelectResult={(result) => {
-          setIsSearchOpen(false);
-          if (result.type === 'channel') {
-            handleSelectChannel(result.id);
-          } else if (result.type === 'user') {
-            handleOpenUserProfile(result.id);
-          }
-        }}
+      <GlobalModals 
+        activeModal={activeModal}
+        setActiveModal={setActiveModal}
+        confirmAction={confirmAction}
+        setConfirmAction={setConfirmAction}
+        confirmTargetName={confirmTargetName}
+        currentServer={currentServer}
+        currentUser={currentUser}
+        usersMap={usersMap}
+        selectedProfileUserId={selectedProfileUserId}
+        setSelectedProfileUserId={setSelectedProfileUserId}
+        setSelectedServerId={setSelectedServerId}
+        setSelectedChannelId={setSelectedChannelId}
+        setAppView={setAppView}
+        setInVoiceChannelId={setInVoiceChannelId}
+        showToast={showToast}
+        handleCreateServer={handleCreateServer}
+        createChannelMutation={createChannelMutation}
+        editChannelMutation={editChannelMutation}
+        deleteChannelMutation={deleteChannelMutation}
+        channelModalCategoryId={channelModalCategoryId}
+        targetChannelForAction={targetChannelForAction}
+        incomingCaller={incomingCaller}
+        setIncomingCaller={setIncomingCaller}
       />
-
-      {/* Modal de llamada entrante */}
-      {incomingCaller && (
-        <IncomingCallModal
-          caller={incomingCaller}
-          channelName="Llamada directa"
-          onAccept={() => {
-            setIncomingCaller(null);
-            setInVoiceChannelId('dm-call');
-            setAppView('voice');
-            showToast(`Llamada con ${incomingCaller.displayName || incomingCaller.name} iniciada`, 'success');
-          }}
-          onDecline={() => {
-            setIncomingCaller(null);
-            showToast('Llamada rechazada', 'info');
-          }}
-        />
-      )}
-
-      <ConnectionBanner />
-      
-      {activeModal === 'create-channel' && currentServer && (
-        <CreateChannelModal
-          categoryId={channelModalCategoryId}
-          onClose={() => setActiveModal(null)}
-          onCreate={async (name, type, catId) => {
-            await createChannelMutation.mutateAsync({
-              serverId: currentServer!.id,
-              payload: { name, type, parentId: catId }
-            });
-          }}
-        />
-      )}
-      
-      {activeModal === 'edit-channel' && targetChannelForAction && (
-        <EditChannelModal
-          channel={targetChannelForAction}
-          onClose={() => setActiveModal(null)}
-          onEdit={async (id, name) => {
-            await editChannelMutation.mutateAsync({
-              serverId: currentServer!.id,
-              channelId: id,
-              payload: { name }
-            });
-          }}
-          onDelete={async (id) => {
-            await deleteChannelMutation.mutateAsync({
-              serverId: currentServer!.id,
-              channelId: id
-            });
-            if (selectedChannelId === id) {
-              setSelectedChannelId(currentServer!.channels?.[0]?.id || null);
-            }
-          }}
-        />
-      )}
-
-      {toast && <ToastNotification message={toast.message} type={toast.type} />}
     </div>
   );
 }
+

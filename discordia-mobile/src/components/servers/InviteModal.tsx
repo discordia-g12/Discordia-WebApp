@@ -12,7 +12,7 @@ import { X, Copy } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
 import { useUI } from '../../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../../theme'
-import { createInvite } from '../../api/servers'
+import { createInvite } from '@shared/api/servers'
 import type { Server } from '../../types'
 
 interface InviteModalProps {
