@@ -17,7 +17,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.franserr286.discordia"
+      "package": "com.discordia_g12.discordia"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,7 +30,15 @@
     "owner": "discordia_g12",
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ]
   }
 }
