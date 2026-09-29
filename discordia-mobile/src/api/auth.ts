@@ -82,10 +82,7 @@ export async function upsertMyProfile(data: {
  *  - 503: Auth0 no disponible.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
-  await apiFetch('/api/v1/auth/password-reset', {
-    method: 'POST',
-    body: { email: email.trim() },
-  })
+  await api.post('/api/v1/auth/password-reset', { email: email.trim() }, { skipAuth: true })
 }
 
 /** Claim del ID token con el username elegido al registrarse (lo agrega la Auth0 Action). */
