@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Alert } from 'react-native'
+import { Modal, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Alert, Image } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
 import { X } from 'lucide-react-native'
 import { colors, spacing, radii, typography } from '../../theme'
 import { useAuth } from '../../providers/AppProviders'
-import { updateMyProfile } from '../../api/auth'
+import { updateMyProfile, uploadMyAvatar, PickedImage } from '../../api/auth'
 
 interface EditProfileModalProps {
   visible: boolean
@@ -11,11 +12,12 @@ interface EditProfileModalProps {
 }
 
 export default function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
-  const { userProfile, updateUserProfile } = useAuth()
+  const { userProfile, updateUserProfile, token } = useAuth()
 
   const [displayName, setDisplayName] = useState(userProfile?.display_name || '')
   const [bio, setBio] = useState(userProfile?.bio || '')
   const [avatarUrl, setAvatarUrl] = useState(userProfile?.avatar_url || '')
+  const [newAvatar, setNewAvatar] = useState<PickedImage | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   // Actualizar estados locales cuando el perfil cargue por si demora
@@ -24,25 +26,50 @@ export default function EditProfileModal({ visible, onClose }: EditProfileModalP
       setDisplayName(userProfile.display_name || '')
       setBio(userProfile.bio || '')
       setAvatarUrl(userProfile.avatar_url || '')
+      setNewAvatar(null)
     }
   }, [visible, userProfile])
+
+  const pickAvatar = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!perm.granted) {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso a tus fotos para elegir un avatar.')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    })
+    if (result.canceled) return
+    const asset = result.assets[0]
+    setNewAvatar({ uri: asset.uri, mimeType: asset.mimeType, fileName: asset.fileName })
+  }
 
   const handleSave = async () => {
     if (!userProfile) return
     setIsLoading(true)
     try {
+      // 1) Si eligió una imagen nueva, se sube al endpoint PATCH /profile/avatar
+      let uploadedAvatarUrl: string | null | undefined = userProfile.avatar_url
+      if (newAvatar) {
+        const withAvatar = await uploadMyAvatar(newAvatar, token)
+        uploadedAvatarUrl = withAvatar.avatar_url
+      }
+
       // El backend en /api/v1/users/me requiere username, bio, avatar_url en el POST. 
       // El backend no tiene display_name en el Pydantic pero el Frontend API le pasa display_name y mapea.
+      // 2) Texto del perfil (el avatar ya se guardó arriba, no se reenvía como URL)
       const updatedProfile = await updateMyProfile({
         display_name: displayName,
-        avatar_url: avatarUrl,
         bio: bio,
       })
-      
+
       updateUserProfile({
         ...userProfile,
         display_name: updatedProfile.display_name,
-        avatar_url: updatedProfile.avatar_url,
+        avatar_url: uploadedAvatarUrl ?? updatedProfile.avatar_url,
         bio: updatedProfile.bio
       })
 
@@ -75,14 +102,17 @@ export default function EditProfileModal({ visible, onClose }: EditProfileModalP
               placeholderTextColor={colors.textDim}
             />
 
-            <Text style={styles.label}>Avatar URL</Text>
-            <TextInput
-              style={styles.input}
-              value={avatarUrl}
-              onChangeText={setAvatarUrl}
-              placeholder="https://..."
-              placeholderTextColor={colors.textDim}
-            />
+            <Text style={styles.label}>Avatar</Text>
+            <Pressable style={styles.avatarPicker} onPress={pickAvatar} disabled={isLoading}>
+              {(newAvatar?.uri || avatarUrl) ? (
+                <Image source={{ uri: newAvatar?.uri || avatarUrl }} style={styles.avatarPreview} />
+              ) : (
+                <View style={[styles.avatarPreview, styles.avatarEmpty]} />
+              )}
+              <Text style={styles.avatarPickerText}>
+                {newAvatar ? 'Cambiar imagen elegida' : 'Elegir imagen'}
+              </Text>
+            </Pressable>
 
             <Text style={styles.label}>Sobre mí</Text>
             <TextInput
@@ -158,6 +188,26 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     color: colors.text,
     marginBottom: spacing.md,
+  },
+  avatarPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  avatarPreview: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginRight: spacing.md,
+  },
+  avatarEmpty: {
+    backgroundColor: colors.elevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  avatarPickerText: {
+    color: colors.accent,
+    fontWeight: '600',
   },
   textArea: {
     height: 100,

@@ -4,8 +4,16 @@ import {
   AUTH0_AUDIENCE,
   AUTH0_CONNECTION,
 } from '../utils/config'
+import { Platform } from 'react-native'
 import { api, configureClient } from '@shared/api/client'
-export const setAuthToken = (token: string | null) => configureClient({ getToken: async () => token || '' });
+import { getApiBaseUrl } from '../utils/config'
+
+// Guardamos el token acá también porque la subida del avatar usa XMLHttpRequest directo (multipart).
+let currentToken: string | null = null
+export const setAuthToken = (token: string | null) => {
+  currentToken = token
+  configureClient({ getToken: async () => token || '' })
+}
 import { isProblemType, PROBLEM_TYPES, toAuthDenialError, EmailNotVerifiedError } from './authErrors'
 
 export interface BackendProfile {
@@ -235,10 +243,10 @@ export async function signupWithCredentials(
       typeof data.description === 'string'
         ? data.description
         : typeof data.message === 'string'
-        ? data.message
-        : typeof data.error === 'string'
-        ? data.error
-        : ''
+          ? data.message
+          : typeof data.error === 'string'
+            ? data.error
+            : ''
 
     const errorMsg = rawError.toLowerCase()
     if (
@@ -280,4 +288,64 @@ export async function updateMyProfile(payload: {
 }): Promise<BackendProfile> {
   const res = await api.patch<any>('/api/v1/users/me/profile', payload)
   return res as BackendProfile
+}
+
+
+export interface PickedImage {
+  uri: string
+  mimeType?: string | null
+  fileName?: string | null
+}
+
+/**
+ * Sube el avatar como multipart/form-data a PATCH /profile/avatar (campo "file").
+ * OJO: no se setea Content-Type a mano; XMLHttpRequest le agrega el boundary solo.
+ */
+export async function uploadMyAvatar(image: PickedImage, token?: string | null): Promise<BackendProfile> {
+  const authToken = token || currentToken
+  if (!authToken) throw new Error('No hay sesión activa. Volvé a iniciar sesión.')
+
+  const mime = image.mimeType || 'image/jpeg'
+  const ext = mime.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
+  const name = image.fileName || `avatar.${ext}`
+
+  const form = new FormData()
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(image.uri)).blob()
+    form.append('file', blob, name)
+  } else {
+    form.append('file', { uri: image.uri, name, type: mime } as any)
+  }
+
+  // XMLHttpRequest en vez de fetch: el fetch global de Expo rechaza el { uri, name, type }
+  // de React Native con "Unsupported FormDataPart implementation".
+  const { status, data } = await new Promise<{ status: number; data: any }>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PATCH', `${getApiBaseUrl()}/api/v1/users/me/profile/avatar`)
+    xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
+    xhr.setRequestHeader('Accept', 'application/json')
+    xhr.onload = () => {
+      let body: any = {}
+      try { body = JSON.parse(xhr.responseText) } catch { }
+      resolve({ status: xhr.status, data: body })
+    }
+    xhr.onerror = () => reject(new Error('Error de red al subir la imagen.'))
+    xhr.ontimeout = () => reject(new Error('Se agotó el tiempo al subir la imagen.'))
+    xhr.timeout = 30000
+    xhr.send(form as any)
+  })
+
+  if (status < 200 || status >= 300) {
+    const err: any = new Error(
+      (typeof data?.detail === 'string' && data.detail) || data?.title || 'No se pudo subir la imagen.',
+    )
+    err.status = status
+    throw err
+  }
+  return {
+    ...data,
+    id: data.user_id || data.id,
+    display_name: data.display_name || data.username,
+    avatar_url: data.avatar_url || data.avatar || null,
+  }
 }
