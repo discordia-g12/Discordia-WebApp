@@ -33,10 +33,24 @@ import {
   getServers,
   createServer as apiCreateServer,
   createChannel as apiCreateChannel,
-  updateChannel as apiUpdateChannel,
+  editChannel as apiEditChannel,
   deleteChannel as apiDeleteChannel,
   leaveServer as apiLeaveServer,
 } from '@shared/api/servers'
+import type { Server as SharedServer } from '@shared/types'
+
+// El Server de la API compartida (web) deja opcionales campos que la UI mobile espera siempre presentes
+function toMobileServer(server: SharedServer): Server {
+  return {
+    ...server,
+    icon: server.icon ?? null,
+    iconUrl: server.iconUrl ?? null,
+    color: server.color ?? '#7c5cfc',
+    roles: [],
+    members: [server.ownerId],
+    memberCount: server.memberCount ?? 1,
+  }
+}
 
 interface DataContextValue {
   currentUserId: string
@@ -118,7 +132,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const serverList = await getServers()
       if (Array.isArray(serverList)) {
-        setServers(serverList)
+        setServers(serverList.map(toMobileServer))
       }
     } catch {
       // Si falla la red o el endpoint no responde, conserva los existentes
@@ -130,7 +144,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [refreshServers])
 
   const createServer = useCallback(async (name: string, icon?: any): Promise<Server> => {
-    const newServer = await apiCreateServer({ name, icon })
+    const newServer = toMobileServer(await apiCreateServer({ name, icon }))
     setServers(prev => [...prev, newServer])
     return newServer
   }, [])
@@ -140,7 +154,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       serverId: string,
       data: { name: string; type: 'text' | 'voice'; categoryId?: string },
     ): Promise<Channel> => {
-      const newChannel = await apiCreateChannel(serverId, data)
+      const newChannel = await apiCreateChannel(serverId, {
+        name: data.name,
+        type: data.type,
+        parentId: data.categoryId,
+      })
       setServers(prev =>
         prev.map(srv => {
           if (srv.id !== serverId) return srv
@@ -171,7 +189,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       channelId: string,
       data: { name?: string; topic?: string },
     ): Promise<Channel> => {
-      const updatedChannel = await apiUpdateChannel(serverId, channelId, data)
+      const updatedChannel = await apiEditChannel(serverId, channelId, {
+        ...(data.name !== undefined && { name: data.name.trim() }),
+        ...(data.topic !== undefined && { topic: data.topic.trim() }),
+      })
       setServers(prev =>
         prev.map(srv => {
           if (srv.id !== serverId) return srv

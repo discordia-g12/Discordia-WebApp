@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   assignRoleToMember,
+  bitmaskToPermissions,
   createRole,
   deleteRole,
   getRoleMembers,
   getRoles,
+  permissionsToBitmask,
   removeRoleFromMember,
   setDefaultRole,
   updateRoleInfo,
@@ -12,12 +14,25 @@ import {
   type CreateRoleRequest,
   type UpdateRoleInfoRequest,
 } from '@shared/api/roles'
+import type { Role } from '@shared/types'
 import type { ServerRole } from '../types'
+
+// La API compartida modela los permisos como lista de ids; la UI mobile trabaja con el bitmask del backend
+function toServerRole(role: Role): ServerRole {
+  return {
+    id: role.id,
+    name: role.name,
+    color: role.color,
+    position: role.position ?? 0,
+    permissionsBitmask: permissionsToBitmask(role.permissions),
+    isDefault: role.isDefault ?? false,
+  }
+}
 
 export function useRolesQuery(serverId: string | null) {
   return useQuery({
     queryKey: ['roles', serverId],
-    queryFn: () => getRoles(serverId as string),
+    queryFn: async () => (await getRoles(serverId as string)).map(toServerRole),
     enabled: Boolean(serverId),
   })
 }
@@ -67,8 +82,8 @@ export function useCreateRoleMutation(serverId: string) {
 export function useUpdateRolePermissionsMutation(serverId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ roleId, permissionsBitmask }: { roleId: string; permissionsBitmask: number }) =>
-      updateRolePermissions(serverId, roleId, permissionsBitmask),
+    mutationFn: async ({ roleId, permissionsBitmask }: { roleId: string; permissionsBitmask: number }) =>
+      toServerRole(await updateRolePermissions(serverId, roleId, bitmaskToPermissions(permissionsBitmask))),
     onSuccess: updated => {
       queryClient.setQueryData<ServerRole[]>(['roles', serverId], old =>
         old?.map(r => (r.id === updated.id ? updated : r)),
@@ -80,8 +95,8 @@ export function useUpdateRolePermissionsMutation(serverId: string) {
 export function useUpdateRoleInfoMutation(serverId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ roleId, payload }: { roleId: string; payload: UpdateRoleInfoRequest }) =>
-      updateRoleInfo(serverId, roleId, payload),
+    mutationFn: async ({ roleId, payload }: { roleId: string; payload: UpdateRoleInfoRequest }) =>
+      toServerRole(await updateRoleInfo(serverId, roleId, payload)),
     onSuccess: updated => {
       queryClient.setQueryData<ServerRole[]>(['roles', serverId], old =>
         old?.map(r => (r.id === updated.id ? updated : r)),

@@ -69,6 +69,7 @@ export function mapChannelFromBackend(raw: ChannelBackendResponse): Channel {
     serverId: raw.server_id,
     categoryId: raw.category_id || undefined,
     position: raw.position,
+    topic: raw.topic || undefined,
   };
 }
 
