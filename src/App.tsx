@@ -38,7 +38,7 @@ import {
 import { useSession, bootstrap, authService } from './auth/session';
 import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useServerMembersQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation } from './api/hooks/useApi';
 import { useChatWebSocket } from './api/hooks/useChatWebSocket';
-import { updateMyProfile } from './api/users';
+import { updateMyProfile, getUsersBulk } from './api/users';
 
 /**
  * Hook para detectar si el viewport corresponde a un dispositivo móvil (<768px).
@@ -168,6 +168,8 @@ export default function App() {
   }, [profile]);
 
   // Estados principales de navegación y servidor
+  const [directMessagesList, setDirectMessagesList] = useState<DirectMessage[]>([]);
+  const [globalUsers, setGlobalUsers] = useState<Record<string, User>>({});
   const [currentUser, setCurrentUser] = useState<User>(() => {
     const p = useSession.getState().profile;
     return {
@@ -207,20 +209,64 @@ export default function App() {
   
   
 
-  const usersMap = useMemo(() => {
-    const map: Record<string, User> = {};
-    serverMembersAsUsers.forEach(u => {
-      map[u.id] = u;
-    });
-    map[currentUser.id] = currentUser;
-    return map;
-  }, [serverMembersAsUsers, currentUser]);
+
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   
   const { data: realMessages, isLoading: isLoadingMessages } = useChannelMessagesQuery(
     selectedServerId !== 'home' ? selectedChannelId : null
   );
 
+
+  // Sincronizar globalUsers con los perfiles reales
+  useEffect(() => {
+    const requiredUserIds = new Set<string>();
+    
+    // Obtener de miembros
+    serverMembersAsUsers.forEach(u => requiredUserIds.add(u.id));
+    
+    // Obtener de mensajes directos
+    directMessagesList.forEach(dm => {
+      const targetId = dm.recipientId || dm.userId;
+      if (targetId) requiredUserIds.add(targetId);
+    });
+
+    // Obtener de mensajes en el chat
+    if (realMessages) {
+      realMessages.forEach(msg => {
+        if (msg.authorId) requiredUserIds.add(msg.authorId);
+      });
+    }
+
+    const missingIds = Array.from(requiredUserIds).filter(id => !globalUsers[id] && id !== currentUser.id);
+
+    if (missingIds.length > 0) {
+      getUsersBulk(missingIds).then(profiles => {
+        setGlobalUsers(prev => {
+          const next = { ...prev };
+          profiles.forEach(p => {
+            next[p.id] = p;
+          });
+          return next;
+        });
+      }).catch(err => {
+        console.error("Error fetching bulk users:", err);
+      });
+    }
+  }, [serverMembersAsUsers, directMessagesList, realMessages, currentUser.id, globalUsers]);
+
+  const usersMap = useMemo(() => {
+    const map: Record<string, User> = { ...globalUsers };
+    
+    // Fallback: Si no esta en globalUsers todavia, usar la info incompleta de miembros
+    serverMembersAsUsers.forEach(u => {
+      if (!map[u.id]) {
+        map[u.id] = u;
+      }
+    });
+    
+    map[currentUser.id] = currentUser;
+    return map;
+  }, [globalUsers, serverMembersAsUsers, currentUser]);
 
   const { sendMessageWs } = useChatWebSocket(
     selectedServerId !== 'home' && selectedChannelId ? selectedChannelId : null,
@@ -240,7 +286,7 @@ export default function App() {
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() => ({
     ...{},
   }));
-  const [directMessagesList, setDirectMessagesList] = useState<DirectMessage[]>([]);
+  
   const [selectedDmId, setSelectedDmId] = useState<string | null>(null);
 
   // Notificaciones y búsqueda
@@ -853,7 +899,7 @@ export default function App() {
         {/* Lista de Miembros (Panel derecho en canales de servidor) */}
         {selectedServerId !== 'home' && isMemberListOpen && appView === 'chat' && (
           <MemberList
-            members={serverMembersAsUsers}
+            members={serverMembersAsUsers.map(u => usersMap[u.id] || u)}
             roles={currentServer?.roles || []}
             onSelectMember={(m) => handleOpenUserProfile(m.id)}
             currentUserId={currentUser.id}

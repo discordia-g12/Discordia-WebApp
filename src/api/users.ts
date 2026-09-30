@@ -113,3 +113,36 @@ export async function upsertMyProfile(payload: CreateProfileRequest): Promise<Us
 export async function updateMyProfile(payload: UpdateProfileRequest): Promise<UserProfile> {
   return await api.patch<UserProfile>('/api/v1/users/me/profile', payload);
 }
+
+
+/**
+ * Obtiene los perfiles de multiples usuarios dado sus IDs.
+ */
+export async function getUsersBulk(userIds: string[]): Promise<UserProfile[]> {
+  if (!userIds.length) return [];
+  
+  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
+    const { USERS } = await import('../data/mock');
+    return userIds.map(id => {
+      const u = USERS[id];
+      if (!u) return null;
+      return {
+        ...u,
+        display_name: u.displayName,
+        avatar_url: u.avatar
+      };
+    }).filter(Boolean) as UserProfile[];
+  }
+
+  const uniqueIds = Array.from(new Set(userIds));
+  const res = await api.post<any[]>('/api/v1/users/bulk', { user_ids: uniqueIds });
+  
+  return res.map((u: any) => ({
+    ...u,
+    id: u.user_id || u.id,
+    displayName: u.display_name || u.username,
+    display_name: u.display_name || u.username,
+    avatar: u.avatar_url || u.avatar,
+    status: (u.activity_status === 'offline' ? 'offline' : (u.activity_status || 'online')) as any,
+  }));
+}
