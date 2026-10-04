@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Server,
@@ -26,6 +26,7 @@ import {
   CreateServerModal,
   JoinServerModal,
   UserProfileModal,
+  type VoiceParticipant,
 } from './components';
 
 import {
@@ -38,6 +39,8 @@ import {
 import { useSession, bootstrap, authService } from './auth/session';
 import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useServerMembersQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation } from './api/hooks/useApi';
 import { useChatWebSocket } from './api/hooks/useChatWebSocket';
+import { useVoiceRoom } from './api/hooks/useVoiceRoom';
+import { ApiError } from './api/errors';
 import { updateMyProfile, getUsersBulk } from './api/users';
 
 /**
@@ -275,12 +278,18 @@ export default function App() {
   const [appView, setAppView] = useState<AppView>('chat');
   const [isMemberListOpen, setIsMemberListOpen] = useState<boolean>(true);
 
-  // Estados de voz y multimedia
-  const [inVoiceChannelId, setInVoiceChannelId] = useState<string | null>(null);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [isDeafened, setIsDeafened] = useState<boolean>(false);
-  const [isVideoOn, setIsVideoOn] = useState<boolean>(false);
-  const [isScreenSharing, setIsScreenSharing] = useState<boolean>(false);
+  // Voz (LiveKit)
+  const voice = useVoiceRoom({
+    onUnexpectedDisconnect: () => {
+      exitVoiceView();
+      showToast('Se perdió la conexión con el canal de voz', 'danger');
+    },
+  });
+  // Navegación actual, para handlers async que terminan varios renders después
+  const navigationRef = useRef({ appView, selectedChannelId });
+  navigationRef.current = { appView, selectedChannelId };
+  const inVoiceChannelId = voice.channelId;
+  const { isMuted, isDeafened } = voice;
 
   // Estados de mensajes y canales
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() => ({
@@ -379,31 +388,52 @@ export default function App() {
     const channel = allServerChannels.find((ch) => ch.id === channelId);
     setSelectedChannelId(channelId);
     if (channel?.type === 'voice') {
+      // La conexión la dispara onJoinVoiceChannel
       setAppView('voice');
-      setInVoiceChannelId(channelId);
     } else {
       setAppView('chat');
     }
   };
 
   // Manejador para unirse a canal de voz
-  const handleJoinVoiceChannel = (channelId: string) => {
-    setInVoiceChannelId(channelId);
+  const handleJoinVoiceChannel = async (channelId: string) => {
     setSelectedChannelId(channelId);
     setAppView('voice');
-    showToast('Conectado al canal de voz', 'success');
+    if (voice.channelId === channelId) return;
+    try {
+      const { microphoneAvailable } = await voice.join(channelId);
+      if (microphoneAvailable) {
+        showToast('Conectado al canal de voz', 'success');
+      } else {
+        showToast('Conectado sin micrófono: revisá los permisos del navegador', 'info');
+      }
+    } catch (err) {
+      console.error('[Voice] Error al unirse al canal:', err);
+      // Salir de la vista de voz solo si el usuario sigue mirando este canal
+      const nav = navigationRef.current;
+      if (nav.appView === 'voice' && nav.selectedChannelId === channelId) exitVoiceView();
+      const message =
+        err instanceof ApiError && err.status === 403
+          ? 'No tenés permiso para entrar a este canal de voz'
+          : 'No se pudo conectar al canal de voz';
+      showToast(message, 'danger');
+    }
+  };
+
+  // Vuelve del canal de voz al primer canal de texto del servidor
+  const exitVoiceView = () => {
+    if (navigationRef.current.appView !== 'voice') return;
+    const firstText = allServerChannels.find((c) => c.type === 'text');
+    if (firstText) {
+      setSelectedChannelId(firstText.id);
+      setAppView('chat');
+    }
   };
 
   // Manejador de desconexión de voz
   const handleDisconnectVoice = () => {
-    setInVoiceChannelId(null);
-    if (appView === 'voice') {
-      const firstText = allServerChannels.find((c) => c.type === 'text');
-      if (firstText) {
-        setSelectedChannelId(firstText.id);
-        setAppView('chat');
-      }
-    }
+    voice.leave();
+    exitVoiceView();
     showToast('Desconectado de la llamada', 'info');
   };
 
@@ -750,6 +780,18 @@ export default function App() {
     );
   }
 
+  const voiceParticipants: VoiceParticipant[] = voice.participants.map((p) => ({
+    user: usersMap[p.id] || {
+      id: p.id,
+      username: p.id,
+      displayName: `User ${str_hash(p.id)}`,
+      status: 'online' as Status,
+    },
+    isSpeaking: p.isSpeaking,
+    isMuted: p.isMuted,
+    isDeafened: p.isLocal && isDeafened,
+  }));
+
   // Canal de voz activo (puede pertenecer a un servidor distinto al seleccionado, p. ej. estando en Home)
   const activeVoice = inVoiceChannelId
     ? servers
@@ -789,10 +831,11 @@ export default function App() {
           currentUser={currentUser}
           isVoiceConnected={inVoiceChannelId !== null}
           activeVoiceChannelId={inVoiceChannelId}
+          voiceParticipants={inVoiceChannelId ? { [inVoiceChannelId]: voiceParticipants } : {}}
           isMuted={isMuted}
           isDeafened={isDeafened}
-          onToggleMute={() => setIsMuted((m) => !m)}
-          onToggleDeafen={() => setIsDeafened((d) => !d)}
+          onToggleMute={voice.toggleMute}
+          onToggleDeafen={voice.toggleDeafen}
           onOpenSettings={() => setAppView('user-settings')}
           onDisconnectVoice={handleDisconnectVoice}
           onJoinVoiceChannel={handleJoinVoiceChannel}
@@ -836,8 +879,8 @@ export default function App() {
                 currentUser={currentUser}
                 isMuted={isMuted}
                 isDeafened={isDeafened}
-                onToggleMute={() => setIsMuted((m) => !m)}
-                onToggleDeafen={() => setIsDeafened((d) => !d)}
+                onToggleMute={voice.toggleMute}
+                onToggleDeafen={voice.toggleDeafen}
                 onOpenSettings={() => setAppView('user-settings')}
                 inVoiceChannel={inVoiceChannelId !== null}
                 voiceChannelName={activeVoice?.ch.name}
@@ -863,15 +906,14 @@ export default function App() {
             channelName={currentChannel?.name || 'Voz'}
             serverName={currentServer?.name}
             currentUserId={currentUser.id}
-            participants={[currentUser]}
+            participants={voiceParticipants}
+            connectionState={voice.connectionState}
             isMuted={isMuted}
             isDeafened={isDeafened}
-            isVideoOn={isVideoOn}
-            isScreenSharing={isScreenSharing}
-            onToggleMute={() => setIsMuted((m) => !m)}
-            onToggleDeafen={() => setIsDeafened((d) => !d)}
-            onToggleVideo={() => setIsVideoOn((v) => !v)}
-            onToggleScreenShare={() => setIsScreenSharing((s) => !s)}
+            locallyMutedUsers={voice.locallyMutedUsers}
+            onToggleMute={voice.toggleMute}
+            onToggleDeafen={voice.toggleDeafen}
+            onToggleLocalMute={voice.toggleLocalMute}
             onDisconnect={handleDisconnectVoice}
             onSelectUser={(u) => handleOpenUserProfile(u.id)}
           />
@@ -922,7 +964,7 @@ export default function App() {
         setSelectedServerId={setSelectedServerId}
         setSelectedChannelId={setSelectedChannelId}
         setAppView={setAppView}
-        setInVoiceChannelId={setInVoiceChannelId}
+        setInVoiceChannelId={(id) => (id ? handleJoinVoiceChannel(id) : handleDisconnectVoice())}
         showToast={showToast}
         handleCreateServer={handleCreateServer}
         createChannelMutation={createChannelMutation}
@@ -933,6 +975,8 @@ export default function App() {
         incomingCaller={incomingCaller}
         setIncomingCaller={setIncomingCaller}
       />
+
+      {toast && <ToastNotification message={toast.message} type={toast.type} />}
     </div>
   );
 }
