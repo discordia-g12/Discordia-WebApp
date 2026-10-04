@@ -40,6 +40,7 @@ import { useSession, bootstrap, authService } from './auth/session';
 import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useServerMembersQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation } from './api/hooks/useApi';
 import { useChatWebSocket } from './api/hooks/useChatWebSocket';
 import { useVoiceRoom } from './api/hooks/useVoiceRoom';
+import { useVoicePresence } from './api/hooks/useVoicePresence';
 import { ApiError } from './api/errors';
 import { updateMyProfile, getUsersBulk } from './api/users';
 
@@ -349,6 +350,13 @@ export default function App() {
     if (!currentServer) return [];
     return currentServer.categories.flatMap((cat) => cat.channels);
   }, [currentServer]);
+
+  // Quién está en cada canal de voz del servidor actual, en vivo
+  const serverVoiceChannelIds = useMemo(
+    () => allServerChannels.filter((ch) => ch.type === 'voice').map((ch) => ch.id),
+    [allServerChannels]
+  );
+  const voicePresence = useVoicePresence(selectedServerId === 'home' ? [] : serverVoiceChannelIds);
 
   const currentChannel = useMemo(() => {
     if (!selectedChannelId) return null;
@@ -780,17 +788,31 @@ export default function App() {
     );
   }
 
-  const voiceParticipants: VoiceParticipant[] = voice.participants.map((p) => ({
-    user: usersMap[p.id] || {
-      id: p.id,
-      username: p.id,
-      displayName: `User ${str_hash(p.id)}`,
+  const userOrFallback = (id: string): User =>
+    usersMap[id] || {
+      id,
+      username: id,
+      displayName: `User ${str_hash(id)}`,
       status: 'online' as Status,
-    },
+    };
+
+  const voiceParticipants: VoiceParticipant[] = voice.participants.map((p) => ({
+    user: userOrFallback(p.id),
     isSpeaking: p.isSpeaking,
     isMuted: p.isMuted,
     isDeafened: p.isLocal && isDeafened,
   }));
+
+  // Sidebar: presencia de todos los canales; en el canal propio, los datos de LiveKit (quién habla, mute)
+  const sidebarVoiceParticipants: Record<string, VoiceParticipant[]> = Object.fromEntries(
+    Object.entries(voicePresence).map(([channelId, userIds]) => [
+      channelId,
+      userIds.map((id) => ({ user: userOrFallback(id) })),
+    ])
+  );
+  if (inVoiceChannelId && voiceParticipants.length > 0) {
+    sidebarVoiceParticipants[inVoiceChannelId] = voiceParticipants;
+  }
 
   // Canal de voz activo (puede pertenecer a un servidor distinto al seleccionado, p. ej. estando en Home)
   const activeVoice = inVoiceChannelId
@@ -831,7 +853,7 @@ export default function App() {
           currentUser={currentUser}
           isVoiceConnected={inVoiceChannelId !== null}
           activeVoiceChannelId={inVoiceChannelId}
-          voiceParticipants={inVoiceChannelId ? { [inVoiceChannelId]: voiceParticipants } : {}}
+          voiceParticipants={sidebarVoiceParticipants}
           isMuted={isMuted}
           isDeafened={isDeafened}
           onToggleMute={voice.toggleMute}
