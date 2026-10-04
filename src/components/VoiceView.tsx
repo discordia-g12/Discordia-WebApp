@@ -1,23 +1,28 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Volume2,
   VolumeX,
   Mic,
   MicOff,
   Headphones,
-  Video,
   VideoOff,
-  MonitorUp,
   MonitorOff,
   PhoneOff,
-  Activity,
   Sparkles,
 } from 'lucide-react';
-import { User } from '../types';
+import { VoiceParticipant } from './ChannelSidebar';
 
+export type VoiceViewConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+
+const CONNECTION_LABELS: Record<VoiceViewConnectionState, { label: string; color: string }> = {
+  connected: { label: 'Voz conectada', color: 'var(--status-online)' },
+  connecting: { label: 'Conectando…', color: 'var(--status-idle)' },
+  reconnecting: { label: 'Reconectando…', color: 'var(--status-idle)' },
+  disconnected: { label: 'Desconectado', color: 'var(--danger)' },
+};
 
 /**
- * Propiedades para la vista de sala de voz y video en tiempo real.
+ * Propiedades para la vista de sala de voz en tiempo real.
  */
 export interface VoiceViewProps {
   /** Nombre del canal de voz activo. */
@@ -26,28 +31,26 @@ export interface VoiceViewProps {
   serverName?: string;
   /** ID del usuario actualmente autenticado. */
   currentUserId?: string;
-  /** Participantes conectados en la sala de voz. */
-  participants?: User[];
+  /** Participantes conectados en la sala de voz, con su estado de audio. */
+  participants?: VoiceParticipant[];
+  /** Estado de la conexión con el servidor de voz. */
+  connectionState?: VoiceViewConnectionState;
   /** Estado de micrófono silenciado del usuario local. */
   isMuted?: boolean;
   /** Estado de ensordecido (deafened) del usuario local. */
   isDeafened?: boolean;
-  /** Estado de transmisión de cámara del usuario local. */
-  isVideoOn?: boolean;
-  /** Estado de pantalla compartida del usuario local. */
-  isScreenSharing?: boolean;
+  /** Usuarios silenciados solo para este cliente. */
+  locallyMutedUsers?: Record<string, boolean>;
   /** Callback al alternar micrófono local. */
   onToggleMute?: () => void;
   /** Callback al alternar ensordecido local. */
   onToggleDeafen?: () => void;
-  /** Callback al encender o apagar la cámara. */
-  onToggleVideo?: () => void;
-  /** Callback al iniciar o detener compartir pantalla. */
-  onToggleScreenShare?: () => void;
+  /** Callback al silenciar o reactivar a otro participante solo para este cliente. */
+  onToggleLocalMute?: (userId: string) => void;
   /** Callback para abandonar la sala de voz. */
   onDisconnect?: () => void;
   /** Callback al hacer clic en un usuario participante. */
-  onSelectUser?: (user: User) => void;
+  onSelectUser?: (user: VoiceParticipant['user']) => void;
 }
 
 /**
@@ -62,89 +65,23 @@ function getInitials(name: string): string {
 }
 
 /**
- * Interfaz de sala de conferencia de voz y video en vivo.
+ * Interfaz de sala de voz en vivo.
  */
 export const VoiceView: React.FC<VoiceViewProps> = ({
   channelName = 'Voz General',
   serverName = 'Indie Developers',
   currentUserId = '',
-  participants: externalParticipants,
-  isMuted: initialMuted = false,
-  isDeafened: initialDeafened = false,
-  isVideoOn: initialVideo = false,
-  isScreenSharing: initialScreenShare = false,
+  participants = [],
+  connectionState = 'connected',
+  isMuted = false,
+  isDeafened = false,
+  locallyMutedUsers = {},
   onToggleMute,
   onToggleDeafen,
-  onToggleVideo,
-  onToggleScreenShare,
+  onToggleLocalMute,
   onDisconnect,
   onSelectUser,
 }) => {
-  // Lista de participantes por defecto (u0, u1, u2, u4)
-  const defaultParticipants: User[] = useMemo(
-    () => [],
-    []
-  );
-
-  const participants = externalParticipants || defaultParticipants;
-
-  // Estados locales independientes
-  const [localMuted, setLocalMuted] = useState(initialMuted);
-  const [localDeafened, setLocalDeafened] = useState(initialDeafened);
-  const [localVideo, setLocalVideo] = useState(initialVideo);
-  const [localScreenShare, setLocalScreenShare] = useState(initialScreenShare);
-
-  // Registro de usuarios silenciados de forma local por este cliente
-  const [locallyMutedUsers, setLocallyMutedUsers] = useState<Record<string, boolean>>({});
-
-  // Simulación interactiva de quién está hablando
-  const [speakingUserId, setSpeakingUserId] = useState<string>('u1');
-
-  const isMuted = onToggleMute ? initialMuted : localMuted;
-  const isDeafened = onToggleDeafen ? initialDeafened : localDeafened;
-  const isVideoOn = onToggleVideo ? initialVideo : localVideo;
-  const isScreenSharing = onToggleScreenShare ? initialScreenShare : localScreenShare;
-
-  const handleMuteClick = () => {
-    if (onToggleMute) {
-      onToggleMute();
-    } else {
-      setLocalMuted((prev) => !prev);
-    }
-  };
-
-  const handleDeafenClick = () => {
-    if (onToggleDeafen) {
-      onToggleDeafen();
-    } else {
-      setLocalDeafened((prev) => !prev);
-    }
-  };
-
-  const handleVideoClick = () => {
-    if (onToggleVideo) {
-      onToggleVideo();
-    } else {
-      setLocalVideo((prev) => !prev);
-    }
-  };
-
-  const handleScreenShareClick = () => {
-    if (onToggleScreenShare) {
-      onToggleScreenShare();
-    } else {
-      setLocalScreenShare((prev) => !prev);
-    }
-  };
-
-  const toggleLocallyMuted = (userId: string) => {
-    setLocallyMutedUsers((prev) => ({
-      ...prev,
-      [userId]: !prev[userId],
-    }));
-  };
-
-  // Cálculo de columnas de la cuadrícula adaptativa
   const gridColumns = useMemo(() => {
     const count = participants.length;
     if (count <= 1) return '1fr';
@@ -183,46 +120,28 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           </div>
         </div>
 
-        {/* Indicador de Calidad WebRTC y Estado RTC */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div
+        {/* Estado de la conexión RTC */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
+            color: CONNECTION_LABELS[connectionState].color,
+            fontWeight: 600,
+          }}
+        >
+          <span
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 12,
-              color: 'var(--status-online)',
-              fontWeight: 600,
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: CONNECTION_LABELS[connectionState].color,
+              display: 'inline-block',
+              boxShadow: `0 0 8px ${CONNECTION_LABELS[connectionState].color}`,
             }}
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: 'var(--status-online)',
-                display: 'inline-block',
-                boxShadow: '0 0 8px var(--status-online)',
-              }}
-            />
-            <span>RTC Connected</span>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: 11,
-              color: 'var(--text-muted)',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              padding: '2px 8px',
-              borderRadius: 'var(--radius-sm)',
-            }}
-          >
-            <Activity size={12} style={{ color: 'var(--status-online)' }} />
-            <span>18 ms (64 kbps)</span>
-          </div>
+          />
+          <span>{CONNECTION_LABELS[connectionState].label}</span>
         </div>
       </div>
 
@@ -241,11 +160,10 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           overflowY: 'auto',
         }}
       >
-        {participants.map((user) => {
+        {participants.map(({ user, isSpeaking, isMuted: participantMuted }) => {
           const isCurrentUser = user.id === currentUserId;
-          const isSpeaking = speakingUserId === user.id && (!isCurrentUser || !isMuted);
-          const isUserMuted = isCurrentUser ? isMuted : locallyMutedUsers[user.id] || false;
-          const hasVideo = isCurrentUser && isVideoOn;
+          const isLocallyMuted = !isCurrentUser && (locallyMutedUsers[user.id] || false);
+          const isUserMuted = participantMuted || isLocallyMuted;
 
           return (
             <div
@@ -271,98 +189,56 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {/* Vista simulada de Video en Vivo si tiene cámara activa */}
-              {hasVideo ? (
+              {/* Avatar Circular Grande con Halo de Speaking */}
+              <div style={{ position: 'relative' }}>
                 <div
                   style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backgroundColor: '#111214',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundImage:
-                      'radial-gradient(circle at 50% 50%, rgba(88, 101, 242, 0.15) 0%, transparent 80%)',
+                    width: 88,
+                    height: 88,
+                    borderRadius: '50%',
+                    padding: 3,
+                    border: isSpeaking ? '3px solid var(--status-online)' : '3px solid transparent',
+                    transition: 'border var(--transition-fast)',
                   }}
                 >
-                  <img
-                    src={user.avatar}
-                    alt={user.displayName}
-                    style={{
-                      width: 96,
-                      height: 96,
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      border: '3px solid var(--brand)',
-                    }}
-                  />
-                  <span
-                    style={{
-                      marginTop: 8,
-                      fontSize: 11,
-                      color: 'var(--brand)',
-                      fontWeight: 600,
-                      backgroundColor: 'rgba(88, 101, 242, 0.2)',
-                      padding: '2px 8px',
-                      borderRadius: 'var(--radius-full)',
-                    }}
-                  >
-                    CAMERA ACTIVE
-                  </span>
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.displayName}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        backgroundColor: 'var(--brand)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 28,
+                        fontWeight: 700,
+                        color: 'var(--text-white)',
+                      }}
+                    >
+                      {getInitials(user.displayName)}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                /* Avatar Circular Grande con Halo de Speaking */
-                <div style={{ position: 'relative' }}>
-                  <div
-                    style={{
-                      width: 88,
-                      height: 88,
-                      borderRadius: '50%',
-                      padding: 3,
-                      border: isSpeaking ? '3px solid var(--status-online)' : '3px solid transparent',
-                      transition: 'border var(--transition-fast)',
-                    }}
-                  >
-                    {user.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={user.displayName}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          borderRadius: '50%',
-                          backgroundColor: 'var(--brand)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 28,
-                          fontWeight: 700,
-                          color: 'var(--text-white)',
-                        }}
-                      >
-                        {getInitials(user.displayName)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              </div>
 
               {/* Botón superior derecho: Silenciar localmente (para otros usuarios) */}
               {!isCurrentUser && (
                 <button
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
-                    toggleLocallyMuted(user.id);
+                    onToggleLocalMute?.(user.id);
                   }}
                   title={locallyMutedUsers[user.id] ? 'Reactivar audio de este usuario' : 'Silenciar para mí'}
                   style={{
@@ -474,7 +350,7 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
         >
           {/* Botón Micrófono (mute/unmute) */}
           <button
-            onClick={handleMuteClick}
+            onClick={onToggleMute}
             title={isMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
             style={{
               width: 44,
@@ -495,7 +371,7 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
 
           {/* Botón Auriculares (deafen/undeafen) */}
           <button
-            onClick={handleDeafenClick}
+            onClick={onToggleDeafen}
             title={isDeafened ? 'Reactivar audio' : 'Ensordecer'}
             style={{
               width: 44,
@@ -514,68 +390,46 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
             <Headphones size={20} />
           </button>
 
-          {/* Botón Cámara (on/off) */}
+          {/* Botón Cámara (pendiente: por ahora solo audio) */}
           <button
-            onClick={handleVideoClick}
-            title={isVideoOn ? 'Apagar cámara' : 'Encender cámara'}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              backgroundColor: isVideoOn ? 'var(--brand)' : 'var(--bg-secondary)',
-              color: 'var(--text-white)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background-color var(--transition-fast)',
-            }}
-          >
-            {isVideoOn ? <Video size={20} /> : <VideoOff size={20} />}
-          </button>
-
-          {/* Botón Compartir Pantalla */}
-          <button
-            onClick={handleScreenShareClick}
-            title={isScreenSharing ? 'Detener compartir pantalla' : 'Compartir pantalla'}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              backgroundColor: isScreenSharing ? 'var(--brand)' : 'var(--bg-secondary)',
-              color: 'var(--text-white)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background-color var(--transition-fast)',
-            }}
-          >
-            {isScreenSharing ? <MonitorUp size={20} /> : <MonitorOff size={20} />}
-          </button>
-
-          {/* Selector interactivo de prueba para simular orador activo */}
-          <button
-            onClick={() =>
-              setSpeakingUserId((prev) => (prev === 'u1' ? 'u4' : prev === 'u4' ? currentUserId || 'u1' : 'u1'))
-            }
-            title="Simular cambio de orador activo"
+            disabled
+            title="Cámara: próximamente"
             style={{
               width: 44,
               height: 44,
               borderRadius: '50%',
               backgroundColor: 'var(--bg-secondary)',
-              color: 'var(--interactive-normal)',
+              color: 'var(--text-muted)',
               border: 'none',
-              cursor: 'pointer',
+              cursor: 'not-allowed',
+              opacity: 0.5,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Activity size={20} />
+            <VideoOff size={20} />
+          </button>
+
+          {/* Botón Compartir Pantalla (pendiente: por ahora solo audio) */}
+          <button
+            disabled
+            title="Compartir pantalla: próximamente"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--text-muted)',
+              border: 'none',
+              cursor: 'not-allowed',
+              opacity: 0.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <MonitorOff size={20} />
           </button>
 
           {/* Botón Rojo Desconectar (Leave Call) */}
