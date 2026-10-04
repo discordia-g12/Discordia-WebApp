@@ -1,4 +1,9 @@
 import { registerRootComponent } from 'expo';
+import { setupVoice } from './src/utils/voice';
+
+// LiveKit (voz) necesita las APIs de WebRTC; solo se registran si la app tiene el módulo nativo
+// (development build). En Expo Go se saltea y el resto de la app funciona igual.
+setupVoice();
 
 import App from './App';
 
