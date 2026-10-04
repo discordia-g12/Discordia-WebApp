@@ -38,6 +38,14 @@
             "usesCleartextTraffic": true
           }
         }
+      ],
+      "@livekit/react-native-expo-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "microphonePermission": "Discordia usa el micrófono para que puedas hablar en los canales de voz.",
+          "cameraPermission": "Discordia usa la cámara para las videollamadas."
+        }
       ]
     ]
   }
