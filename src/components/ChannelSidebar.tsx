@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Hash,
   Volume2,
@@ -16,11 +16,13 @@ import {
   LogOut,
   Trash2,
   MicOff,
+  HeadphoneOff,
   VolumeX,
   Gem,
 } from 'lucide-react';
 import { Server, Channel, User, Status } from '../types';
 import { Avatar } from './Avatar';
+import { VoiceParticipantMenu } from './VoiceParticipantMenu';
 import { UserPanel } from './UserPanel';
 
 /** Participante conectado a una sala de voz. */
@@ -67,6 +69,12 @@ export interface ChannelSidebarProps {
   onDisconnectVoice: () => void;
   /** Mapa de participantes conectados a canales de voz, indexados por channelId. */
   voiceParticipants?: Record<string, VoiceParticipant[]>;
+  /** Usuarios silenciados solo para este cliente. */
+  locallyMutedUsers?: Record<string, boolean>;
+  /** Silencia o reactiva a un participante solo para este cliente (click derecho). */
+  onToggleLocalMute?: (userId: string) => void;
+  /** Abre el perfil de un participante de voz (desde el click derecho). */
+  onViewParticipantProfile?: (user: User) => void;
   /** Acción para unirse a un canal de voz al hacer clic. */
   onJoinVoiceChannel?: (channelId: string) => void;
   /** Acción para crear un nuevo canal en una categoría. */
@@ -134,10 +142,13 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onOpenSettings,
   onDisconnectVoice,
   voiceParticipants = {},
+  locallyMutedUsers = {},
+  onToggleLocalMute,
+  onViewParticipantProfile,
   onJoinVoiceChannel,
   onCreateChannel,
-    onEditChannel,
-    onOpenServerBoost,
+  onEditChannel,
+  onOpenServerBoost,
   onInvitePeople,
   onOpenServerSettings,
   onOpenNotificationSettings,
@@ -159,6 +170,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   const headerRef = useRef<HTMLDivElement>(null);
 
   const isOwner = server.ownerId === currentUser.id;
+
+  const [participantMenu, setParticipantMenu] = useState<{ user: User; x: number; y: number } | null>(null);
+  const closeParticipantMenu = useCallback(() => setParticipantMenu(null), []);
 
   // Cierra menú contextual del servidor con click exterior y Escape
   useEffect(() => {
@@ -494,231 +508,251 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
       >
         {isLoading ? (
           <div style={{ padding: '16px 8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-             {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: 0.5 }}>
-                   <div style={{ height: '12px', width: '40%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
-                   <div style={{ height: '24px', width: '80%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
-                   <div style={{ height: '24px', width: '70%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
-                </div>
-             ))}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: 0.5 }}>
+                <div style={{ height: '12px', width: '40%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
+                <div style={{ height: '24px', width: '80%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
+                <div style={{ height: '24px', width: '70%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
+              </div>
+            ))}
           </div>
         ) : (
           server.categories.map((category) => {
-          const isCollapsed = Boolean(collapsedCategories[category.id]);
+            const isCollapsed = Boolean(collapsedCategories[category.id]);
 
-          return (
-            <div key={category.id} style={{ marginBottom: '8px' }}>
-              {/* Encabezado de la Categoría */}
-              <div
-                className="category-header"
-                onClick={() => toggleCategory(category.id)}
-                role="button"
-                tabIndex={0}
-                aria-expanded={!isCollapsed}
-              >
-                <div className="category-title">
-                  <ChevronDown
-                    size={13}
-                    style={{
-                      transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                      transition: 'transform 200ms ease',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span>{category.name}</span>
+            return (
+              <div key={category.id} style={{ marginBottom: '8px' }}>
+                {/* Encabezado de la Categoría */}
+                <div
+                  className="category-header"
+                  onClick={() => toggleCategory(category.id)}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={!isCollapsed}
+                >
+                  <div className="category-title">
+                    <ChevronDown
+                      size={13}
+                      style={{
+                        transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                        transition: 'transform 200ms ease',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span>{category.name}</span>
+                  </div>
+
+                  {onCreateChannel && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCreateChannel(category.id);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'inherit',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '2px',
+                      }}
+                      title="Crear canal en esta categoría"
+                      aria-label={`Crear canal en ${category.name}`}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  )}
                 </div>
 
-                {onCreateChannel && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCreateChannel(category.id);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '2px',
-                    }}
-                    title="Crear canal en esta categoría"
-                    aria-label={`Crear canal en ${category.name}`}
-                  >
-                    <Plus size={14} />
-                  </button>
-                )}
-              </div>
+                {/* Canales de la categoría */}
+                {!isCollapsed && (
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {category.channels.map((channel) => {
+                      const isActive = channel.id === activeChannelId;
+                      const isVoiceActive = channel.id === activeVoiceChannelId && isVoiceConnected;
+                      const hasUnreads = Boolean(channel.unreadCount && channel.unreadCount > 0);
+                      const participants = voiceParticipants[channel.id] || [];
 
-              {/* Canales de la categoría */}
-              {!isCollapsed && (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {category.channels.map((channel) => {
-                    const isActive = channel.id === activeChannelId;
-                    const isVoiceActive = channel.id === activeVoiceChannelId && isVoiceConnected;
-                    const hasUnreads = Boolean(channel.unreadCount && channel.unreadCount > 0);
-                    const participants = voiceParticipants[channel.id] || [];
-
-                    return (
-                      <div key={channel.id}>
-                        <div
-                          className={`channel-item ${isActive ? 'active' : ''} ${
-                            hasUnreads ? 'unread' : ''
-                          }`}
-                          onMouseEnter={() => setHoveredChannelId(channel.id)}
-                          onMouseLeave={() => setHoveredChannelId(null)}
-                          onClick={() => {
-                            onSelectChannel(channel.id);
-                            if (channel.type === 'voice' && onJoinVoiceChannel) {
-                              onJoinVoiceChannel(channel.id);
-                            }
-                          }}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`Canal ${channel.name}`}
-                        >
-                          <div className="channel-item-left">
-                            {renderChannelIcon(channel)}
-                            <span className="channel-name">{channel.name}</span>
-                          </div>
-                          {hoveredChannelId === channel.id && onEditChannel && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEditChannel(channel);
-                              }}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-muted)',
-                                cursor: 'pointer',
-                                padding: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: 'var(--radius-sm)',
-                              }}
-                              onMouseOver={(e) => e.currentTarget.style.color = 'var(--text-normal)'}
-                              onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
-                            >
-                              <Settings size={14} />
-                            </button>
-                          )}
-
-                          {/* Badges de no leído o límite de participantes */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {channel.userLimit && channel.type === 'voice' && (
-                              <span
-                                style={{
-                                  fontSize: '11px',
-                                  color: 'var(--text-muted, #949ba4)',
-                                }}
-                              >
-                                {participants.length}/{channel.userLimit}
-                              </span>
-                            )}
-
-                            {hasUnreads && (
-                              <span
-                                className="badge badge-danger"
-                                style={{
-                                  padding: '1px 5px',
-                                  borderRadius: 'var(--radius-full)',
-                                  fontSize: '10px',
-                                }}
-                              >
-                                {channel.unreadCount}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Lista de participantes de voz en vivo dentro del canal */}
-                        {channel.type === 'voice' && participants.length > 0 && (
+                      return (
+                        <div key={channel.id}>
                           <div
-                            style={{
-                              paddingLeft: '32px',
-                              paddingRight: '12px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '2px',
-                              marginTop: '2px',
-                              marginBottom: '4px',
+                            className={`channel-item ${isActive ? 'active' : ''} ${hasUnreads ? 'unread' : ''
+                              }`}
+                            onMouseEnter={() => setHoveredChannelId(channel.id)}
+                            onMouseLeave={() => setHoveredChannelId(null)}
+                            onClick={() => {
+                              onSelectChannel(channel.id);
+                              if (channel.type === 'voice' && onJoinVoiceChannel) {
+                                onJoinVoiceChannel(channel.id);
+                              }
                             }}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Canal ${channel.name}`}
                           >
-                            {participants.map((p) => {
-                              const isParticipantSpeaking = Boolean(p.isSpeaking);
+                            <div className="channel-item-left">
+                              {renderChannelIcon(channel)}
+                              <span className="channel-name">{channel.name}</span>
+                            </div>
+                            {hoveredChannelId === channel.id && onEditChannel && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditChannel(channel);
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--text-muted)',
+                                  cursor: 'pointer',
+                                  padding: '4px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: 'var(--radius-sm)',
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.color = 'var(--text-normal)'}
+                                onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                              >
+                                <Settings size={14} />
+                              </button>
+                            )}
 
-                              return (
-                                <div
-                                  key={p.user.id}
+                            {/* Badges de no leído o límite de participantes */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {channel.userLimit && channel.type === 'voice' && (
+                                <span
                                   style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    padding: '3px 6px',
-                                    borderRadius: 'var(--radius-xs, 3px)',
-                                    backgroundColor: isVoiceActive
-                                      ? 'rgba(255, 255, 255, 0.03)'
-                                      : 'transparent',
+                                    fontSize: '11px',
+                                    color: 'var(--text-muted, #949ba4)',
                                   }}
                                 >
+                                  {participants.length}/{channel.userLimit}
+                                </span>
+                              )}
+
+                              {hasUnreads && (
+                                <span
+                                  className="badge badge-danger"
+                                  style={{
+                                    padding: '1px 5px',
+                                    borderRadius: 'var(--radius-full)',
+                                    fontSize: '10px',
+                                  }}
+                                >
+                                  {channel.unreadCount}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Lista de participantes de voz en vivo dentro del canal */}
+                          {channel.type === 'voice' && participants.length > 0 && (
+                            <div
+                              style={{
+                                paddingLeft: '32px',
+                                paddingRight: '12px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '2px',
+                                marginTop: '2px',
+                                marginBottom: '4px',
+                              }}
+                            >
+                              {participants.map((p) => {
+                                const isParticipantSpeaking = Boolean(p.isSpeaking);
+                                const isOtherUser = p.user.id !== currentUser.id;
+                                const isLocallyMuted = isOtherUser && Boolean(locallyMutedUsers[p.user.id]);
+
+                                return (
                                   <div
+                                    key={p.user.id}
+                                    onContextMenu={(e) => {
+                                      if (!isOtherUser || !onToggleLocalMute) return;
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setParticipantMenu({ user: p.user, x: e.clientX, y: e.clientY });
+                                    }}
                                     style={{
                                       display: 'flex',
                                       alignItems: 'center',
-                                      gap: '6px',
-                                      minWidth: 0,
+                                      justifyContent: 'space-between',
+                                      padding: '3px 6px',
+                                      borderRadius: 'var(--radius-xs, 3px)',
+                                      backgroundColor: isVoiceActive
+                                        ? 'rgba(255, 255, 255, 0.03)'
+                                        : 'transparent',
                                     }}
                                   >
-                                    <Avatar
-                                      user={p.user}
-                                      size={22}
-                                      speaking={isParticipantSpeaking}
-                                    />
-                                    <span
+                                    <div
                                       style={{
-                                        fontSize: '12px',
-                                        fontWeight: 500,
-                                        color: isParticipantSpeaking
-                                          ? 'var(--status-online, #23a55a)'
-                                          : 'var(--text-normal, #dbdee1)',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        minWidth: 0,
                                       }}
                                     >
-                                      {p.user.displayName || p.user.username}
-                                    </span>
-                                  </div>
+                                      <Avatar
+                                        user={p.user}
+                                        size={22}
+                                        speaking={isParticipantSpeaking}
+                                      />
+                                      <span
+                                        style={{
+                                          fontSize: '12px',
+                                          fontWeight: 500,
+                                          color: isParticipantSpeaking
+                                            ? 'var(--status-online, #23a55a)'
+                                            : 'var(--text-normal, #dbdee1)',
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                        }}
+                                      >
+                                        {p.user.displayName || p.user.username}
+                                      </span>
+                                    </div>
 
-                                  {/* Indicadores de audio del participante */}
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      color: 'var(--text-muted, #949ba4)',
-                                    }}
-                                  >
-                                    {p.isMuted && <MicOff size={13} color="var(--danger, #da373c)" />}
-                                    {p.isDeafened && <VolumeX size={13} color="var(--danger, #da373c)" />}
+                                    {/* Indicadores de audio del participante */}
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        color: 'var(--text-muted, #949ba4)',
+                                      }}
+                                    >
+                                      {p.isMuted && (
+                                        <span title="Micrófono silenciado" style={{ display: 'flex' }}>
+                                          <MicOff size={13} color="var(--danger, #da373c)" />
+                                        </span>
+                                      )}
+                                      {p.isDeafened && (
+                                        <span title="Ensordecido" style={{ display: 'flex' }}>
+                                          <HeadphoneOff size={13} color="var(--danger, #da373c)" />
+                                        </span>
+                                      )}
+                                      {isLocallyMuted && (
+                                        <span title="Silenciado para vos" style={{ display: 'flex' }}>
+                                          <VolumeX size={13} color="var(--danger, #da373c)" />
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -741,6 +775,18 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         onSubscribePremium={onSubscribePremium}
         onLogout={onLogout}
       />
+
+      {participantMenu && onToggleLocalMute && (
+        <VoiceParticipantMenu
+          user={participantMenu.user}
+          x={participantMenu.x}
+          y={participantMenu.y}
+          isLocallyMuted={Boolean(locallyMutedUsers[participantMenu.user.id])}
+          onToggleLocalMute={onToggleLocalMute}
+          onViewProfile={onViewParticipantProfile}
+          onClose={closeParticipantMenu}
+        />
+      )}
     </aside>
   );
 };

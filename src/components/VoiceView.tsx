@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Volume2,
   VolumeX,
@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { VoiceParticipant } from './ChannelSidebar';
+import { VoiceParticipantMenu } from './VoiceParticipantMenu';
 
 export type VoiceViewConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -82,6 +83,12 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
   onDisconnect,
   onSelectUser,
 }) => {
+  // Menú de click derecho sobre un participante
+  const [contextMenu, setContextMenu] = useState<{ user: VoiceParticipant['user']; x: number; y: number } | null>(
+    null
+  );
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
   const gridColumns = useMemo(() => {
     const count = participants.length;
     if (count <= 1) return '1fr';
@@ -160,15 +167,19 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           overflowY: 'auto',
         }}
       >
-        {participants.map(({ user, isSpeaking, isMuted: participantMuted }) => {
+        {participants.map(({ user, isSpeaking, isMuted: isUserMuted }) => {
           const isCurrentUser = user.id === currentUserId;
           const isLocallyMuted = !isCurrentUser && (locallyMutedUsers[user.id] || false);
-          const isUserMuted = participantMuted || isLocallyMuted;
 
           return (
             <div
               key={user.id}
               onClick={() => onSelectUser?.(user)}
+              onContextMenu={(e: React.MouseEvent) => {
+                if (isCurrentUser || !onToggleLocalMute) return;
+                e.preventDefault();
+                setContextMenu({ user, x: e.clientX, y: e.clientY });
+              }}
               style={{
                 position: 'relative',
                 backgroundColor: '#1e1f22',
@@ -233,33 +244,27 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
                 </div>
               </div>
 
-              {/* Botón superior derecho: Silenciar localmente (para otros usuarios) */}
-              {!isCurrentUser && (
-                <button
-                  onClick={(e: React.MouseEvent) => {
-                    e.stopPropagation();
-                    onToggleLocalMute?.(user.id);
-                  }}
-                  title={locallyMutedUsers[user.id] ? 'Reactivar audio de este usuario' : 'Silenciar para mí'}
+              {/* Indicador de silenciado solo para este cliente (se cambia con click derecho) */}
+              {isLocallyMuted && (
+                <div
+                  title="Silenciado para vos"
+                  aria-label="Silenciado para vos"
                   style={{
                     position: 'absolute',
                     top: 12,
                     right: 12,
-                    width: 32,
-                    height: 32,
+                    width: 28,
+                    height: 28,
                     borderRadius: '50%',
-                    backgroundColor: locallyMutedUsers[user.id] ? 'var(--danger)' : 'rgba(0, 0, 0, 0.6)',
+                    backgroundColor: 'var(--danger)',
                     color: 'var(--text-white)',
-                    border: 'none',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'background-color var(--transition-fast)',
                   }}
                 >
-                  {locallyMutedUsers[user.id] ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                </button>
+                  <VolumeX size={15} />
+                </div>
               )}
 
               {/* Etiqueta inferior con nombre y estado de micrófono */}
@@ -457,6 +462,17 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           </button>
         </div>
       </div>
+      {contextMenu && onToggleLocalMute && (
+        <VoiceParticipantMenu
+          user={contextMenu.user}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          isLocallyMuted={locallyMutedUsers[contextMenu.user.id] || false}
+          onToggleLocalMute={onToggleLocalMute}
+          onViewProfile={onSelectUser}
+          onClose={closeContextMenu}
+        />
+      )}
     </div>
   );
 };

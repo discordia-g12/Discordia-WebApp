@@ -854,6 +854,9 @@ export default function App() {
           isVoiceConnected={inVoiceChannelId !== null}
           activeVoiceChannelId={inVoiceChannelId}
           voiceParticipants={sidebarVoiceParticipants}
+          locallyMutedUsers={voice.locallyMutedUsers}
+          onToggleLocalMute={voice.toggleLocalMute}
+          onViewParticipantProfile={(u) => handleOpenUserProfile(u.id)}
           isMuted={isMuted}
           isDeafened={isDeafened}
           onToggleMute={voice.toggleMute}

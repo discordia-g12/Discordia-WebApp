@@ -244,6 +244,27 @@ describe('useVoiceRoom', () => {
     expect(result.current.locallyMutedUsers).toEqual({ 'auth0|otro': true });
   });
 
+  it('un participante silenciado para mí no aparece como hablando', async () => {
+    const { result } = renderHook(() => useVoiceRoom());
+    await act(async () => {
+      await result.current.join('chan-1');
+    });
+    const remote = FakeRoom.instances[0].addRemote('auth0|otro');
+    remote.isSpeaking = true;
+    act(() => FakeRoom.instances[0].emit('activeSpeakersChanged'));
+    expect(result.current.participants.find((p) => p.id === 'auth0|otro')?.isSpeaking).toBe(true);
+
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    expect(result.current.participants.find((p) => p.id === 'auth0|otro')?.isSpeaking).toBe(false);
+
+    // Sigue hablando para LiveKit, pero para mí no
+    act(() => FakeRoom.instances[0].emit('activeSpeakersChanged'));
+    expect(result.current.participants.find((p) => p.id === 'auth0|otro')?.isSpeaking).toBe(false);
+
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    expect(result.current.participants.find((p) => p.id === 'auth0|otro')?.isSpeaking).toBe(true);
+  });
+
   it('leave cierra la sala y avisa al backend', async () => {
     const { result } = renderHook(() => useVoiceRoom());
     await act(async () => {

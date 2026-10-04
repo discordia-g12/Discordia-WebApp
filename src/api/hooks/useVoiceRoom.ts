@@ -122,7 +122,11 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     }
     setParticipants([
       toParticipant(room.localParticipant, true),
-      ...Array.from(room.remoteParticipants.values()).map((p) => toParticipant(p, false)),
+      ...Array.from(room.remoteParticipants.values()).map((p) => {
+        const participant = toParticipant(p, false);
+        if (locallyMutedRef.current[participant.id]) participant.isSpeaking = false;
+        return participant;
+      }),
     ]);
   }, []);
 
@@ -328,8 +332,9 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       setLocallyMutedUsers(next);
       const participant = roomRef.current?.remoteParticipants.get(userId);
       if (participant) applyVolume(participant);
+      syncParticipants();
     },
-    [applyVolume]
+    [applyVolume, syncParticipants]
   );
 
   useEffect(() => {
