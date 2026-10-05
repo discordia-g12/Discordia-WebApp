@@ -49,6 +49,7 @@ export type ConfirmAction =
   | 'delete-server'
   | 'leave-server'
   | 'transfer-ownership'
+  | 'switch-voice-channel'
   | null;
 
 /** Adjunto multimedia o documental asociado a un mensaje. */
