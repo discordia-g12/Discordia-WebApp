@@ -1,6 +1,6 @@
 import React from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { ArrowLeft, HeadphoneOff, Headphones, Mic, MicOff, PhoneOff, Volume2 } from 'lucide-react-native'
+import { ArrowLeft, HeadphoneOff, Headphones, Mic, MicOff, PhoneOff, Volume2, VolumeX } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import Avatar from '../shared/Avatar'
 import type { VoiceConnectionState } from '../../hooks/useVoiceRoom'
@@ -12,6 +12,8 @@ export interface VoiceScreenParticipant {
   isLocal: boolean
   isSpeaking: boolean
   isMuted: boolean
+  /** Silenciado solo para este dispositivo. */
+  isLocallyMuted?: boolean
 }
 
 const CONNECTION_LABELS: Record<VoiceConnectionState, { label: string; color: string }> = {
@@ -33,6 +35,8 @@ interface VoiceScreenProps {
   onDisconnect: () => void
   /** Vuelve a la lista de canales sin salir del canal de voz. */
   onBack: () => void
+  /** Mantener presionado sobre otro participante (silenciarlo para vos). */
+  onLongPressParticipant?: (participant: VoiceScreenParticipant) => void
 }
 
 // Sala de voz: participantes (quién habla, quién está silenciado) y controles
@@ -47,6 +51,7 @@ export default function VoiceScreen({
   onToggleDeafen,
   onDisconnect,
   onBack,
+  onLongPressParticipant,
 }: VoiceScreenProps) {
   const connection = CONNECTION_LABELS[connectionState]
 
@@ -75,11 +80,18 @@ export default function VoiceScreen({
 
       <ScrollView contentContainerStyle={styles.grid}>
         {participants.map(p => (
-          <View
+          <Pressable
             key={p.id}
             style={[styles.tile, p.isSpeaking && styles.tileSpeaking]}
-            accessibilityLabel={`${p.name}${p.isSpeaking ? ', hablando' : ''}${p.isMuted ? ', micrófono silenciado' : ''}`}
+            onLongPress={p.isLocal || !onLongPressParticipant ? undefined : () => onLongPressParticipant(p)}
+            delayLongPress={350}
+            accessibilityLabel={`${p.name}${p.isSpeaking ? ', hablando' : ''}${p.isMuted ? ', micrófono silenciado' : ''}${p.isLocallyMuted ? ', silenciado para vos' : ''}`}
           >
+            {p.isLocallyMuted && (
+              <View style={styles.localMuteBadge}>
+                <VolumeX color={colors.accentFg} size={14} />
+              </View>
+            )}
             <View style={[styles.avatarRing, p.isSpeaking && styles.avatarRingSpeaking]}>
               <Avatar label={p.name} color={p.color} size={64} fontSize={26} />
             </View>
@@ -94,7 +106,7 @@ export default function VoiceScreen({
                 {p.isLocal ? ' (Tú)' : ''}
               </Text>
             </View>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
 
@@ -161,6 +173,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   tileSpeaking: { borderWidth: 2, borderColor: colors.online },
+  localMuteBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 26,
+    height: 26,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.danger,
+  },
   avatarRing: { padding: 3, borderRadius: radii.full, borderWidth: 3, borderColor: 'transparent' },
   avatarRingSpeaking: { borderColor: colors.online },
   nameRow: {
