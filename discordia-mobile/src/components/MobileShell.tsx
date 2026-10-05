@@ -22,8 +22,22 @@ import Toast from './shared/Toast'
 import UserPanel from './profile/UserPanel'
 import RolesModal from './roles/RolesModal'
 import MembersModal from './members/MembersModal'
+import VoiceBar from './voice/VoiceBar'
+import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
+import { useVoiceRoom } from '../hooks/useVoiceRoom'
+import { useUserProfiles } from '../hooks/useUserProfiles'
+import { isVoiceSupported } from '../utils/voice'
+import { ApiError } from '@shared/api/errors'
 
-type MobileScreen = 'sidebar' | 'chat'
+type MobileScreen = 'sidebar' | 'chat' | 'voice'
+
+// Color estable para el avatar de usuarios que la app no tiene cargados
+const AVATAR_COLORS = ['#7c5cfc', '#3db57a', '#f5a623', '#5865f2', '#ed4245', '#ff73fa']
+function colorFor(userId: string): string {
+  let hash = 0
+  for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) | 0
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
 
 export default function MobileShell() {
   const { logout, token } = useAuth()
@@ -42,6 +56,14 @@ export default function MobileShell() {
   } = useData()
   const { selectedServerId, selectedChannelId, selectChannel, selectServer, showToast } = useUI()
   const [screen, setScreen] = useState<MobileScreen>('sidebar')
+
+  // Voz (LiveKit). Si la conexión se corta sola, volver a la lista de canales
+  const voice = useVoiceRoom({
+    onUnexpectedDisconnect: () => {
+      setScreen(current => (current === 'voice' ? 'sidebar' : current))
+      showToast('Se perdió la conexión con el canal de voz', 'error')
+    },
+  })
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [draft, setDraft] = useState('')
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
@@ -71,6 +93,31 @@ export default function MobileShell() {
     joinedAt: '',
   }
   const hasUnreadNotifications = useMemo(() => notifications.some(n => !n.read), [notifications])
+
+  // Canal de voz activo (puede ser de otro servidor que el seleccionado)
+  const voiceLocation = useMemo(() => {
+    if (!voice.channelId) return null
+    for (const srv of servers) {
+      const ch = srv.categories.flatMap(c => c.channels).find(c => c.id === voice.channelId)
+      if (ch) return { server: srv, channel: ch }
+    }
+    return null
+  }, [servers, voice.channelId])
+
+  // Participantes de LiveKit -> nombre y color (la identidad es el user ID)
+  const unknownVoiceUserIds = voice.participants.map(p => p.id).filter(id => !users[id])
+  const voiceProfiles = useUserProfiles(unknownVoiceUserIds)
+  const voiceParticipants: VoiceScreenParticipant[] = voice.participants.map(p => {
+    const known = users[p.id]
+    return {
+      id: p.id,
+      name: known?.name ?? voiceProfiles[p.id]?.name ?? 'Usuario',
+      color: known?.color ?? colorFor(p.id),
+      isLocal: p.isLocal,
+      isSpeaking: p.isSpeaking,
+      isMuted: p.isMuted,
+    }
+  })
 
   const lastMessageId = useMemo(() => {
     for (let i = channelMessages.length - 1; i >= 0; i--) {
@@ -151,9 +198,46 @@ export default function MobileShell() {
   const handleSelectServer = (id: string) => selectServer(id)
 
   const handleSelectChannel = (ch: Channel) => {
+    if (ch.type === 'voice') {
+      handleJoinVoiceChannel(ch)
+      return
+    }
     selectChannel(ch.id)
     fetchChannelMessages(ch.id)
-    if (ch.type !== 'voice') setScreen('chat')
+    setScreen('chat')
+  }
+
+  const handleJoinVoiceChannel = async (ch: Channel) => {
+    if (!isVoiceSupported) {
+      showToast('La voz necesita el development build (ver README de mobile)', 'info')
+      return
+    }
+    setScreen('voice')
+    if (voice.channelId === ch.id) return
+    try {
+      const { microphoneAvailable } = await voice.join(ch.id)
+      showToast(
+        microphoneAvailable
+          ? 'Conectado al canal de voz'
+          : 'Conectado sin micrófono: revisá los permisos de la app',
+        microphoneAvailable ? 'success' : 'info',
+      )
+    } catch (err) {
+      console.error('[Voice] Error al unirse al canal:', err)
+      setScreen(current => (current === 'voice' ? 'sidebar' : current))
+      showToast(
+        err instanceof ApiError && err.status === 403
+          ? 'No tenés permiso para entrar a este canal de voz'
+          : 'No se pudo conectar al canal de voz',
+        'error',
+      )
+    }
+  }
+
+  const handleDisconnectVoice = () => {
+    voice.leave()
+    setScreen(current => (current === 'voice' ? 'sidebar' : current))
+    showToast('Desconectado de la llamada', 'info')
   }
 
   const toggleCategory = (id: string) =>
@@ -252,6 +336,14 @@ export default function MobileShell() {
               onSelectChannel={handleSelectChannel}
               onLongPressChannel={handleOpenEditChannel}
             />
+            {voiceLocation && (
+              <VoiceBar
+                channelName={voiceLocation.channel.name}
+                serverName={voiceLocation.server.name}
+                onOpen={() => setScreen('voice')}
+                onDisconnect={handleDisconnectVoice}
+              />
+            )}
             <UserPanel
               user={me}
               hasUnreadNotifications={hasUnreadNotifications}
@@ -328,6 +420,27 @@ export default function MobileShell() {
             setLogoutConfirmOpen(false)
             logout()
           }}
+        />
+      </SafeAreaView>
+    )
+  }
+
+  /* ---------- pantalla: canal de voz ---------- */
+  if (screen === 'voice' && voice.channelId) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <Toast />
+        <VoiceScreen
+          channelName={voiceLocation?.channel.name ?? 'Canal de voz'}
+          serverName={voiceLocation?.server.name}
+          connectionState={voice.connectionState}
+          participants={voiceParticipants}
+          isMuted={voice.isMuted}
+          isDeafened={voice.isDeafened}
+          onToggleMute={voice.toggleMute}
+          onToggleDeafen={voice.toggleDeafen}
+          onDisconnect={handleDisconnectVoice}
+          onBack={() => setScreen('sidebar')}
         />
       </SafeAreaView>
     )
