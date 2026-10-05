@@ -186,7 +186,7 @@ export default function App() {
       email: p?.email || '',
     };
   });
-  
+
   const queryClient = useQueryClient();
 
   const { data: activeServers, isLoading: isLoadingServers } = useServersQuery();
@@ -210,12 +210,12 @@ export default function App() {
   const editChannelMutation = useEditChannelMutation();
   const deleteChannelMutation = useDeleteChannelMutation();
   const servers = activeServers || [];
-  
-  
+
+
 
 
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
-  
+
   const { data: realMessages, isLoading: isLoadingMessages } = useChannelMessagesQuery(
     selectedServerId !== 'home' ? selectedChannelId : null
   );
@@ -224,10 +224,10 @@ export default function App() {
   // Sincronizar globalUsers con los perfiles reales
   useEffect(() => {
     const requiredUserIds = new Set<string>();
-    
+
     // Obtener de miembros
     serverMembersAsUsers.forEach(u => requiredUserIds.add(u.id));
-    
+
     // Obtener de mensajes directos
     directMessagesList.forEach(dm => {
       const targetId = dm.recipientId || dm.userId;
@@ -260,14 +260,14 @@ export default function App() {
 
   const usersMap = useMemo(() => {
     const map: Record<string, User> = { ...globalUsers };
-    
+
     // Fallback: Si no esta en globalUsers todavia, usar la info incompleta de miembros
     serverMembersAsUsers.forEach(u => {
       if (!map[u.id]) {
         map[u.id] = u;
       }
     });
-    
+
     map[currentUser.id] = currentUser;
     return map;
   }, [globalUsers, serverMembersAsUsers, currentUser]);
@@ -296,16 +296,18 @@ export default function App() {
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() => ({
     ...{},
   }));
-  
+
   const [selectedDmId, setSelectedDmId] = useState<string | null>(null);
 
   // Notificaciones y búsqueda
-      
+
   // Modales
   const [activeModal, setActiveModal] = useState<Modal>(null);
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [confirmTargetName, setConfirmTargetName] = useState<string>('');
+  const [confirmTargetDetail, setConfirmTargetDetail] = useState<string>('');
+  const [pendingVoiceChannelId, setPendingVoiceChannelId] = useState<string | null>(null);
   const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | undefined>();
   const [targetChannelForAction, setTargetChannelForAction] = useState<any>(null);
 
@@ -320,7 +322,7 @@ export default function App() {
   // Parseo de link de invitación desde URL
   useEffect(() => {
     if (status !== 'authenticated') return;
-    
+
     const path = window.location.pathname;
     if (path.startsWith('/invite/')) {
       setActiveModal('join-server');
@@ -394,17 +396,37 @@ export default function App() {
   // Manejador de selección de canal
   const handleSelectChannel = (channelId: string) => {
     const channel = allServerChannels.find((ch) => ch.id === channelId);
-    setSelectedChannelId(channelId);
     if (channel?.type === 'voice') {
-      // La conexión la dispara onJoinVoiceChannel
-      setAppView('voice');
+      // La conexión (y el cambio de vista) la dispara onJoinVoiceChannel; si hay que confirmar
+      // el cambio de canal, la vista no se toca hasta que el usuario acepte
+      if (!isSwitchingVoiceChannel(channelId)) {
+        setSelectedChannelId(channelId);
+        setAppView('voice');
+      }
     } else {
+      setSelectedChannelId(channelId);
       setAppView('chat');
     }
   };
 
-  // Manejador para unirse a canal de voz
-  const handleJoinVoiceChannel = async (channelId: string) => {
+  const isSwitchingVoiceChannel = (channelId: string) =>
+    voice.channelId !== null && voice.channelId !== channelId;
+
+  const findChannelName = (channelId: string | null) =>
+    servers
+      .flatMap((srv) => srv.categories.flatMap((cat) => cat.channels))
+      .find((ch) => ch.id === channelId)?.name ?? 'otro canal de voz';
+
+  // Manejador para unirse a canal de voz. Si ya está en otro, primero pide confirmación
+  const handleJoinVoiceChannel = async (channelId: string, { confirmed = false } = {}) => {
+    if (!confirmed && isSwitchingVoiceChannel(channelId)) {
+      setPendingVoiceChannelId(channelId);
+      setConfirmTargetName(findChannelName(channelId));
+      setConfirmTargetDetail(findChannelName(voice.channelId));
+      setConfirmAction('switch-voice-channel');
+      setActiveModal('confirm-action');
+      return;
+    }
     setSelectedChannelId(channelId);
     setAppView('voice');
     if (voice.channelId === channelId) return;
@@ -475,10 +497,10 @@ export default function App() {
       replyToId: replyToId || null,
       fileAttachment: attachment
         ? {
-            name: attachment.name,
-            size: typeof attachment.size === 'number' ? `${(attachment.size / 1024).toFixed(1)} KB` : (attachment.size || '0 KB'),
-            type: attachment.type,
-          }
+          name: attachment.name,
+          size: typeof attachment.size === 'number' ? `${(attachment.size / 1024).toFixed(1)} KB` : (attachment.size || '0 KB'),
+          type: attachment.type,
+        }
         : undefined,
     };
 
@@ -515,11 +537,11 @@ export default function App() {
               .map((r) =>
                 r.emoji === emoji
                   ? {
-                      ...r,
-                      count: r.count - 1,
-                      reacted: false,
-                      users: (r.users || []).filter((u) => u !== currentUser.id),
-                    }
+                    ...r,
+                    count: r.count - 1,
+                    reacted: false,
+                    users: (r.users || []).filter((u) => u !== currentUser.id),
+                  }
                   : r,
               )
               .filter((r) => r.count > 0);
@@ -527,11 +549,11 @@ export default function App() {
             nextReactions = reactions.map((r) =>
               r.emoji === emoji
                 ? {
-                    ...r,
-                    count: r.count + 1,
-                    reacted: true,
-                    users: [...(r.users || []), currentUser.id],
-                  }
+                  ...r,
+                  count: r.count + 1,
+                  reacted: true,
+                  users: [...(r.users || []), currentUser.id],
+                }
                 : r,
             );
           }
@@ -605,9 +627,9 @@ export default function App() {
   // Creación de nuevo servidor
   const handleCreateServer = async (name: string, icon?: string | File) => {
     try {
-      const newServer = await createServerMutation.mutateAsync({ 
+      const newServer = await createServerMutation.mutateAsync({
         name,
-        icon: icon instanceof File ? icon : undefined 
+        icon: icon instanceof File ? icon : undefined
       });
       setSelectedServerId(newServer.id);
       setActiveModal(null);
@@ -634,7 +656,7 @@ export default function App() {
 
   // Actualizar servidor
   const handleUpdateServer = (updatedServer: Server) => {
-    queryClient.setQueryData<Server[]>(['servers'], (prev = []) => 
+    queryClient.setQueryData<Server[]>(['servers'], (prev = []) =>
       prev.map((s) => (s.id === updatedServer.id ? updatedServer : s))
     );
     showToast('Configuración del servidor guardada', 'success');
@@ -710,44 +732,44 @@ export default function App() {
         )}
 
         <ConnectionBanner />
-        
-      {activeModal === 'create-channel' && currentServer && (
-        <CreateChannelModal
-          categoryId={channelModalCategoryId}
-          onClose={() => setActiveModal(null)}
-          onCreate={async (name, type, catId) => {
-            await createChannelMutation.mutateAsync({
-              serverId: currentServer!.id,
-              payload: { name, type, parentId: catId }
-            });
-          }}
-        />
-      )}
-      
-      {activeModal === 'edit-channel' && targetChannelForAction && (
-        <EditChannelModal
-          channel={targetChannelForAction}
-          onClose={() => setActiveModal(null)}
-          onEdit={async (id, name) => {
-            await editChannelMutation.mutateAsync({
-              serverId: currentServer!.id,
-              channelId: id,
-              payload: { name }
-            });
-          }}
-          onDelete={async (id) => {
-            await deleteChannelMutation.mutateAsync({
-              serverId: currentServer!.id,
-              channelId: id
-            });
-            if (selectedChannelId === id) {
-              setSelectedChannelId(currentServer!.channels?.[0]?.id || null);
-            }
-          }}
-        />
-      )}
 
-      {toast && <ToastNotification message={toast.message} type={toast.type} />}
+        {activeModal === 'create-channel' && currentServer && (
+          <CreateChannelModal
+            categoryId={channelModalCategoryId}
+            onClose={() => setActiveModal(null)}
+            onCreate={async (name, type, catId) => {
+              await createChannelMutation.mutateAsync({
+                serverId: currentServer!.id,
+                payload: { name, type, parentId: catId }
+              });
+            }}
+          />
+        )}
+
+        {activeModal === 'edit-channel' && targetChannelForAction && (
+          <EditChannelModal
+            channel={targetChannelForAction}
+            onClose={() => setActiveModal(null)}
+            onEdit={async (id, name) => {
+              await editChannelMutation.mutateAsync({
+                serverId: currentServer!.id,
+                channelId: id,
+                payload: { name }
+              });
+            }}
+            onDelete={async (id) => {
+              await deleteChannelMutation.mutateAsync({
+                serverId: currentServer!.id,
+                channelId: id
+              });
+              if (selectedChannelId === id) {
+                setSelectedChannelId(currentServer!.channels?.[0]?.id || null);
+              }
+            }}
+          />
+        )}
+
+        {toast && <ToastNotification message={toast.message} type={toast.type} />}
       </>
     );
   }
@@ -817,8 +839,8 @@ export default function App() {
   // Canal de voz activo (puede pertenecer a un servidor distinto al seleccionado, p. ej. estando en Home)
   const activeVoice = inVoiceChannelId
     ? servers
-        .flatMap((srv) => srv.categories.flatMap((cat) => cat.channels.map((ch) => ({ srv, ch }))))
-        .find(({ ch }) => ch.id === inVoiceChannelId)
+      .flatMap((srv) => srv.categories.flatMap((cat) => cat.channels.map((ch) => ({ srv, ch }))))
+      .find(({ ch }) => ch.id === inVoiceChannelId)
     : undefined;
 
   // Layout principal Desktop de tres niveles
@@ -975,12 +997,17 @@ export default function App() {
       </div>
 
       {/* ── MODALES GLOBALES ── */}
-      <GlobalModals 
+      <GlobalModals
         activeModal={activeModal}
         setActiveModal={setActiveModal}
         confirmAction={confirmAction}
         setConfirmAction={setConfirmAction}
         confirmTargetName={confirmTargetName}
+        confirmTargetDetail={confirmAction === 'switch-voice-channel' ? confirmTargetDetail : undefined}
+        onConfirmSwitchVoiceChannel={() => {
+          if (pendingVoiceChannelId) handleJoinVoiceChannel(pendingVoiceChannelId, { confirmed: true });
+          setPendingVoiceChannelId(null);
+        }}
         currentServer={currentServer}
         currentUser={currentUser}
         usersMap={usersMap}

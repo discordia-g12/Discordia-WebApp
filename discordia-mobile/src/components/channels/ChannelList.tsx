@@ -3,6 +3,7 @@ import { FlatList } from 'react-native'
 import { spacing } from '../../theme'
 import type { Category, Channel } from '../../types'
 import CategorySection from './CategorySection'
+import type { VoiceChannelParticipant } from './VoiceChannelParticipants'
 
 interface ChannelListProps {
     categories: Category[]
@@ -12,6 +13,7 @@ interface ChannelListProps {
     onAddChannel: (categoryId: string) => void
     onSelectChannel: (channel: Channel) => void
     onLongPressChannel: (channel: Channel) => void
+    voiceParticipants?: Record<string, VoiceChannelParticipant[]>
 }
 
 // Categorias del servidor (con canales colapsados o no)
@@ -23,11 +25,13 @@ export default function ChannelList({
     onAddChannel,
     onSelectChannel,
     onLongPressChannel,
+    voiceParticipants,
 }: ChannelListProps) {
     return (
         <FlatList
             data={categories}
             keyExtractor={(c: Category) => c.id}
+            extraData={voiceParticipants}
             contentContainerStyle={{ paddingBottom: spacing.md }}
             renderItem={({ item: category }) => (
                 <CategorySection
@@ -38,6 +42,7 @@ export default function ChannelList({
                     onAddChannel={onAddChannel}
                     onSelectChannel={onSelectChannel}
                     onLongPressChannel={onLongPressChannel}
+                    voiceParticipants={voiceParticipants}
                 />
             )}
         />

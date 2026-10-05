@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Plus } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Category, Channel } from '../../types'
 import ChannelRow from './ChannelRow'
+import VoiceChannelParticipants, { type VoiceChannelParticipant } from './VoiceChannelParticipants'
 
 interface CategorySectionProps {
     category: Category
@@ -13,6 +14,8 @@ interface CategorySectionProps {
     onAddChannel: (categoryId: string) => void
     onSelectChannel: (channel: Channel) => void
     onLongPressChannel: (channel: Channel) => void
+    /** Participantes conectados a cada canal de voz, por channelId. */
+    voiceParticipants?: Record<string, VoiceChannelParticipant[]>
 }
 
 // Categoria (ej: GENERAL) colapsable
@@ -24,6 +27,7 @@ export default function CategorySection({
     onAddChannel,
     onSelectChannel,
     onLongPressChannel,
+    voiceParticipants = {},
 }: CategorySectionProps) {
     return (
         <View style={styles.section}>
@@ -46,13 +50,17 @@ export default function CategorySection({
             </View>
             {!collapsed &&
                 category.channels.map(ch => (
-                    <ChannelRow
-                        key={ch.id}
-                        channel={ch}
-                        active={selectedChannelId === ch.id}
-                        onPress={onSelectChannel}
-                        onLongPress={onLongPressChannel}
-                    />
+                    <View key={ch.id}>
+                        <ChannelRow
+                            channel={ch}
+                            active={selectedChannelId === ch.id}
+                            onPress={onSelectChannel}
+                            onLongPress={onLongPressChannel}
+                        />
+                        {ch.type === 'voice' && (
+                            <VoiceChannelParticipants participants={voiceParticipants[ch.id] ?? []} />
+                        )}
+                    </View>
                 ))}
         </View>
     )

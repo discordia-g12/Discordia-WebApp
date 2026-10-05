@@ -1,5 +1,5 @@
-import React, { useState} from 'react';
-import { X, AlertTriangle, Trash2, LogOut, UserX} from 'lucide-react';
+import React, { useState } from 'react';
+import { X, AlertTriangle, Trash2, LogOut, UserX, Volume2 } from 'lucide-react';
 import { ConfirmAction } from '../../types';
 // import { createInvite } from '../../api/servers';
 import { ModalOverlay } from './ModalOverlay';
@@ -74,6 +74,13 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       icon: <Trash2 size={24} color="var(--danger)" />,
       isDanger: true,
     },
+    'switch-voice-channel': {
+      title: '¿Cambiar de canal de voz?',
+      desc: `Estás conectado a ${targetDetail || 'otro canal de voz'}. Si entrás a ${targetName}, vas a salir de ese canal.`,
+      confirmBtn: 'Cambiar',
+      icon: <Volume2 size={24} color="var(--brand)" />,
+      isDanger: false,
+    },
     'transfer-ownership': {
       title: `Transferir propiedad a @${targetName}`,
       desc: `Vas a ceder el control total del servidor a @${targetName}. Perderás los privilegios de propietario supremo.`,
@@ -107,7 +114,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <p className="modal-subtitle" style={{ lineHeight: 1.5 }}>
             {config.desc}
           </p>
-          {targetDetail && (
+          {targetDetail && action !== 'switch-voice-channel' && (
             <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
               Detalle: {targetDetail}
             </div>

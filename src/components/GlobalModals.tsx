@@ -18,6 +18,8 @@ interface GlobalModalsProps {
   confirmAction: ConfirmAction | null;
   setConfirmAction: (a: ConfirmAction | null) => void;
   confirmTargetName: string;
+  confirmTargetDetail?: string;
+  onConfirmSwitchVoiceChannel?: () => void;
   currentServer: Server | null | undefined;
   currentUser: User;
   usersMap: Record<string, User>;
@@ -109,6 +111,7 @@ export const GlobalModals: React.FC<GlobalModalsProps> = (props) => {
         <ConfirmDialog
           action={props.confirmAction}
           targetName={props.confirmTargetName}
+          targetDetail={props.confirmTargetDetail}
           onConfirm={async () => {
             if (props.confirmAction === 'delete-server' && props.currentServer) {
               try {
@@ -130,6 +133,8 @@ export const GlobalModals: React.FC<GlobalModalsProps> = (props) => {
               }).catch(() => {
                 props.showToast(`Error al abandonar "${props.confirmTargetName}"`, 'danger');
               });
+            } else if (props.confirmAction === 'switch-voice-channel') {
+              props.onConfirmSwitchVoiceChannel?.();
             } else {
               props.showToast('Acción confirmada', 'success');
             }
