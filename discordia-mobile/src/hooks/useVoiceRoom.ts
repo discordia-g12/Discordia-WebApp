@@ -85,12 +85,14 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const mutedRef = useRef(false)
   const deafenedRef = useRef(false)
   const mutedBeforeDeafenRef = useRef(false)
+  const locallyMutedRef = useRef<Record<string, boolean>>({})
 
   const [channelId, setChannelId] = useState<string | null>(null)
   const [connectionState, setConnectionState] = useState<VoiceConnectionState>('disconnected')
   const [participants, setParticipants] = useState<VoiceRoomParticipant[]>([])
   const [isMuted, setIsMuted] = useState(false)
   const [isDeafened, setIsDeafened] = useState(false)
+  const [locallyMutedUsers, setLocallyMutedUsers] = useState<Record<string, boolean>>({})
 
   const syncParticipants = useCallback(() => {
     const room = roomRef.current
@@ -102,15 +104,16 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       toParticipant(room.localParticipant, true),
       ...Array.from(room.remoteParticipants.values()).map(p => {
         const participant = toParticipant(p, false)
-        // Ensordecido no escuchás a nadie: no se marca a nadie como hablando
-        if (deafenedRef.current) participant.isSpeaking = false
+        // Si no lo estás escuchando (ensordecido o silenciado para vos), no se marca como hablando
+        if (deafenedRef.current || locallyMutedRef.current[participant.id]) participant.isSpeaking = false
         return participant
       }),
     ])
   }, [])
 
   const applyVolume = useCallback((participant: RemoteParticipant) => {
-    participant.setVolume(deafenedRef.current ? 0 : 1)
+    const silenced = deafenedRef.current || locallyMutedRef.current[participant.identity]
+    participant.setVolume(silenced ? 0 : 1)
   }, [])
 
   const disconnectRoom = useCallback(async (room: Room) => {
@@ -285,6 +288,22 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     }
   }, [setDeafened, setMuted])
 
+  /**
+   * Silencia o reactiva a un participante solo para este dispositivo (los demás lo siguen
+   * escuchando). Se puede usar antes de entrar al canal: se aplica cuando el participante aparece.
+   */
+  const toggleLocalMute = useCallback(
+    (userId: string) => {
+      const next = { ...locallyMutedRef.current, [userId]: !locallyMutedRef.current[userId] }
+      locallyMutedRef.current = next
+      setLocallyMutedUsers(next)
+      const participant = roomRef.current?.remoteParticipants.get(userId)
+      if (participant) applyVolume(participant)
+      syncParticipants()
+    },
+    [applyVolume, syncParticipants]
+  )
+
   // Al desmontar (p. ej. logout) cerrar la sala y avisar al backend
   useEffect(() => {
     return () => {
@@ -303,9 +322,11 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     participants,
     isMuted,
     isDeafened,
+    locallyMutedUsers,
     join,
     leave,
     toggleMute,
     toggleDeafen,
+    toggleLocalMute,
   }
 }

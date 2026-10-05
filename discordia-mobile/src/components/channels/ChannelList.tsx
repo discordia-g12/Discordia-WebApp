@@ -14,6 +14,8 @@ interface ChannelListProps {
     onSelectChannel: (channel: Channel) => void
     onLongPressChannel: (channel: Channel) => void
     voiceParticipants?: Record<string, VoiceChannelParticipant[]>
+    currentUserId?: string
+    onLongPressVoiceParticipant?: (participant: VoiceChannelParticipant) => void
 }
 
 // Categorias del servidor (con canales colapsados o no)
@@ -26,6 +28,8 @@ export default function ChannelList({
     onSelectChannel,
     onLongPressChannel,
     voiceParticipants,
+    currentUserId,
+    onLongPressVoiceParticipant,
 }: ChannelListProps) {
     return (
         <FlatList
@@ -43,6 +47,8 @@ export default function ChannelList({
                     onSelectChannel={onSelectChannel}
                     onLongPressChannel={onLongPressChannel}
                     voiceParticipants={voiceParticipants}
+                    currentUserId={currentUserId}
+                    onLongPressVoiceParticipant={onLongPressVoiceParticipant}
                 />
             )}
         />

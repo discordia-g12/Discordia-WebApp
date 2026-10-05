@@ -16,6 +16,8 @@ interface CategorySectionProps {
     onLongPressChannel: (channel: Channel) => void
     /** Participantes conectados a cada canal de voz, por channelId. */
     voiceParticipants?: Record<string, VoiceChannelParticipant[]>
+    currentUserId?: string
+    onLongPressVoiceParticipant?: (participant: VoiceChannelParticipant) => void
 }
 
 // Categoria (ej: GENERAL) colapsable
@@ -28,6 +30,8 @@ export default function CategorySection({
     onSelectChannel,
     onLongPressChannel,
     voiceParticipants = {},
+    currentUserId,
+    onLongPressVoiceParticipant,
 }: CategorySectionProps) {
     return (
         <View style={styles.section}>
@@ -58,7 +62,11 @@ export default function CategorySection({
                             onLongPress={onLongPressChannel}
                         />
                         {ch.type === 'voice' && (
-                            <VoiceChannelParticipants participants={voiceParticipants[ch.id] ?? []} />
+                            <VoiceChannelParticipants
+                                participants={voiceParticipants[ch.id] ?? []}
+                                currentUserId={currentUserId}
+                                onLongPressParticipant={onLongPressVoiceParticipant}
+                            />
                         )}
                     </View>
                 ))}

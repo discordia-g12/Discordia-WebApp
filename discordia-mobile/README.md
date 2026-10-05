@@ -2,6 +2,8 @@
 
 App mobile de Discordia (Expo SDK 57, React Native 0.86). Comparte la capa de API con el cliente web (`@shared/api/...`).
 
+Las decisiones técnicas de la voz en mobile (development build, Expo Go, hooks propios) están en [`docs/ADR-01-Mobile-Voice.md`](../docs/ADR-01-Mobile-Voice.md).
+
 ## Requisitos
 
 - Node 22 y las dependencias instaladas: `npm install`

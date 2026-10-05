@@ -24,6 +24,7 @@ import RolesModal from './roles/RolesModal'
 import MembersModal from './members/MembersModal'
 import VoiceBar from './voice/VoiceBar'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
+import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
 import { useVoiceRoom } from '../hooks/useVoiceRoom'
 import { useUserProfiles } from '../hooks/useUserProfiles'
 import { useVoicePresence } from '../hooks/useVoicePresence'
@@ -82,6 +83,8 @@ export default function MobileShell() {
   const [isProfileVisible, setIsProfileVisible] = useState(false)
   // Canal de voz al que se quiere pasar estando conectado a otro (pide confirmación)
   const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
+  // Participante sobre el que se mantuvo presionado (menú para silenciarlo solo para vos)
+  const [voiceActionTarget, setVoiceActionTarget] = useState<VoiceParticipantTarget | null>(null)
 
   const server = servers.find(s => s.id === selectedServerId) ?? servers[0]
   const allChannels: Channel[] = server ? server.categories.flatMap(c => c.channels) : []
@@ -136,12 +139,17 @@ export default function MobileShell() {
     isLocal: p.isLocal,
     isSpeaking: p.isSpeaking,
     isMuted: p.isMuted,
+    isLocallyMuted: !p.isLocal && !!voice.locallyMutedUsers[p.id],
   }))
 
   // Lista de canales: presencia de todos; en el canal propio, los datos de LiveKit (quién habla, mute)
   const sidebarVoiceParticipants: Record<string, VoiceChannelParticipant[]> = {}
   for (const [channelId, userIds] of Object.entries(voicePresence)) {
-    sidebarVoiceParticipants[channelId] = userIds.map(id => ({ id, ...describeUser(id) }))
+    sidebarVoiceParticipants[channelId] = userIds.map(id => ({
+      id,
+      ...describeUser(id),
+      isLocallyMuted: id !== currentUserId && !!voice.locallyMutedUsers[id],
+    }))
   }
   if (voice.channelId && voiceParticipants.length > 0) {
     sidebarVoiceParticipants[voice.channelId] = voiceParticipants
@@ -310,6 +318,15 @@ export default function MobileShell() {
     }
   }
 
+  const voiceParticipantActions = (
+    <VoiceParticipantActions
+      participant={voiceActionTarget}
+      isLocallyMuted={!!(voiceActionTarget && voice.locallyMutedUsers[voiceActionTarget.id])}
+      onToggleLocalMute={voice.toggleLocalMute}
+      onClose={() => setVoiceActionTarget(null)}
+    />
+  )
+
   const channelActionModals = (
     <ChannelActionModals
       serverId={server?.id}
@@ -368,6 +385,10 @@ export default function MobileShell() {
               onSelectChannel={handleSelectChannel}
               onLongPressChannel={handleOpenEditChannel}
               voiceParticipants={sidebarVoiceParticipants}
+              currentUserId={currentUserId}
+              onLongPressVoiceParticipant={p =>
+                setVoiceActionTarget({ id: p.id, name: p.name, color: p.color })
+              }
             />
             {voiceLocation && (
               <VoiceBar
@@ -413,7 +434,7 @@ export default function MobileShell() {
         <ProfileModal visible={isProfileVisible} onClose={() => setIsProfileVisible(false)} />
 
         {channelActionModals}
-
+        {voiceParticipantActions}
 
         
         <InviteModal
@@ -486,7 +507,9 @@ export default function MobileShell() {
           onToggleDeafen={voice.toggleDeafen}
           onDisconnect={handleDisconnectVoice}
           onBack={() => setScreen('sidebar')}
+          onLongPressParticipant={p => setVoiceActionTarget({ id: p.id, name: p.name, color: p.color })}
         />
+        {voiceParticipantActions}
       </SafeAreaView>
     )
   }
