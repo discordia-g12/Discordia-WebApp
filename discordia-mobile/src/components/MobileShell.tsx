@@ -26,6 +26,8 @@ import VoiceBar from './voice/VoiceBar'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import { useVoiceRoom } from '../hooks/useVoiceRoom'
 import { useUserProfiles } from '../hooks/useUserProfiles'
+import { useVoicePresence } from '../hooks/useVoicePresence'
+import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
 import { ApiError } from '@shared/api/errors'
 
@@ -78,6 +80,8 @@ export default function MobileShell() {
   const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
   const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
   const [isProfileVisible, setIsProfileVisible] = useState(false)
+  // Canal de voz al que se quiere pasar estando conectado a otro (pide confirmación)
+  const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
 
   const server = servers.find(s => s.id === selectedServerId) ?? servers[0]
   const allChannels: Channel[] = server ? server.categories.flatMap(c => c.channels) : []
@@ -104,20 +108,44 @@ export default function MobileShell() {
     return null
   }, [servers, voice.channelId])
 
-  // Participantes de LiveKit -> nombre y color (la identidad es el user ID)
-  const unknownVoiceUserIds = voice.participants.map(p => p.id).filter(id => !users[id])
+  // Quién está en cada canal de voz del servidor actual, en vivo (#4)
+  const serverVoiceChannelIds = useMemo(
+    () =>
+      (server?.categories ?? [])
+        .flatMap(c => c.channels)
+        .filter(c => c.type === 'voice')
+        .map(c => c.id),
+    [server],
+  )
+  const voicePresence = useVoicePresence(serverVoiceChannelIds, token)
+
+  // IDs (LiveKit o presencia) -> nombre y color; los que la app no conoce se piden al backend
+  const unknownVoiceUserIds = [
+    ...voice.participants.map(p => p.id),
+    ...Object.values(voicePresence).flat(),
+  ].filter(id => !users[id])
   const voiceProfiles = useUserProfiles(unknownVoiceUserIds)
-  const voiceParticipants: VoiceScreenParticipant[] = voice.participants.map(p => {
-    const known = users[p.id]
-    return {
-      id: p.id,
-      name: known?.name ?? voiceProfiles[p.id]?.name ?? 'Usuario',
-      color: known?.color ?? colorFor(p.id),
-      isLocal: p.isLocal,
-      isSpeaking: p.isSpeaking,
-      isMuted: p.isMuted,
-    }
+  const describeUser = (id: string) => ({
+    name: users[id]?.name ?? voiceProfiles[id]?.name ?? 'Usuario',
+    color: users[id]?.color ?? colorFor(id),
   })
+
+  const voiceParticipants: VoiceScreenParticipant[] = voice.participants.map(p => ({
+    id: p.id,
+    ...describeUser(p.id),
+    isLocal: p.isLocal,
+    isSpeaking: p.isSpeaking,
+    isMuted: p.isMuted,
+  }))
+
+  // Lista de canales: presencia de todos; en el canal propio, los datos de LiveKit (quién habla, mute)
+  const sidebarVoiceParticipants: Record<string, VoiceChannelParticipant[]> = {}
+  for (const [channelId, userIds] of Object.entries(voicePresence)) {
+    sidebarVoiceParticipants[channelId] = userIds.map(id => ({ id, ...describeUser(id) }))
+  }
+  if (voice.channelId && voiceParticipants.length > 0) {
+    sidebarVoiceParticipants[voice.channelId] = voiceParticipants
+  }
 
   const lastMessageId = useMemo(() => {
     for (let i = channelMessages.length - 1; i >= 0; i--) {
@@ -199,7 +227,11 @@ export default function MobileShell() {
 
   const handleSelectChannel = (ch: Channel) => {
     if (ch.type === 'voice') {
-      handleJoinVoiceChannel(ch)
+      if (voice.channelId && voice.channelId !== ch.id && isVoiceSupported) {
+        setPendingVoiceSwitch(ch)
+      } else {
+        handleJoinVoiceChannel(ch)
+      }
       return
     }
     selectChannel(ch.id)
@@ -335,6 +367,7 @@ export default function MobileShell() {
               onAddChannel={handleAddChannel}
               onSelectChannel={handleSelectChannel}
               onLongPressChannel={handleOpenEditChannel}
+              voiceParticipants={sidebarVoiceParticipants}
             />
             {voiceLocation && (
               <VoiceBar
@@ -408,6 +441,18 @@ export default function MobileShell() {
             } catch (error) {
               showToast('Error al abandonar el servidor', 'error')
             }
+          }}
+        />
+        <ConfirmModal
+          visible={!!pendingVoiceSwitch}
+          title="¿Cambiar de canal de voz?"
+          message={`Estás conectado a "${voiceLocation?.channel.name ?? 'otro canal'}". Si entrás a "${pendingVoiceSwitch?.name ?? ''}", vas a salir de ese canal.`}
+          confirmLabel="Cambiar"
+          onCancel={() => setPendingVoiceSwitch(null)}
+          onConfirm={() => {
+            const target = pendingVoiceSwitch
+            setPendingVoiceSwitch(null)
+            if (target) handleJoinVoiceChannel(target)
           }}
         />
         <ConfirmModal
