@@ -265,6 +265,27 @@ describe('useVoiceRoom', () => {
     expect(result.current.participants.find((p) => p.id === 'auth0|otro')?.isSpeaking).toBe(true);
   });
 
+  it('ensordecido, nadie aparece como hablando', async () => {
+    const { result } = renderHook(() => useVoiceRoom());
+    await act(async () => {
+      await result.current.join('chan-1');
+    });
+    const remote = FakeRoom.instances[0].addRemote('auth0|otro');
+    remote.isSpeaking = true;
+    act(() => FakeRoom.instances[0].emit('activeSpeakersChanged'));
+    expect(result.current.participants.find((p) => p.id === 'auth0|otro')?.isSpeaking).toBe(true);
+
+    await act(async () => {
+      result.current.toggleDeafen();
+    });
+    expect(result.current.participants.find((p) => p.id === 'auth0|otro')?.isSpeaking).toBe(false);
+
+    await act(async () => {
+      result.current.toggleDeafen();
+    });
+    expect(result.current.participants.find((p) => p.id === 'auth0|otro')?.isSpeaking).toBe(true);
+  });
+
   it('leave cierra la sala y avisa al backend', async () => {
     const { result } = renderHook(() => useVoiceRoom());
     await act(async () => {

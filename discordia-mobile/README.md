@@ -29,8 +29,8 @@ Se instala **una sola vez**. Solo hay que volver a generarlo cuando cambian depe
 ### Opción A: EAS Build (sin Android Studio)
 
 ```bash
-npx eas login                                              # cuenta de Expo con acceso al proyecto discordia_g12
-npx eas build --profile development --platform android     # genera el APK en la nube
+npx eas-cli@latest login                                              # cuenta de Expo con acceso al proyecto discordia_g12
+npx eas-cli@latest build --profile development --platform android   # genera el APK en la nube
 ```
 
 Al terminar, EAS da un link/QR para descargar e instalar el APK en el teléfono o el emulador. El link se puede compartir con el resto del equipo para no compilarlo de nuevo. Después:

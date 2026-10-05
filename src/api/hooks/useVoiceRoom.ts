@@ -124,7 +124,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       toParticipant(room.localParticipant, true),
       ...Array.from(room.remoteParticipants.values()).map((p) => {
         const participant = toParticipant(p, false);
-        if (locallyMutedRef.current[participant.id]) participant.isSpeaking = false;
+        if (deafenedRef.current || locallyMutedRef.current[participant.id]) participant.isSpeaking = false;
         return participant;
       }),
     ]);
@@ -289,8 +289,9 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       deafenedRef.current = deafened;
       setIsDeafened(deafened);
       applyVolumes();
+      syncParticipants();
     },
-    [applyVolumes]
+    [applyVolumes, syncParticipants]
   );
 
   // Solo se guardan los cambios hechos por el usuario (no un mute forzado por falta de permiso)
