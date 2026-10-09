@@ -145,8 +145,8 @@ describe('useChatWebSocket', () => {
 
     const cached2 = queryClient.getQueryData<any[]>(['messages', 'channel-1']);
     expect(cached2).toHaveLength(2);
-    expect(cached2![1].author).toBeDefined();
-    expect(cached2![1].author.displayName).toBe('Test User');
+    expect(cached2![1].authorId).toBe('user-1');
+    expect(cached2![1].author).toBeUndefined();
 
     act(() => {
       wsInstance._simulateClose();

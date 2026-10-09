@@ -14,6 +14,7 @@ import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
 import { useAssignRoleMutation, useRemoveRoleMutation, useRolesQuery } from '../../hooks/useRoles'
 import { useServerMembersQuery } from '../../hooks/useServerMembers'
+import { useUserDisplay } from '../../hooks/useUserProfiles'
 import type { ServerMember, ServerRole } from '../../types'
 
 interface MembersModalProps {
@@ -37,6 +38,7 @@ export default function MembersModal({ visible, serverId, ownerId, onClose }: Me
     [membersQuery.data],
   )
   const total = membersQuery.data?.pages[0]?.total ?? 0
+  const describeUser = useUserDisplay(members.map(member => member.userId))
   const roles: ServerRole[] = rolesQuery.data ?? []
   const rolesById = useMemo(() => new Map(roles.map(role => [role.id, role])), [roles])
   const assignableRoles = roles.filter(role => !role.isDefault)
@@ -60,7 +62,7 @@ export default function MembersModal({ visible, serverId, ownerId, onClose }: Me
   }
 
   const renderMember = ({ item: member }: { item: ServerMember }) => {
-    const name = member.nickname || member.userId
+    const name = member.nickname || describeUser(member.userId).name
     const isOwner = member.userId === ownerId
     const isExpanded = expandedMemberId === member.id
     const memberRoles = member.roleIds

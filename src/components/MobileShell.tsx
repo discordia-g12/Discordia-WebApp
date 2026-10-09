@@ -1383,7 +1383,7 @@ export const MobileShell: React.FC<MobileShellProps> = ({
               {currentUser.displayName}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              @{currentUser.username}#{currentUser.discriminator || '1024'}
+              @{currentUser.username}
             </div>
             <div
               style={{

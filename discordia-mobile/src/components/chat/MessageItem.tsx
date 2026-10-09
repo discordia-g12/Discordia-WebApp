@@ -1,7 +1,8 @@
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { colors, radii, spacing, typography } from '../../theme'
-import type { Message, User } from '../../types'
+import type { Message } from '../../types'
+import type { UserDisplay } from '../../hooks/useUserProfiles'
 import Avatar from '../shared/Avatar'
 
 // Capaz se pasa a una carpeta aparte (funciones?)
@@ -31,7 +32,7 @@ export function formatMessageTimestamp(isoDate: string): string {
 
 interface MessageItemProps {
     message: Message
-    author?: User
+    author?: UserDisplay
 }
 
 // Solo un msj (con reacciones, hora, usuario, etc)

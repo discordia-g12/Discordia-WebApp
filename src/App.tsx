@@ -41,8 +41,9 @@ import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useS
 import { useChatWebSocket } from './api/hooks/useChatWebSocket';
 import { useVoiceRoom } from './api/hooks/useVoiceRoom';
 import { useVoicePresence } from './api/hooks/useVoicePresence';
+import { useUserProfiles } from './api/hooks/useUserProfiles';
 import { ApiError } from './api/errors';
-import { updateMyProfile, getUsersBulk } from './api/users';
+import { updateMyProfile } from './api/users';
 
 /**
  * Hook para detectar si el viewport corresponde a un dispositivo móvil (<768px).
@@ -173,7 +174,6 @@ export default function App() {
 
   // Estados principales de navegación y servidor
   const [directMessagesList, setDirectMessagesList] = useState<DirectMessage[]>([]);
-  const [globalUsers, setGlobalUsers] = useState<Record<string, User>>({});
   const [currentUser, setCurrentUser] = useState<User>(() => {
     const p = useSession.getState().profile;
     return {
@@ -220,57 +220,6 @@ export default function App() {
     selectedServerId !== 'home' ? selectedChannelId : null
   );
 
-
-  // Sincronizar globalUsers con los perfiles reales
-  useEffect(() => {
-    const requiredUserIds = new Set<string>();
-
-    // Obtener de miembros
-    serverMembersAsUsers.forEach(u => requiredUserIds.add(u.id));
-
-    // Obtener de mensajes directos
-    directMessagesList.forEach(dm => {
-      const targetId = dm.recipientId || dm.userId;
-      if (targetId) requiredUserIds.add(targetId);
-    });
-
-    // Obtener de mensajes en el chat
-    if (realMessages) {
-      realMessages.forEach(msg => {
-        if (msg.authorId) requiredUserIds.add(msg.authorId);
-      });
-    }
-
-    const missingIds = Array.from(requiredUserIds).filter(id => !globalUsers[id] && id !== currentUser.id);
-
-    if (missingIds.length > 0) {
-      getUsersBulk(missingIds).then(profiles => {
-        setGlobalUsers(prev => {
-          const next = { ...prev };
-          profiles.forEach(p => {
-            next[p.id] = p;
-          });
-          return next;
-        });
-      }).catch(err => {
-        console.error("Error fetching bulk users:", err);
-      });
-    }
-  }, [serverMembersAsUsers, directMessagesList, realMessages, currentUser.id, globalUsers]);
-
-  const usersMap = useMemo(() => {
-    const map: Record<string, User> = { ...globalUsers };
-
-    // Fallback: Si no esta en globalUsers todavia, usar la info incompleta de miembros
-    serverMembersAsUsers.forEach(u => {
-      if (!map[u.id]) {
-        map[u.id] = u;
-      }
-    });
-
-    map[currentUser.id] = currentUser;
-    return map;
-  }, [globalUsers, serverMembersAsUsers, currentUser]);
 
   const { sendMessageWs } = useChatWebSocket(
     selectedServerId !== 'home' && selectedChannelId ? selectedChannelId : null,
@@ -359,6 +308,31 @@ export default function App() {
     [allServerChannels]
   );
   const voicePresence = useVoicePresence(selectedServerId === 'home' ? [] : serverVoiceChannelIds);
+
+  // Perfiles de los demás usuarios visibles: miembros, DMs, autores de mensajes y participantes de voz
+  const fetchedUsers = useUserProfiles(
+    [
+      ...serverMembersAsUsers.map((u) => u.id),
+      ...directMessagesList.map((dm) => dm.recipientId || dm.userId || ''),
+      ...(realMessages ?? []).map((msg) => msg.authorId),
+      ...voice.participants.map((p) => p.id),
+      ...Object.values(voicePresence).flat(),
+    ].filter((id) => id !== currentUser.id)
+  );
+
+  const usersMap = useMemo(() => {
+    const map: Record<string, User> = { ...fetchedUsers };
+
+    // Fallback: Si no esta en fetchedUsers todavia, usar la info incompleta de miembros
+    serverMembersAsUsers.forEach(u => {
+      if (!map[u.id]) {
+        map[u.id] = u;
+      }
+    });
+
+    map[currentUser.id] = currentUser;
+    return map;
+  }, [fetchedUsers, serverMembersAsUsers, currentUser]);
 
   const currentChannel = useMemo(() => {
     if (!selectedChannelId) return null;

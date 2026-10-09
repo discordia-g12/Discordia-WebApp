@@ -49,15 +49,14 @@ describe('useApi Hooks', () => {
   });
 
   describe('useChannelMessagesQuery', () => {
-    it('should fetch messages and inject author info for current user', async () => {
+    it('should fetch messages without embedding author info (resolved by the UI via authorId)', async () => {
       const { result } = renderHook(() => useChannelMessagesQuery('channel-1'), { wrapper });
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
       expect(result.current.data).toHaveLength(1);
-      expect(result.current.data![0].author).toBeDefined();
-      expect(result.current.data![0].author!.id).toBe('user-1');
-      expect(result.current.data![0].author!.displayName).toBe('Test User');
+      expect(result.current.data![0].authorId).toBe('user-1');
+      expect(result.current.data![0].author).toBeUndefined();
     });
   });
 

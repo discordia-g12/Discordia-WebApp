@@ -257,9 +257,12 @@ async function runBootstrap(): Promise<void> {
         const rawUsername = authUser?.username || pendingUsername || authUser?.nickname || authUser?.email?.split('@')[0] || `user_${Date.now().toString().slice(-4)}`;
         const cleanUsername = rawUsername.toLowerCase().replace(/[^a-zA-Z0-9_.-]/g, '_').padEnd(3, '0').slice(0, 32);
 
+        // En cuentas usuario/contraseña Auth0 completa `name` con el email: no sirve como nombre visible
+        const idpName = authUser?.name && authUser.name !== authUser.email ? authUser.name : undefined;
+
         const autoProfile = await upsertMyProfile({
           username: cleanUsername,
-          display_name: pendingDisplayName || authUser?.name || cleanUsername,
+          display_name: pendingDisplayName || idpName || cleanUsername,
           avatar_url: authUser?.picture,
         });
 

@@ -132,6 +132,30 @@ describe('Session Store & Bootstrap State Machine', () => {
     expect(useSession.getState().profile?.username).toBe('newuser');
   });
 
+  it('no usa el name de Auth0 como nombre visible cuando es el email (cuentas usuario/contraseña)', async () => {
+    window.history.replaceState({}, '', '/');
+
+    vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('valid-token');
+    vi.spyOn(auth0Provider, 'getUser').mockResolvedValue({
+      nickname: 'newuser',
+      name: 'new@example.com',
+      email: 'new@example.com',
+    });
+    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(
+      new ApiError({ status: 404, detail: 'User profile not found' })
+    );
+    const upsertSpy = vi.spyOn(usersApi, 'upsertMyProfile').mockResolvedValue({
+      id: 'u-auto',
+      username: 'newuser',
+      displayName: 'newuser',
+      status: 'online',
+    });
+
+    await retryBootstrap();
+
+    expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'newuser' }));
+  });
+
   it('pasa a needs_profile si el auto-aprovisionamiento tiene conflicto 409', async () => {
     window.history.replaceState({}, '', '/');
 

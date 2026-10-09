@@ -79,8 +79,11 @@ export async function upsertMyProfile(payload: CreateProfileRequest): Promise<Us
     .slice(0, 32);
   const cleanUsername = rawClean.length < 3 ? rawClean.padEnd(3, '0') : rawClean;
 
+  const cleanDisplayName = (payload.display_name || '').trim().slice(0, 64);
+
   const requestBody = {
     username: cleanUsername,
+    display_name: cleanDisplayName || undefined,
     bio: payload.bio || undefined,
     avatar_url: payload.avatar_url || undefined,
   };
@@ -90,8 +93,8 @@ export async function upsertMyProfile(payload: CreateProfileRequest): Promise<Us
     return {
       ...res,
       id: res.user_id || res.id,
-      displayName: payload.display_name || res.username,
-      display_name: payload.display_name || res.username,
+      displayName: res.display_name || res.username,
+      display_name: res.display_name || res.username,
       avatar: res.avatar_url || payload.avatar_url,
       status: 'online',
     };
@@ -115,8 +118,12 @@ export async function updateMyProfile(payload: UpdateProfileRequest): Promise<Us
 }
 
 
+/** Máximo de IDs que acepta POST /api/v1/users/bulk por pedido. */
+const BULK_LIMIT = 100;
+
 /**
- * Obtiene los perfiles de multiples usuarios dado sus IDs.
+ * Obtiene los perfiles de multiples usuarios dado sus IDs (en lotes de BULK_LIMIT).
+ * Los usuarios sin perfil inicializado no vienen en la respuesta.
  */
 export async function getUsersBulk(userIds: string[]): Promise<UserProfile[]> {
   if (!userIds.length) return [];
@@ -135,9 +142,15 @@ export async function getUsersBulk(userIds: string[]): Promise<UserProfile[]> {
   }
 
   const uniqueIds = Array.from(new Set(userIds));
-  const res = await api.post<any[]>('/api/v1/users/bulk', { user_ids: uniqueIds });
-  
-  return res.map((u: any) => ({
+  const batches: string[][] = [];
+  for (let i = 0; i < uniqueIds.length; i += BULK_LIMIT) {
+    batches.push(uniqueIds.slice(i, i + BULK_LIMIT));
+  }
+  const responses = await Promise.all(
+    batches.map((batch) => api.post<any[]>('/api/v1/users/bulk', { user_ids: batch }))
+  );
+
+  return responses.flat().map((u: any) => ({
     ...u,
     id: u.user_id || u.id,
     displayName: u.display_name || u.username,

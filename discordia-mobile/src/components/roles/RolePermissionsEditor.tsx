@@ -19,6 +19,7 @@ import {
   useUpdateRoleInfoMutation,
   useUpdateRolePermissionsMutation,
 } from '../../hooks/useRoles'
+import { useUserDisplay } from '../../hooks/useUserProfiles'
 import type { ServerRole } from '../../types'
 import { PERMISSION_CATEGORIES, hasPermission, togglePermission } from './permissions'
 import { PRESET_ROLE_COLORS } from './roleColors'
@@ -37,6 +38,7 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
   // La lista de miembros se pide solo al desplegarla: un rol puede tener miles de miembros
   const [membersExpanded, setMembersExpanded] = useState(false)
   const membersQuery = useRoleMembersQuery(serverId, membersExpanded ? role.id : null)
+  const describeUser = useUserDisplay(membersQuery.data?.map(member => member.userId) ?? [])
 
   const [draft, setDraft] = useState(role.permissionsBitmask)
   const [nameDraft, setNameDraft] = useState(role.name)
@@ -222,7 +224,7 @@ export default function RolePermissionsEditor({ serverId, role, onBack }: RolePe
           {membersExpanded && membersQuery.isSuccess && membersQuery.data.length > 0 && (
             <ScrollView style={styles.membersList} nestedScrollEnabled>
               {membersQuery.data.map(member => {
-                const displayName = member.nickname || member.userId
+                const displayName = member.nickname || describeUser(member.userId).name
                 return (
                   <View key={member.id} style={styles.memberRow}>
                     <View style={[styles.memberAvatar, { backgroundColor: colorDraft || colors.textMuted }]}>

@@ -31,6 +31,7 @@ import {
   useSetDefaultRoleMutation,
   useRoleMembersQuery,
 } from '../api/hooks/useApi';
+import { useUserProfiles } from '../api/hooks/useUserProfiles';
 import { PERMISSION_BITS } from '../api/roles';
 import { ServerMembersTab } from '../components/ServerMembersTab';
 
@@ -184,6 +185,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
   const [membersExpandedRoleId, setMembersExpandedRoleId] = useState<string | null>(null);
   const isMembersExpanded = !!activeRole && membersExpandedRoleId === activeRole.id;
   const roleMembersQuery = useRoleMembersQuery(serverState.id, isMembersExpanded ? activeRole.id : null);
+  const roleMemberProfiles = useUserProfiles(roleMembersQuery.data?.map((member) => member.userId) ?? []);
   const activeDraft = activeRole ? permissionDrafts[activeRole.id] : undefined;
   const activePermissions = activeDraft ?? activeRole?.permissions ?? [];
   const hasUnsavedPermissions =
@@ -1270,7 +1272,8 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
                       {isMembersExpanded && roleMembersQuery.isSuccess && roleMembersQuery.data.length > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto' }}>
                           {roleMembersQuery.data.map((member) => {
-                            const displayName = member.nickname || member.userId;
+                            const displayName =
+                              member.nickname || roleMemberProfiles[member.userId]?.displayName || 'Usuario';
                             return (
                               <div
                                 key={member.id}

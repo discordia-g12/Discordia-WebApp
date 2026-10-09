@@ -74,27 +74,16 @@ export function useCreateServerMutation() {
   });
 }
 
+// El autor de cada mensaje no se embebe acá: la UI lo resuelve por authorId contra el mapa de
+// usuarios, que mantiene al día el perfil propio (p. ej. tras cambiar el nombre visible).
 export function useChannelMessagesQuery(channelId: string | null, options?: GetMessagesOptions) {
   const status = useSession((s) => s.status);
-  const profile = useSession((s) => s.profile);
-  
+
   return useQuery({
     queryKey: ['messages', channelId, options],
     queryFn: async () => {
       if (!channelId) return [];
-      const msgs = await getMessages(channelId, options);
-      return msgs.map(msg => {
-        if (msg.authorId === profile?.id && !msg.author) {
-          msg.author = {
-            id: profile.id,
-            username: profile.email?.split('@')[0] || profile.username || 'User',
-            displayName: profile.displayName || profile.display_name || 'User',
-            avatar: profile.avatar || profile.avatar_url || '',
-            status: profile.status ||'online',
-          };
-        }
-        return msg;
-      });
+      return getMessages(channelId, options);
     },
     enabled: status === 'authenticated' && Boolean(channelId),
   });

@@ -6,6 +6,7 @@ import {
   useRolesQuery,
   useServerMembersQuery,
 } from '../api/hooks/useApi';
+import { useUserProfiles } from '../api/hooks/useUserProfiles';
 import type { Role, ServerMember } from '../types';
 
 export interface ServerMembersTabProps {
@@ -36,6 +37,7 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
     [membersQuery.data]
   );
   const total = membersQuery.data?.pages[0]?.total ?? 0;
+  const profiles = useUserProfiles(members.map((member) => member.userId));
 
   const roles: Role[] = rolesQuery.data ?? [];
   const rolesById = useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles]);
@@ -55,7 +57,9 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage, members.length]);
 
-  const displayName = (member: ServerMember) => member.nickname || member.userId;
+  // Apodo en el servidor > nombre del perfil
+  const displayName = (member: ServerMember) =>
+    member.nickname || profiles[member.userId]?.displayName || 'Usuario';
 
   const filteredMembers = members.filter((member) =>
     displayName(member).toLowerCase().includes(search.trim().toLowerCase())

@@ -37,20 +37,7 @@ export function useChatWebSocket(channelId: string | null, userId: string) {
             }
             
             if (data.id && data.content) {
-              if (data.authorId === userId && !data.author) {
-                const { useSession } = await import('../../auth/session');
-                const profile = useSession.getState().profile;
-                if (profile) {
-                  data.author = {
-                    id: profile.id,
-                    username: profile.email?.split('@')[0] || profile.username || 'User',
-                    displayName: profile.displayName || profile.display_name || 'User',
-                    avatar: profile.avatar || profile.avatar_url || '',
-                    status: profile.status ||'online',
-                  };
-                }
-              }
-
+              // El autor se resuelve en la UI por authorId 
               queryClient.setQueriesData(
                 { queryKey: ['messages', channelId] },
                 (old: Message[] | undefined) => {

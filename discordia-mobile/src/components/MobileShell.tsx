@@ -26,21 +26,13 @@ import VoiceBar from './voice/VoiceBar'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
 import { useVoiceRoom } from '../hooks/useVoiceRoom'
-import { useUserProfiles } from '../hooks/useUserProfiles'
+import { useUserDisplay } from '../hooks/useUserProfiles'
 import { useVoicePresence } from '../hooks/useVoicePresence'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
 import { ApiError } from '@shared/api/errors'
 
 type MobileScreen = 'sidebar' | 'chat' | 'voice'
-
-// Color estable para el avatar de usuarios que la app no tiene cargados
-const AVATAR_COLORS = ['#7c5cfc', '#3db57a', '#f5a623', '#5865f2', '#ed4245', '#ff73fa']
-function colorFor(userId: string): string {
-  let hash = 0
-  for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) | 0
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
-}
 
 export default function MobileShell() {
   const { logout, token } = useAuth()
@@ -122,16 +114,12 @@ export default function MobileShell() {
   )
   const voicePresence = useVoicePresence(serverVoiceChannelIds, token)
 
-  // IDs (LiveKit o presencia) -> nombre y color; los que la app no conoce se piden al backend
-  const unknownVoiceUserIds = [
+  // IDs (LiveKit, presencia o autores de mensajes) -> nombre y color; los que la app no conoce se piden al backend
+  const describeUser = useUserDisplay([
     ...voice.participants.map(p => p.id),
     ...Object.values(voicePresence).flat(),
-  ].filter(id => !users[id])
-  const voiceProfiles = useUserProfiles(unknownVoiceUserIds)
-  const describeUser = (id: string) => ({
-    name: users[id]?.name ?? voiceProfiles[id]?.name ?? 'Usuario',
-    color: users[id]?.color ?? colorFor(id),
-  })
+    ...channelMessages.map(m => m.userId),
+  ])
 
   const voiceParticipants: VoiceScreenParticipant[] = voice.participants.map(p => ({
     id: p.id,
@@ -529,7 +517,7 @@ export default function MobileShell() {
             onBack={() => setScreen('sidebar')}
             onOpenSettings={() => handleOpenEditChannel(channel)}
           />
-          <MessageList messages={channelMessages} users={users} />
+          <MessageList messages={channelMessages} describeUser={describeUser} />
           <Composer
             channelName={channel.name}
             value={draft}
