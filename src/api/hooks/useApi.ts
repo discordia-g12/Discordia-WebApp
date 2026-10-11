@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { getMyProfile, upsertMyProfile, CreateProfileRequest } from '../users';
-import { getServers, getServerMembers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel } from '../servers';
+import { getServers, getServerMembers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel, createCategory, CreateCategoryRequest, deleteCategory } from '../servers';
 import {
   getRoles,
   getRoleMembers,
@@ -125,6 +125,28 @@ export function useDeleteChannelMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ serverId, channelId }: { serverId: string; channelId: string }) => deleteChannel(serverId, channelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+    },
+  });
+}
+
+export function useCreateCategoryMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serverId, payload }: { serverId: string; payload: CreateCategoryRequest }) =>
+      createCategory(serverId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+    },
+  });
+}
+
+export function useDeleteCategoryMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serverId, categoryId }: { serverId: string; categoryId: string }) =>
+      deleteCategory(serverId, categoryId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['servers'] });
     },

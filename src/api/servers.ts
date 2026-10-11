@@ -1,9 +1,11 @@
 import { api } from './client';
 import {
   Server,
+  Category,
   Channel,
   ServerBackendResponse,
   ChannelBackendResponse,
+  CategoryBackendResponse,
   ServerMember,
   ServerMemberPage,
   ServerMemberBackendResponse,
@@ -58,6 +60,19 @@ export async function getServerMembers(
   };
 }
 
+/** Prefijo de las categorías que arma el cliente (p. ej. la sección general); no existen en el backend. */
+const LOCAL_CATEGORY_PREFIX = 'cat-';
+
+/** true si la categoría es local (sección general): al backend se le manda "sin categoría". */
+export function isLocalCategoryId(categoryId: string): boolean {
+  return categoryId.startsWith(LOCAL_CATEGORY_PREFIX);
+}
+
+/** category_id para el backend: null/undefined o una categoría local equivalen a "sin categoría". */
+function toBackendCategoryId(categoryId: string | null | undefined): string | null {
+  return categoryId && !isLocalCategoryId(categoryId) ? categoryId : null;
+}
+
 /**
  * Adaptador: Convierte un canal del backend (snake_case) al modelo de dominio (camelCase).
  */
@@ -78,6 +93,33 @@ export function mapChannelFromBackend(raw: ChannelBackendResponse): Channel {
  */
 export function mapServerFromBackend(raw: ServerBackendResponse): Server {
   const channels = (raw.channels || []).map(mapChannelFromBackend);
+
+  // Canales sin categoría (CA 3: se muestran fuera de cualquier agrupación, en una sección general)
+  const uncategorizedChannels = channels.filter((ch) => !ch.categoryId);
+
+  // Categorías persistidas en el backend
+  const mappedCategories: Category[] = (raw.categories || []).map((cat) => ({
+    id: cat.id,
+    serverId: raw.id,
+    name: cat.name,
+    position: cat.position,
+    channels: channels.filter((ch) => ch.categoryId === cat.id),
+  }));
+
+  const categories: Category[] = [];
+
+  // Si hay canales sin categoría, o si no hay ninguna categoría creada aún, mostramos la sección general
+  if (uncategorizedChannels.length > 0 || mappedCategories.length === 0) {
+    categories.push({
+      id: `${LOCAL_CATEGORY_PREFIX}${raw.id}-general`,
+      serverId: raw.id,
+      name: 'GENERAL',
+      channels: uncategorizedChannels,
+    });
+  }
+
+  categories.push(...mappedCategories);
+
   return {
     id: raw.id,
     name: raw.name,
@@ -86,14 +128,7 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
     icon: raw.icon_url || undefined,
     description: raw.description || undefined,
     channels,
-    categories: [
-      {
-        id: `cat-${raw.id}-general`,
-        serverId: raw.id,
-        name: 'GENERAL',
-        channels,
-      },
-    ],
+    categories,
     roles: [],
     members: [],
     boostLevel: 0,
@@ -133,7 +168,7 @@ export async function createChannel(
   const backendPayload = {
     name: payload.name,
     type: payload.type,
-    category_id: (payload.parentId && payload.parentId.startsWith("cat-")) ? undefined : payload.parentId,
+    category_id: toBackendCategoryId(payload.parentId) ?? undefined,
   };
   const rawChannel = await api.post<ChannelBackendResponse>(`/api/v1/servers/${serverId}/channels`, backendPayload);
   return mapChannelFromBackend(rawChannel);
@@ -150,14 +185,60 @@ export async function deleteChannel(serverId: string, channelId: string): Promis
 export interface EditChannelRequest {
   name?: string;
   topic?: string;
+  categoryId?: string | null;
 }
 
 /**
  * Edita un canal de un servidor.
  */
 export async function editChannel(serverId: string, channelId: string, payload: EditChannelRequest): Promise<Channel> {
-  const rawChannel = await api.patch<ChannelBackendResponse>(`/api/v1/servers/${serverId}/channels/${channelId}`, payload);
+  const backendPayload: Record<string, any> = {};
+  if (payload.name !== undefined) backendPayload.name = payload.name;
+  if (payload.topic !== undefined) backendPayload.topic = payload.topic;
+  if (payload.categoryId !== undefined) backendPayload.category_id = toBackendCategoryId(payload.categoryId);
+
+  const rawChannel = await api.patch<ChannelBackendResponse>(`/api/v1/servers/${serverId}/channels/${channelId}`, backendPayload);
   return mapChannelFromBackend(rawChannel);
+}
+
+export interface CreateCategoryRequest {
+  name: string;
+  position?: number;
+}
+
+/**
+ * Crea una nueva categoría dentro de un servidor específico.
+ */
+export async function createCategory(serverId: string, payload: CreateCategoryRequest): Promise<Category> {
+  const rawCategory = await api.post<CategoryBackendResponse>(`/api/v1/servers/${serverId}/categories`, payload);
+  return {
+    id: rawCategory.id,
+    serverId: rawCategory.server_id,
+    name: rawCategory.name,
+    position: rawCategory.position,
+    channels: [],
+  };
+}
+
+/**
+ * Obtiene las categorías de un servidor.
+ */
+export async function getCategories(serverId: string): Promise<Category[]> {
+  const rawCategories = await api.get<CategoryBackendResponse[]>(`/api/v1/servers/${serverId}/categories`);
+  return (rawCategories || []).map((cat) => ({
+    id: cat.id,
+    serverId: cat.server_id,
+    name: cat.name,
+    position: cat.position,
+    channels: [],
+  }));
+}
+
+/**
+ * Elimina una categoría de un servidor.
+ */
+export async function deleteCategory(serverId: string, categoryId: string): Promise<void> {
+  await api.delete(`/api/v1/servers/${serverId}/categories/${categoryId}`);
 }
 
 export async function createInvite(serverId: string, payload: { maxUses?: number, expiresInSeconds?: number }): Promise<{ code: string }> {

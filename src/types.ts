@@ -39,6 +39,7 @@ export type Modal =
   | 'edit-message'
   | 'create-channel'
   | 'edit-channel'
+  | 'create-category'
   | null;
 
 /** Acciones críticas que requieren confirmación explícita del usuario. */
@@ -206,6 +207,13 @@ export interface ChannelBackendResponse {
   topic?: string | null;
 }
 
+export interface CategoryBackendResponse {
+  id: string;
+  server_id: string;
+  name: string;
+  position: number;
+}
+
 /** DTO de servidor retornado por Server-Roles-Core-Service */
 export interface ServerBackendResponse {
   id: string;
@@ -215,6 +223,7 @@ export interface ServerBackendResponse {
   icon_url?: string | null;
   created_at: string;
   channels: ChannelBackendResponse[];
+  categories?: CategoryBackendResponse[];
 }
 
 /** DTO de mensaje retornado por Chat-Engine-Service */

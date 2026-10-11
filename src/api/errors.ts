@@ -138,3 +138,16 @@ export function isProblemType(err: unknown, type: string): err is ApiError {
   return err instanceof ApiError && err.type === type;
 }
 
+
+/**
+ * Mensaje para mostrarle al usuario según el código de estado de la API.
+ * Los `detail` del backend vienen en inglés, así que se traducen por código.
+ */
+export function errorMessageFor(
+  err: unknown,
+  byStatus: Partial<Record<number, string>>,
+  fallback: string
+): string {
+  if (err instanceof ApiError && byStatus[err.status]) return byStatus[err.status]!;
+  return fallback;
+}

@@ -8,7 +8,7 @@ import {
   ConfirmDialog,
   IncomingCallModal
 } from './Modals';
-import { CreateChannelModal, EditChannelModal } from './ChannelModals';
+import { CreateChannelModal, EditChannelModal, CreateCategoryModal } from './ChannelModals';
 import { Server, User, Modal, ConfirmAction, Channel, AppView } from '../types';
 import { leaveServer, joinServerViaInvite, deleteServer } from '../api/servers';
 
@@ -34,6 +34,7 @@ interface GlobalModalsProps {
   createChannelMutation: any;
   editChannelMutation: any;
   deleteChannelMutation: any;
+  createCategoryMutation: any;
   channelModalCategoryId: string | null | undefined;
   targetChannelForAction: Channel | null;
   incomingCaller: User | null;
@@ -181,12 +182,13 @@ export const GlobalModals: React.FC<GlobalModalsProps> = (props) => {
       {props.activeModal === 'edit-channel' && props.targetChannelForAction && (
         <EditChannelModal
           channel={props.targetChannelForAction}
+          categories={props.currentServer?.categories}
           onClose={() => props.setActiveModal(null)}
-          onEdit={async (id: string, name: string) => {
+          onEdit={async (id: string, name: string, categoryId?: string | null) => {
             await props.editChannelMutation.mutateAsync({
               serverId: props.currentServer!.id,
               channelId: id,
-              payload: { name }
+              payload: { name, categoryId }
             });
           }}
           onDelete={async (id: string) => {
@@ -197,6 +199,18 @@ export const GlobalModals: React.FC<GlobalModalsProps> = (props) => {
             if (props.targetChannelForAction && props.targetChannelForAction.id === id) {
               props.setSelectedChannelId(props.currentServer && props.currentServer.channels && props.currentServer.channels.length > 0 ? props.currentServer.channels[0].id : null);
             }
+          }}
+        />
+      )}
+
+      {props.activeModal === 'create-category' && props.currentServer && (
+        <CreateCategoryModal
+          onClose={() => props.setActiveModal(null)}
+          onCreate={async (name: string) => {
+            await props.createCategoryMutation.mutateAsync({
+              serverId: props.currentServer!.id,
+              payload: { name }
+            });
           }}
         />
       )}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ApiError, isProblemType, parseErrorResponse, PROBLEM_TYPES } from '../errors';
+import { ApiError, errorMessageFor, isProblemType, parseErrorResponse, PROBLEM_TYPES } from '../errors';
 
 function problem(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -34,5 +34,18 @@ describe('parseErrorResponse - RFC 7807 type', () => {
   it('isProblemType es false para errores que no son ApiError', () => {
     expect(isProblemType(new Error('x'), PROBLEM_TYPES.EMAIL_NOT_VERIFIED)).toBe(false);
     expect(isProblemType(new ApiError({ status: 403 }), PROBLEM_TYPES.EMAIL_NOT_VERIFIED)).toBe(false);
+  });
+});
+
+describe('errorMessageFor', () => {
+  const messages = { 403: 'Sin permisos' };
+
+  it('devuelve el mensaje del código de estado del ApiError', () => {
+    expect(errorMessageFor(new ApiError({ status: 403 }), messages, 'Falló')).toBe('Sin permisos');
+  });
+
+  it('usa el mensaje por defecto para códigos sin mensaje o errores que no son de la API', () => {
+    expect(errorMessageFor(new ApiError({ status: 500 }), messages, 'Falló')).toBe('Falló');
+    expect(errorMessageFor(new Error('red'), messages, 'Falló')).toBe('Falló');
   });
 });

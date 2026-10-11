@@ -12,7 +12,7 @@ import {
   DirectMessage,
 } from './types';
 
-import { CreateChannelModal, EditChannelModal } from './components/ChannelModals';
+import { CreateChannelModal, EditChannelModal, CreateCategoryModal } from './components/ChannelModals';
 import { GlobalModals } from './components/GlobalModals';
 import {
   ServerRail,
@@ -37,7 +37,7 @@ import {
 } from './views';
 
 import { useSession, bootstrap, authService } from './auth/session';
-import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useServerMembersQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation } from './api/hooks/useApi';
+import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useServerMembersQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation, useCreateCategoryMutation } from './api/hooks/useApi';
 import { useChatWebSocket } from './api/hooks/useChatWebSocket';
 import { useVoiceRoom } from './api/hooks/useVoiceRoom';
 import { useVoicePresence } from './api/hooks/useVoicePresence';
@@ -209,6 +209,7 @@ export default function App() {
   const createChannelMutation = useCreateChannelMutation();
   const editChannelMutation = useEditChannelMutation();
   const deleteChannelMutation = useDeleteChannelMutation();
+  const createCategoryMutation = useCreateCategoryMutation();
   const servers = activeServers || [];
 
 
@@ -723,12 +724,13 @@ export default function App() {
         {activeModal === 'edit-channel' && targetChannelForAction && (
           <EditChannelModal
             channel={targetChannelForAction}
+            categories={currentServer?.categories}
             onClose={() => setActiveModal(null)}
-            onEdit={async (id, name) => {
+            onEdit={async (id, name, categoryId) => {
               await editChannelMutation.mutateAsync({
                 serverId: currentServer!.id,
                 channelId: id,
-                payload: { name }
+                payload: { name, categoryId }
               });
             }}
             onDelete={async (id) => {
@@ -739,6 +741,18 @@ export default function App() {
               if (selectedChannelId === id) {
                 setSelectedChannelId(currentServer!.channels?.[0]?.id || null);
               }
+            }}
+          />
+        )}
+
+        {activeModal === 'create-category' && currentServer && (
+          <CreateCategoryModal
+            onClose={() => setActiveModal(null)}
+            onCreate={async (name) => {
+              await createCategoryMutation.mutateAsync({
+                serverId: currentServer.id,
+                payload: { name }
+              });
             }}
           />
         )}
@@ -865,6 +879,9 @@ export default function App() {
           onCreateChannel={(catId) => {
             setChannelModalCategoryId(catId);
             setActiveModal('create-channel');
+          }}
+          onCreateCategory={() => {
+            setActiveModal('create-category');
           }}
           onEditChannel={(channel) => {
             setTargetChannelForAction(channel);
@@ -996,6 +1013,7 @@ export default function App() {
         createChannelMutation={createChannelMutation}
         editChannelMutation={editChannelMutation}
         deleteChannelMutation={deleteChannelMutation}
+        createCategoryMutation={createCategoryMutation}
         channelModalCategoryId={channelModalCategoryId}
         targetChannelForAction={targetChannelForAction}
         incomingCaller={incomingCaller}

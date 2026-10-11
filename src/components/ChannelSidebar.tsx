@@ -19,6 +19,7 @@ import {
   HeadphoneOff,
   VolumeX,
   Gem,
+  FolderPlus,
 } from 'lucide-react';
 import { Server, Channel, User, Status } from '../types';
 import { Avatar } from './Avatar';
@@ -79,6 +80,8 @@ export interface ChannelSidebarProps {
   onJoinVoiceChannel?: (channelId: string) => void;
   /** Acción para crear un nuevo canal en una categoría. */
   onCreateChannel?: (categoryId?: string) => void;
+  /** Acción para crear una nueva categoría. */
+  onCreateCategory?: () => void;
   onEditChannel?: (channel: Channel) => void;
   onDeleteChannel?: (channelId: string) => void;
   /** Acciones del menú desplegable del servidor */
@@ -147,6 +150,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onViewParticipantProfile,
   onJoinVoiceChannel,
   onCreateChannel,
+  onCreateCategory,
   onEditChannel,
   onOpenServerBoost,
   onInvitePeople,
@@ -362,6 +366,38 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 <span>Ajustes del servidor</span>
               </span>
             </div>
+
+            {/* Crear canal */}
+            {onCreateChannel && (
+              <div
+                className="context-menu-item"
+                onClick={() => {
+                  setIsServerMenuOpen(false);
+                  onCreateChannel();
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Plus size={16} />
+                  <span>Crear canal</span>
+                </span>
+              </div>
+            )}
+
+            {/* Crear categoría */}
+            {onCreateCategory && (
+              <div
+                className="context-menu-item"
+                onClick={() => {
+                  setIsServerMenuOpen(false);
+                  onCreateCategory();
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FolderPlus size={16} />
+                  <span>Crear categoría</span>
+                </span>
+              </div>
+            )}
 
             {/* Notificaciones */}
             <div
