@@ -10,7 +10,7 @@ import {
 } from './Modals';
 import { CreateChannelModal, EditChannelModal, CreateCategoryModal } from './ChannelModals';
 import { Server, User, Modal, ConfirmAction, Channel, AppView } from '../types';
-import { leaveServer, joinServerViaInvite, deleteServer } from '../api/servers';
+import { leaveServer, joinServerViaInvite, deleteServer, EditChannelRequest } from '../api/servers';
 
 interface GlobalModalsProps {
   activeModal: Modal | null;
@@ -184,11 +184,11 @@ export const GlobalModals: React.FC<GlobalModalsProps> = (props) => {
           channel={props.targetChannelForAction}
           categories={props.currentServer?.categories}
           onClose={() => props.setActiveModal(null)}
-          onEdit={async (id: string, name: string, categoryId?: string | null) => {
+          onEdit={async (id: string, changes: EditChannelRequest) => {
             await props.editChannelMutation.mutateAsync({
               serverId: props.currentServer!.id,
               channelId: id,
-              payload: { name, categoryId }
+              payload: changes
             });
           }}
           onDelete={async (id: string) => {

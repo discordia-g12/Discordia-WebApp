@@ -726,11 +726,11 @@ export default function App() {
             channel={targetChannelForAction}
             categories={currentServer?.categories}
             onClose={() => setActiveModal(null)}
-            onEdit={async (id, name, categoryId) => {
+            onEdit={async (id, changes) => {
               await editChannelMutation.mutateAsync({
                 serverId: currentServer!.id,
                 channelId: id,
-                payload: { name, categoryId }
+                payload: changes
               });
             }}
             onDelete={async (id) => {

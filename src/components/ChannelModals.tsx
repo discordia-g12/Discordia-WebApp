@@ -3,7 +3,7 @@ import { ModalOverlay } from './Modals';
 import { Hash, Volume2, X } from 'lucide-react';
 import { Channel, Category } from '../types';
 import { errorMessageFor } from '../api/errors';
-import { isLocalCategoryId } from '../api/servers';
+import { isLocalCategoryId, EditChannelRequest } from '../api/servers';
 
 const FormError: React.FC<{ message: string | null }> = ({ message }) =>
   message ? (
@@ -144,7 +144,7 @@ interface EditChannelModalProps {
   channel: Channel;
   categories?: Category[];
   onClose: () => void;
-  onEdit: (channelId: string, name: string, categoryId?: string | null) => Promise<void>;
+  onEdit: (channelId: string, changes: EditChannelRequest) => Promise<void>;
   onDelete: (channelId: string) => Promise<void>;
 }
 
@@ -156,6 +156,7 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
   onDelete,
 }) => {
   const [name, setName] = useState(channel.name);
+  const [topic, setTopic] = useState(channel.topic || '');
   const [categoryId, setCategoryId] = useState<string | null>(channel.categoryId || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,7 +167,7 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
     setIsSubmitting(true);
     setError(null);
     try {
-      await onEdit(channel.id, name.trim(), categoryId);
+      await onEdit(channel.id, { name: name.trim(), topic: topic.trim(), categoryId });
       onClose();
     } catch (err) {
       console.error(err);
@@ -235,6 +236,21 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
                   autoFocus
                 />
               </div>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>Tema del canal (opcional)</label>
+              <textarea
+                value={topic}
+                onChange={e => setTopic(e.target.value)}
+                placeholder="¿De qué se habla en este canal?"
+                maxLength={1024}
+                rows={3}
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: 4, border: 'none', resize: 'vertical',
+                  backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-normal)', fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box'
+                }}
+              />
             </div>
 
             <div style={{ marginBottom: 20 }}>
