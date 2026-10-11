@@ -1,6 +1,6 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Plus, Shield, Users, LogOut, Link as LinkIcon } from 'lucide-react-native'
+import { FolderPlus, Plus, Shield, Users, LogOut, Link as LinkIcon } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Server } from '../../types'
 
@@ -9,6 +9,7 @@ interface ServerSidebarHeaderProps {
     onOpenRoles: () => void
     onOpenMembers: () => void
     onAddChannel: () => void
+    onAddCategory?: () => void
     canLeave?: boolean
     onLeaveServer?: () => void
     onOpenInvite?: () => void
@@ -20,6 +21,7 @@ export default function ServerSidebarHeader({
     onOpenRoles,
     onOpenMembers,
     onAddChannel,
+    onAddCategory,
     canLeave,
     onLeaveServer,
     onOpenInvite,
@@ -47,6 +49,16 @@ export default function ServerSidebarHeader({
                     <Pressable style={styles.actionButton} onPress={onOpenRoles} hitSlop={8}>
                         <Shield color={colors.textMuted} size={18} />
                     </Pressable>
+                    {onAddCategory && (
+                        <Pressable
+                            style={styles.actionButton}
+                            onPress={onAddCategory}
+                            hitSlop={8}
+                            accessibilityLabel="Crear categoría"
+                        >
+                            <FolderPlus color={colors.textMuted} size={18} />
+                        </Pressable>
+                    )}
                     <Pressable style={styles.actionButton} onPress={onAddChannel} hitSlop={8}>
                         <Plus color={colors.textMuted} size={18} />
                     </Pressable>

@@ -1,11 +1,12 @@
 import React from 'react'
-import type { Channel } from '../../types'
+import type { Category, Channel } from '../../types'
 import EditChannelModal from './EditChannelModal'
 import DeleteChannelModal from './DeleteChannelModal'
 
 interface ChannelActionModalsProps {
     serverId?: string
     channel: Channel | null
+    categories?: Category[]
     editVisible: boolean
     deleteVisible: boolean
     onCloseEdit: () => void
@@ -18,6 +19,7 @@ interface ChannelActionModalsProps {
 export default function ChannelActionModals({
     serverId,
     channel,
+    categories,
     editVisible,
     deleteVisible,
     onCloseEdit,
@@ -33,6 +35,7 @@ export default function ChannelActionModals({
                 visible={editVisible}
                 serverId={serverId}
                 channel={channel}
+                categories={categories}
                 onClose={onCloseEdit}
                 onRequestDelete={onRequestDelete}
             />

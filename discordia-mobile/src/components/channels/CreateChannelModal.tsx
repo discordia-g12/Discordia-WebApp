@@ -11,6 +11,8 @@ import {
   View,
 } from 'react-native'
 import { Check, Hash, Volume2, X } from 'lucide-react-native'
+import { errorMessageFor } from '@shared/api/errors'
+import { isLocalCategoryId } from '@shared/api/servers'
 import { useData, useUI } from '../../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Category, Channel } from '../../types'
@@ -36,15 +38,13 @@ export default function CreateChannelModal({
   const { selectChannel, showToast } = useUI()
   const [type, setType] = useState<'text' | 'voice'>('text')
   const [name, setName] = useState('')
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    categoryId && categoryId !== 'default' ? categoryId : null,
-  )
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(categoryId ?? null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (visible) {
-      setSelectedCategoryId(categoryId && categoryId !== 'default' ? categoryId : null)
+      setSelectedCategoryId(categoryId ?? null)
     }
   }, [visible, categoryId])
 
@@ -81,8 +81,18 @@ export default function CreateChannelModal({
       selectChannel(channel.id)
       showToast?.(`Canal "${channel.name}" creado.`, 'success')
       onSuccess?.(channel)
-    } catch (err: any) {
-      setError(err?.message || 'Error al crear el canal. Intentá de nuevo.')
+    } catch (err) {
+      setError(
+        errorMessageFor(
+          err,
+          {
+            400: 'Ya existe un canal con ese nombre en esta categoría.',
+            403: 'No tenés permisos para crear canales en este servidor.',
+            404: 'La categoría elegida ya no existe.',
+          },
+          'Error al crear el canal. Intentá de nuevo.',
+        ),
+      )
     } finally {
       setLoading(false)
     }
@@ -207,7 +217,7 @@ export default function CreateChannelModal({
             </Pressable>
 
             {categories
-              ?.filter(c => c.id !== 'default')
+              ?.filter(c => !isLocalCategoryId(c.id))
               .map(cat => {
                 const active = selectedCategoryId === cat.id
                 return (

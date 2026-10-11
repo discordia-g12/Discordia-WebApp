@@ -12,6 +12,7 @@ import Composer from './chat/Composer'
 import ConfirmModal from './shared/ConfirmModal'
 import InviteModal from './servers/InviteModal'
 import CreateChannelModal from './channels/CreateChannelModal'
+import CreateCategoryModal from './channels/CreateCategoryModal'
 import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
 import ProfileModal from './profile/ProfileModal'
@@ -31,6 +32,7 @@ import { useVoicePresence } from '../hooks/useVoicePresence'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
 import { ApiError } from '@shared/api/errors'
+import { isLocalCategoryId } from '@shared/api/servers'
 
 type MobileScreen = 'sidebar' | 'chat' | 'voice'
 
@@ -63,6 +65,7 @@ export default function MobileShell() {
   const [draft, setDraft] = useState('')
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
+  const [createCategoryModalOpen, setCreateCategoryModalOpen] = useState(false)
   const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
   const [rolesModalOpen, setRolesModalOpen] = useState(false)
   const [membersModalOpen, setMembersModalOpen] = useState(false)
@@ -271,9 +274,9 @@ export default function MobileShell() {
   const toggleCategory = (id: string) =>
     setCollapsed(prev => ({ ...prev, [id]: !prev[id] }))
 
-  // La categoría virtual 'default' (canales sin categoría) se manda al backend como null.
+  // La sección general es local (canales sin categoría): para el backend equivale a null.
   const handleAddChannel = (categoryId: string | null) => {
-    setChannelModalCategoryId(categoryId === 'default' ? null : categoryId)
+    setChannelModalCategoryId(categoryId && !isLocalCategoryId(categoryId) ? categoryId : null)
     setCreateChannelModalOpen(true)
   }
 
@@ -319,6 +322,7 @@ export default function MobileShell() {
     <ChannelActionModals
       serverId={server?.id}
       channel={targetChannelForAction}
+      categories={server?.categories}
       editVisible={editChannelModalOpen}
       deleteVisible={deleteChannelModalOpen}
       onCloseEdit={() => {
@@ -362,6 +366,7 @@ export default function MobileShell() {
               onOpenRoles={() => setRolesModalOpen(true)}
               onOpenMembers={() => setMembersModalOpen(true)}
               onAddChannel={() => handleAddChannel(null)}
+              onAddCategory={() => setCreateCategoryModalOpen(true)}
             />
             <SidebarSearchRow />
             <ChannelList
@@ -406,6 +411,13 @@ export default function MobileShell() {
             categories={server.categories}
             categoryId={channelModalCategoryId}
             onClose={() => setCreateChannelModalOpen(false)}
+          />
+        )}
+        {server && (
+          <CreateCategoryModal
+            visible={createCategoryModalOpen}
+            serverId={server.id}
+            onClose={() => setCreateCategoryModalOpen(false)}
           />
         )}
         <RolesModal

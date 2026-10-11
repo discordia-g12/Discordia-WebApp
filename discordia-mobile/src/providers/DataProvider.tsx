@@ -36,6 +36,7 @@ import {
   editChannel as apiEditChannel,
   deleteChannel as apiDeleteChannel,
   leaveServer as apiLeaveServer,
+  createCategory as apiCreateCategory,
 } from '@shared/api/servers'
 import type { Server as SharedServer } from '@shared/types'
 
@@ -72,9 +73,10 @@ interface DataContextValue {
   editChannel: (
     serverId: string,
     channelId: string,
-    data: { name?: string; topic?: string },
+    data: { name?: string; topic?: string; categoryId?: string | null },
   ) => Promise<Channel>
   deleteChannel: (serverId: string, channelId: string) => Promise<void>
+  createCategory: (serverId: string, name: string) => Promise<void>
   leaveServer: (serverId: string) => Promise<void>
 
   // Mutaciones y sincronización
@@ -187,12 +189,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     async (
       serverId: string,
       channelId: string,
-      data: { name?: string; topic?: string },
+      data: { name?: string; topic?: string; categoryId?: string | null },
     ): Promise<Channel> => {
       const updatedChannel = await apiEditChannel(serverId, channelId, {
         ...(data.name !== undefined && { name: data.name.trim() }),
         ...(data.topic !== undefined && { topic: data.topic.trim() }),
+        ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
       })
+      // Si cambió de categoría hay que reagrupar: se recarga del backend, que es la fuente de verdad
+      if (data.categoryId !== undefined) {
+        await refreshServers()
+        return updatedChannel
+      }
       setServers(prev =>
         prev.map(srv => {
           if (srv.id !== serverId) return srv
@@ -214,7 +222,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       )
       return updatedChannel
     },
-    [],
+    [refreshServers],
+  )
+
+  const createCategory = useCallback(
+    async (serverId: string, name: string): Promise<void> => {
+      await apiCreateCategory(serverId, { name: name.trim() })
+      await refreshServers()
+    },
+    [refreshServers],
   )
 
   const deleteChannel = useCallback(
@@ -493,6 +509,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createChannel,
       editChannel,
       deleteChannel,
+      createCategory,
       leaveServer,
       sendMessage,
       addOptimisticMessage,
@@ -519,6 +536,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createChannel,
       editChannel,
       deleteChannel,
+      createCategory,
       leaveServer,
       sendMessage,
       addOptimisticMessage,

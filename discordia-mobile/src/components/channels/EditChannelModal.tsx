@@ -10,15 +10,18 @@ import {
   TextInput,
   View,
 } from 'react-native'
-import { Hash, Trash2, Volume2, X } from 'lucide-react-native'
+import { Check, Hash, Trash2, Volume2, X } from 'lucide-react-native'
+import { errorMessageFor } from '@shared/api/errors'
+import { isLocalCategoryId } from '@shared/api/servers'
 import { useData, useUI } from '../../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../../theme'
-import type { Channel } from '../../types'
+import type { Category, Channel } from '../../types'
 
 interface EditChannelModalProps {
   visible: boolean
   serverId: string
   channel: Channel | null
+  categories?: Category[]
   onClose: () => void
   onSuccess?: (channel: Channel) => void
   onRequestDelete?: (channel: Channel) => void
@@ -28,6 +31,7 @@ export default function EditChannelModal({
   visible,
   serverId,
   channel,
+  categories,
   onClose,
   onSuccess,
   onRequestDelete,
@@ -36,13 +40,18 @@ export default function EditChannelModal({
   const { showToast } = useUI()
   const [name, setName] = useState('')
   const [topic, setTopic] = useState('')
+  const [categoryId, setCategoryId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Solo categorías reales: la sección general es local y equivale a "sin categoría"
+  const selectableCategories = (categories ?? []).filter(c => !isLocalCategoryId(c.id))
 
   useEffect(() => {
     if (visible && channel) {
       setName(channel.name)
       setTopic(channel.topic ?? '')
+      setCategoryId(channel.categoryId ?? null)
       setError(null)
     }
   }, [visible, channel])
@@ -73,22 +82,27 @@ export default function EditChannelModal({
     setError(null)
 
     try {
+      const categoryChanged = categoryId !== (channel.categoryId ?? null)
       const updated = await editChannel(serverId, channel.id, {
         name: trimmedName,
         topic: topic.trim(),
+        ...(categoryChanged && { categoryId }),
       })
       showToast?.(`Canal #${updated.name} actualizado con éxito.`, 'success')
       onSuccess?.(updated)
       onClose()
-    } catch (err: any) {
-      const msg = err?.message || 'Error al actualizar el canal.'
-      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('permiso')) {
-        setError('No tienes permisos de administración para editar este canal.')
-      } else if (msg.toLowerCase().includes('already exists') || msg.toLowerCase().includes('ya existe')) {
-        setError('Ya existe un canal con ese nombre en esta categoría.')
-      } else {
-        setError(msg)
-      }
+    } catch (err) {
+      setError(
+        errorMessageFor(
+          err,
+          {
+            400: 'Ya existe un canal con ese nombre en la categoría elegida.',
+            403: 'No tenés permisos para editar o mover canales en este servidor.',
+            404: 'La categoría elegida ya no existe.',
+          },
+          'Error al actualizar el canal.',
+        ),
+      )
     } finally {
       setLoading(false)
     }
@@ -163,6 +177,27 @@ export default function EditChannelModal({
               numberOfLines={3}
               editable={!loading}
             />
+          </View>
+
+          {/* Categoría (CA 2: mover el canal a otra categoría) */}
+          <Text style={styles.label}>CATEGORÍA</Text>
+          <View style={styles.categorySelector}>
+            {[{ id: null, name: 'Sin categoría (General)' }, ...selectableCategories].map(cat => {
+              const active = categoryId === cat.id
+              return (
+                <Pressable
+                  key={cat.id ?? 'none'}
+                  style={[styles.categoryOption, active && styles.categoryOptionActive]}
+                  onPress={() => setCategoryId(cat.id)}
+                  disabled={loading}
+                >
+                  <Text style={[styles.categoryOptionText, active && styles.categoryOptionTextActive]}>
+                    {cat.name}
+                  </Text>
+                  {active && <Check color={colors.accent} size={16} />}
+                </Pressable>
+              )
+            })}
           </View>
 
           {/* Botón rápido de eliminar canal */}
@@ -278,6 +313,34 @@ const styles = StyleSheet.create({
     color: colors.text,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  categorySelector: {
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  categoryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  categoryOptionActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.surfaceHover,
+  },
+  categoryOptionText: {
+    ...typography.channelName,
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  categoryOptionTextActive: {
+    color: colors.text,
+    fontWeight: '600',
   },
   topicInputWrap: {
     minHeight: 70,
