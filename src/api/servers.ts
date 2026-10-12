@@ -1,5 +1,13 @@
 import { api } from './client';
 import {
+  LOCAL_CATEGORY_PREFIX,
+  toBackendCategoryId,
+  toCategoryOrder,
+  toChannelOrder,
+} from './channelLayout';
+
+export { isLocalCategoryId } from './channelLayout';
+import {
   Server,
   Category,
   Channel,
@@ -58,19 +66,6 @@ export async function getServerMembers(
     limit: raw.limit,
     offset: raw.offset,
   };
-}
-
-/** Prefijo de las categorías que arma el cliente (p. ej. la sección general); no existen en el backend. */
-const LOCAL_CATEGORY_PREFIX = 'cat-';
-
-/** true si la categoría es local (sección general): al backend se le manda "sin categoría". */
-export function isLocalCategoryId(categoryId: string): boolean {
-  return categoryId.startsWith(LOCAL_CATEGORY_PREFIX);
-}
-
-/** category_id para el backend: null/undefined o una categoría local equivalen a "sin categoría". */
-function toBackendCategoryId(categoryId: string | null | undefined): string | null {
-  return categoryId && !isLocalCategoryId(categoryId) ? categoryId : null;
 }
 
 /**
@@ -203,7 +198,6 @@ export async function editChannel(serverId: string, channelId: string, payload: 
 
 export interface CreateCategoryRequest {
   name: string;
-  position?: number;
 }
 
 /**
@@ -263,4 +257,17 @@ export async function deleteServer(serverId: string): Promise<void> {
 
 export async function getInvitePreview(code: string): Promise<any> {
   return await api.get(`/api/v1/invites/${code}`);
+}
+
+/**
+ * Guarda el orden de todos los canales del servidor tal como se muestran en `categories`
+ * (incluye la categoría de cada canal, así un arrastre también puede moverlo de categoría).
+ */
+export async function reorderChannels(serverId: string, categories: Category[]): Promise<void> {
+  await api.put(`/api/v1/servers/${serverId}/channels/order`, { channels: toChannelOrder(categories) });
+}
+
+/** Guarda el orden de todas las categorías del servidor tal como se muestran en `categories`. */
+export async function reorderCategories(serverId: string, categories: Category[]): Promise<void> {
+  await api.put(`/api/v1/servers/${serverId}/categories/order`, { category_ids: toCategoryOrder(categories) });
 }

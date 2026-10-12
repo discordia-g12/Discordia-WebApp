@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { getMyProfile, upsertMyProfile, CreateProfileRequest } from '../users';
-import { getServers, getServerMembers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel, createCategory, CreateCategoryRequest, deleteCategory } from '../servers';
+import { getServers, getServerMembers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel, createCategory, CreateCategoryRequest, deleteCategory, reorderChannels, reorderCategories } from '../servers';
 import {
   getRoles,
   getRoleMembers,
@@ -14,7 +14,7 @@ import {
   CreateRoleRequest,
   UpdateRoleInfoRequest,
 } from '../roles';
-import type { Role } from '../../types';
+import type { Category, Role, Server } from '../../types';
 import { getMessages, sendMessage, GetMessagesOptions } from '../messages';
 import { useSession } from '../../auth/session';
 
@@ -151,6 +151,44 @@ export function useDeleteCategoryMutation() {
       queryClient.invalidateQueries({ queryKey: ['servers'] });
     },
   });
+}
+
+/**
+ * Reorden optimista: muestra el orden nuevo al instante, lo guarda en el backend y,
+ * si falla (p. ej. 403 sin permisos), vuelve al orden anterior.
+ */
+function useReorderMutation(save: (serverId: string, categories: Category[]) => Promise<void>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serverId, categories }: { serverId: string; categories: Category[] }) =>
+      save(serverId, categories),
+    onMutate: async ({ serverId, categories }) => {
+      await queryClient.cancelQueries({ queryKey: ['servers'] });
+      const previous = queryClient.getQueryData<Server[]>(['servers']);
+      queryClient.setQueryData<Server[]>(['servers'], (old) =>
+        old?.map((srv) =>
+          srv.id === serverId
+            ? { ...srv, categories, channels: categories.flatMap((c) => c.channels) }
+            : srv
+        )
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(['servers'], context.previous);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+    },
+  });
+}
+
+export function useReorderChannelsMutation() {
+  return useReorderMutation(reorderChannels);
+}
+
+export function useReorderCategoriesMutation() {
+  return useReorderMutation(reorderCategories);
 }
 
 export function useRolesQuery(serverId: string | null) {

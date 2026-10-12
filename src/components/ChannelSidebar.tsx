@@ -22,6 +22,7 @@ import {
   FolderPlus,
 } from 'lucide-react';
 import { Server, Channel, User, Status } from '../types';
+import { isLocalCategoryId } from '../api/channelLayout';
 import { Avatar } from './Avatar';
 import { VoiceParticipantMenu } from './VoiceParticipantMenu';
 import { UserPanel } from './UserPanel';
@@ -84,6 +85,13 @@ export interface ChannelSidebarProps {
   onCreateCategory?: () => void;
   onEditChannel?: (channel: Channel) => void;
   onDeleteChannel?: (channelId: string) => void;
+  /**
+   * Reorden por arrastre: mueve un canal a una categoría, antes de `beforeChannelId`
+   * (o al final si es null). Si no se pasa, los canales no se pueden arrastrar.
+   */
+  onMoveChannel?: (channelId: string, targetCategoryId: string, beforeChannelId: string | null) => void;
+  /** Reorden por arrastre: mueve una categoría antes de `beforeCategoryId` (o al final si es null). */
+  onMoveCategory?: (categoryId: string, beforeCategoryId: string | null) => void;
   /** Acciones del menú desplegable del servidor */
   onOpenServerBoost?: () => void;
   onInvitePeople?: () => void;
@@ -152,6 +160,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onCreateChannel,
   onCreateCategory,
   onEditChannel,
+  onMoveChannel,
+  onMoveCategory,
   onOpenServerBoost,
   onInvitePeople,
   onOpenServerSettings,
@@ -202,6 +212,82 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isServerMenuOpen]);
+
+  /* ---------- Reorden por arrastre (drag & drop nativo de HTML5) ---------- */
+  type DragItem = { kind: 'channel' | 'category'; id: string };
+  type DropTarget = { kind: 'channel' | 'category'; id: string; position: 'before' | 'after' };
+  const [dragItem, setDragItem] = useState<DragItem | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+
+  const startDrag = (e: React.DragEvent, item: DragItem) => {
+    e.stopPropagation();
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', item.id); // requerido por Firefox para iniciar el arrastre
+    setDragItem(item);
+  };
+
+  const endDrag = () => {
+    setDragItem(null);
+    setDropTarget(null);
+  };
+
+  /** Un canal se puede soltar sobre otro canal o sobre una categoría; una categoría, solo sobre otra real. */
+  const canDropOn = (kind: DropTarget['kind'], id: string) => {
+    if (!dragItem || dragItem.id === id) return false;
+    if (dragItem.kind === 'channel') return true;
+    return kind === 'category' && !isLocalCategoryId(id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, kind: DropTarget['kind'], id: string) => {
+    if (!canDropOn(kind, id)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+    if (dropTarget?.kind !== kind || dropTarget.id !== id || dropTarget.position !== position) {
+      setDropTarget({ kind, id, position });
+    }
+  };
+
+  /** Traduce el destino del arrastre a "antes de qué elemento" va lo arrastrado. */
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragItem && dropTarget) {
+      if (dragItem.kind === 'channel') {
+        if (dropTarget.kind === 'category') {
+          // Sobre el encabezado: al principio de esa categoría
+          const target = server.categories.find((c) => c.id === dropTarget.id);
+          const first = target?.channels.find((ch) => ch.id !== dragItem.id);
+          onMoveChannel?.(dragItem.id, dropTarget.id, first?.id ?? null);
+        } else {
+          const target = server.categories.find((c) => c.channels.some((ch) => ch.id === dropTarget.id));
+          if (target) {
+            const siblings = target.channels.filter((ch) => ch.id !== dragItem.id);
+            const index = siblings.findIndex((ch) => ch.id === dropTarget.id);
+            const before = dropTarget.position === 'before' ? siblings[index] : siblings[index + 1];
+            onMoveChannel?.(dragItem.id, target.id, before?.id ?? null);
+          }
+        }
+      } else {
+        const siblings = server.categories.filter((c) => !isLocalCategoryId(c.id) && c.id !== dragItem.id);
+        const index = siblings.findIndex((c) => c.id === dropTarget.id);
+        const before = dropTarget.position === 'before' ? siblings[index] : siblings[index + 1];
+        onMoveCategory?.(dragItem.id, before?.id ?? null);
+      }
+    }
+    endDrag();
+  };
+
+  /** Línea que indica dónde va a quedar lo arrastrado. */
+  const dropIndicator = (kind: DropTarget['kind'], id: string): React.CSSProperties | undefined => {
+    if (dropTarget?.kind !== kind || dropTarget.id !== id) return undefined;
+    if (kind === 'category' && dragItem?.kind === 'channel') {
+      return { backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' };
+    }
+    const edge = dropTarget.position === 'before' ? 'inset 0 2px 0 0' : 'inset 0 -2px 0 0';
+    return { boxShadow: `${edge} var(--brand, #5865f2)` };
+  };
 
   /** Alterna el colapso de una categoría específica. */
   const toggleCategory = (categoryId: string) => {
@@ -565,6 +651,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   role="button"
                   tabIndex={0}
                   aria-expanded={!isCollapsed}
+                  draggable={Boolean(onMoveCategory) && !isLocalCategoryId(category.id)}
+                  onDragStart={(e) => startDrag(e, { kind: 'category', id: category.id })}
+                  onDragEnd={endDrag}
+                  onDragOver={(e) => handleDragOver(e, 'category', category.id)}
+                  onDrop={handleDrop}
+                  style={dropIndicator('category', category.id)}
                 >
                   <div className="category-title">
                     <ChevronDown
@@ -616,6 +708,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                           <div
                             className={`channel-item ${isActive ? 'active' : ''} ${hasUnreads ? 'unread' : ''
                               }`}
+                            draggable={Boolean(onMoveChannel)}
+                            onDragStart={(e) => startDrag(e, { kind: 'channel', id: channel.id })}
+                            onDragEnd={endDrag}
+                            onDragOver={(e) => handleDragOver(e, 'channel', channel.id)}
+                            onDrop={handleDrop}
+                            style={dropIndicator('channel', channel.id)}
                             onMouseEnter={() => setHoveredChannelId(channel.id)}
                             onMouseLeave={() => setHoveredChannelId(null)}
                             onClick={() => {

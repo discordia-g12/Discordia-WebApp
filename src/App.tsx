@@ -37,12 +37,13 @@ import {
 } from './views';
 
 import { useSession, bootstrap, authService } from './auth/session';
-import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useServerMembersQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation, useCreateCategoryMutation } from './api/hooks/useApi';
+import { useServersQuery, useCreateServerMutation, useChannelMessagesQuery, useServerMembersQuery, useCreateChannelMutation, useEditChannelMutation, useDeleteChannelMutation, useCreateCategoryMutation, useReorderChannelsMutation, useReorderCategoriesMutation } from './api/hooks/useApi';
 import { useChatWebSocket } from './api/hooks/useChatWebSocket';
 import { useVoiceRoom } from './api/hooks/useVoiceRoom';
 import { useVoicePresence } from './api/hooks/useVoicePresence';
 import { useUserProfiles } from './api/hooks/useUserProfiles';
-import { ApiError } from './api/errors';
+import { ApiError, errorMessageFor } from './api/errors';
+import { moveCategory, moveChannel } from './api/channelLayout';
 import { updateMyProfile } from './api/users';
 
 /**
@@ -210,6 +211,8 @@ export default function App() {
   const editChannelMutation = useEditChannelMutation();
   const deleteChannelMutation = useDeleteChannelMutation();
   const createCategoryMutation = useCreateCategoryMutation();
+  const reorderChannelsMutation = useReorderChannelsMutation();
+  const reorderCategoriesMutation = useReorderCategoriesMutation();
   const servers = activeServers || [];
 
 
@@ -629,6 +632,37 @@ export default function App() {
     });
   };
 
+  // Reorden por arrastre (optimista: si el backend lo rechaza, el hook vuelve al orden anterior)
+  const reorderErrorMessage = (err: unknown) =>
+    errorMessageFor(
+      err,
+      {
+        400: 'El orden cambió mientras arrastrabas o hay un canal con el mismo nombre en esa categoría.',
+        403: 'No tenés permisos para reordenar canales y categorías en este servidor.',
+      },
+      'No se pudo guardar el nuevo orden.'
+    );
+
+  const handleMoveChannel = (channelId: string, targetCategoryId: string, beforeChannelId: string | null) => {
+    if (!currentServer) return;
+    const categories = moveChannel(currentServer.categories, channelId, targetCategoryId, beforeChannelId);
+    if (categories === currentServer.categories) return;
+    reorderChannelsMutation.mutate(
+      { serverId: currentServer.id, categories },
+      { onError: (err) => showToast(reorderErrorMessage(err), 'danger') }
+    );
+  };
+
+  const handleMoveCategory = (categoryId: string, beforeCategoryId: string | null) => {
+    if (!currentServer) return;
+    const categories = moveCategory(currentServer.categories, categoryId, beforeCategoryId);
+    if (categories === currentServer.categories) return;
+    reorderCategoriesMutation.mutate(
+      { serverId: currentServer.id, categories },
+      { onError: (err) => showToast(reorderErrorMessage(err), 'danger') }
+    );
+  };
+
   // Actualizar servidor
   const handleUpdateServer = (updatedServer: Server) => {
     queryClient.setQueryData<Server[]>(['servers'], (prev = []) =>
@@ -883,6 +917,8 @@ export default function App() {
           onCreateCategory={() => {
             setActiveModal('create-category');
           }}
+          onMoveChannel={handleMoveChannel}
+          onMoveCategory={handleMoveCategory}
           onEditChannel={(channel) => {
             setTargetChannelForAction(channel);
             setActiveModal('edit-channel');
