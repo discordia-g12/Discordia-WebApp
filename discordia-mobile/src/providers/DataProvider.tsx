@@ -19,6 +19,7 @@ import {
 import type {
   User,
   Server,
+  Category,
   Channel,
   ServerBackendResponse,
   Message,
@@ -37,6 +38,8 @@ import {
   deleteChannel as apiDeleteChannel,
   leaveServer as apiLeaveServer,
   createCategory as apiCreateCategory,
+  reorderChannels as apiReorderChannels,
+  reorderCategories as apiReorderCategories,
 } from '@shared/api/servers'
 import type { Server as SharedServer } from '@shared/types'
 
@@ -77,6 +80,9 @@ interface DataContextValue {
   ) => Promise<Channel>
   deleteChannel: (serverId: string, channelId: string) => Promise<void>
   createCategory: (serverId: string, name: string) => Promise<void>
+  /** Guarda el orden de canales/categorías que se pasa (ya reordenado con @shared/api/channelLayout). */
+  reorderChannels: (serverId: string, categories: Category[]) => Promise<void>
+  reorderCategories: (serverId: string, categories: Category[]) => Promise<void>
   leaveServer: (serverId: string) => Promise<void>
 
   // Mutaciones y sincronización
@@ -231,6 +237,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       await refreshServers()
     },
     [refreshServers],
+  )
+
+  // Reorden optimista: se muestra al instante y, si el backend lo rechaza, se vuelve a lo que tiene guardado
+  const applyReorder = useCallback(
+    async (
+      serverId: string,
+      categories: Category[],
+      save: (serverId: string, categories: Category[]) => Promise<void>,
+    ): Promise<void> => {
+      setServers(prev =>
+        prev.map(srv =>
+          srv.id === serverId
+            ? { ...srv, categories, channels: categories.flatMap(c => c.channels) }
+            : srv,
+        ),
+      )
+      try {
+        await save(serverId, categories)
+      } catch (err) {
+        await refreshServers()
+        throw err
+      }
+    },
+    [refreshServers],
+  )
+
+  const reorderChannels = useCallback(
+    (serverId: string, categories: Category[]) => applyReorder(serverId, categories, apiReorderChannels),
+    [applyReorder],
+  )
+
+  const reorderCategories = useCallback(
+    (serverId: string, categories: Category[]) => applyReorder(serverId, categories, apiReorderCategories),
+    [applyReorder],
   )
 
   const deleteChannel = useCallback(
@@ -510,6 +550,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       editChannel,
       deleteChannel,
       createCategory,
+      reorderChannels,
+      reorderCategories,
       leaveServer,
       sendMessage,
       addOptimisticMessage,
@@ -537,6 +579,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       editChannel,
       deleteChannel,
       createCategory,
+      reorderChannels,
+      reorderCategories,
       leaveServer,
       sendMessage,
       addOptimisticMessage,

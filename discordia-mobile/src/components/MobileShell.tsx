@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
@@ -31,7 +31,8 @@ import { useUserDisplay } from '../hooks/useUserProfiles'
 import { useVoicePresence } from '../hooks/useVoicePresence'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
-import { ApiError } from '@shared/api/errors'
+import { ApiError, errorMessageFor } from '@shared/api/errors'
+import { shiftCategory, shiftChannel } from '@shared/api/channelLayout'
 import { isLocalCategoryId } from '@shared/api/servers'
 
 type MobileScreen = 'sidebar' | 'chat' | 'voice'
@@ -47,6 +48,8 @@ export default function MobileShell() {
     sendMessage,
     fetchChannelMessages,
     leaveServer,
+    reorderChannels,
+    reorderCategories,
     addOptimisticMessage,
     confirmOptimisticMessage,
     failOptimisticMessage,
@@ -66,6 +69,10 @@ export default function MobileShell() {
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
   const [createCategoryModalOpen, setCreateCategoryModalOpen] = useState(false)
+  // Modo ordenar canales y categorías (flechas subir/bajar)
+  const [reorderMode, setReorderMode] = useState(false)
+  // Un reorden por vez: cada pedido manda el orden completo y no deben pisarse
+  const reorderInFlight = useRef(false)
   const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
   const [rolesModalOpen, setRolesModalOpen] = useState(false)
   const [membersModalOpen, setMembersModalOpen] = useState(false)
@@ -275,6 +282,42 @@ export default function MobileShell() {
     setCollapsed(prev => ({ ...prev, [id]: !prev[id] }))
 
   // La sección general es local (canales sin categoría): para el backend equivale a null.
+  const saveOrder = async (save: () => Promise<void>) => {
+    if (reorderInFlight.current) return
+    reorderInFlight.current = true
+    try {
+      await save()
+    } catch (err) {
+      showToast(
+        errorMessageFor(
+          err,
+          {
+            400: 'Hay un canal con el mismo nombre en esa categoría.',
+            403: 'No tenés permisos para reordenar canales y categorías en este servidor.',
+          },
+          'No se pudo guardar el nuevo orden.',
+        ),
+        'error',
+      )
+    } finally {
+      reorderInFlight.current = false
+    }
+  }
+
+  const handleShiftChannel = (channelId: string, direction: -1 | 1) => {
+    if (!server) return
+    const categories = shiftChannel(server.categories, channelId, direction)
+    if (categories === server.categories) return
+    saveOrder(() => reorderChannels(server.id, categories))
+  }
+
+  const handleShiftCategory = (categoryId: string, direction: -1 | 1) => {
+    if (!server) return
+    const categories = shiftCategory(server.categories, categoryId, direction)
+    if (categories === server.categories) return
+    saveOrder(() => reorderCategories(server.id, categories))
+  }
+
   const handleAddChannel = (categoryId: string | null) => {
     setChannelModalCategoryId(categoryId && !isLocalCategoryId(categoryId) ? categoryId : null)
     setCreateChannelModalOpen(true)
@@ -367,6 +410,8 @@ export default function MobileShell() {
               onOpenMembers={() => setMembersModalOpen(true)}
               onAddChannel={() => handleAddChannel(null)}
               onAddCategory={() => setCreateCategoryModalOpen(true)}
+              reorderMode={reorderMode}
+              onToggleReorder={() => setReorderMode(on => !on)}
             />
             <SidebarSearchRow />
             <ChannelList
@@ -382,6 +427,9 @@ export default function MobileShell() {
               onLongPressVoiceParticipant={p =>
                 setVoiceActionTarget({ id: p.id, name: p.name, color: p.color })
               }
+              reorderMode={reorderMode}
+              onShiftChannel={handleShiftChannel}
+              onShiftCategory={handleShiftCategory}
             />
             {voiceLocation && (
               <VoiceBar

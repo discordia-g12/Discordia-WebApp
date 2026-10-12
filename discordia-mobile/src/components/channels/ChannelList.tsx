@@ -16,6 +16,9 @@ interface ChannelListProps {
     voiceParticipants?: Record<string, VoiceChannelParticipant[]>
     currentUserId?: string
     onLongPressVoiceParticipant?: (participant: VoiceChannelParticipant) => void
+    reorderMode?: boolean
+    onShiftChannel?: (channelId: string, direction: -1 | 1) => void
+    onShiftCategory?: (categoryId: string, direction: -1 | 1) => void
 }
 
 // Categorias del servidor (con canales colapsados o no)
@@ -30,12 +33,15 @@ export default function ChannelList({
     voiceParticipants,
     currentUserId,
     onLongPressVoiceParticipant,
+    reorderMode,
+    onShiftChannel,
+    onShiftCategory,
 }: ChannelListProps) {
     return (
         <FlatList
             data={categories}
             keyExtractor={(c: Category) => c.id}
-            extraData={voiceParticipants}
+            extraData={[voiceParticipants, reorderMode]}
             contentContainerStyle={{ paddingBottom: spacing.md }}
             renderItem={({ item: category }) => (
                 <CategorySection
@@ -49,6 +55,9 @@ export default function ChannelList({
                     voiceParticipants={voiceParticipants}
                     currentUserId={currentUserId}
                     onLongPressVoiceParticipant={onLongPressVoiceParticipant}
+                    reorderMode={reorderMode}
+                    onShiftChannel={onShiftChannel}
+                    onShiftCategory={onShiftCategory}
                 />
             )}
         />

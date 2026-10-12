@@ -1,6 +1,6 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { FolderPlus, Plus, Shield, Users, LogOut, Link as LinkIcon } from 'lucide-react-native'
+import { ArrowUpDown, FolderPlus, Plus, Shield, Users, LogOut, Link as LinkIcon } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Server } from '../../types'
 
@@ -10,6 +10,9 @@ interface ServerSidebarHeaderProps {
     onOpenMembers: () => void
     onAddChannel: () => void
     onAddCategory?: () => void
+    /** Activa/desactiva el modo ordenar canales y categorías. */
+    reorderMode?: boolean
+    onToggleReorder?: () => void
     canLeave?: boolean
     onLeaveServer?: () => void
     onOpenInvite?: () => void
@@ -22,6 +25,8 @@ export default function ServerSidebarHeader({
     onOpenMembers,
     onAddChannel,
     onAddCategory,
+    reorderMode,
+    onToggleReorder,
     canLeave,
     onLeaveServer,
     onOpenInvite,
@@ -49,6 +54,16 @@ export default function ServerSidebarHeader({
                     <Pressable style={styles.actionButton} onPress={onOpenRoles} hitSlop={8}>
                         <Shield color={colors.textMuted} size={18} />
                     </Pressable>
+                    {onToggleReorder && (
+                        <Pressable
+                            style={[styles.actionButton, reorderMode && styles.actionButtonActive]}
+                            onPress={onToggleReorder}
+                            hitSlop={8}
+                            accessibilityLabel={reorderMode ? 'Terminar de ordenar' : 'Ordenar canales'}
+                        >
+                            <ArrowUpDown color={reorderMode ? colors.accent : colors.textMuted} size={18} />
+                        </Pressable>
+                    )}
                     {onAddCategory && (
                         <Pressable
                             style={styles.actionButton}
@@ -87,5 +102,8 @@ const styles = StyleSheet.create({
     actionButton: {
         padding: spacing.xs,
         borderRadius: radii.sm,
+    },
+    actionButtonActive: {
+        backgroundColor: colors.surfaceHover,
     },
 })
