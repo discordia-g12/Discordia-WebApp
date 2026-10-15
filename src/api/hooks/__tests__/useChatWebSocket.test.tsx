@@ -158,6 +158,80 @@ describe('useChatWebSocket', () => {
     global.WebSocket = OriginalWebSocket;
   });
 
+  it('reconnects with backoff after an unexpected close and refetches the channel history', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      );
+      const instances: MockWebSocket[] = [];
+      global.WebSocket = class extends MockWebSocket {
+        constructor(url: string) {
+          super(url);
+          instances.push(this);
+        }
+      } as any;
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+      const { unmount } = renderHook(() => useChatWebSocket('channel-1', 'user-1'), { wrapper });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0); // getToken
+      });
+      act(() => instances[0]._simulateOpen());
+      expect(invalidateSpy).not.toHaveBeenCalled(); // primera conexión: el historial ya lo pide la query
+
+      act(() => instances[0]._simulateClose());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(999);
+      });
+      expect(instances).toHaveLength(1); // todavía esperando el backoff
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(instances).toHaveLength(2);
+
+      act(() => instances[1]._simulateOpen());
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['messages', 'channel-1'] });
+
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not reconnect after unmount', async () => {
+    vi.useFakeTimers();
+    try {
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      );
+      const instances: MockWebSocket[] = [];
+      global.WebSocket = class extends MockWebSocket {
+        constructor(url: string) {
+          super(url);
+          instances.push(this);
+        }
+      } as any;
+
+      const { unmount } = renderHook(() => useChatWebSocket('channel-1', 'user-1'), { wrapper });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      act(() => instances[0]._simulateOpen());
+
+      unmount();
+      act(() => instances[0]._simulateClose());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      expect(instances).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('should handle errors in incoming messages gracefully', async () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
