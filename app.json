@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "18bee6bf-9dff-4c05-9260-824e41e2abc1"
+      }
+    },
+    "android": {
+      "package": "com.discordia_g12.discordiawebapp"
+    }
+  }
+}
