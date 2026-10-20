@@ -164,6 +164,26 @@ export interface RoleMember {
   joinedAt: string;
 }
 
+/** DTO de un baneo retornado por Server-Roles-Core-Service */
+export interface ServerBanBackendResponse {
+  id: string;
+  server_id: string;
+  user_id: string;
+  banned_by: string | null;
+  reason: string | null;
+  created_at: string;
+}
+
+/** Usuario baneado de un servidor. */
+export interface ServerBan {
+  id: string;
+  serverId: string;
+  userId: string;
+  bannedBy: string | null;
+  reason: string | null;
+  createdAt: string;
+}
+
 /** DTO de miembro de un servidor retornado por Server-Roles-Core-Service */
 export interface ServerMemberBackendResponse {
   id: string;

@@ -19,6 +19,7 @@ import {
   Sliders,
   FileText,
   Smile,
+  UserX,
 } from 'lucide-react';
 import { Server, Role, Channel, User, AuditEntry, ChannelType } from '../types';
 
@@ -34,6 +35,7 @@ import {
 import { useUserProfiles } from '../api/hooks/useUserProfiles';
 import { PERMISSION_BITS } from '../api/roles';
 import { ServerMembersTab } from '../components/ServerMembersTab';
+import { ServerBansTab } from '../components/ServerBansTab';
 
 export interface ServerSettingsProps {
   server?: Server;
@@ -51,6 +53,7 @@ type TabType =
   | 'moderation'
   | 'audit-log'
   | 'members'
+  | 'bans'
   | 'notifications';
 
 const PERMISSION_CATEGORIES = [
@@ -540,6 +543,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
             { id: 'audit-log', label: 'Audit Log', icon: FileText },
             { type: 'divider' },
             { id: 'members', label: 'Members', icon: Users },
+            { id: 'bans', label: 'Bans', icon: UserX },
             { id: 'notifications', label: 'Notifications', icon: Bell },
           ].map((item, index) => {
             if (item.type === 'divider') {
@@ -1477,8 +1481,11 @@ export const ServerSettings: React.FC<ServerSettingsProps> = ({
 
             {/* 3. MEMBERS TAB */}
             {activeTab === 'members' && (
-              <ServerMembersTab serverId={serverState.id} ownerId={serverState.ownerId} />
+              <ServerMembersTab serverId={serverState.id} ownerId={serverState.ownerId} currentUserId={user.id} />
             )}
+
+            {/* BANS TAB */}
+            {activeTab === 'bans' && <ServerBansTab serverId={serverState.id} />}
 
             {/* 4. CHANNELS TAB */}
             {activeTab === 'channels' && (
