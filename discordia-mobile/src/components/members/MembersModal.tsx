@@ -1,37 +1,48 @@
 import React, { useMemo, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Pressable,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native'
-import { ChevronDown, ChevronRight, Crown, Users, X } from 'lucide-react-native'
+import { ChevronDown, ChevronRight, Crown, UserX, Users, X } from 'lucide-react-native'
+import { BAN_REASON_MAX_LENGTH, banErrorMessage } from '@shared/api/moderation'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
 import { useAssignRoleMutation, useRemoveRoleMutation, useRolesQuery } from '../../hooks/useRoles'
 import { useServerMembersQuery } from '../../hooks/useServerMembers'
+import { useBanMemberMutation } from '../../hooks/useModeration'
 import { useUserDisplay } from '../../hooks/useUserProfiles'
 import type { ServerMember, ServerRole } from '../../types'
+import BansList from './BansList'
 
 interface MembersModalProps {
   visible: boolean
   serverId: string | null
   ownerId: string | null
+  currentUserId: string
   onClose: () => void
 }
 
-export default function MembersModal({ visible, serverId, ownerId, onClose }: MembersModalProps) {
+type MembersTab = 'members' | 'bans'
+
+export default function MembersModal({ visible, serverId, ownerId, currentUserId, onClose }: MembersModalProps) {
   const { showToast } = useUI()
   const membersQuery = useServerMembersQuery(visible ? serverId : null)
   const rolesQuery = useRolesQuery(visible ? serverId : null)
   const assignMutation = useAssignRoleMutation(serverId as string)
   const removeMutation = useRemoveRoleMutation(serverId as string)
+  const banMutation = useBanMemberMutation(serverId as string)
 
+  const [tab, setTab] = useState<MembersTab>('members')
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null)
+  const [banReason, setBanReason] = useState('')
 
   const members: ServerMember[] = useMemo(
     () => membersQuery.data?.pages.flatMap(page => page.items) ?? [],
@@ -42,11 +53,42 @@ export default function MembersModal({ visible, serverId, ownerId, onClose }: Me
   const roles: ServerRole[] = rolesQuery.data ?? []
   const rolesById = useMemo(() => new Map(roles.map(role => [role.id, role])), [roles])
   const assignableRoles = roles.filter(role => !role.isDefault)
-  const isMutating = assignMutation.isPending || removeMutation.isPending
+  const isMutating = assignMutation.isPending || removeMutation.isPending || banMutation.isPending
 
   const handleClose = () => {
+    setTab('members')
     setExpandedMemberId(null)
+    setBanReason('')
     onClose()
+  }
+
+  const handleToggleExpanded = (member: ServerMember) => {
+    setBanReason('')
+    setExpandedMemberId(expandedMemberId === member.id ? null : member.id)
+  }
+
+  const handleBan = (member: ServerMember, name: string) => {
+    Alert.alert(
+      'Banear miembro',
+      `¿Seguro que querés banear a ${name}? Va a salir del servidor y no podrá volver a unirse hasta que se revoque el baneo.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Banear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await banMutation.mutateAsync({ userId: member.userId, reason: banReason })
+              setExpandedMemberId(null)
+              setBanReason('')
+              showToast?.(`${name} fue baneado del servidor.`, 'success')
+            } catch (err) {
+              showToast?.(banErrorMessage(err), 'error')
+            }
+          },
+        },
+      ],
+    )
   }
 
   const handleToggleRole = async (member: ServerMember, role: ServerRole, assigned: boolean) => {
@@ -65,6 +107,8 @@ export default function MembersModal({ visible, serverId, ownerId, onClose }: Me
     const name = member.nickname || describeUser(member.userId).name
     const isOwner = member.userId === ownerId
     const isExpanded = expandedMemberId === member.id
+    // El backend también lo rechaza; se oculta para no ofrecer una acción imposible
+    const canShowBan = !isOwner && member.userId !== currentUserId
     const memberRoles = member.roleIds
       .map(roleId => rolesById.get(roleId))
       .filter((role): role is ServerRole => Boolean(role))
@@ -74,7 +118,7 @@ export default function MembersModal({ visible, serverId, ownerId, onClose }: Me
       <View style={styles.memberCard}>
         <Pressable
           style={styles.memberRow}
-          onPress={() => setExpandedMemberId(isExpanded ? null : member.id)}
+          onPress={() => handleToggleExpanded(member)}
         >
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
@@ -124,6 +168,27 @@ export default function MembersModal({ visible, serverId, ownerId, onClose }: Me
                 </View>
               ))
             )}
+
+            {canShowBan && (
+              <View style={styles.banSection}>
+                <TextInput
+                  value={banReason}
+                  onChangeText={setBanReason}
+                  maxLength={BAN_REASON_MAX_LENGTH}
+                  placeholder="Motivo del baneo (opcional)"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.banInput}
+                />
+                <Pressable
+                  style={styles.banButton}
+                  onPress={() => handleBan(member, name)}
+                  disabled={isMutating}
+                >
+                  <UserX color={colors.accentFg} size={14} />
+                  <Text style={styles.banButtonText}>Banear</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -146,13 +211,32 @@ export default function MembersModal({ visible, serverId, ownerId, onClose }: Me
             </Pressable>
           </View>
 
-          {membersQuery.isLoading && (
+          <View style={styles.tabs}>
+            {(
+              [
+                { id: 'members', label: 'Miembros' },
+                { id: 'bans', label: 'Baneos' },
+              ] as const
+            ).map(item => (
+              <Pressable
+                key={item.id}
+                style={[styles.tab, tab === item.id && styles.tabActive]}
+                onPress={() => setTab(item.id)}
+              >
+                <Text style={[styles.tabText, tab === item.id && styles.tabTextActive]}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {tab === 'bans' && <BansList serverId={visible ? serverId : null} />}
+
+          {tab === 'members' && membersQuery.isLoading && (
             <View style={styles.centerBox}>
               <ActivityIndicator color={colors.accent} />
             </View>
           )}
 
-          {membersQuery.isError && (
+          {tab === 'members' && membersQuery.isError && (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>
                 {(membersQuery.error as any)?.message || 'No se pudieron cargar los miembros.'}
@@ -163,7 +247,7 @@ export default function MembersModal({ visible, serverId, ownerId, onClose }: Me
             </View>
           )}
 
-          {membersQuery.isSuccess && (
+          {tab === 'members' && membersQuery.isSuccess && (
             <FlatList
               data={members}
               keyExtractor={member => member.id}
@@ -332,6 +416,60 @@ const styles = StyleSheet.create({
     ...typography.messageText,
     color: colors.text,
     flexShrink: 1,
+  },
+  tabs: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bg,
+  },
+  tabActive: {
+    backgroundColor: colors.surfaceHover,
+  },
+  tabText: {
+    ...typography.button,
+    color: colors.textMuted,
+  },
+  tabTextActive: {
+    color: colors.text,
+  },
+  banSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: spacing.xs,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  banInput: {
+    ...typography.messageText,
+    flex: 1,
+    color: colors.text,
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  banButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.danger,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  banButtonText: {
+    ...typography.button,
+    color: colors.accentFg,
   },
   emptyText: {
     ...typography.helperText,

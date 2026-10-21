@@ -14,6 +14,7 @@ import {
   CreateRoleRequest,
   UpdateRoleInfoRequest,
 } from '../roles';
+import { banMember, getServerBans, unbanMember } from '../moderation';
 import type { Category, Role, Server } from '../../types';
 import { getMessages, sendMessage, GetMessagesOptions } from '../messages';
 import { useSession } from '../../auth/session';
@@ -61,6 +62,38 @@ export function useServerMembersQuery(serverId: string | null) {
       return loaded < lastPage.total ? loaded : undefined;
     },
     enabled: status === 'authenticated' && Boolean(serverId),
+  });
+}
+
+export function useServerBansQuery(serverId: string | null) {
+  const status = useSession((s) => s.status);
+  return useQuery({
+    queryKey: ['server-bans', serverId],
+    queryFn: () => getServerBans(serverId as string),
+    enabled: status === 'authenticated' && Boolean(serverId),
+  });
+}
+
+export function useBanMemberMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason?: string }) => banMember(serverId, userId, reason),
+    // El baneado deja de ser miembro y pasa a la lista de baneos
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['server-members', serverId] });
+      queryClient.invalidateQueries({ queryKey: ['role-members', serverId] });
+      queryClient.invalidateQueries({ queryKey: ['server-bans', serverId] });
+    },
+  });
+}
+
+export function useUnbanMemberMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => unbanMember(serverId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['server-bans', serverId] });
+    },
   });
 }
 

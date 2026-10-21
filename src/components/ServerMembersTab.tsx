@@ -1,32 +1,40 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Crown, Loader2, Plus, Search, X } from 'lucide-react';
+import { Crown, Loader2, Plus, Search, UserX, X } from 'lucide-react';
 import {
   useAssignRoleMutation,
+  useBanMemberMutation,
   useRemoveRoleMutation,
   useRolesQuery,
   useServerMembersQuery,
 } from '../api/hooks/useApi';
 import { useUserProfiles } from '../api/hooks/useUserProfiles';
+import { BAN_REASON_MAX_LENGTH, banErrorMessage } from '../api/moderation';
 import type { Role, ServerMember } from '../types';
 
 export interface ServerMembersTabProps {
   serverId: string;
   ownerId: string;
+  currentUserId: string;
 }
 
 /**
  * Pestaña de miembros de Server Settings: lista paginada (se carga al hacer scroll)
- * con los roles de cada miembro, y permite asignar o quitar roles.
+ * con los roles de cada miembro, y permite asignar o quitar roles y banear miembros.
  */
-export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ownerId }) => {
+export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ownerId, currentUserId }) => {
   const membersQuery = useServerMembersQuery(serverId);
   const rolesQuery = useRolesQuery(serverId);
   const assignMutation = useAssignRoleMutation(serverId);
   const removeMutation = useRemoveRoleMutation(serverId);
+  const banMutation = useBanMemberMutation(serverId);
 
   const [search, setSearch] = useState('');
   const [pickerMemberId, setPickerMemberId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Miembro con el panel de baneo abierto (confirmación + motivo opcional)
+  const [banMemberId, setBanMemberId] = useState<string | null>(null);
+  const [banReason, setBanReason] = useState('');
 
   const listRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -41,7 +49,7 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
 
   const roles: Role[] = rolesQuery.data ?? [];
   const rolesById = useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles]);
-  const isMutating = assignMutation.isPending || removeMutation.isPending;
+  const isMutating = assignMutation.isPending || removeMutation.isPending || banMutation.isPending;
 
   // Carga la siguiente página cuando el final de la lista entra en vista
   useEffect(() => {
@@ -72,6 +80,24 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
       await assignMutation.mutateAsync({ roleId, userId: member.userId });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo asignar el rol.');
+    }
+  };
+
+  const openBanPanel = (member: ServerMember) => {
+    setPickerMemberId(null);
+    setBanReason('');
+    setBanMemberId(banMemberId === member.id ? null : member.id);
+  };
+
+  const handleBan = async (member: ServerMember) => {
+    setError(null);
+    setNotice(null);
+    try {
+      await banMutation.mutateAsync({ userId: member.userId, reason: banReason });
+      setBanMemberId(null);
+      setNotice(`${displayName(member)} fue baneado del servidor.`);
+    } catch (err) {
+      setError(banErrorMessage(err));
     }
   };
 
@@ -134,6 +160,21 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
         </div>
       )}
 
+      {notice && (
+        <div
+          style={{
+            backgroundColor: 'rgba(35, 165, 90, 0.15)',
+            border: '1px solid rgba(35, 165, 90, 0.3)',
+            color: '#57f287',
+            borderRadius: 4,
+            padding: '6px 10px',
+            fontSize: 12,
+          }}
+        >
+          {notice}
+        </div>
+      )}
+
       {membersQuery.isLoading && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#949ba4', fontSize: 13 }}>
           <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Cargando miembros...
@@ -166,6 +207,8 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
 
           {filteredMembers.map((member) => {
             const isOwner = member.userId === ownerId;
+            // El backend también lo rechaza; se oculta para no ofrecer una acción imposible
+            const canShowBan = !isOwner && member.userId !== currentUserId;
             const name = displayName(member);
             const memberRoles = member.roleIds
               .map((roleId) => rolesById.get(roleId))
@@ -276,7 +319,10 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
 
                   <button
                     type="button"
-                    onClick={() => setPickerMemberId(pickerMemberId === member.id ? null : member.id)}
+                    onClick={() => {
+                      setBanMemberId(null);
+                      setPickerMemberId(pickerMemberId === member.id ? null : member.id);
+                    }}
                     disabled={isMutating}
                     title="Asignar un rol"
                     style={{
@@ -295,8 +341,98 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
                     <Plus size={12} />
                   </button>
 
+                  {canShowBan && (
+                    <button
+                      type="button"
+                      onClick={() => openBanPanel(member)}
+                      disabled={isMutating}
+                      title={`Banear a ${name}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 22,
+                        height: 22,
+                        borderRadius: 4,
+                        backgroundColor: 'transparent',
+                        color: '#fa777c',
+                        border: '1px solid rgba(218, 55, 60, 0.4)',
+                        cursor: isMutating ? 'default' : 'pointer',
+                      }}
+                    >
+                      <UserX size={12} />
+                    </button>
+                  )}
                 </div>
               </div>
+
+              {banMemberId === member.id && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    padding: '0 16px 12px 64px',
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: '#dbdee1' }}>
+                    ¿Banear a {name}? Va a salir del servidor y no podrá volver a unirse hasta que se revoque el baneo.
+                  </span>
+                  <input
+                    type="text"
+                    value={banReason}
+                    onChange={(e) => setBanReason(e.target.value)}
+                    maxLength={BAN_REASON_MAX_LENGTH}
+                    placeholder="Motivo (opcional)"
+                    style={{
+                      backgroundColor: '#1e1f22',
+                      color: '#dbdee1',
+                      border: '1px solid rgba(0, 0, 0, 0.3)',
+                      borderRadius: 4,
+                      padding: '6px 10px',
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setBanMemberId(null)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#dbdee1',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        padding: '6px 10px',
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBan(member)}
+                      disabled={banMutation.isPending}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        backgroundColor: '#da373c',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: 4,
+                        padding: '6px 12px',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: banMutation.isPending ? 'default' : 'pointer',
+                      }}
+                    >
+                      {banMutation.isPending && <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />}
+                      Banear
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {pickerMemberId === member.id && (
                 <div

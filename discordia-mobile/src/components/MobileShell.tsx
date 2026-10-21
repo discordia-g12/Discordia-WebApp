@@ -477,6 +477,7 @@ export default function MobileShell() {
           visible={membersModalOpen}
           serverId={server?.id ?? null}
           ownerId={server?.ownerId ?? null}
+          currentUserId={currentUserId}
           onClose={() => setMembersModalOpen(false)}
         />
         <ProfileModal visible={isProfileVisible} onClose={() => setIsProfileVisible(false)} />
