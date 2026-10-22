@@ -8,10 +8,18 @@ ARG VITE_WS_URL
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_WS_URL=$VITE_WS_URL
 
-COPY package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci --legacy-peer-deps; else npm install --legacy-peer-deps; fi
+# Monorepo (npm workspaces): npm ci valida el lockfile contra el package.json de cada workspace, pero solo
+# instala las dependencias de la web y de los paquetes compartidos (no las de la app mobile)
+COPY package.json package-lock.json .npmrc ./
+COPY apps/web/package.json apps/web/
+COPY apps/mobile/package.json apps/mobile/
+COPY packages/core/package.json packages/core/
+COPY packages/tokens/package.json packages/tokens/
+RUN npm ci --workspace=@discordia/web --include-workspace-root
 
-COPY . .
+COPY apps/web apps/web
+COPY packages packages
+# Deja el build en /app/dist (ver apps/web/vite.config.ts)
 RUN npm run build
 
 FROM nginx:alpine AS runner

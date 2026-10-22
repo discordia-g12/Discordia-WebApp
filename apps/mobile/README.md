@@ -1,12 +1,12 @@
 # Discordia Mobile
 
-App mobile de Discordia (Expo SDK 57, React Native 0.86). Comparte la capa de API con el cliente web (`@shared/api/...`).
+App mobile de Discordia (Expo SDK 57, React Native 0.86). Vive en el monorepo de `Discordia-WebApp` (ver el [README de la raíz](../../README.md)) y comparte la capa de API con el cliente web (`@shared/api/...`, que apunta a `apps/web/src`; pasa a `@discordia/core` en el paso 1.2 de `docs/TODO-REDISENO.md`).
 
-Las decisiones técnicas de la voz en mobile (development build, Expo Go, hooks propios) están en [`docs/ADR-01-Mobile-Voice.md`](../docs/ADR-01-Mobile-Voice.md).
+Las decisiones técnicas de la voz en mobile (development build, Expo Go, hooks propios) están en [`docs/ADR-01-Mobile-Voice.md`](../../docs/ADR-01-Mobile-Voice.md).
 
 ## Requisitos
 
-- Node 22 y las dependencias instaladas: `npm install`
+- Node 22 y las dependencias instaladas **desde la raíz del repo**: `npm install` (no adentro de `apps/mobile`).
 - El backend levantado desde el orchestrator (`docker compose up -d` en la raíz).
 - `EXPO_PUBLIC_API_URL` en `.env` (ver `.env.example`). Si no se define, se usa la IP de la máquina que corre Metro, puerto `8000` (el Gateway).
 

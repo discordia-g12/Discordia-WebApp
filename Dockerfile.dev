@@ -5,8 +5,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
+# Monorepo (npm workspaces): solo las dependencias de la web y de los paquetes compartidos
+COPY package.json package-lock.json .npmrc ./
+COPY apps/web/package.json apps/web/
+COPY apps/mobile/package.json apps/mobile/
+COPY packages/core/package.json packages/core/
+COPY packages/tokens/package.json packages/tokens/
+RUN npm install --workspace=@discordia/web --include-workspace-root
 
 COPY . .
 
