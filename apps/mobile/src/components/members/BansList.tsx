@@ -1,9 +1,14 @@
 import React from 'react'
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
-import { ApiError, unbanErrorMessage, type ServerBan } from '@discordia/core'
+import {
+  ApiError,
+  unbanErrorMessage,
+  useServerBansQuery,
+  useUnbanMemberMutation,
+  type ServerBan,
+} from '@discordia/core'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
-import { useServerBansQuery, useUnbanMemberMutation } from '../../hooks/useModeration'
 import { useUserDisplay } from '../../hooks/useUserProfiles'
 
 interface BansListProps {

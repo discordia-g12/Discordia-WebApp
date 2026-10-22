@@ -6,9 +6,10 @@ import {
   useRemoveRoleMutation,
   useRolesQuery,
   useServerMembersQuery,
-} from '../api/hooks/useApi';
-import { useUserProfiles } from '../api/hooks/useUserProfiles';
-import { BAN_REASON_MAX_LENGTH, banErrorMessage } from '@discordia/core';
+  useUserProfiles,
+  BAN_REASON_MAX_LENGTH,
+  banErrorMessage,
+} from '@discordia/core';
 import type { Role, ServerMember } from '../types';
 
 export interface ServerMembersTabProps {

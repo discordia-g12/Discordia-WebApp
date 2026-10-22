@@ -1,31 +1,17 @@
 import { renderHook, act } from '@testing-library/react';
-import { useChatWebSocket } from '../useChatWebSocket';
+import { useChatWebSocket } from '../useChatSocket';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockGetToken = vi.fn().mockResolvedValue('mock-token');
 
-vi.mock('@discordia/core', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@discordia/core')>()),
+vi.mock('../../api/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/client')>()),
   getClientConfig: () => ({
     baseUrl: 'http://localhost:8000',
     getToken: mockGetToken
   })
-}));
-
-vi.mock('../../../auth/session', () => ({
-  useSession: {
-    getState: () => ({
-      profile: {
-        id: 'user-1',
-        email: 'test@example.com',
-        displayName: 'Test User',
-        avatarUrl: 'test.png',
-        status: 'online'
-      }
-    })
-  }
 }));
 
 class MockWebSocket {

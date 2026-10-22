@@ -13,12 +13,8 @@ import {
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
-import {
-  useRoleMembersQuery,
-  useSetDefaultRoleMutation,
-  useUpdateRoleInfoMutation,
-  useUpdateRolePermissionsMutation,
-} from '../../hooks/useRoles'
+import { useRoleMembersQuery, useSetDefaultRoleMutation } from '@discordia/core'
+import { useUpdateRoleInfoMutation, useUpdateRolePermissionsMutation } from '../../hooks/useRoles'
 import { useUserDisplay } from '../../hooks/useUserProfiles'
 import type { ServerRole } from '../../types'
 import { PERMISSION_CATEGORIES, hasPermission, togglePermission } from './permissions'

@@ -1,23 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  assignRoleToMember,
   bitmaskToPermissions,
-  createRole,
-  deleteRole,
-  getRoleMembers,
   getRoles,
   permissionsToBitmask,
-  removeRoleFromMember,
-  setDefaultRole,
   updateRoleInfo,
   updateRolePermissions,
-  type CreateRoleRequest,
+  type Role,
   type UpdateRoleInfoRequest,
 } from '@discordia/core'
-import type { Role } from '@discordia/core'
 import type { ServerRole } from '../types'
 
-// La API compartida modela los permisos como lista de ids; la UI mobile trabaja con el bitmask del backend
+/**
+ * Roles en el modelo de la UI mobile, que trabaja con el bitmask del backend; core (y la web) modela
+ * los permisos como lista de ids. El resto de los hooks de roles (miembros, asignar, crear, borrar,
+ * rol por defecto) son los de @discordia/core. Se unifica al rehacer las pantallas de mobile (paso 13).
+ *
+ * Clave de caché propia: ['roles', serverId] guarda Role[] (core). Las invalidaciones de core sobre
+ * ['roles', serverId] también refrescan esta, porque comparte el prefijo.
+ */
+const rolesKey = (serverId: string | null) => ['roles', serverId, 'bitmask']
+
 function toServerRole(role: Role): ServerRole {
   return {
     id: role.id,
@@ -31,51 +33,9 @@ function toServerRole(role: Role): ServerRole {
 
 export function useRolesQuery(serverId: string | null) {
   return useQuery({
-    queryKey: ['roles', serverId],
+    queryKey: rolesKey(serverId),
     queryFn: async () => (await getRoles(serverId as string)).map(toServerRole),
     enabled: Boolean(serverId),
-  })
-}
-
-export function useRoleMembersQuery(serverId: string | null, roleId: string | null) {
-  return useQuery({
-    queryKey: ['role-members', serverId, roleId],
-    queryFn: () => getRoleMembers(serverId as string, roleId as string),
-    enabled: Boolean(serverId) && Boolean(roleId),
-  })
-}
-
-export function useAssignRoleMutation(serverId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ roleId, userId }: { roleId: string; userId: string }) =>
-      assignRoleToMember(serverId, roleId, userId),
-    onSuccess: (_data, { roleId }) => {
-      queryClient.invalidateQueries({ queryKey: ['server-members', serverId] })
-      queryClient.invalidateQueries({ queryKey: ['role-members', serverId, roleId] })
-    },
-  })
-}
-
-export function useRemoveRoleMutation(serverId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ roleId, userId }: { roleId: string; userId: string }) =>
-      removeRoleFromMember(serverId, roleId, userId),
-    onSuccess: (_data, { roleId }) => {
-      queryClient.invalidateQueries({ queryKey: ['server-members', serverId] })
-      queryClient.invalidateQueries({ queryKey: ['role-members', serverId, roleId] })
-    },
-  })
-}
-
-export function useCreateRoleMutation(serverId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (payload: CreateRoleRequest) => createRole(serverId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles', serverId] })
-    },
   })
 }
 
@@ -85,7 +45,7 @@ export function useUpdateRolePermissionsMutation(serverId: string) {
     mutationFn: async ({ roleId, permissionsBitmask }: { roleId: string; permissionsBitmask: number }) =>
       toServerRole(await updateRolePermissions(serverId, roleId, bitmaskToPermissions(permissionsBitmask))),
     onSuccess: updated => {
-      queryClient.setQueryData<ServerRole[]>(['roles', serverId], old =>
+      queryClient.setQueryData<ServerRole[]>(rolesKey(serverId), old =>
         old?.map(r => (r.id === updated.id ? updated : r)),
       )
     },
@@ -98,29 +58,9 @@ export function useUpdateRoleInfoMutation(serverId: string) {
     mutationFn: async ({ roleId, payload }: { roleId: string; payload: UpdateRoleInfoRequest }) =>
       toServerRole(await updateRoleInfo(serverId, roleId, payload)),
     onSuccess: updated => {
-      queryClient.setQueryData<ServerRole[]>(['roles', serverId], old =>
+      queryClient.setQueryData<ServerRole[]>(rolesKey(serverId), old =>
         old?.map(r => (r.id === updated.id ? updated : r)),
       )
-    },
-  })
-}
-
-export function useSetDefaultRoleMutation(serverId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (roleId: string) => setDefaultRole(serverId, roleId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles', serverId] })
-    },
-  })
-}
-
-export function useDeleteRoleMutation(serverId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (roleId: string) => deleteRole(serverId, roleId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles', serverId] })
     },
   })
 }

@@ -8,7 +8,7 @@ apps/
 ├── web/        cliente web (Cloudflare Pages en producción)
 └── mobile/     app mobile (Expo, ver apps/mobile/README.md)
 packages/
-├── core/       lógica compartida: cliente HTTP, endpoints y tipos (chat, voz y auth en construcción)
+├── core/       lógica compartida: API, tipos, sesión y auth, hooks de datos, chat en tiempo real, voz
 └── tokens/     tokens de diseño compartidos (en construcción)
 docs/           ADRs y planes (TODO-REDISENO.md)
 ```

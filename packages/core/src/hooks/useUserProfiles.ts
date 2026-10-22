@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { getUsersBulk } from '@discordia/core';
-import type { User } from '../../types';
+import { getUsersBulk } from '../api/users';
+import type { User } from '../types';
 
 /**
  * Perfiles públicos de los usuarios indicados, vía POST /api/v1/users/bulk.

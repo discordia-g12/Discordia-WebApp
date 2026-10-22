@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { auth0Provider } from '../auth0';
-import { AccountSuspendedError, EmailNotVerifiedError } from '../errors';
+import { AccountSuspendedError, EmailNotVerifiedError } from '@discordia/core';
 
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });

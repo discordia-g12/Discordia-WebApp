@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Eye, EyeOff, Mail } from 'lucide-react-native'
 import { useAuth } from '../providers/AppProviders'
-import { requestPasswordReset } from '../api/auth'
+import { requestPasswordReset } from '@discordia/core'
 import { colors, radii, spacing, typography } from '../theme'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

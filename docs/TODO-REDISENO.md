@@ -223,21 +223,33 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 - [ ] Modelos de interfaz de mobile (`User`, `Server`, `Role`, `Message`, ...): todavía difieren de los de
       core (`avatar: string | null`, permisos como `Record<string, boolean>`, `members: string[]`). Se unifican
       al reescribir las pantallas de mobile (paso 13).
-- [ ] Hooks de React Query (`useApi`) compartidos.
-- [ ] **Una sola** lógica de chat en tiempo real (reconexión con backoff, recuperación de mensajes perdidos,
-      heartbeat), con tests. Reemplaza `useChatWebSocket` y `useChannelSocket`.
-- [ ] Presencia de voz y perfiles de usuario unificados.
-- [ ] Sala de voz: estado y reglas en `core`; adaptador de audio/LiveKit por plataforma.
-- [ ] Contrato de auth (`login`, `logout`, `getToken`, `onSessionChange`) con adaptador web (Auth0 SPA) y
-      mobile.
+- [x] Hooks de React Query (`packages/core/src/hooks/useApi.ts`) compartidos; esperan a que la sesión de core
+      esté autenticada. Mobile dejó sus copias (moderación, miembros); solo conserva en `hooks/useRoles.ts` los
+      que traducen los permisos al bitmask de su UI, con clave de caché propia (`['roles', id, 'bitmask']`).
+- [x] **Una sola** lógica de chat en tiempo real: `realtime/chatSocket.ts` (reconexión con backoff, token
+      nuevo en cada intento, `last_message_id_seen` para recuperar lo perdido), `useChatSocket` (mobile, con
+      callbacks) y `useChatWebSocket` (web, sobre el caché de React Query). Reemplaza `useChatWebSocket` y
+      `useChannelSocket`. El heartbeat lo hace el servidor con pings de protocolo, que el cliente responde
+      solo: no hace falta código del lado del cliente.
+- [x] Presencia de voz (`useVoicePresence`) y perfiles de usuario (`useUserProfiles`, que en mobile ahora usa
+      `getUsersBulk`) unificados.
+- [x] Sala de voz: estado y reglas en `core` (`useVoiceRoom`); lo de cada plataforma en `VoicePlatform`
+      (web: `apps/web/src/platform/voice.ts`; mobile: `apps/mobile/src/utils/voice.ts`).
+- [x] Contrato de auth (`AuthAdapter`) y sesión única en core (`useSession`, arranque, login, registro,
+      alta automática del perfil, logout). Adaptadores: web (Auth0 SPA, `apps/web/src/auth/auth0.ts`) y
+      mobile (token en memoria, `apps/mobile/src/api/auth.ts`). La Authentication API de Auth0 (login con
+      contraseña y registro) está una sola vez, en `core/auth/auth0.ts`.
 - [x] Reemplazar el alias `@shared` de mobile por imports de `@discordia/core` (alias borrado del
       `tsconfig` de mobile).
 - [x] Core no depende de los datos de prueba: expone `setApiMock()` y la web registra sus respuestas
-      simuladas (`apps/web/src/api/mock.ts`) solo con `VITE_USE_MOCK` en desarrollo.
-- [ ] Datos de prueba (`data/mock.ts` de web y de mobile) a `packages/core/testing`.
-- [ ] La configuración entra por `configureClient()` de core, sin `import.meta.env` / `process.env` adentro
-      del paquete. Hecho para la URL de la API y el token; falta el WebSocket (con el chat) y Auth0 (con el
-      contrato de auth).
+      simuladas solo con `VITE_USE_MOCK` en desarrollo.
+- [x] Datos de prueba de la web a `@discordia/core/testing` (subpath aparte: no entra al bundle de producción).
+- [ ] Datos de prueba de mobile (`apps/mobile/src/data/mock.ts`): están en los modelos de interfaz de mobile
+      y son contenido de pantallas sin backend (DMs, notificaciones). Se mueven al unificar esos modelos
+      (paso 13).
+- [x] La configuración entra por core, sin `import.meta.env` / `process.env` adentro del paquete:
+      `configureClient()` (API y WebSocket, `wsBaseUrl`) y `configureAuth()` (Auth0). La web no usa
+      `VITE_WS_URL`: en el compose del orquestador apunta directo al Chat-Engine, salteando Kong.
 
 #### 1.3 `packages/tokens`
 

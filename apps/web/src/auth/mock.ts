@@ -1,4 +1,5 @@
-import { AuthProvider } from './provider';
+import { retryBootstrap } from '@discordia/core';
+import type { WebAuthAdapter } from './auth0';
 
 /**
  * Proveedor de autenticación simulado (Mock) exclusivo para desarrollo local (DEV).
@@ -16,7 +17,7 @@ export function setMockProfileCompleted(): void {
   mockNeedsProfile = false;
 }
 
-export const mockProvider: AuthProvider = {
+export const mockProvider: WebAuthAdapter = {
   async getToken(): Promise<string> {
     if (!mockAuthenticated) {
       throw new Error('login_required: mock session unauthenticated');
@@ -42,7 +43,6 @@ export const mockProvider: AuthProvider = {
   async loginRedirect(opts?: { signup?: boolean; returnTo?: string; silent?: boolean }): Promise<void> {
     mockAuthenticated = true;
     mockNeedsProfile = Boolean(opts?.signup);
-    const { retryBootstrap } = await import('./session');
     await retryBootstrap();
   },
 

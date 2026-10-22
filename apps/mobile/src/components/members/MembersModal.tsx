@@ -12,12 +12,17 @@ import {
   View,
 } from 'react-native'
 import { ChevronDown, ChevronRight, Crown, UserX, Users, X } from 'lucide-react-native'
-import { BAN_REASON_MAX_LENGTH, banErrorMessage } from '@discordia/core'
+import {
+  BAN_REASON_MAX_LENGTH,
+  banErrorMessage,
+  useAssignRoleMutation,
+  useBanMemberMutation,
+  useRemoveRoleMutation,
+  useServerMembersQuery,
+} from '@discordia/core'
 import { colors, radii, spacing, typography } from '../../theme'
 import { useUI } from '../../providers/AppProviders'
-import { useAssignRoleMutation, useRemoveRoleMutation, useRolesQuery } from '../../hooks/useRoles'
-import { useServerMembersQuery } from '../../hooks/useServerMembers'
-import { useBanMemberMutation } from '../../hooks/useModeration'
+import { useRolesQuery } from '../../hooks/useRoles'
 import { useUserDisplay } from '../../hooks/useUserProfiles'
 import type { ServerMember, ServerRole } from '../../types'
 import BansList from './BansList'

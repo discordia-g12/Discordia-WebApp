@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getClientConfig } from '@discordia/core';
+import { getClientConfig, getWsBaseUrl } from '../api/client';
 
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
@@ -11,8 +11,9 @@ interface PresenceMessage {
 }
 
 /**
- * Quién está conectado a cada canal de voz, actualizado en vivo por WebSocket (/ws/voice).
- * El backend solo informa los canales a los que el usuario tiene acceso.
+ * Quién está conectado a cada canal de voz, actualizado en vivo por WebSocket (/ws/voice), en web y
+ * mobile. El backend solo informa los canales a los que el usuario tiene acceso. No usa audio, así
+ * que en mobile funciona también en Expo Go.
  *
  * @returns mapa channelId -> user IDs conectados
  */
@@ -43,8 +44,7 @@ export function useVoicePresence(channelIds: string[]): Record<string, string[]>
       }
       if (disposed) return;
 
-      const baseUrl = getClientConfig().baseUrl.replace(/\/$/, '').replace(/^http/, 'ws');
-      const ws = new WebSocket(`${baseUrl}/ws/voice?token=${encodeURIComponent(token)}`);
+      const ws = new WebSocket(`${getWsBaseUrl()}/ws/voice?token=${encodeURIComponent(token)}`);
       socketRef.current = ws;
 
       ws.onopen = () => {

@@ -2,6 +2,8 @@ import { NetworkError, TimeoutError, parseErrorResponse } from './errors';
 
 export interface ClientConfig {
   baseUrl: string;
+  /** Base de los WebSockets (chat, presencia de voz). Si no se define, se deriva de baseUrl (http -> ws). */
+  wsBaseUrl?: string;
   getToken: (opts?: { forceRefresh?: boolean }) => Promise<string>;
   onAuthFailure: () => void;
   timeoutMs: number;
@@ -20,6 +22,12 @@ export function configureClient(config: Partial<ClientConfig>): void {
 
 export function getClientConfig(): ClientConfig {
   return clientConfig;
+}
+
+/** Base de los WebSockets, sin barra final: wsBaseUrl, o baseUrl con http -> ws y https -> wss. */
+export function getWsBaseUrl(): string {
+  const url = clientConfig.wsBaseUrl || clientConfig.baseUrl.replace(/^http/, 'ws');
+  return url.replace(/\/$/, '');
 }
 
 export interface RequestOptions {

@@ -1,12 +1,12 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useVoiceRoom } from '../useVoiceRoom';
+import { createVoicePrefsStore, setVoicePlatform, type LiveKitModule } from '../../voice/platform';
 
 const mockJoinVoiceChannel = vi.fn();
 const mockLeaveVoiceChannel = vi.fn();
 
-vi.mock('@discordia/core', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@discordia/core')>()),
+vi.mock('../../api/voice', () => ({
   joinVoiceChannel: (...args: unknown[]) => mockJoinVoiceChannel(...args),
   leaveVoiceChannel: (...args: unknown[]) => mockLeaveVoiceChannel(...args),
 }));
@@ -69,7 +69,8 @@ class FakeRoom {
   }
 }
 
-vi.mock('livekit-client', () => ({
+// livekit-client falso: la sala lo recibe de la plataforma (en la web, el import del paquete real)
+const fakeLiveKit = {
   Room: vi.fn(function () {
     return new FakeRoom();
   }),
@@ -96,7 +97,16 @@ vi.mock('livekit-client', () => ({
     SignalReconnecting: 'signalReconnecting',
   },
   Track: { Kind: { Audio: 'audio', Video: 'video' } },
-}));
+} as unknown as LiveKitModule;
+
+/** Plataforma como la web: startAudio al conectar y preferencias en localStorage. */
+function registerWebLikePlatform() {
+  setVoicePlatform({
+    livekit: () => fakeLiveKit,
+    afterConnect: (room) => room.startAudio().catch(() => undefined),
+    prefs: createVoicePrefsStore(localStorage),
+  });
+}
 
 describe('useVoiceRoom', () => {
   beforeEach(() => {
@@ -104,6 +114,7 @@ describe('useVoiceRoom', () => {
     FakeRoom.instances = [];
     FakeRoom.micDenied = false;
     localStorage.clear();
+    registerWebLikePlatform();
     mockJoinVoiceChannel.mockResolvedValue({ token: 'lk-token', url: 'ws://livekit.test' });
     mockLeaveVoiceChannel.mockResolvedValue(undefined);
   });
@@ -413,6 +424,62 @@ describe('useVoiceRoom', () => {
 
       expect(result.current.isMuted).toBe(false);
       expect(result.current.isDeafened).toBe(false);
+    });
+  });
+
+  describe('plataforma mobile', () => {
+    function registerMobileLikePlatform(overrides: Partial<Parameters<typeof setVoicePlatform>[0]> = {}) {
+      const platform = {
+        livekit: () => fakeLiveKit,
+        startAudioSession: vi.fn(async () => undefined),
+        stopAudioSession: vi.fn(async () => undefined),
+        requestMicrophonePermission: vi.fn(async () => true),
+        ...overrides,
+      };
+      setVoicePlatform(platform);
+      return platform;
+    }
+
+    it('abre la sesión de audio antes de conectar y la cierra al salir', async () => {
+      const platform = registerMobileLikePlatform();
+      const { result } = renderHook(() => useVoiceRoom());
+
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+      expect(platform.startAudioSession).toHaveBeenCalledTimes(1);
+      expect(FakeRoom.instances[0].startAudio).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await result.current.leave();
+      });
+      expect(platform.stopAudioSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('sin permiso de micrófono (Android) entra silenciado sin intentar abrirlo', async () => {
+      registerMobileLikePlatform({ requestMicrophonePermission: vi.fn(async () => false) });
+      const { result } = renderHook(() => useVoiceRoom());
+
+      let joinResult;
+      await act(async () => {
+        joinResult = await result.current.join('chan-1');
+      });
+
+      expect(joinResult).toEqual({ microphoneAvailable: false });
+      expect(FakeRoom.instances[0].localParticipant.setMicrophoneEnabled).not.toHaveBeenCalled();
+      expect(result.current.isMuted).toBe(true);
+      expect(result.current.connectionState).toBe('connected');
+    });
+
+    it('sin soporte de voz (Expo Go) el join falla sin pedir token', async () => {
+      registerMobileLikePlatform({ isSupported: () => false, unsupportedMessage: 'Sin voz en Expo Go' });
+      const { result } = renderHook(() => useVoiceRoom());
+
+      await act(async () => {
+        await expect(result.current.join('chan-1')).rejects.toThrow('Sin voz en Expo Go');
+      });
+      expect(mockJoinVoiceChannel).not.toHaveBeenCalled();
+      expect(result.current.channelId).toBeNull();
     });
   });
 });

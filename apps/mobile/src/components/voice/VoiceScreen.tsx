@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { ArrowLeft, HeadphoneOff, Headphones, Mic, MicOff, PhoneOff, Volume2, VolumeX } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../../theme'
 import Avatar from '../shared/Avatar'
-import type { VoiceConnectionState } from '../../hooks/useVoiceRoom'
+import type { VoiceConnectionState } from '@discordia/core'
 
 export interface VoiceScreenParticipant {
   id: string

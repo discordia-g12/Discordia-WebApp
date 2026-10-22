@@ -67,3 +67,18 @@ export function classifyAuthDenial(err: unknown): AuthDenial | null {
 
   return null;
 }
+
+/**
+ * Traduce el body de error de /oauth/token a un error tipado cuando es un rechazo de la Action.
+ * Devuelve null en cualquier otro caso (credenciales inválidas, errores de Auth0), que siguen su
+ * manejo habitual.
+ */
+export function toAuthDenialError(
+  body: { error?: unknown; error_description?: unknown } | null | undefined,
+  email?: string
+): EmailNotVerifiedError | AccountSuspendedError | null {
+  if (body?.error !== 'access_denied') return null;
+  return body.error_description === AUTH_DENY_CODES.EMAIL_NOT_VERIFIED
+    ? new EmailNotVerifiedError(email)
+    : new AccountSuspendedError();
+}

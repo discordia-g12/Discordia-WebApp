@@ -31,9 +31,9 @@ import {
   useUpdateRoleInfoMutation,
   useSetDefaultRoleMutation,
   useRoleMembersQuery,
-} from '../api/hooks/useApi';
-import { useUserProfiles } from '../api/hooks/useUserProfiles';
-import { PERMISSION_BITS } from '@discordia/core';
+  useUserProfiles,
+  PERMISSION_BITS,
+} from '@discordia/core';
 import { ServerMembersTab } from '../components/ServerMembersTab';
 import { ServerBansTab } from '../components/ServerBansTab';
 

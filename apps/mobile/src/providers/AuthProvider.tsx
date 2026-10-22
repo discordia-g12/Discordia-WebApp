@@ -1,13 +1,18 @@
-import React, { createContext, useContext, useMemo, useState } from 'react'
-import type { AuthScreen } from '../types'
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import {
-  BackendProfile,
+  backToLogin as sessionBackToLogin,
+  bootstrap,
   loginWithCredentials,
+  logout as sessionLogout,
+  setAuthAdapter,
+  setSessionProfile,
   signupWithCredentials,
-  setAuthToken,
-} from '../api/auth'
+  useSession,
+} from '@discordia/core'
+import type { AuthScreen } from '../types'
+import { BackendProfile, getCurrentToken, mobileAuthAdapter } from '../api/auth'
 
-import { EmailNotVerifiedError } from '../api/authErrors'
+setAuthAdapter(mobileAuthAdapter)
 
 export interface AuthContextValue {
   isAuthenticated: boolean
@@ -30,34 +35,50 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [authScreen, setAuthScreen] = useState<AuthScreen>('login')
-  const [token, setToken] = useState<string | null>(null)
-  const [userProfile, setUserProfile] = useState<BackendProfile | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
+function sanitizeUsername(raw: string): string {
+  return raw.toLowerCase().replace(/[^a-z0-9_.-]/g, '_').slice(0, 32)
+}
 
-  // Email sin verificar no es un error del formulario: es un estado con su propia
-  // pantalla. Cualquier otro error sigue subiendo para que AuthView lo muestre.
-  const showVerificationIfNeeded = (err: unknown, email: string): boolean => {
-    if (!(err instanceof EmailNotVerifiedError)) return false
-    setAuthToken(null)
-    setPendingVerificationEmail(err.email || email.trim())
-    setAuthScreen('verify-email')
-    return true
+/**
+ * Después de un login o registro, la sesión de core quedó en un estado: los que no son
+ * "autenticado" ni "verificar email" se muestran como error en el formulario.
+ */
+async function throwIfNotAuthenticated(): Promise<void> {
+  const { status, error } = useSession.getState()
+  if (status === 'authenticated' || status === 'email_unverified') return
+  if (status === 'needs_profile') {
+    // Mobile no tiene pantalla para elegir otro username: se cierra la sesión y se informa
+    await sessionLogout()
+    throw new Error('No se pudo crear tu perfil: ese nombre de usuario ya está en uso.')
   }
+  throw new Error(error?.message || 'No se pudo iniciar sesión.')
+}
+
+/**
+ * Sesión de mobile: la máquina de estados es la de @discordia/core (la misma que la web); acá solo
+ * queda la pantalla de auth activa, que es estado de la interfaz.
+ */
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const status = useSession(s => s.status)
+  const userProfile = useSession(s => s.profile)
+  const pendingVerificationEmail = useSession(s => s.pendingEmail)
+  const [authScreen, setAuthScreen] = useState<AuthScreen>('login')
+  const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    bootstrap()
+  }, [])
+
+  // Email sin verificar no es un error del formulario: es un estado con su propia pantalla.
+  useEffect(() => {
+    if (status === 'email_unverified') setAuthScreen('verify-email')
+  }, [status])
 
   const handleLogin = async (email: string, password: string) => {
     setIsLoading(true)
     try {
-      const session = await loginWithCredentials(email, password)
-      setToken(session.token)
-      setUserProfile(session.profile)
-      setPendingVerificationEmail(null)
-      setIsAuthenticated(true)
-    } catch (err) {
-      if (!showVerificationIfNeeded(err, email)) throw err
+      await loginWithCredentials({ email: email.trim(), password })
+      await throwIfNotAuthenticated()
     } finally {
       setIsLoading(false)
     }
@@ -66,38 +87,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleRegister = async (username: string, email: string, password: string) => {
     setIsLoading(true)
     try {
-      const session = await signupWithCredentials(username, email, password)
-      setToken(session.token)
-      setUserProfile(session.profile)
-      setPendingVerificationEmail(null)
-      setIsAuthenticated(true)
-    } catch (err) {
-      // Registro exitoso con verificación pendiente: la cuenta ya existe en Auth0.
-      if (!showVerificationIfNeeded(err, email)) throw err
+      await signupWithCredentials({
+        email: email.trim(),
+        password,
+        username: sanitizeUsername(username),
+        displayName: username,
+      })
+      await throwIfNotAuthenticated()
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleLogout = () => {
-    setAuthToken(null)
-    setToken(null)
-    setUserProfile(null)
-    setIsAuthenticated(false)
-    setPendingVerificationEmail(null)
+    sessionLogout()
     setAuthScreen('login')
   }
 
-  const handleBackToLogin = () => setAuthScreen('login')
-
-  const handleUpdateUserProfile = (profile: BackendProfile) => {
-    setUserProfile(profile)
+  const handleBackToLogin = () => {
+    sessionBackToLogin()
+    setAuthScreen('login')
   }
 
   const handleSwitchAccount = () => {
-    setPendingVerificationEmail(null)
+    useSession.getState().setStatus('unauthenticated', { pendingEmail: null })
     setAuthScreen('login')
   }
+
+  const isAuthenticated = status === 'authenticated'
+  const token = isAuthenticated ? getCurrentToken() : null
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -113,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login: handleLogin,
       register: handleRegister,
       logout: handleLogout,
-      updateUserProfile: handleUpdateUserProfile,
+      updateUserProfile: setSessionProfile,
     }),
     [isAuthenticated, authScreen, token, userProfile, isLoading, pendingVerificationEmail],
   )

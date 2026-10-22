@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { colors, typography } from '../theme'
 import type { Channel, Message } from '../types'
-import { useChannelSocket } from '../hooks/useChannelSocket'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
 import ChatHeader from './chat/ChatHeader'
@@ -26,17 +25,24 @@ import MembersModal from './members/MembersModal'
 import VoiceBar from './voice/VoiceBar'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
-import { useVoiceRoom } from '../hooks/useVoiceRoom'
 import { useUserDisplay } from '../hooks/useUserProfiles'
-import { useVoicePresence } from '../hooks/useVoicePresence'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
-import { ApiError, errorMessageFor, isLocalCategoryId, shiftCategory, shiftChannel } from '@discordia/core'
+import {
+  ApiError,
+  errorMessageFor,
+  isLocalCategoryId,
+  shiftCategory,
+  shiftChannel,
+  useChatSocket,
+  useVoicePresence,
+  useVoiceRoom,
+} from '@discordia/core'
 
 type MobileScreen = 'sidebar' | 'chat' | 'voice'
 
 export default function MobileShell() {
-  const { logout, token } = useAuth()
+  const { logout } = useAuth()
   const {
     users,
     servers,
@@ -120,7 +126,7 @@ export default function MobileShell() {
         .map(c => c.id),
     [server],
   )
-  const voicePresence = useVoicePresence(serverVoiceChannelIds, token)
+  const voicePresence = useVoicePresence(serverVoiceChannelIds)
 
   // IDs (LiveKit, presencia o autores de mensajes) -> nombre y color; los que la app no conoce se piden al backend
   const describeUser = useUserDisplay([
@@ -164,17 +170,16 @@ export default function MobileShell() {
   const activeSocketChannelId =
     channel && channel.type !== 'voice' && !channel.id.startsWith('dm-') ? channel.id : null
 
-  const socket = useChannelSocket({
+  const socket = useChatSocket({
     channelId: activeSocketChannelId,
-    token,
-    currentUserId,
+    userId: currentUserId,
     lastMessageIdSeen: lastMessageId,
-    onMessageReceived: payload => {
+    onMessage: payload => {
       if (channel) {
         confirmOptimisticMessage(channel.id, payload)
       }
     },
-    onErrorReceived: errMsg => {
+    onError: errMsg => {
       if (channel) {
         failOptimisticMessage(channel.id)
         if (
@@ -340,11 +345,10 @@ export default function MobileShell() {
 
     // Envío por WebSocket si es un canal activo, o fallback
     if (activeSocketChannelId) {
-      const sent = socket.sendMessage(trimmed)
-      if (!sent) {
+      socket.sendMessage(trimmed).catch(() => {
         failOptimisticMessage(channel.id)
         showToast('No se pudo enviar el mensaje por WebSocket.', 'error')
-      }
+      })
     } else {
       sendMessage(channel.id, trimmed)
     }

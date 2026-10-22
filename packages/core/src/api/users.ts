@@ -3,11 +3,15 @@ import { ApiError } from './errors';
 import { getApiMock } from './mock';
 import { User } from '../types';
 
+/** Perfil de Auth-User-Service: el modelo de dominio más los campos crudos del backend (snake_case). */
 export interface UserProfile extends User {
   user_id?: string;
   email?: string;
   display_name?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
+  activity_status?: string;
+  custom_status?: string;
+  created_at?: string;
 }
 
 export interface CreateProfileRequest {

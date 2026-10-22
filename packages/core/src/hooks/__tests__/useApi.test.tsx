@@ -4,18 +4,22 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@discordia/core', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@discordia/core')>()),
+vi.mock('../../api/messages', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/messages')>()),
   getMessages: vi.fn().mockResolvedValue([
     { id: '1', content: 'hello', authorId: 'user-1' }
   ]),
+}));
+
+vi.mock('../../api/servers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/servers')>()),
   getServers: vi.fn().mockResolvedValue([
     { id: 's1', name: 'Test Server', channels: [] }
   ]),
   createServer: vi.fn().mockResolvedValue({ id: 's2', name: 'New Server' }),
 }));
 
-vi.mock('../../../auth/session', () => ({
+vi.mock('../../auth/session', () => ({
   useSession: vi.fn().mockImplementation((selector) => {
     return selector({
       status: 'authenticated',

@@ -1,26 +1,64 @@
 import { Auth0Client } from '@auth0/auth0-spa-js';
-import { AuthProvider, AuthUser } from './provider';
-import { AccountSuspendedError, AUTH_DENY_CODES, EmailNotVerifiedError } from './errors';
+import {
+  AuthAdapter,
+  AuthUser,
+  configureAuth,
+  databaseSignup,
+  getAuthConfig,
+  passwordRealmLogin,
+  PendingProfileStore,
+  USERNAME_CLAIM,
+  useSession,
+} from '@discordia/core';
 
-const DOMAIN = import.meta.env.VITE_AUTH0_DOMAIN || 'dev-dppme5iaqg60gkmo.us.auth0.com';
-const CLIENT_ID = import.meta.env.VITE_AUTH0_CLIENT_ID || 'f2H8PhlKDl3KSIm64G5mHAeQih7iFyIP';
-const AUDIENCE = import.meta.env.VITE_AUTH0_AUDIENCE || 'https://api.discordia.com';
-const CONNECTION = 'Username-Password-Authentication';
-const SESSION_STORAGE_KEY = 'discordia_auth_session';
-/** Claim del ID token con el username elegido al registrarse (lo agrega la Auth0 Action). */
-const USERNAME_CLAIM = 'https://discordia.app/username';
-
-/* Instancia singleton de Auth0Client para compatibilidad */
-export const auth0Client = new Auth0Client({
-  domain: DOMAIN,
-  clientId: CLIENT_ID,
-  cacheLocation: 'memory',
-  useRefreshTokens: false,
-  authorizationParams: {
-    audience: AUDIENCE,
-    redirect_uri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : '',
-  },
+// La configuración de Auth0 entra a core desde acá (variables de Vite)
+configureAuth({
+  domain: import.meta.env.VITE_AUTH0_DOMAIN || 'dev-dppme5iaqg60gkmo.us.auth0.com',
+  clientId: import.meta.env.VITE_AUTH0_CLIENT_ID || 'f2H8PhlKDl3KSIm64G5mHAeQih7iFyIP',
+  audience: import.meta.env.VITE_AUTH0_AUDIENCE || 'https://api.discordia.com',
 });
+
+const SESSION_STORAGE_KEY = 'discordia_auth_session';
+const PENDING_USERNAME_KEY = 'discordia_pending_username';
+const PENDING_DISPLAY_NAME_KEY = 'discordia_pending_display_name';
+
+/** Adaptador web: además del contrato común, el flujo de redirección de Universal Login. */
+export interface WebAuthAdapter extends AuthAdapter {
+  /**
+   * Procesa la respuesta de callback tras la redirección del proveedor de identidad.
+   * Retorna el returnTo original si existía en appState.
+   */
+  handleCallback(): Promise<{ returnTo?: string }>;
+
+  /**
+   * Inicia el flujo de autenticación por redirección.
+   * - signup: true para abrir la pantalla de registro (screen_hint=signup).
+   * - silent: true para fallback C (prompt=none).
+   * - returnTo: ruta a la que volver tras la autenticación.
+   * - loginHint: email del usuario para precargar en Auth0.
+   */
+  loginRedirect(opts?: { signup?: boolean; returnTo?: string; silent?: boolean; loginHint?: string }): Promise<void>;
+}
+
+let client: Auth0Client | null = null;
+
+/* Instancia singleton de Auth0Client (se crea al primer uso, con la configuración ya cargada) */
+function auth0Client(): Auth0Client {
+  if (!client) {
+    const { domain, clientId, audience } = getAuthConfig();
+    client = new Auth0Client({
+      domain,
+      clientId,
+      cacheLocation: 'memory',
+      useRefreshTokens: false,
+      authorizationParams: {
+        audience,
+        redirect_uri: typeof window !== 'undefined' ? `${window.location.origin}/callback` : '',
+      },
+    });
+  }
+  return client;
+}
 
 let currentAccessToken: string | null = null;
 let currentAuthUser: AuthUser | null = null;
@@ -70,7 +108,31 @@ function clearSession() {
   }
 }
 
-export const auth0Provider: AuthProvider = {
+function currentPath(): { pathname: string; search: string } {
+  return {
+    pathname: typeof window !== 'undefined' ? window.location.pathname : '',
+    search: typeof window !== 'undefined' ? window.location.search : '',
+  };
+}
+
+/** Username y nombre elegidos al registrarse: en sessionStorage, sobreviven a la redirección a Auth0. */
+export const sessionStoragePendingProfile: PendingProfileStore = {
+  save({ username, displayName }) {
+    if (typeof sessionStorage === 'undefined') return;
+    if (username) sessionStorage.setItem(PENDING_USERNAME_KEY, username);
+    if (displayName) sessionStorage.setItem(PENDING_DISPLAY_NAME_KEY, displayName);
+  },
+  take() {
+    if (typeof sessionStorage === 'undefined') return {};
+    const username = sessionStorage.getItem(PENDING_USERNAME_KEY) ?? undefined;
+    const displayName = sessionStorage.getItem(PENDING_DISPLAY_NAME_KEY) ?? undefined;
+    sessionStorage.removeItem(PENDING_USERNAME_KEY);
+    sessionStorage.removeItem(PENDING_DISPLAY_NAME_KEY);
+    return { username, displayName };
+  },
+};
+
+export const auth0Provider: WebAuthAdapter = {
   async getToken(opts?: { forceRefresh?: boolean }): Promise<string> {
     // 1. Verificar token en memoria o sessionStorage si no se pide refresco forzado
     if (!opts?.forceRefresh) {
@@ -90,7 +152,7 @@ export const auth0Provider: AuthProvider = {
 
     // 3. Fallback a getTokenSilently de Auth0 SPA SDK
     try {
-      const token = await auth0Client.getTokenSilently({
+      const token = await auth0Client().getTokenSilently({
         cacheMode: opts?.forceRefresh ? 'off' : 'on',
         timeoutInSeconds: 8,
       });
@@ -114,7 +176,7 @@ export const auth0Provider: AuthProvider = {
     }
     try {
       // Flujo Universal Login: getUser() devuelve los claims crudos del ID token.
-      const claims = (await auth0Client.getUser()) as (AuthUser & Record<string, unknown>) | undefined;
+      const claims = (await auth0Client().getUser()) as (AuthUser & Record<string, unknown>) | undefined;
       if (!claims) return undefined;
       const username = claims[USERNAME_CLAIM];
       return { ...claims, username: typeof username === 'string' ? username : claims.username };
@@ -124,14 +186,14 @@ export const auth0Provider: AuthProvider = {
   },
 
   async handleCallback(): Promise<{ returnTo?: string }> {
-    const result = await auth0Client.handleRedirectCallback();
+    const result = await auth0Client().handleRedirectCallback();
     return {
       returnTo: (result.appState as { returnTo?: string } | undefined)?.returnTo,
     };
   },
 
   async loginRedirect(opts?: { signup?: boolean; returnTo?: string; silent?: boolean; loginHint?: string }): Promise<void> {
-    await auth0Client.loginWithRedirect({
+    await auth0Client().loginWithRedirect({
       appState: { returnTo: opts?.returnTo },
       authorizationParams: {
         ...(opts?.signup ? { screen_hint: 'signup' } : {}),
@@ -142,69 +204,7 @@ export const auth0Provider: AuthProvider = {
   },
 
   async loginWithCredentials(credentials: { email: string; password: string }): Promise<void> {
-    const res = await fetch(`https://${DOMAIN}/oauth/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'http://auth0.com/oauth/grant-type/password-realm',
-        client_id: CLIENT_ID,
-        username: credentials.email,
-        password: credentials.password,
-        realm: CONNECTION,
-        audience: AUDIENCE,
-        scope: 'openid profile email',
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      // Rechazo de la Auth0 Action. Auth0 solo ejecuta la Action después de
-      // validar la contraseña, así que distinguir este caso no permite
-      // enumerar cuentas: solo lo ve quien ya ingresó credenciales correctas.
-      // Una contraseña incorrecta llega con error "invalid_grant", también 403.
-      if (data?.error === 'access_denied') {
-        if (data.error_description === AUTH_DENY_CODES.EMAIL_NOT_VERIFIED) {
-          throw new EmailNotVerifiedError(credentials.email);
-        }
-        throw new AccountSuspendedError();
-      }
-
-      // Criterios de aceptación Login CA 2 y CA 3:
-      // Error genérico sin revelar si el fallo fue el email o la contraseña
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error('El correo electrónico o la contraseña son incorrectos.');
-      }
-      throw new Error(data.error_description || data.error || 'Error al autenticar credenciales.');
-    }
-
-    const accessToken = data.access_token;
-    const expiresIn = Number(data.expires_in) || 86400;
-
-    let user: AuthUser = {
-      email: credentials.email,
-      nickname: credentials.email.split('@')[0],
-      name: credentials.email.split('@')[0],
-    };
-
-    if (data.id_token) {
-      try {
-        const parts = data.id_token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-          user = {
-            sub: payload.sub,
-            email: payload.email || credentials.email,
-            nickname: payload.nickname || credentials.email.split('@')[0],
-            name: payload.name || payload.nickname || credentials.email.split('@')[0],
-            picture: payload.picture,
-            username: typeof payload[USERNAME_CLAIM] === 'string' ? payload[USERNAME_CLAIM] : undefined,
-          };
-        }
-      } catch {
-        // Fallback a claims básicos
-      }
-    }
-
+    const { accessToken, user, expiresIn } = await passwordRealmLogin(credentials);
     saveSession(accessToken, user, expiresIn);
   },
 
@@ -214,54 +214,14 @@ export const auth0Provider: AuthProvider = {
     username: string;
     displayName?: string;
   }): Promise<void> {
-    const res = await fetch(`https://${DOMAIN}/dbconnections/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: CLIENT_ID,
-        email: signupData.email,
-        password: signupData.password,
-        connection: CONNECTION,
-        username: signupData.username,
-        user_metadata: {
-          name: signupData.displayName || signupData.username,
-          username: signupData.username,
-        },
-      }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      // Criterio de Aceptación Registro CA 2: Email o nombre de usuario ya registrado
-      const descStr = typeof data.description === 'string' ? data.description.toLowerCase() : '';
-      if (
-        data.code === 'invalid_signup' ||
-        data.code === 'user_exists' ||
-        descStr.includes('sign up') ||
-        descStr.includes('already exists') ||
-        descStr.includes('already registered')
-      ) {
-        throw new Error('El correo o nombre de usuario ya está en uso.');
-      }
-
-      // Criterio de Aceptación Registro CA 4: Contraseña insegura
-      if (data.name === 'PasswordStrengthError') {
-        const minLength =
-          data.description?.rules?.find((r: any) => r.code === 'lengthAtLeast')?.format?.[0] || 8;
-        throw new Error(
-          `La contraseña debe tener al menos ${minLength} caracteres, mayúscula, minúscula y número.`
-        );
-      }
-
-      throw new Error(data.description || data.message || 'Error al crear la cuenta.');
-    }
+    await databaseSignup(signupData);
 
     // CA 1: Registro exitoso -> Autenticación automática.
     // Con la verificación de email obligatoria, este login lanza
     // EmailNotVerifiedError: la cuenta YA quedó creada en Auth0 (y el mail de
-    // verificación enviado), así que no es un fallo del registro. session.ts lo
+    // verificación enviado), así que no es un fallo del registro. La sesión lo
     // traduce al estado 'email_unverified'.
-    await this.loginWithCredentials!({
+    await auth0Provider.loginWithCredentials({
       email: signupData.email,
       password: signupData.password,
     });
@@ -271,7 +231,7 @@ export const auth0Provider: AuthProvider = {
     clearSession();
     try {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      await auth0Client.logout({
+      await auth0Client().logout({
         logoutParams: {
           returnTo: `${origin}/login`,
         },
@@ -281,5 +241,67 @@ export const auth0Provider: AuthProvider = {
       // Limpieza local completada
     }
   },
-};
 
+  async completeRedirect(): Promise<void> {
+    if (currentPath().pathname !== '/callback') return;
+    try {
+      const { returnTo } = await auth0Provider.handleCallback();
+      const target = returnTo || '/';
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', target);
+      }
+    } catch (err) {
+      // Limpiar ?error=...&state=... de la URL en TODAS las ramas: si queda,
+      // un refresh vuelve a procesar un state ya consumido ("Invalid state").
+      if (typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/login');
+      }
+      throw err;
+    }
+  },
+
+  async onMissingSession(err: any) {
+    const errorMsg = String(err?.message || err?.error || '');
+    const { pathname, search } = currentPath();
+
+    // En rutas de inicio (/ o /login), si no hay sesión activa por cualquier motivo,
+    // el usuario simplemente no está autenticado -> mostrar el formulario de login / sign up
+    if (pathname === '/' || pathname === '/login' || pathname === '/callback' || useSession.getState().isMock) {
+      return 'unauthenticated';
+    }
+
+    // Si estamos en una ruta protegida profunda (ej: /channels/c1) y silent auth falló
+    const isLoginRequired =
+      errorMsg.includes('login_required') ||
+      errorMsg.includes('consent_required') ||
+      errorMsg.includes('missing_refresh_token') ||
+      errorMsg.toLowerCase().includes('timeout');
+
+    if (!isLoginRequired) return 'error';
+
+    // Fallback C: redirección de primer nivel con prompt=none preservando returnTo
+    await auth0Provider.loginRedirect({
+      silent: true,
+      returnTo: `${pathname}${search}`,
+    });
+    return 'redirected';
+  },
+
+  async onSessionLost() {
+    const { pathname, search } = currentPath();
+
+    // Si estamos en login o callback, no disparar redirect
+    if (pathname === '/login' || pathname === '/callback') {
+      return 'unauthenticated';
+    }
+
+    // Fallback: redirigir con prompt=none preservando returnTo
+    await auth0Provider.loginRedirect({
+      silent: true,
+      returnTo: `${pathname}${search}`,
+    });
+    return 'redirected';
+  },
+
+  pendingProfile: sessionStoragePendingProfile,
+};

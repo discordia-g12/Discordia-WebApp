@@ -4,7 +4,8 @@ import * as ImagePicker from 'expo-image-picker'
 import { X } from 'lucide-react-native'
 import { colors, spacing, radii, typography } from '../../theme'
 import { useAuth } from '../../providers/AppProviders'
-import { updateMyProfile, uploadMyAvatar, PickedImage } from '../../api/auth'
+import { updateMyProfile } from '@discordia/core'
+import { uploadMyAvatar, PickedImage } from '../../api/auth'
 
 interface EditProfileModalProps {
   visible: boolean

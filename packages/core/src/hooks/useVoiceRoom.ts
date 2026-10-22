@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ConnectionState,
-  Participant,
-  RemoteParticipant,
-  RemoteTrack,
-  Room,
-  RoomEvent,
-  Track,
-} from 'livekit-client';
-import { joinVoiceChannel, leaveVoiceChannel } from '@discordia/core';
+import type { ConnectionState, Participant, RemoteParticipant, RemoteTrack, Room } from 'livekit-client';
+import { joinVoiceChannel, leaveVoiceChannel } from '../api/voice';
+import { DEFAULT_VOICE_PREFS, getVoicePlatform, type LiveKitModule } from '../voice/platform';
 
 export type VoiceConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -21,47 +14,13 @@ export interface VoiceRoomParticipant {
 }
 
 export interface VoiceJoinResult {
-  /** false si el browser no dio acceso al micrófono: el usuario queda conectado pero silenciado. */
+  /** false si no hubo acceso al micrófono: el usuario queda conectado pero silenciado. */
   microphoneAvailable: boolean;
 }
 
 export interface UseVoiceRoomOptions {
   /** Se llama cuando la sala se cierra sin que el usuario lo pida (red, servidor LiveKit). */
   onUnexpectedDisconnect?: () => void;
-}
-
-const PREFS_STORAGE_KEY = 'discordia_voice_prefs';
-
-interface VoicePrefs {
-  muted: boolean;
-  deafened: boolean;
-  /** Estado del micrófono antes de ensordecerse, para restaurarlo al reactivar el audio. */
-  mutedBeforeDeafen: boolean;
-}
-
-const DEFAULT_PREFS: VoicePrefs = { muted: false, deafened: false, mutedBeforeDeafen: false };
-
-function loadVoicePrefs(): VoicePrefs {
-  try {
-    const raw = localStorage.getItem(PREFS_STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const data = JSON.parse(raw);
-    return {
-      muted: data.muted === true,
-      deafened: data.deafened === true,
-      mutedBeforeDeafen: data.mutedBeforeDeafen === true,
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
-function saveVoicePrefs(prefs: VoicePrefs) {
-  try {
-    localStorage.setItem(PREFS_STORAGE_KEY, JSON.stringify(prefs));
-  } catch {
-    // Storage bloqueado (modo privado, cuota): la preferencia dura solo esta sesión
-  }
 }
 
 function toParticipant(participant: Participant, isLocal: boolean): VoiceRoomParticipant {
@@ -73,13 +32,13 @@ function toParticipant(participant: Participant, isLocal: boolean): VoiceRoomPar
   };
 }
 
-function toConnectionState(state: ConnectionState): VoiceConnectionState {
+function toConnectionState(state: ConnectionState, lk: LiveKitModule): VoiceConnectionState {
   switch (state) {
-    case ConnectionState.Connected:
+    case lk.ConnectionState.Connected:
       return 'connected';
-    case ConnectionState.Connecting:
+    case lk.ConnectionState.Connecting:
       return 'connecting';
-    case ConnectionState.Disconnected:
+    case lk.ConnectionState.Disconnected:
       return 'disconnected';
     default:
       return 'reconnecting';
@@ -87,21 +46,22 @@ function toConnectionState(state: ConnectionState): VoiceConnectionState {
 }
 
 /**
- * Conexión a un canal de voz vía LiveKit (solo audio).
+ * Conexión a un canal de voz vía LiveKit (solo audio), igual en web y mobile; lo propio de cada
+ * plataforma (cargar LiveKit, reproducir el audio, permisos, preferencias) lo aporta VoicePlatform.
  *
- * El voice-service firma el token y el browser se conecta directo a LiveKit. Hay una sola sala
+ * El voice-service firma el token y el cliente se conecta directo a LiveKit. Hay una sola sala
  * activa a la vez: unirse a otro canal cierra la anterior. Mute y deafen se pueden cambiar sin
- * estar conectado y se aplican al entrar; se guardan en localStorage para la próxima visita.
+ * estar conectado y se aplican al entrar.
  */
 export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
-  const [initialPrefs] = useState(loadVoicePrefs);
+  const [platform] = useState(getVoicePlatform);
+  const [initialPrefs] = useState(() => platform.prefs?.load() ?? DEFAULT_VOICE_PREFS);
   // Siempre el callback del último render, sin re-registrar los eventos de la sala
   const onUnexpectedDisconnectRef = useRef(options.onUnexpectedDisconnect);
   onUnexpectedDisconnectRef.current = options.onUnexpectedDisconnect;
   const roomRef = useRef<Room | null>(null);
   // Canal pedido más recientemente; permite descartar joins que quedaron viejos
   const channelIdRef = useRef<string | null>(null);
-  const audioElementsRef = useRef(new Set<HTMLMediaElement>());
   const mutedRef = useRef(initialPrefs.muted);
   const deafenedRef = useRef(initialPrefs.deafened);
   const mutedBeforeDeafenRef = useRef(initialPrefs.mutedBeforeDeafen);
@@ -124,6 +84,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       toParticipant(room.localParticipant, true),
       ...Array.from(room.remoteParticipants.values()).map((p) => {
         const participant = toParticipant(p, false);
+        // Si no lo estás escuchando (ensordecido o silenciado para vos), no se marca como hablando
         if (deafenedRef.current || locallyMutedRef.current[participant.id]) participant.isSpeaking = false;
         return participant;
       }),
@@ -139,12 +100,15 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     roomRef.current?.remoteParticipants.forEach(applyVolume);
   }, [applyVolume]);
 
-  const disconnectRoom = useCallback(async (room: Room) => {
-    room.removeAllListeners();
-    audioElementsRef.current.forEach((el) => el.remove());
-    audioElementsRef.current.clear();
-    await room.disconnect();
-  }, []);
+  const disconnectRoom = useCallback(
+    async (room: Room) => {
+      room.removeAllListeners();
+      platform.stopAllRemoteAudio?.();
+      await room.disconnect();
+      await platform.stopAudioSession?.().catch(() => undefined);
+    },
+    [platform]
+  );
 
   const resetState = useCallback(() => {
     roomRef.current = null;
@@ -155,26 +119,20 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   }, []);
 
   const bindRoomEvents = useCallback(
-    (room: Room) => {
+    (room: Room, lk: LiveKitModule) => {
+      const { RoomEvent, Track } = lk;
       const syncIfCurrent = () => {
         if (roomRef.current === room) syncParticipants();
       };
 
       room
         .on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _pub, participant: RemoteParticipant) => {
-          if (track.kind === Track.Kind.Audio) {
-            const el = track.attach();
-            audioElementsRef.current.add(el);
-            document.body.appendChild(el);
-            applyVolume(participant);
-          }
+          if (track.kind === Track.Kind.Audio) platform.playRemoteAudio?.(track);
+          applyVolume(participant);
           syncIfCurrent();
         })
         .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
-          track.detach().forEach((el) => {
-            audioElementsRef.current.delete(el);
-            el.remove();
-          });
+          platform.stopRemoteAudio?.(track);
           syncIfCurrent();
         })
         .on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
@@ -190,7 +148,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
         .on(RoomEvent.LocalTrackPublished, syncIfCurrent)
         .on(RoomEvent.LocalTrackUnpublished, syncIfCurrent)
         .on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
-          if (roomRef.current === room) setConnectionState(toConnectionState(state));
+          if (roomRef.current === room) setConnectionState(toConnectionState(state, lk));
         })
         .on(RoomEvent.Disconnected, () => {
           // Desconexión no pedida por el usuario (red, servidor): limpiar y avisar al backend
@@ -201,11 +159,14 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
           onUnexpectedDisconnectRef.current?.();
         });
     },
-    [applyVolume, disconnectRoom, resetState, syncParticipants]
+    [applyVolume, disconnectRoom, platform, resetState, syncParticipants]
   );
 
   const join = useCallback(
     async (targetChannelId: string): Promise<VoiceJoinResult> => {
+      if (platform.isSupported?.() === false) {
+        throw new Error(platform.unsupportedMessage ?? 'La voz no está disponible en este dispositivo.');
+      }
       if (channelIdRef.current === targetChannelId) {
         return { microphoneAvailable: true };
       }
@@ -225,20 +186,29 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
         const { token, url } = await joinVoiceChannel(targetChannelId);
         if (isSuperseded()) return { microphoneAvailable: true };
 
-        room = new Room();
+        const lk = platform.livekit();
+        await platform.startAudioSession?.();
+
+        room = new lk.Room();
         roomRef.current = room;
-        bindRoomEvents(room);
+        bindRoomEvents(room, lk);
         await room.connect(url, token);
         if (isSuperseded()) return { microphoneAvailable: true };
 
-        await room.startAudio().catch(() => undefined);
+        await platform.afterConnect?.(room);
 
-        let microphoneAvailable = true;
-        try {
-          await room.localParticipant.setMicrophoneEnabled(!mutedRef.current);
-        } catch (err) {
-          console.error('[Voice] No se pudo acceder al micrófono:', err);
-          microphoneAvailable = false;
+        let microphoneAvailable = platform.requestMicrophonePermission
+          ? await platform.requestMicrophonePermission()
+          : true;
+        if (microphoneAvailable) {
+          try {
+            await room.localParticipant.setMicrophoneEnabled(!mutedRef.current);
+          } catch (err) {
+            console.error('[Voice] No se pudo acceder al micrófono:', err);
+            microphoneAvailable = false;
+          }
+        }
+        if (!microphoneAvailable) {
           mutedRef.current = true;
           setIsMuted(true);
         }
@@ -253,7 +223,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
         throw err;
       }
     },
-    [bindRoomEvents, disconnectRoom, resetState, syncParticipants]
+    [bindRoomEvents, disconnectRoom, platform, resetState, syncParticipants]
   );
 
   const leave = useCallback(async () => {
@@ -271,7 +241,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       mutedRef.current = muted;
       setIsMuted(muted);
       const room = roomRef.current;
-      if (!room || room.state !== ConnectionState.Connected) return;
+      if (!room || room.state !== platform.livekit().ConnectionState.Connected) return;
       try {
         await room.localParticipant.setMicrophoneEnabled(!muted);
       } catch (err) {
@@ -281,7 +251,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       }
       syncParticipants();
     },
-    [syncParticipants]
+    [platform, syncParticipants]
   );
 
   const setDeafened = useCallback(
@@ -296,14 +266,15 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
 
   // Solo se guardan los cambios hechos por el usuario (no un mute forzado por falta de permiso)
   const persistPrefs = useCallback(() => {
-    saveVoicePrefs({
+    platform.prefs?.save({
       muted: mutedRef.current,
       deafened: deafenedRef.current,
       mutedBeforeDeafen: mutedBeforeDeafenRef.current,
     });
-  }, []);
+  }, [platform]);
 
   const toggleMute = useCallback(() => {
+    // Como en Discord: activar el micrófono estando ensordecido también reactiva el audio
     if (deafenedRef.current) {
       setDeafened(false);
       setMuted(false);
@@ -325,7 +296,10 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     persistPrefs();
   }, [persistPrefs, setDeafened, setMuted]);
 
-  /** Silencia o reactiva a un participante solo para este cliente. */
+  /**
+   * Silencia o reactiva a un participante solo para este cliente (los demás lo siguen escuchando).
+   * Se puede usar antes de entrar al canal: se aplica cuando el participante aparece.
+   */
   const toggleLocalMute = useCallback(
     (userId: string) => {
       const next = { ...locallyMutedRef.current, [userId]: !locallyMutedRef.current[userId] };
@@ -338,6 +312,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     [applyVolume, syncParticipants]
   );
 
+  // Al desmontar (p. ej. logout) cerrar la sala y avisar al backend
   useEffect(() => {
     return () => {
       const room = roomRef.current;

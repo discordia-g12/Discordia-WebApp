@@ -20,8 +20,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { useSession, authService } from '../auth/session';
-import { ApiError, requestPasswordReset, upsertMyProfile } from '@discordia/core';
-import { AccountSuspendedError } from '../auth/errors';
+import { AccountSuspendedError, ApiError, requestPasswordReset, upsertMyProfile } from '@discordia/core';
 
 export interface AuthViewProps {
   onSuccess?: () => void;

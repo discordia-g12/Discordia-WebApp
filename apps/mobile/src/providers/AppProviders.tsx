@@ -1,10 +1,14 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { registerQueryCacheCleaner } from '@discordia/core'
 import { AuthProvider } from './AuthProvider'
 import { DataProvider } from './DataProvider'
 import { UIProvider } from './UIProvider'
 
 const queryClient = new QueryClient()
+
+// Al cerrar sesión (o perderla por un 401) no quedan datos del usuario anterior en caché
+registerQueryCacheCleaner(() => queryClient.clear())
 
 // Orden: Auth por fuera (todo depende de si hay sesión), QueryClient justo
 // adentro (features nuevas como roles usan react-query en vez del

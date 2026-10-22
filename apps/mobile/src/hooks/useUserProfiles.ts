@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { api } from '@discordia/core'
+import { useCallback, useMemo } from 'react'
+import { useUserProfiles as useCoreUserProfiles } from '@discordia/core'
 import { useData } from '../providers/AppProviders'
 
 export interface PublicProfile {
@@ -8,58 +8,20 @@ export interface PublicProfile {
   avatar: string | null
 }
 
-interface BulkUserResponse {
-  id?: string
-  user_id?: string
-  username: string
-  display_name?: string | null
-  avatar_url?: string | null
-}
-
-// Máximo de IDs que acepta POST /api/v1/users/bulk por pedido
-const BULK_LIMIT = 100
-
 /**
- * Perfiles públicos (nombre, avatar) de usuarios que la app todavía no conoce, vía
- * POST /api/v1/users/bulk (en lotes de BULK_LIMIT). Cada ID se pide una sola vez; si falla,
- * se reintenta en el próximo cambio.
- *
- * Llama directo al endpoint en vez de usar getUsersBulk de la API compartida porque esa función usa
- * import.meta.env (Vite), que Metro no soporta.
+ * Perfiles públicos (nombre, avatar) de usuarios que la app todavía no conoce. Los trae el hook de
+ * @discordia/core (POST /api/v1/users/bulk, el mismo que la web); acá solo se pasan al modelo de la UI.
  */
 export function useUserProfiles(userIds: string[]): Record<string, PublicProfile> {
-  const [profiles, setProfiles] = useState<Record<string, PublicProfile>>({})
-  const requestedRef = useRef(new Set<string>())
-  const idsKey = Array.from(new Set(userIds)).sort().join(',')
+  const users = useCoreUserProfiles(userIds)
 
-  useEffect(() => {
-    const missing = idsKey ? idsKey.split(',').filter(id => !requestedRef.current.has(id)) : []
-    if (missing.length === 0) return
-    missing.forEach(id => requestedRef.current.add(id))
-
-    for (let i = 0; i < missing.length; i += BULK_LIMIT) {
-      const batch = missing.slice(i, i + BULK_LIMIT)
-      api
-        .post<BulkUserResponse[]>('/api/v1/users/bulk', { user_ids: batch })
-        .then(users => {
-          setProfiles(prev => {
-            const next = { ...prev }
-            for (const u of users) {
-              const id = u.user_id || u.id
-              if (!id) continue
-              next[id] = { id, name: u.display_name || u.username, avatar: u.avatar_url ?? null }
-            }
-            return next
-          })
-        })
-        .catch(err => {
-          console.error('[Users] Error al traer perfiles:', err)
-          batch.forEach(id => requestedRef.current.delete(id))
-        })
+  return useMemo(() => {
+    const profiles: Record<string, PublicProfile> = {}
+    for (const u of Object.values(users)) {
+      profiles[u.id] = { id: u.id, name: u.displayName || u.username, avatar: u.avatar ?? null }
     }
-  }, [idsKey])
-
-  return profiles
+    return profiles
+  }, [users])
 }
 
 export interface UserDisplay {

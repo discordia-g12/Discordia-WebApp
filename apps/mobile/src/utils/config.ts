@@ -12,10 +12,6 @@ export function getApiBaseUrl(): string {
   return hostIp ? `http://${hostIp}:8000` : 'http://localhost:8000'
 }
 
-export function getWsBaseUrl(): string {
-  const httpUrl = getApiBaseUrl()
-  return httpUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:')
-}
 export const AUTH0_DOMAIN =
   (typeof process !== 'undefined' && process.env && process.env.EXPO_PUBLIC_AUTH0_DOMAIN) || 'dev-dppme5iaqg60gkmo.us.auth0.com'
 export const AUTH0_CLIENT_ID =

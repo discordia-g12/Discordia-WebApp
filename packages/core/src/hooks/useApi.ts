@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { getMyProfile, upsertMyProfile, CreateProfileRequest } from '../api/users';
 import {
-  getMyProfile,
-  upsertMyProfile,
-  CreateProfileRequest,
   getServers,
   getServerMembers,
   createServer,
@@ -17,6 +15,8 @@ import {
   deleteCategory,
   reorderChannels,
   reorderCategories,
+} from '../api/servers';
+import {
   getRoles,
   getRoleMembers,
   assignRoleToMember,
@@ -28,15 +28,11 @@ import {
   setDefaultRole,
   CreateRoleRequest,
   UpdateRoleInfoRequest,
-  banMember,
-  getServerBans,
-  unbanMember,
-  getMessages,
-  sendMessage,
-  GetMessagesOptions,
-} from '@discordia/core';
-import type { Category, Role, Server } from '../../types';
-import { useSession } from '../../auth/session';
+} from '../api/roles';
+import { banMember, getServerBans, unbanMember } from '../api/moderation';
+import { getMessages, sendMessage, GetMessagesOptions } from '../api/messages';
+import type { Category, Role, Server } from '../types';
+import { useSession } from '../auth/session';
 
 export function useMyProfileQuery() {
   const status = useSession((s) => s.status);
