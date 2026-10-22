@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, AlertTriangle, Trash2, LogOut, UserX, Volume2 } from 'lucide-react';
 import { ConfirmAction } from '../../types';
-// import { createInvite } from '../../api/servers';
+// import { createInvite } from '@discordia/core';
 import { ModalOverlay } from './ModalOverlay';
 
 export interface ConfirmDialogProps {

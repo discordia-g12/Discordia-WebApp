@@ -22,7 +22,7 @@ import {
   FolderPlus,
 } from 'lucide-react';
 import { Server, Channel, User, Status } from '../types';
-import { isLocalCategoryId } from '../api/channelLayout';
+import { isLocalCategoryId } from '@discordia/core';
 import { Avatar } from './Avatar';
 import { VoiceParticipantMenu } from './VoiceParticipantMenu';
 import { UserPanel } from './UserPanel';

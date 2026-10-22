@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Message } from '../../types';
-import { getClientConfig } from '../client';
+import { getClientConfig } from '@discordia/core';
 
 // Mismo backoff que useVoicePresence: 1 s, 2 s, 4 s… hasta 15 s entre intentos
 const RECONNECT_BASE_MS = 1000;

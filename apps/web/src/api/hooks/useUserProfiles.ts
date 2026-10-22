@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getUsersBulk } from '../users';
+import { getUsersBulk } from '@discordia/core';
 import type { User } from '../../types';
 
 /**

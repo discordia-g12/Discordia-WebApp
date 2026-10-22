@@ -2,7 +2,8 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useVoicePresence } from '../useVoicePresence';
 
-vi.mock('../../client', () => ({
+vi.mock('@discordia/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@discordia/core')>()),
   getClientConfig: () => ({
     baseUrl: 'http://localhost:8000',
     getToken: vi.fn().mockResolvedValue('mock-token'),

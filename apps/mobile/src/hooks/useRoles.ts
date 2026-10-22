@@ -13,8 +13,8 @@ import {
   updateRolePermissions,
   type CreateRoleRequest,
   type UpdateRoleInfoRequest,
-} from '@shared/api/roles'
-import type { Role } from '@shared/types'
+} from '@discordia/core'
+import type { Role } from '@discordia/core'
 import type { ServerRole } from '../types'
 
 // La API compartida modela los permisos como lista de ids; la UI mobile trabaja con el bitmask del backend

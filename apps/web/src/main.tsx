@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
-import { configureClient } from './api/client';
+import { configureClient } from '@discordia/core';
 
 configureClient({
   baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',

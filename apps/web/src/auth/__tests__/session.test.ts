@@ -7,8 +7,8 @@ import {
   registerQueryCacheCleaner,
   setAuthProvider,
 } from '../session';
-import * as usersApi from '../../api/users';
-import { ApiError, PROBLEM_TYPES } from '../../api/errors';
+import * as core from '@discordia/core';
+import { ApiError, PROBLEM_TYPES } from '@discordia/core';
 import { auth0Provider } from '../auth0';
 import { AccountSuspendedError, EmailNotVerifiedError } from '../errors';
 
@@ -33,7 +33,7 @@ describe('Session Store & Bootstrap State Machine', () => {
 
   it('protege contra StrictMode ejecutando un único flujo de inicialización ante dos bootstrap() concurrentes', async () => {
     const getTokenSpy = vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('token-123');
-    vi.spyOn(usersApi, 'getMyProfile').mockResolvedValue({
+    vi.spyOn(core, 'getMyProfile').mockResolvedValue({
       id: 'u1',
       username: 'alex',
       displayName: 'Alex',
@@ -110,10 +110,10 @@ describe('Session Store & Bootstrap State Machine', () => {
       email: 'new@example.com',
       picture: 'https://pic.com/avatar.png',
     });
-    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(
+    vi.spyOn(core, 'getMyProfile').mockRejectedValue(
       new ApiError({ status: 404, detail: 'User profile not found' })
     );
-    const upsertSpy = vi.spyOn(usersApi, 'upsertMyProfile').mockResolvedValue({
+    const upsertSpy = vi.spyOn(core, 'upsertMyProfile').mockResolvedValue({
       id: 'u-auto',
       username: 'newuser',
       displayName: 'newuser',
@@ -141,10 +141,10 @@ describe('Session Store & Bootstrap State Machine', () => {
       name: 'new@example.com',
       email: 'new@example.com',
     });
-    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(
+    vi.spyOn(core, 'getMyProfile').mockRejectedValue(
       new ApiError({ status: 404, detail: 'User profile not found' })
     );
-    const upsertSpy = vi.spyOn(usersApi, 'upsertMyProfile').mockResolvedValue({
+    const upsertSpy = vi.spyOn(core, 'upsertMyProfile').mockResolvedValue({
       id: 'u-auto',
       username: 'newuser',
       displayName: 'newuser',
@@ -161,10 +161,10 @@ describe('Session Store & Bootstrap State Machine', () => {
 
     vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('valid-token');
     vi.spyOn(auth0Provider, 'getUser').mockResolvedValue({ nickname: 'taken' });
-    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(
+    vi.spyOn(core, 'getMyProfile').mockRejectedValue(
       new ApiError({ status: 404, detail: 'User profile not found' })
     );
-    vi.spyOn(usersApi, 'upsertMyProfile').mockRejectedValue(
+    vi.spyOn(core, 'upsertMyProfile').mockRejectedValue(
       new ApiError({ status: 409, detail: 'Username taken' })
     );
 
@@ -177,7 +177,7 @@ describe('Session Store & Bootstrap State Machine', () => {
     window.history.replaceState({}, '', '/');
 
     vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('valid-token');
-    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(
+    vi.spyOn(core, 'getMyProfile').mockRejectedValue(
       new ApiError({ status: 500, detail: 'Internal Server Error' })
     );
 
@@ -207,7 +207,7 @@ describe('Session Store & Bootstrap State Machine', () => {
   it('CA 1 Login: loginWithCredentials autentica credenciales y carga el perfil del usuario', async () => {
     const loginSpy = vi.spyOn(auth0Provider, 'loginWithCredentials').mockResolvedValue();
     vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('token-cred-123');
-    vi.spyOn(usersApi, 'getMyProfile').mockResolvedValue({
+    vi.spyOn(core, 'getMyProfile').mockResolvedValue({
       id: 'u-cred',
       username: 'usuario_valido',
       displayName: 'Usuario Valido',
@@ -229,10 +229,10 @@ describe('Session Store & Bootstrap State Machine', () => {
       email: 'nuevo@discordia.com',
       nickname: 'nuevousuario',
     });
-    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(
+    vi.spyOn(core, 'getMyProfile').mockRejectedValue(
       new ApiError({ status: 404, detail: 'Not found' })
     );
-    const upsertSpy = vi.spyOn(usersApi, 'upsertMyProfile').mockResolvedValue({
+    const upsertSpy = vi.spyOn(core, 'upsertMyProfile').mockResolvedValue({
       id: 'u-reg-123',
       username: 'nuevousuario',
       displayName: 'Nuevo Usuario',
@@ -353,8 +353,8 @@ describe('Verificación de email (Auth0 Action deny: email_not_verified)', () =>
       nickname: 'nuevo',
       username: 'cyber_knight',
     });
-    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
-    const upsertSpy = vi.spyOn(usersApi, 'upsertMyProfile').mockResolvedValue({
+    vi.spyOn(core, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
+    const upsertSpy = vi.spyOn(core, 'upsertMyProfile').mockResolvedValue({
       id: 'u1',
       username: 'cyber_knight',
       displayName: 'cyber_knight',
@@ -370,8 +370,8 @@ describe('Verificación de email (Auth0 Action deny: email_not_verified)', () =>
   it('segunda barrera: 403 email-not-verified del backend al crear el perfil -> email_unverified', async () => {
     vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('token-viejo');
     vi.spyOn(auth0Provider, 'getUser').mockResolvedValue({ email: 'viejo@discordia.com', nickname: 'viejo' });
-    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
-    vi.spyOn(usersApi, 'upsertMyProfile').mockRejectedValue(
+    vi.spyOn(core, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
+    vi.spyOn(core, 'upsertMyProfile').mockRejectedValue(
       new ApiError({ status: 403, type: PROBLEM_TYPES.EMAIL_NOT_VERIFIED, detail: 'Email address must be verified' }),
     );
 
@@ -384,8 +384,8 @@ describe('Verificación de email (Auth0 Action deny: email_not_verified)', () =>
   it('un 403 genérico del backend al crear el perfil NO se confunde con verificación pendiente', async () => {
     vi.spyOn(auth0Provider, 'getToken').mockResolvedValue('token-123');
     vi.spyOn(auth0Provider, 'getUser').mockResolvedValue({ email: 'x@discordia.com', nickname: 'x_user' });
-    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
-    vi.spyOn(usersApi, 'upsertMyProfile').mockRejectedValue(
+    vi.spyOn(core, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
+    vi.spyOn(core, 'upsertMyProfile').mockRejectedValue(
       new ApiError({ status: 403, type: 'about:blank', detail: 'Forbidden' }),
     );
 

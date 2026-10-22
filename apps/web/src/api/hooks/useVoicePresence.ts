@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getClientConfig } from '../client';
+import { getClientConfig } from '@discordia/core';
 
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 15000;

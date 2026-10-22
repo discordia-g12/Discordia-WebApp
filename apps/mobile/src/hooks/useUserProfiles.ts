@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api } from '@shared/api/client'
+import { api } from '@discordia/core'
 import { useData } from '../providers/AppProviders'
 
 export interface PublicProfile {

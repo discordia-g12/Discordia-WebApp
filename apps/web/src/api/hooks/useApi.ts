@@ -1,7 +1,22 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { getMyProfile, upsertMyProfile, CreateProfileRequest } from '../users';
-import { getServers, getServerMembers, createServer, CreateServerRequest, createChannel, CreateChannelRequest, editChannel, EditChannelRequest, deleteChannel, createCategory, CreateCategoryRequest, deleteCategory, reorderChannels, reorderCategories } from '../servers';
 import {
+  getMyProfile,
+  upsertMyProfile,
+  CreateProfileRequest,
+  getServers,
+  getServerMembers,
+  createServer,
+  CreateServerRequest,
+  createChannel,
+  CreateChannelRequest,
+  editChannel,
+  EditChannelRequest,
+  deleteChannel,
+  createCategory,
+  CreateCategoryRequest,
+  deleteCategory,
+  reorderChannels,
+  reorderCategories,
   getRoles,
   getRoleMembers,
   assignRoleToMember,
@@ -13,10 +28,14 @@ import {
   setDefaultRole,
   CreateRoleRequest,
   UpdateRoleInfoRequest,
-} from '../roles';
-import { banMember, getServerBans, unbanMember } from '../moderation';
+  banMember,
+  getServerBans,
+  unbanMember,
+  getMessages,
+  sendMessage,
+  GetMessagesOptions,
+} from '@discordia/core';
 import type { Category, Role, Server } from '../../types';
-import { getMessages, sendMessage, GetMessagesOptions } from '../messages';
 import { useSession } from '../../auth/session';
 
 export function useMyProfileQuery() {

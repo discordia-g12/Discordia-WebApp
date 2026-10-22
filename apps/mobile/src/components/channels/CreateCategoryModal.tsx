@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native'
 import { X } from 'lucide-react-native'
-import { errorMessageFor } from '@shared/api/errors'
+import { errorMessageFor } from '@discordia/core'
 import { useData, useUI } from '../../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../../theme'
 

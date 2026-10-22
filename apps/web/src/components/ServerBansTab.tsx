@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { useServerBansQuery, useUnbanMemberMutation } from '../api/hooks/useApi';
 import { useUserProfiles } from '../api/hooks/useUserProfiles';
-import { ApiError } from '../api/errors';
-import { unbanErrorMessage } from '../api/moderation';
+import { ApiError, unbanErrorMessage } from '@discordia/core';
 import type { ServerBan } from '../types';
 
 export interface ServerBansTabProps {

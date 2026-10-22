@@ -8,7 +8,7 @@ import {
   RoomEvent,
   Track,
 } from 'livekit-client';
-import { joinVoiceChannel, leaveVoiceChannel } from '../voice';
+import { joinVoiceChannel, leaveVoiceChannel } from '@discordia/core';
 
 export type VoiceConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { banMember, getServerBans, unbanMember } from '@shared/api/moderation'
+import { banMember, getServerBans, unbanMember } from '@discordia/core'
 
 export function useServerBansQuery(serverId: string | null) {
   return useQuery({

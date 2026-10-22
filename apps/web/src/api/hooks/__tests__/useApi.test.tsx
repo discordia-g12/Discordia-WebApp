@@ -4,13 +4,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../messages', () => ({
+vi.mock('@discordia/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@discordia/core')>()),
   getMessages: vi.fn().mockResolvedValue([
     { id: '1', content: 'hello', authorId: 'user-1' }
-  ])
-}));
-
-vi.mock('../../servers', () => ({
+  ]),
   getServers: vi.fn().mockResolvedValue([
     { id: 's1', name: 'Test Server', channels: [] }
   ]),

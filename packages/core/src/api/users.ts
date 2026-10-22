@@ -1,5 +1,6 @@
 import { api } from './client';
 import { ApiError } from './errors';
+import { getApiMock } from './mock';
 import { User } from '../types';
 
 export interface UserProfile extends User {
@@ -28,19 +29,8 @@ export interface UpdateProfileRequest {
  * Si el usuario nunca inicializó su perfil en Discordia, devuelve 404.
  */
 export async function getMyProfile(): Promise<UserProfile> {
-  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
-    const { isMockNeedsProfile } = await import('../auth/mock');
-    if (isMockNeedsProfile()) {
-      throw new ApiError({ status: 404, detail: 'Mock profile not found' });
-    }
-    const { USERS, CURRENT_USER_ID } = await import('../data/mock');
-    const user = USERS[CURRENT_USER_ID];
-    return {
-      ...user,
-      display_name: user.displayName,
-      avatar_url: user.avatar,
-    };
-  }
+  const mock = getApiMock();
+  if (mock) return mock.getMyProfile();
 
   const res = await api.get<any>('/api/v1/users/me');
   return {
@@ -58,19 +48,8 @@ export async function getMyProfile(): Promise<UserProfile> {
  * Llama directamente a POST /api/v1/users/me sanitizando el nombre de usuario.
  */
 export async function upsertMyProfile(payload: CreateProfileRequest): Promise<UserProfile> {
-  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
-    const { setMockProfileCompleted } = await import('../auth/mock');
-    setMockProfileCompleted();
-    const { USERS, CURRENT_USER_ID } = await import('../data/mock');
-    const existing = USERS[CURRENT_USER_ID];
-    return {
-      ...existing,
-      username: payload.username,
-      displayName: payload.display_name || payload.username,
-      display_name: payload.display_name || payload.username,
-      bio: payload.bio || existing.bio,
-    };
-  }
+  const mock = getApiMock();
+  if (mock) return mock.upsertMyProfile(payload);
 
   // Sanitizar username según requisitos de backend (^[a-zA-Z0-9_.-]{3,32}$)
   const rawClean = (payload.username || '')
@@ -127,19 +106,9 @@ const BULK_LIMIT = 100;
  */
 export async function getUsersBulk(userIds: string[]): Promise<UserProfile[]> {
   if (!userIds.length) return [];
-  
-  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
-    const { USERS } = await import('../data/mock');
-    return userIds.map(id => {
-      const u = USERS[id];
-      if (!u) return null;
-      return {
-        ...u,
-        display_name: u.displayName,
-        avatar_url: u.avatar
-      };
-    }).filter(Boolean) as UserProfile[];
-  }
+
+  const mock = getApiMock();
+  if (mock) return mock.getUsersBulk(userIds);
 
   const uniqueIds = Array.from(new Set(userIds));
   const batches: string[][] = [];

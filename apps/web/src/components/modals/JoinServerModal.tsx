@@ -1,6 +1,6 @@
 //import { Server } from "../../types";
 import React, { useState, useEffect } from 'react';
-import { getInvitePreview } from '../../api/servers';
+import { getInvitePreview } from '@discordia/core';
 import { X } from 'lucide-react';
 
 import { ModalOverlay } from './ModalOverlay';

@@ -209,15 +209,20 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
       `app.json` / `eas.json` viejos de la raíz (otro `projectId`, paquete `discordiawebapp`, sin uso).
 - [x] Borrar `shared-api/` (vacío). El alias `@shared` queda apuntando a `apps/web/src` hasta 1.2.
 - [x] React 19.2.3 y TypeScript 6.0.3 en la web, iguales a mobile: una sola copia en el monorepo.
-- [ ] `tsconfig` base compartido: queda para 1.2 (web usa la base de Vite y mobile la de Expo).
+- [x] `tsconfig.base.json` en la raíz, que extienden la web y `packages/core`. Mobile sigue con la base de Expo.
 - [ ] ESLint: el script `lint` de la web ya estaba roto antes de esto (no hay ESLint instalado ni
       configurado). Configurarlo para todo el monorepo.
 - [ ] Probar un build de EAS (`preview`) y un deploy de Pages desde esta rama antes de mergear a `main`.
 
 #### 1.2 `packages/core`: lógica única
 
-- [ ] Mover `api/*` (cliente, servers, channels, roles, moderation, voice, users, messages, errors,
-      channelLayout, passwordReset) y unificar `types.ts` de los dos lados.
+- [x] Mover `api/*` (cliente, servers, channels, roles, moderation, voice, users, messages, errors,
+      channelLayout, passwordReset) a `packages/core/src/api`, con sus tests.
+- [x] Tipos de dominio y DTO en `packages/core/src/types.ts`. La web conserva en `src/types.ts` solo los de
+      interfaz (vistas, modales) y re-exporta los de core; mobile dejó de copiar los DTO.
+- [ ] Modelos de interfaz de mobile (`User`, `Server`, `Role`, `Message`, ...): todavía difieren de los de
+      core (`avatar: string | null`, permisos como `Record<string, boolean>`, `members: string[]`). Se unifican
+      al reescribir las pantallas de mobile (paso 13).
 - [ ] Hooks de React Query (`useApi`) compartidos.
 - [ ] **Una sola** lógica de chat en tiempo real (reconexión con backoff, recuperación de mensajes perdidos,
       heartbeat), con tests. Reemplaza `useChatWebSocket` y `useChannelSocket`.
@@ -225,12 +230,14 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 - [ ] Sala de voz: estado y reglas en `core`; adaptador de audio/LiveKit por plataforma.
 - [ ] Contrato de auth (`login`, `logout`, `getToken`, `onSessionChange`) con adaptador web (Auth0 SPA) y
       mobile.
-- [ ] Reemplazar el alias `@shared` de mobile por imports de `@discordia/core`.
-- [ ] Datos de prueba a `packages/core/testing`. Hoy `api/users.ts` los importa con `import()` dinámico
-      detrás de `import.meta.env.DEV && VITE_USE_MOCK`, así que no llegan al build de producción, pero el
-      código de producción no debería depender de ellos.
-- [ ] La configuración (URL de la API, WebSocket, Auth0) entra por un `configure()` de `core`, no por
-      `import.meta.env` / `process.env` adentro del paquete.
+- [x] Reemplazar el alias `@shared` de mobile por imports de `@discordia/core` (alias borrado del
+      `tsconfig` de mobile).
+- [x] Core no depende de los datos de prueba: expone `setApiMock()` y la web registra sus respuestas
+      simuladas (`apps/web/src/api/mock.ts`) solo con `VITE_USE_MOCK` en desarrollo.
+- [ ] Datos de prueba (`data/mock.ts` de web y de mobile) a `packages/core/testing`.
+- [ ] La configuración entra por `configureClient()` de core, sin `import.meta.env` / `process.env` adentro
+      del paquete. Hecho para la URL de la API y el token; falta el WebSocket (con el chat) y Auth0 (con el
+      contrato de auth).
 
 #### 1.3 `packages/tokens`
 

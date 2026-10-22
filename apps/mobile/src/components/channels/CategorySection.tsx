@@ -1,7 +1,7 @@
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus } from 'lucide-react-native'
-import { isLocalCategoryId } from '@shared/api/channelLayout'
+import { isLocalCategoryId } from '@discordia/core'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Category, Channel } from '../../types'
 import ChannelRow from './ChannelRow'

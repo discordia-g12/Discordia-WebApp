@@ -1,6 +1,23 @@
-export type Status = 'online' | 'idle' | 'dnd' | 'offline' | 'invisible'
-export type ChannelType = 'text' | 'voice' | 'announcement'
-export type MessageType = 'normal' | 'system' | 'deleted'
+// Tipos de dominio y DTO del backend: los mismos que la web, desde @discordia/core.
+// Los de abajo son los modelos de la interfaz mobile (se unifican con los de la web en el paso 13).
+import type { ChannelType, MessageType, Status } from '@discordia/core'
+
+export type {
+  ChannelBackendResponse,
+  ChannelType,
+  MessageBackendPayload,
+  MessageType,
+  RoleBackendResponse,
+  RoleMember,
+  RoleMemberBackendResponse,
+  ServerBackendResponse,
+  ServerMember,
+  ServerMemberBackendResponse,
+  ServerMemberPage,
+  ServerMemberPageBackendResponse,
+  Status,
+} from '@discordia/core'
+
 export type AuthScreen = 'login' | 'register' | 'forgot' | '2fa' | 'verify-email'
 export type AppView =
   | 'chat'
@@ -65,16 +82,6 @@ export interface Role {
   permissions: Record<string, boolean>
 }
 
-/** DTO de rol retornado por Server-Roles-Core-Service */
-export interface RoleBackendResponse {
-  id: string
-  name: string
-  color: string | null
-  position: number
-  permissions_bitmask: number
-  is_default: boolean
-}
-
 /** Rol de un servidor tal como lo devuelve el backend, en el modelo de dominio del cliente. */
 export interface ServerRole {
   id: string
@@ -83,85 +90,6 @@ export interface ServerRole {
   position: number
   permissionsBitmask: number
   isDefault: boolean
-}
-
-/** DTO de miembro de un rol retornado por Server-Roles-Core-Service */
-export interface RoleMemberBackendResponse {
-  id: string
-  user_id: string
-  nickname: string | null
-  joined_at: string
-}
-
-/** Miembro de un servidor que tiene asignado un rol determinado. */
-export interface RoleMember {
-  id: string
-  userId: string
-  nickname: string | null
-  joinedAt: string
-}
-
-/** DTO de miembro de un servidor retornado por Server-Roles-Core-Service */
-export interface ServerMemberBackendResponse {
-  id: string
-  user_id: string
-  nickname: string | null
-  role_ids: string[]
-}
-
-/** DTO de una página de miembros retornada por Server-Roles-Core-Service */
-export interface ServerMemberPageBackendResponse {
-  items: ServerMemberBackendResponse[]
-  total: number
-  limit: number
-  offset: number
-}
-
-/** Miembro de un servidor con los ids de los roles que tiene asignados. */
-export interface ServerMember {
-  id: string
-  userId: string
-  nickname: string | null
-  roleIds: string[]
-}
-
-/** Página de miembros de un servidor. */
-export interface ServerMemberPage {
-  items: ServerMember[]
-  total: number
-  limit: number
-  offset: number
-}
-
-/** DTO de canal retornado por Server-Roles-Core-Service */
-export interface ChannelBackendResponse {
-  id: string
-  name: string
-  type: ChannelType
-  server_id: string
-  category_id?: string | null
-  position: number
-  topic?: string | null
-}
-
-/** DTO de servidor retornado por Server-Roles-Core-Service */
-export interface ServerBackendResponse {
-  id: string
-  name: string
-  owner_id: string
-  description?: string | null
-  icon_url?: string | null
-  created_at: string
-  channels: ChannelBackendResponse[]
-}
-
-/** DTO de mensaje retornado por Chat-Engine-Service */
-export interface MessageBackendPayload {
-  id: string
-  content: string
-  authorId: string
-  channelId: string
-  createdAt: string
 }
 
 export interface Channel {

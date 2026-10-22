@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { ModalOverlay } from './Modals';
 import { Hash, Volume2, X } from 'lucide-react';
 import { Channel, Category } from '../types';
-import { errorMessageFor } from '../api/errors';
-import { isLocalCategoryId, EditChannelRequest } from '../api/servers';
+import { errorMessageFor, isLocalCategoryId, EditChannelRequest } from '@discordia/core';
 
 const FormError: React.FC<{ message: string | null }> = ({ message }) =>
   message ? (

@@ -11,8 +11,7 @@ import {
   View,
 } from 'react-native'
 import { Check, Hash, Trash2, Volume2, X } from 'lucide-react-native'
-import { errorMessageFor } from '@shared/api/errors'
-import { isLocalCategoryId } from '@shared/api/servers'
+import { errorMessageFor, isLocalCategoryId } from '@discordia/core'
 import { useData, useUI } from '../../providers/AppProviders'
 import { colors, radii, spacing, typography } from '../../theme'
 import type { Category, Channel } from '../../types'

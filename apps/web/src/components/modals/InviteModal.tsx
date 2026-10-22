@@ -3,7 +3,7 @@ import {
   X, Check, Copy
 } from 'lucide-react';
 import { User, Server } from '../../types';
-import { createInvite } from '../../api/servers';
+import { createInvite } from '@discordia/core';
 import { ModalOverlay } from './ModalOverlay';
 
 export interface InviteModalProps {

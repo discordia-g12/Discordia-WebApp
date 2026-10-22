@@ -3,7 +3,7 @@ import {
   X, Hash, Compass, Sparkles, ChevronRight, Upload, Zap, Info
 } from 'lucide-react';
 import { User,    } from '../../types';
-// import { createInvite } from '../../api/servers';
+// import { createInvite } from '@discordia/core';
 import { ModalOverlay } from './ModalOverlay';
 
 export interface CreateServerModalProps {

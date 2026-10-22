@@ -2,7 +2,7 @@ import { User, Server } from "../../types";
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
 Search, Hash, Compass} from 'lucide-react';
-// import { createInvite } from '../../api/servers';
+// import { createInvite } from '@discordia/core';
 import { ModalOverlay } from './ModalOverlay';
 
 export interface SearchResultItem {

@@ -42,9 +42,7 @@ import { useChatWebSocket } from './api/hooks/useChatWebSocket';
 import { useVoiceRoom } from './api/hooks/useVoiceRoom';
 import { useVoicePresence } from './api/hooks/useVoicePresence';
 import { useUserProfiles } from './api/hooks/useUserProfiles';
-import { ApiError, errorMessageFor } from './api/errors';
-import { moveCategory, moveChannel } from './api/channelLayout';
-import { updateMyProfile } from './api/users';
+import { ApiError, errorMessageFor, moveCategory, moveChannel, updateMyProfile } from '@discordia/core';
 
 /**
  * Hook para detectar si el viewport corresponde a un dispositivo móvil (<768px).

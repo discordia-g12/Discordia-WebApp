@@ -1,6 +1,6 @@
 # Discordia Mobile
 
-App mobile de Discordia (Expo SDK 57, React Native 0.86). Vive en el monorepo de `Discordia-WebApp` (ver el [README de la raíz](../../README.md)) y comparte la capa de API con el cliente web (`@shared/api/...`, que apunta a `apps/web/src`; pasa a `@discordia/core` en el paso 1.2 de `docs/TODO-REDISENO.md`).
+App mobile de Discordia (Expo SDK 57, React Native 0.86). Vive en el monorepo de `Discordia-WebApp` (ver el [README de la raíz](../../README.md)) y comparte con el cliente web la capa de API y los tipos de dominio a través del paquete `@discordia/core` (`packages/core`).
 
 Las decisiones técnicas de la voz en mobile (development build, Expo Go, hooks propios) están en [`docs/ADR-01-Mobile-Voice.md`](../../docs/ADR-01-Mobile-Voice.md).
 

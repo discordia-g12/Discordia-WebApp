@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PermissionsAndroid, Platform } from 'react-native'
 import type { ConnectionState, Participant, RemoteParticipant, Room } from 'livekit-client'
-import { joinVoiceChannel, leaveVoiceChannel } from '@shared/api/voice'
+import { joinVoiceChannel, leaveVoiceChannel } from '@discordia/core'
 import { isVoiceSupported } from '../utils/voice'
 
 /*

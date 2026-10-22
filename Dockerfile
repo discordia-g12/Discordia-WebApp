@@ -17,6 +17,7 @@ COPY packages/core/package.json packages/core/
 COPY packages/tokens/package.json packages/tokens/
 RUN npm ci --workspace=@discordia/web --include-workspace-root
 
+COPY tsconfig.base.json ./
 COPY apps/web apps/web
 COPY packages packages
 # Deja el build en /app/dist (ver apps/web/vite.config.ts)

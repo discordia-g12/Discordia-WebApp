@@ -33,7 +33,7 @@ import {
   useRoleMembersQuery,
 } from '../api/hooks/useApi';
 import { useUserProfiles } from '../api/hooks/useUserProfiles';
-import { PERMISSION_BITS } from '../api/roles';
+import { PERMISSION_BITS } from '@discordia/core';
 import { ServerMembersTab } from '../components/ServerMembersTab';
 import { ServerBansTab } from '../components/ServerBansTab';
 

@@ -1,4 +1,5 @@
 import { api } from './client';
+import { getApiMock } from './mock';
 
 /**
  * Pide el email de recupero de contraseña (POST /api/v1/auth/password-reset, público).
@@ -10,8 +11,8 @@ import { api } from './client';
  *  - 503: Auth0 no disponible.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
-  if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
-    return;
-  }
+  const mock = getApiMock();
+  if (mock) return mock.requestPasswordReset(email);
+
   await api.post('/api/v1/auth/password-reset', { email: email.trim() }, { skipAuth: true });
 }

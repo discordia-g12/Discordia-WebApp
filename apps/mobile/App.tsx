@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { configureClient } from '@shared/api/client'
+import { configureClient } from '@discordia/core'
 import { getApiBaseUrl } from './src/utils/config'
 
 configureClient({

@@ -1,9 +1,16 @@
 import { create } from 'zustand';
 import { AuthProvider } from './provider';
 import { auth0Provider } from './auth0';
-import { getMyProfile, upsertMyProfile, UserProfile } from '../api/users';
-import { ApiError, isProblemType, PROBLEM_TYPES } from '../api/errors';
-import { configureClient } from '../api/client';
+import {
+  ApiError,
+  configureClient,
+  getMyProfile,
+  isProblemType,
+  PROBLEM_TYPES,
+  setApiMock,
+  upsertMyProfile,
+  UserProfile,
+} from '@discordia/core';
 import { AuthDenial, classifyAuthDenial } from './errors';
 
 export type SessionStatus =
@@ -73,6 +80,8 @@ async function resolveProvider(): Promise<AuthProvider> {
   }
   if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCK === 'true') {
     const { mockProvider } = await import('./mock');
+    const { apiMock } = await import('../api/mock');
+    setApiMock(apiMock);
     useSession.getState().setStatus(useSession.getState().status, { isMock: true });
     activeProvider = mockProvider;
     return mockProvider;

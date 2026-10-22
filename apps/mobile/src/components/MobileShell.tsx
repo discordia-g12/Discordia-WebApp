@@ -31,9 +31,7 @@ import { useUserDisplay } from '../hooks/useUserProfiles'
 import { useVoicePresence } from '../hooks/useVoicePresence'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
-import { ApiError, errorMessageFor } from '@shared/api/errors'
-import { shiftCategory, shiftChannel } from '@shared/api/channelLayout'
-import { isLocalCategoryId } from '@shared/api/servers'
+import { ApiError, errorMessageFor, isLocalCategoryId, shiftCategory, shiftChannel } from '@discordia/core'
 
 type MobileScreen = 'sidebar' | 'chat' | 'voice'
 

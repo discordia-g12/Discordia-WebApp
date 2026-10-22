@@ -10,7 +10,7 @@ import {
 } from './Modals';
 import { CreateChannelModal, EditChannelModal, CreateCategoryModal } from './ChannelModals';
 import { Server, User, Modal, ConfirmAction, Channel, AppView } from '../types';
-import { leaveServer, joinServerViaInvite, deleteServer, EditChannelRequest } from '../api/servers';
+import { leaveServer, joinServerViaInvite, deleteServer, EditChannelRequest } from '@discordia/core';
 
 interface GlobalModalsProps {
   activeModal: Modal | null;

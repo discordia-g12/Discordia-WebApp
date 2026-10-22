@@ -29,8 +29,8 @@ import type {
   AuditEntry,
 } from '../types'
 import { useAuth } from './AuthProvider'
-import { api } from '@shared/api/client'
 import {
+  api,
   getServers,
   createServer as apiCreateServer,
   createChannel as apiCreateChannel,
@@ -40,8 +40,8 @@ import {
   createCategory as apiCreateCategory,
   reorderChannels as apiReorderChannels,
   reorderCategories as apiReorderCategories,
-} from '@shared/api/servers'
-import type { Server as SharedServer } from '@shared/types'
+} from '@discordia/core'
+import type { Server as SharedServer } from '@discordia/core'
 
 // El Server de la API compartida (web) deja opcionales campos que la UI mobile espera siempre presentes
 function toMobileServer(server: SharedServer): Server {
@@ -80,7 +80,7 @@ interface DataContextValue {
   ) => Promise<Channel>
   deleteChannel: (serverId: string, channelId: string) => Promise<void>
   createCategory: (serverId: string, name: string) => Promise<void>
-  /** Guarda el orden de canales/categorías que se pasa (ya reordenado con @shared/api/channelLayout). */
+  /** Guarda el orden de canales/categorías que se pasa (ya reordenado con channelLayout de @discordia/core). */
   reorderChannels: (serverId: string, categories: Category[]) => Promise<void>
   reorderCategories: (serverId: string, categories: Category[]) => Promise<void>
   leaveServer: (serverId: string) => Promise<void>

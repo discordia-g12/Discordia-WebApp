@@ -5,7 +5,7 @@ import {
   AUTH0_CONNECTION,
 } from '../utils/config'
 import { Platform } from 'react-native'
-import { api, configureClient } from '@shared/api/client'
+import { api, configureClient } from '@discordia/core'
 import { getApiBaseUrl } from '../utils/config'
 
 // Guardamos el token acá también porque la subida del avatar usa XMLHttpRequest directo (multipart).

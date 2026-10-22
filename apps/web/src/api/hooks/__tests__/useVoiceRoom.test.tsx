@@ -5,7 +5,8 @@ import { useVoiceRoom } from '../useVoiceRoom';
 const mockJoinVoiceChannel = vi.fn();
 const mockLeaveVoiceChannel = vi.fn();
 
-vi.mock('../../voice', () => ({
+vi.mock('@discordia/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@discordia/core')>()),
   joinVoiceChannel: (...args: unknown[]) => mockJoinVoiceChannel(...args),
   leaveVoiceChannel: (...args: unknown[]) => mockLeaveVoiceChannel(...args),
 }));

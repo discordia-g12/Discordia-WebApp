@@ -6,7 +6,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockGetToken = vi.fn().mockResolvedValue('mock-token');
 
-vi.mock('../../client', () => ({
+vi.mock('@discordia/core', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@discordia/core')>()),
   getClientConfig: () => ({
     baseUrl: 'http://localhost:8000',
     getToken: mockGetToken
