@@ -10,7 +10,7 @@ configureClient({
   baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
 });
 
-import { registerQueryCacheCleaner } from './auth/session';
+import { registerQueryCacheCleaner } from './platform/auth/session';
 import './platform/voice';
 import './index.css';
 

@@ -107,7 +107,7 @@ Se derivan del sistema:
 ## 4. Base técnica actual (web)
 
 - React 18 + Vite + Zustand + React Query, sin router (las vistas se cambian por estado, `AppView`).
-- **1406 estilos `style={{...}}` en línea y 741 colores hex** en los componentes. `index.css` define los tokens
+- (Antes del paso 1.4.) **1406 estilos `style={{...}}` en línea y 741 colores hex** en los componentes. `index.css` define los tokens
   de Discord (`--brand: #5865f2`, `--bg-primary: #313338`, ...).
 - Más pesados: `ServerSettings` (249 estilos en línea), `UserSettings` (171), `MobileShell` (168),
   `ChatView` (94), `OwnProfileView` (86).
@@ -280,12 +280,38 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 #### 1.4 Web con la estructura de mobile
 
-- [ ] Carpetas por dominio: `features/{auth,servers,channels,chat,voice,friends,profile,settings,moderation}`
-      y `ui/` para el catálogo.
-- [ ] Partir `App.tsx`: store de Zustand para navegación y modales (`useUIStore`), React Query para datos
-      del servidor; sin pasar ~19 props a `ChatView`.
-- [ ] Partir `ServerSettings`, `UserSettings` y `OwnProfileView` por pestaña.
-- [ ] Partir `MobileShell` (web) en pantallas, reusando los componentes de `features/`.
+- [x] Carpetas por dominio en `apps/web/src`:
+      - `features/{auth,servers,channels,chat,voice,friends,profile,settings,moderation,notifications}`: cada
+        pantalla con su panel (lo conecta a stores y hooks) y sus componentes.
+      - `ui/`: piezas sin dominio (`Avatar`, `ModalOverlay`, `ConfirmDialog`, `Toast`, `ConnectionBanner`);
+        acá entra el catálogo del paso 3.
+      - `app/`: armado de la app (`uiStore`, `UsersProvider`, `DesktopLayout`, `MobileLayout`,
+        `GlobalModals`, `MobileShell` y sus pantallas en `app/mobile/`).
+      - `platform/`: integraciones del navegador (adaptador de Auth0, voz con `<audio>`, mock de la API).
+- [x] Partir `App.tsx` (de 1063 a 75 líneas):
+      - `useUIStore` (zustand) para navegación, modales, confirmaciones y toasts.
+      - `useCurrentUserStore` y `useDmStore` para el usuario propio y los DMs locales.
+      - React Query para los datos del servidor (`useCurrentServer`).
+      - Providers para lo que vive toda la sesión: `VoiceProvider` (sala y presencia),
+        `ChatConnectionProvider` (WebSocket del canal) y `UsersProvider` (perfiles).
+      - `App` ya no le pasa props a nadie: cada panel (`ChatPanel`, `ChannelSidebarPanel`, `HomePanel`, ...)
+        arma su componente desde los stores; los componentes de presentación siguen recibiendo props, que es
+        lo que facilita el rediseño.
+- [x] Partir `ServerSettings` (2607 → 340 líneas + 8 pestañas), `UserSettings` (1647 → 355 + 7) y
+      `OwnProfileView` (1021 → 61 + 3 secciones: barra, tarjeta y formulario; no tiene pestañas). El estado
+      sigue en el componente (hook `use*State`) y cada pestaña toma lo que usa: cambiar de pestaña no pierde lo
+      que se estaba editando.
+- [x] Partir `MobileShell` (1674 → 81 líneas) en pantallas (`app/mobile/MobileChatScreen`, `MobileVoiceScreen`,
+      `MobileHomeScreen`) y hojas (`ServerSheet`, `ProfileSheet`, `MemberSheet`). Reusar los componentes de
+      `features/` en mobile queda para el paso 11, junto con su rediseño: hoy son interfaces distintas.
+- [x] Prueba de humo de la app completa (`apps/web/src/__tests__/App.smoke.test.tsx`): arranca autenticada
+      contra un backend falso y recorre inicio, servidor, chat (envío por WebSocket), presencia de voz, ajustes de
+      usuario y de servidor (todas las pestañas), perfil, modales y el shell mobile (pantallas y hojas). Es la red
+      de seguridad para los pasos 2 a 11.
+- Bug encontrado por la prueba de humo y corregido: el shell mobile se rompía (pantalla en blanco) mientras
+  cargaban los servidores o si el usuario no tenía ninguno (`servers[0].categories`).
+- Cambio de comportamiento menor: la sala de voz se cierra al cerrar sesión (antes quedaba conectada, porque
+  `App` seguía montado).
 
 ### Paso 2: ordenar los estilos (sin cambio visual)
 

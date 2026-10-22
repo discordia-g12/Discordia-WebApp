@@ -14,6 +14,7 @@
   "dependencies": {
     "@auth0/auth0-spa-js": "^2.1.3",
     "@discordia/core": "*",
+    "@discordia/tokens": "*",
     "@tanstack/react-query": "^5.66.0",
     "livekit-client": "^2.22.3",
     "lucide-react": "^1.41.0",

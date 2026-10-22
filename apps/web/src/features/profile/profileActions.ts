@@ -1,0 +1,37 @@
+import { showToast, useUIStore } from '../../app/uiStore';
+import { authService } from '../../platform/auth/session';
+import { useCurrentUserStore } from './currentUserStore';
+
+/** Abre un perfil: el propio a pantalla completa, el de otro usuario en un modal. */
+export function openUserProfile(userId: string) {
+  const ui = useUIStore.getState();
+  if (userId === useCurrentUserStore.getState().currentUser.id) {
+    ui.setAppView('own-profile');
+  } else {
+    ui.setSelectedProfileUserId(userId);
+    ui.setActiveModal('user-profile');
+  }
+}
+
+/** Cerrar sesión. */
+export function logoutWithToast() {
+  authService.logout();
+  showToast('Sesión cerrada', 'info');
+}
+
+/** Acciones de la barra de usuario (abajo a la izquierda), iguales en el inicio y en un servidor. */
+export function useUserPanelActions() {
+  const setAppView = useUIStore((s) => s.setAppView);
+  const setStatus = useCurrentUserStore((s) => s.setStatus);
+  const setCustomStatus = useCurrentUserStore((s) => s.setCustomStatus);
+
+  return {
+    onOpenSettings: () => setAppView('user-settings'),
+    onChangeStatus: setStatus,
+    onSaveCustomStatus: setCustomStatus,
+    onEditProfile: () => setAppView('own-profile'),
+    onBuyPoints: () => setAppView('user-settings'),
+    onSubscribePremium: () => setAppView('user-settings'),
+    onLogout: logoutWithToast,
+  };
+}
