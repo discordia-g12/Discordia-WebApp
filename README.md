@@ -9,7 +9,7 @@ apps/
 └── mobile/     app mobile (Expo, ver apps/mobile/README.md)
 packages/
 ├── core/       lógica compartida: API, tipos, sesión y auth, hooks de datos, chat en tiempo real, voz
-└── tokens/     tokens de diseño compartidos (en construcción)
+└── tokens/     tokens de diseño: tokens.css para la web y nativeTheme() para mobile
 docs/           ADRs y planes (TODO-REDISENO.md)
 ```
 
@@ -40,6 +40,15 @@ npm run mobile        # = expo start --go, desde la raíz
 ```
 
 El resto (development build, voz, EAS) está en [`apps/mobile/README.md`](apps/mobile/README.md).
+
+## Tokens de diseño
+
+Los colores, la tipografía, el espaciado y el movimiento del rediseño están en `packages/tokens/src`. Después
+de cambiar un token, regenerar el CSS de la web y commitearlo junto con el cambio (si no, falla un test):
+
+```bash
+npm run build:css -w @discordia/tokens   # reescribe packages/tokens/tokens.css
+```
 
 ## Agregar una dependencia
 

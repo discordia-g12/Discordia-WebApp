@@ -29,11 +29,16 @@ El gris del diseño (`#b8babc`) da 1.3–1.7:1 sobre el cielo: no se lee. Se ree
 
 | Token | Color | Uso | Contraste sobre `#a8dbef` / `#d5e9ef` / `#f2f2f0` |
 |---|---|---|---|
-| `--text-muted` | `#50565c` | texto chico inactivo, metadatos | 5.0 / 5.9 / 6.6 (AA texto normal) |
-| `--text-display-inactive` | `#6b7177` | palabras gigantes inactivas (≥ 24px) | 3.3 / 3.9 / 4.4 (AA texto grande) |
-| `--text` | `#312f34` | todo lo demás | 8.9 / 10.5 / 11.8 |
+| `--color-text-muted` | `#50565c` | texto chico inactivo, metadatos | 5.0 / 5.9 / 6.6 (AA texto normal) |
+| `--color-text-display-inactive` | `#6b7177` | palabras gigantes inactivas (≥ 24px) | 3.3 / 3.9 / 4.4 (AA texto grande) |
+| `--color-text` | `#312f34` | todo lo demás | 8.9 / 10.5 / 11.8 |
 
 `#b8babc` queda solo para decoración (marca de agua, líneas), nunca para texto que haya que leer.
+
+Los tokens llevan prefijo por categoría (`--color-`, `--font-`, `--space-`, `--motion-`) para no chocar con
+la paleta de Discord de `index.css` (`--text-muted`, `--bg-primary`), que sigue viva hasta el corte. El
+contraste de cada par texto/fondo, en los dos temas y sobre cada parada del degradé, lo verifica un test de
+`packages/tokens` (`contrast.test.ts`): un token que no llegue a AA no pasa el CI.
 
 ### Modo oscuro ("noche")
 
@@ -48,6 +53,8 @@ tokens bajo `[data-theme="dark"]`, así que no requiere tocar componentes.
 | Bloque invertido | negro con texto claro | `#f2f2f0` con texto oscuro |
 | Líneas | `#312f34` al ~25% | `#a8dbef` al ~20% |
 
+- `tokens.css` ya trae el oscuro: con `data-theme="dark"`, o con `data-theme="system"` y la preferencia del
+  sistema. Sin `data-theme` queda el claro; el paso 12 pasa el default a `system`.
 - Por defecto sigue la preferencia del sistema (`prefers-color-scheme`). Selector manual en
   *Ajustes → Experiencia* (Claro / Oscuro / Sistema), guardado en `localStorage` (web) y `AsyncStorage` (mobile).
 - MVP: se entrega el claro completo; el oscuro sale cuando todas las pantallas estén migradas a tokens (paso 12).
@@ -107,10 +114,11 @@ Se derivan del sistema:
 - Cloudflare Pages publica desde `main`: el rediseño vive detrás de un flag (`data-ui="nuevo"`) hasta el corte,
   para poder mergear de a poco sin publicar una app mitad vieja y mitad nueva.
 
-## 5. Mobile (React Native / Expo, `discordia-mobile/`)
+## 5. Mobile (React Native / Expo, `apps/mobile/`)
 
-- Ya tiene `src/theme/colors.ts` (solo 59 hex en el código): se reemplaza la paleta ahí y se agrega
-  `theme/typography.ts` y `theme/spacing.ts`.
+- Hoy usa `src/theme/` (colores, tipografía y espaciado de la paleta vieja; solo 59 hex en el código). En el
+  paso 13 se reemplaza por `nativeTheme()` de `@discordia/tokens`, que ya trae los mismos valores que la web
+  en formato `StyleSheet` (una familia por peso, sin `fontWeight`; los textos gigantes en su tamaño mínimo).
 - Fuente: `@expo-google-fonts/schibsted-grotesk` + `expo-font`.
 - Degradés y logo con `react-native-svg` (ya instalado), sin sumar `expo-linear-gradient`.
 - Navegación: barra inferior (`Servidores`, `Mensajes`, `Notificaciones`, `Perfil`); el rail pasa a una tira
@@ -253,10 +261,22 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 #### 1.3 `packages/tokens`
 
-- [ ] Tokens en TypeScript (colores claro/oscuro, degradés, tipografía, espaciado, líneas, duraciones,
-      curvas).
-- [ ] Salida para web: `tokens.css` con variables CSS (`[data-ui="nuevo"]`, `[data-theme="dark"]`).
-- [ ] Salida para mobile: objeto `theme` que reemplaza `src/theme/*`.
+- [x] Tokens en TypeScript (`packages/tokens/src`): colores claro/oscuro (`colors.ts`), degradés de la app, de
+      auth y de la intro (`gradients.ts`, con la geometría de `gradiente 1/2.svg`), tipografía en tres escalas
+      (`typography.ts`), espaciado de 4 px, líneas, radio 0 y medidas de la grilla (`layout.ts`), duraciones,
+      curvas y desplazamientos (`motion.ts`).
+- [x] Salida para web: `packages/tokens/tokens.css` (`@discordia/tokens/tokens.css`), versionado y generado
+      con `npm run build:css -w @discordia/tokens`; un test falla si quedó desactualizado. Todo bajo
+      `:root[data-ui="nuevo"]`; oscuro con `[data-theme="dark"]` o `[data-theme="system"]`; con
+      `prefers-reduced-motion`, fundidos de 150 ms sin desplazamientos ni intro. Los textos gigantes escalan con
+      `clamp()` entre su mínimo y su tamaño del PDF.
+- [x] Salida para mobile: `nativeTheme(scheme)`, el objeto que reemplaza `src/theme/*` (el reemplazo en sí es
+      del paso 13: hacerlo antes cambiaría la app mobile a medio rediseñar).
+- [x] Contraste WCAG AA verificado por test en los dos temas (sección 1).
+- Decisiones tomadas acá (no estaban en el PDF): metadatos a 11 px (en el PDF, 7–8 px); bloques invertidos en
+  negro puro (`#000`, como el logo); el rojo de peligro (`#c0392b`) solo en bloques con texto blanco, nunca
+  como texto chico sobre el cielo (da 3.9:1); degradé de auth radial desde arriba al centro
+  (`backgroundGlow`, págs. 3–5).
 
 #### 1.4 Web con la estructura de mobile
 
@@ -272,12 +292,11 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 - [ ] Pasar los estilos en línea a **CSS Modules** (`Componente.module.css`) y los colores hex a variables.
 - [ ] Orden: Avatar, UserPanel, ServerRail, MemberList → ChannelSidebar, ChatView, HomeView, VoiceView →
       modales → AuthView → OwnProfileView, UserSettings, ServerSettings → MobileShell.
-- [ ] PRs chicos. Criterio de cada uno: la app se ve igual y los 17 tests pasan.
+- [ ] PRs chicos. Criterio de cada uno: la app se ve igual y `npm test` pasa.
 
 ### Paso 3: sistema de diseño
 
-- [ ] Tokens (`src/styles/tokens.css`): colores, degradés, tipografía, líneas, espaciado, duraciones y curvas,
-      con `[data-ui="nuevo"]` y `[data-theme="dark"]`.
+- [ ] Importar `@discordia/tokens/tokens.css` en la web (los tokens ya están, paso 1.3).
 - [ ] Schibsted Grotesk y un activador del flag en desarrollo (`?ui=nuevo`, guardado en `localStorage`).
 - [ ] Componentes base: `Logo`, `DisplayText` (gigante + marca de agua cortada), `SectionLabel` (`X /` con
       línea), `UnderlineInput`, `ActionLink` (`_editar`), `BlockButton` (bloque negro), `TabsUnderline`,
@@ -335,7 +354,8 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 13: app mobile nativa
 
-- [ ] Tomar paleta, tipografía y espaciado de `packages/tokens` (ya no de `src/theme/`).
+- [ ] Reemplazar `src/theme/` por `nativeTheme()` de `@discordia/tokens`, y cargar Schibsted Grotesk con
+      `@expo-google-fonts/schibsted-grotesk` (los nombres de familia ya están en `fontFamily.native`).
 - [ ] Implementar en React Native el catálogo de componentes (sección 6), con las mismas props que la web.
 - [ ] Mismo orden que la web: auth → estructura y navegación → chat → voz → perfil y ajustes → modales.
 - [ ] Probar en Android (APK con EAS) e iOS.
