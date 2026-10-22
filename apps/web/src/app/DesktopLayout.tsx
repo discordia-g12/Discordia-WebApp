@@ -14,6 +14,7 @@ import { useCurrentUser, useCurrentUserStore } from '../features/profile/current
 import { logoutWithToast } from '../features/profile/profileActions';
 import { ServerSettings } from '../features/settings/ServerSettings';
 import { UserSettings } from '../features/settings/UserSettings';
+import styles from './DesktopLayout.module.css';
 
 /** Escritorio: vistas a pantalla completa (perfil, ajustes) o la grilla rail / canales / contenido. */
 export function DesktopLayout() {
@@ -67,15 +68,7 @@ export function DesktopLayout() {
 
   // Layout principal Desktop de tres niveles
   return (
-    <div
-      style={{
-        display: 'flex',
-        width: '100vw',
-        height: '100vh',
-        overflow: 'hidden',
-        backgroundColor: 'var(--bg-tertiary, #202225)',
-      }}
-    >
+    <div className={styles.root}>
       {/* Nivel 1: Carril de Servidores */}
       <ServerRailPanel />
 
@@ -83,7 +76,7 @@ export function DesktopLayout() {
       {!isHome && <ChannelSidebarPanel />}
 
       {/* Nivel 3: Contenido Principal */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+      <div className={styles.nivel3ContenidoPrincipal}>
         {isHome ? <HomePanel /> : appView === 'voice' ? <VoicePanel /> : <ChatPanel />}
 
         {/* Lista de Miembros (Panel derecho en canales de servidor) */}

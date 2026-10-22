@@ -19,6 +19,7 @@ import {
   DirectMessage,
 } from '../../types';
 import type { MobileShellState } from './useMobileShellState';
+import styles from './MobileHomeScreen.module.css';
 
 /** Sección "VISTAS 3 & 4" de MobileShell. */
 export function MobileHomeScreen({ s }: { s: MobileShellState }) {
@@ -41,82 +42,38 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
     activeServer,
   } = s;
   return (
-    <div style={{ display: 'flex', height: '100%', width: '100%' }}>
+    <div className={styles.root}>
       {/* RAIL LATERAL COMPACTO A LA IZQUIERDA */}
-      <div
-        style={{
-          width: 64,
-          backgroundColor: 'var(--bg-tertiary)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '12px 0',
-          gap: 8,
-          borderRight: '1px solid rgba(0, 0, 0, 0.2)',
-          flexShrink: 0,
-        }}
-      >
+      <div className={styles.railLateralCompactoIzquierda}>
         {/* Botón Home / Mensajes Directos */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+        <div className={styles.botonHomeMensajesDirectos}>
           {screen === 'home' && (
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                width: 4,
-                height: 36,
-                backgroundColor: 'white',
-                borderTopRightRadius: 4,
-                borderBottomRightRadius: 4,
-              }}
-            />
+            <div className={styles.botonHomeMensajesDirectosDiv} />
           )}
           <button
             type="button"
             onClick={() => setScreen('home')}
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: screen === 'home' ? 'var(--radius-md)' : 'var(--radius-full)',
-              backgroundColor: screen === 'home' ? 'var(--brand)' : 'var(--bg-primary)',
-              color: 'white',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'border-radius 0.15s, background-color 0.15s',
-            }}
+            className={styles.mensajesDirectos} style={{ borderRadius: screen === 'home' ? 'var(--radius-md)' : 'var(--radius-full)', backgroundColor: screen === 'home' ? 'var(--brand)' : 'var(--bg-primary)', border: 'none' }}
             aria-label="Mensajes Directos"
           >
             <Compass size={22} />
           </button>
         </div>
 
-        <div style={{ width: 32, height: 2, backgroundColor: 'rgba(255,255,255,0.08)', margin: '4px 0' }} />
+        <div className={styles.railLateralCompactoIzquierdaDiv} />
 
         {/* Lista de Servidores con Badges de no leídos */}
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, width: '100%', alignItems: 'center' }}>
+        <div className={styles.listaServidoresBadgesNo}>
           {servers.map((server) => {
             const isActive = screen === 'channels' && server.id === activeServerId;
             const unread = server.unreadCount || 0;
             return (
               <div
                 key={server.id}
-                style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}
+                className={styles.botonHomeMensajesDirectos}
               >
                 {isActive && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      width: 4,
-                      height: 36,
-                      backgroundColor: 'white',
-                      borderTopRightRadius: 4,
-                      borderBottomRightRadius: 4,
-                    }}
-                  />
+                  <div className={styles.botonHomeMensajesDirectosDiv} />
                 )}
                 <button
                   type="button"
@@ -124,48 +81,16 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
                     setActiveServerId(server.id);
                     setScreen('channels');
                   }}
-                  style={{
-                    width: 46,
-                    height: 46,
-                    borderRadius: isActive ? 'var(--radius-md)' : 'var(--radius-full)',
-                    backgroundColor: 'var(--bg-primary)',
-                    border: 'none',
-                    overflow: 'visible',
-                    padding: 0,
-                    cursor: 'pointer',
-                    position: 'relative',
-                    transition: 'border-radius 0.15s ease',
-                  }}
+                  className={styles.botonHomeMensajesDirectosButton} style={{ borderRadius: isActive ? 'var(--radius-md)' : 'var(--radius-full)', border: 'none' }}
                   aria-label={server.name}
                 >
                   <img
                     src={server.iconUrl || server.icon}
                     alt={server.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }}
+                    className={styles.botonHomeMensajesDirectosButtonImg}
                   />
                   {unread > 0 && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: -4,
-                        right: -4,
-                        backgroundColor: 'var(--status-danger, #ed4245)',
-                        color: 'white',
-                        fontSize: 11,
-                        fontWeight: 800,
-                        lineHeight: 1,
-                        padding: '0 5px',
-                        minWidth: 18,
-                        height: 18,
-                        borderRadius: 'var(--radius-full)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '3px solid var(--bg-tertiary, #202225)',
-                        boxShadow: '0 2px 5px rgba(0, 0, 0, 0.5)',
-                        zIndex: 5,
-                      }}
-                    >
+                    <div className={styles.botonHomeMensajesDirectosButtonDiv}>
                       {unread}
                     </div>
                   )}
@@ -178,19 +103,7 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
           <button
             type="button"
             onClick={() => onOpenModal?.('create-server')}
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--status-online)',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'border-radius 0.15s, background-color 0.15s, color 0.15s',
-            }}
+            className={styles.botonAnadirServidor}
             aria-label="Añadir un servidor"
           >
             <Plus size={20} />
@@ -199,50 +112,28 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
       </div>
 
       {/* CONTENEDOR PRINCIPAL: HEADER, CONTENIDO Y USER PILL */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, backgroundColor: 'var(--bg-secondary)' }}>
+      <div className={styles.contenedorPrincipalHeaderContenido}>
         {/* CABECERA CON MENÚ DE SERVIDOR O TITULAR DE HOME */}
-        <div
-          style={{
-            height: 52,
-            padding: '0 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.2)',
-            backgroundColor: 'var(--bg-secondary)',
-          }}
-        >
+        <div className={styles.cabeceraMenuServidorTitular}>
           {screen === 'channels' ? (
             <button
               type="button"
               onClick={() => setActiveSheet('server')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                background: 'none',
-                border: 'none',
-                color: 'var(--header-primary)',
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: 'pointer',
-                padding: 0,
-                minWidth: 0,
-              }}
+              className={styles.cabeceraMenuServidorTitularButton}
             >
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span className={styles.cabeceraMenuServidorTitularButtonSpan}>
                 {activeServer.name}
               </span>
               <ChevronDown size={18} style={{ flexShrink: 0 }} />
             </button>
           ) : (
-            <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--header-primary)' }}>
+            <span className={styles.mensajesDirectos2}>
               Mensajes Directos
             </span>
           )}
 
           {/* Botones de acción rápida en cabecera */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div className={styles.botonesAccionRapidaCabecera}>
             <button
               type="button"
               onClick={() => onOpenModal?.('search')}
@@ -274,26 +165,17 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
         </div>
 
         {/* CONTENIDO SCROLLABLE DE LA PANTALLA */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 10px' }}>
+        <div className={styles.contenidoScrollablePantalla}>
           {screen === 'channels' ? (
             /* PANTALLA CHANNELS: Categorías y canales del servidor */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className={styles.contenidoScrollablePantallaDiv}>
               {activeServer.categories.map((cat) => (
                 <div key={cat.id}>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: 'var(--text-muted)',
-                      padding: '4px 8px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
+                  <div className={styles.contenidoScrollablePantallaDivDiv}>
                     {cat.name}
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+                  <div className={styles.contenidoScrollablePantallaDivDiv2}>
                     {cat.channels.map((ch: Channel) => {
                       const isSelected = ch.id === activeChannelId;
                       return (
@@ -307,18 +189,9 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
                               setScreen('chat');
                             }
                           }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '8px 10px',
-                            borderRadius: 'var(--radius-sm)',
-                            backgroundColor: isSelected ? 'var(--bg-modifier-selected)' : 'transparent',
-                            color: isSelected ? 'var(--header-primary)' : 'var(--interactive-normal)',
-                            cursor: 'pointer',
-                          }}
+                          className={styles.contenidoScrollablePantallaDivDiv2Div} style={{ backgroundColor: isSelected ? 'var(--bg-modifier-selected)' : 'transparent', color: isSelected ? 'var(--header-primary)' : 'var(--interactive-normal)' }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                          <div className={styles.contenidoScrollablePantallaDivDiv2DivDiv}>
                             {ch.type === 'voice' ? (
                               <Volume2 size={18} style={{ color: 'var(--interactive-normal)', flexShrink: 0 }} />
                             ) : ch.type === 'announcement' ? (
@@ -326,7 +199,7 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
                             ) : (
                               <Hash size={18} style={{ color: 'var(--interactive-normal)', flexShrink: 0 }} />
                             )}
-                            <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <span className={styles.contenidoScrollablePantallaDivDiv2DivDivSpan}>
                               {ch.name}
                             </span>
                           </div>
@@ -345,8 +218,8 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
             </div>
           ) : (
             /* PANTALLA HOME: Lista de Mensajes Directos y Amigos */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', padding: '4px 8px', textTransform: 'uppercase' }}>
+            <div className={styles.contenidoScrollablePantallaDiv2}>
+              <div className={styles.mensajesDirectos3}>
                 MENSAJES DIRECTOS
               </div>
               {[].map((dm: DirectMessage) => {
@@ -358,46 +231,29 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
                       setActiveDmId(dm.id);
                       setScreen('chat');
                     }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 10px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'transparent',
-                      cursor: 'pointer',
-                    }}
+                    className={styles.contenidoScrollablePantallaDiv2Div}
                   >
-                    <div style={{ position: 'relative' }}>
+                    <div className={styles.contenidoScrollablePantallaDiv2DivDiv}>
                       <img
                         src={recipient.avatarUrl || recipient.avatar}
                         alt={recipient.displayName}
-                        style={{ width: 38, height: 38, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+                        className={styles.contenidoScrollablePantallaDiv2DivDivImg}
                       />
                       <span
                         className={`status-dot ${recipient.status || 'offline'}`}
                         style={{ position: 'absolute', bottom: -1, right: -1 }}
                       />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--header-primary)' }}>
+                    <div className={styles.contenidoScrollablePantallaDiv2DivDiv2}>
+                      <div className={styles.contenidoScrollablePantallaDiv2DivDiv2Div}>
+                        <span className={styles.contenidoScrollablePantallaDiv2DivDiv2DivSpan}>
                           {recipient.displayName}
                         </span>
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                        <span className={styles.contenidoScrollablePantallaDiv2DivDiv2DivSpan2}>
                           {dm.lastMessageTimestamp ? new Date(dm.lastMessageTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: 'var(--text-muted)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          marginTop: 2,
-                        }}
-                      >
+                      <div className={styles.contenidoScrollablePantallaDiv2DivDiv2Div2}>
                         {dm.lastMessage || 'Conversación directa iniciada.'}
                       </div>
                     </div>
@@ -409,44 +265,34 @@ export function MobileHomeScreen({ s }: { s: MobileShellState }) {
         </div>
 
         {/* BARRA FLOTANTE DE USUARIO (USER PILL) */}
-        <div
-          style={{
-            height: 54,
-            padding: '0 12px',
-            backgroundColor: 'var(--bg-secondary-alt)',
-            borderTop: '1px solid rgba(0, 0, 0, 0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
+        <div className={styles.barraFlotanteUsuarioUser}>
           <div
             onClick={() => setActiveSheet('profile')}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', minWidth: 0 }}
+            className={styles.barraFlotanteUsuarioUserDiv}
           >
-            <div style={{ position: 'relative' }}>
+            <div className={styles.contenidoScrollablePantallaDiv2DivDiv}>
               <img
                 src={currentUser.avatarUrl || currentUser.avatar}
                 alt={currentUser.displayName}
-                style={{ width: 34, height: 34, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+                className={styles.contenidoScrollablePantallaDiv2DivDivImg2}
               />
               <span
                 className={`status-dot ${currentUser.status || 'online'}`}
                 style={{ position: 'absolute', bottom: -1, right: -1 }}
               />
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--header-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className={styles.barraFlotanteUsuarioUserDivDiv}>
+              <div className={styles.barraFlotanteUsuarioUserDivDivDiv}>
                 {currentUser.displayName}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className={styles.barraFlotanteUsuarioUserDivDivDiv2}>
                 {currentUser.customStatus || `@${currentUser.username}`}
               </div>
             </div>
           </div>
 
           {/* Botones de acción rápida de usuario */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <div className={styles.botonesAccionRapidaUsuario}>
             <button
               type="button"
               onClick={() => setIsMuted((m) => !m)}

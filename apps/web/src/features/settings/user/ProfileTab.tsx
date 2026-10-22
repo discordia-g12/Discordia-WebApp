@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { STATUS_CONFIG } from './shared';
 import type { UserSettingsState } from './useUserSettingsState';
+import styles from './ProfileTab.module.css';
 
 /** Pestaña "profile" de UserSettings. */
 export function ProfileTab({ s }: { s: UserSettingsState }) {
@@ -21,52 +22,36 @@ export function ProfileTab({ s }: { s: UserSettingsState }) {
     handleSaveProfile,
   } = s;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div className={styles.root}>
       {/* Account Card */}
-      <div
-        style={{
-          backgroundColor: '#1e1f22',
-          borderRadius: 8,
-          overflow: 'hidden',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
-        }}
-      >
+      <div className={styles.accountCard}>
         <div
-          style={{
-            height: 100,
-            backgroundColor: baseUser.bannerColor || '#5865f2',
-          }}
+          className={styles.accountCardDiv} style={{ backgroundColor: baseUser.bannerColor || 'var(--brand)' }}
         />
-        <div style={{ padding: '0 20px 20px 20px', marginTop: -36 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div className={styles.accountCardDiv2}>
+          <div className={styles.accountCardDiv2Div}>
             <img
               src={baseUser.avatarUrl || baseUser.avatar || ''}
               alt={displayName}
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: '50%',
-                border: '5px solid #1e1f22',
-                objectFit: 'cover',
-              }}
+              className={styles.accountCardDiv2DivImg}
             />
-            <div style={{ fontSize: 13, color: '#949ba4' }}>
+            <div className={styles.accountCardDiv2DivDiv}>
               User ID: <code>{baseUser.id}</code>
             </div>
           </div>
 
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#f2f3f5' }}>{displayName}</div>
-            <div style={{ fontSize: 13, color: '#949ba4' }}>@{baseUser.username}</div>
+          <div className={styles.accountCardDiv2Div2}>
+            <div className={styles.accountCardDiv2Div2Div}>{displayName}</div>
+            <div className={styles.accountCardDiv2DivDiv}>@{baseUser.username}</div>
           </div>
         </div>
       </div>
 
       {/* Form Fields */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className={styles.formFields}>
         {/* Display Name */}
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1', marginBottom: 6 }}>
+          <label className={styles.displayName}>
             Display Name
           </label>
           <input
@@ -74,28 +59,18 @@ export function ProfileTab({ s }: { s: UserSettingsState }) {
             value={displayName}
             maxLength={32}
             onChange={(e) => setDisplayName(e.target.value)}
-            style={{
-              width: '100%',
-              backgroundColor: '#1e1f22',
-              color: '#dbdee1',
-              border: '1px solid rgba(0, 0, 0, 0.3)',
-              borderRadius: 4,
-              padding: '10px 12px',
-              fontSize: 14,
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+            className={styles.displayNameInput}
           />
         </div>
 
         {/* Username (Locked) */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1' }}>
+          <div className={styles.usernameLockedDiv}>
+            <label className={styles.username}>
               Username
             </label>
             <Lock size={13} color="#949ba4" />
-            <span style={{ fontSize: 11, color: '#949ba4' }}>
+            <span className={styles.usernameLockedDivSpan}>
               (Usernames are immutable platform identifiers)
             </span>
           </div>
@@ -103,73 +78,42 @@ export function ProfileTab({ s }: { s: UserSettingsState }) {
             type="text"
             disabled
             value={`@${baseUser.username}`}
-            style={{
-              width: '100%',
-              backgroundColor: '#1e1f22',
-              color: '#80848e',
-              border: '1px solid rgba(0, 0, 0, 0.2)',
-              borderRadius: 4,
-              padding: '10px 12px',
-              fontSize: 14,
-              cursor: 'not-allowed',
-              boxSizing: 'border-box',
-            }}
+            className={styles.usernameLockedInput}
           />
         </div>
 
         {/* Bio */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1' }}>
+          <div className={styles.bioDiv}>
+            <label className={styles.username}>
               About Me (Bio)
             </label>
-            <span style={{ fontSize: 12, color: '#949ba4' }}>{bio.length}/190</span>
+            <span className={styles.bioDivSpan}>{bio.length}/190</span>
           </div>
           <textarea
             rows={3}
             maxLength={190}
             value={bio}
             onChange={(e) => setBio(e.target.value)}
-            style={{
-              width: '100%',
-              backgroundColor: '#1e1f22',
-              color: '#dbdee1',
-              border: '1px solid rgba(0, 0, 0, 0.3)',
-              borderRadius: 4,
-              padding: '10px 12px',
-              fontSize: 14,
-              outline: 'none',
-              boxSizing: 'border-box',
-              resize: 'none',
-            }}
+            className={styles.bioTextarea}
           />
         </div>
 
         {/* Presence Status */}
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1', marginBottom: 8 }}>
+          <label className={styles.status}>
             Status
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+          <div className={styles.presenceStatusDiv}>
             {(['online', 'idle', 'dnd', 'invisible'] as const).map((st) => (
               <button
                 key={st}
                 type="button"
                 onClick={() => setStatus(st)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '8px 12px',
-                  backgroundColor: status === st ? 'rgba(255, 255, 255, 0.1)' : '#1e1f22',
-                  border: status === st ? `2px solid ${STATUS_CONFIG[st].color}` : '1px solid rgba(0,0,0,0.3)',
-                  borderRadius: 6,
-                  color: '#dbdee1',
-                  cursor: 'pointer',
-                }}
+                className={styles.presenceStatusDivButton} style={{ backgroundColor: status === st ? 'rgba(255, 255, 255, 0.1)' : 'var(--bg-tertiary)', border: status === st ? `2px solid ${STATUS_CONFIG[st].color}` : '1px solid rgba(0,0,0,0.3)', borderRadius: 6 }}
               >
                 <Circle size={10} fill={STATUS_CONFIG[st].color} strokeWidth={0} />
-                <span style={{ fontSize: 13, textTransform: 'capitalize' }}>{STATUS_CONFIG[st].label}</span>
+                <span className={styles.presenceStatusDivButtonSpan}>{STATUS_CONFIG[st].label}</span>
               </button>
             ))}
           </div>
@@ -177,7 +121,7 @@ export function ProfileTab({ s }: { s: UserSettingsState }) {
 
         {/* Custom Status */}
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1', marginBottom: 6 }}>
+          <label className={styles.displayName}>
             Custom Status
           </label>
           <input
@@ -186,17 +130,7 @@ export function ProfileTab({ s }: { s: UserSettingsState }) {
             value={customStatus}
             onChange={(e) => setCustomStatus(e.target.value)}
             placeholder="What are you up to?"
-            style={{
-              width: '100%',
-              backgroundColor: '#1e1f22',
-              color: '#dbdee1',
-              border: '1px solid rgba(0, 0, 0, 0.3)',
-              borderRadius: 4,
-              padding: '10px 12px',
-              fontSize: 14,
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+            className={styles.displayNameInput}
           />
         </div>
 
@@ -205,16 +139,7 @@ export function ProfileTab({ s }: { s: UserSettingsState }) {
           <button
             type="button"
             onClick={handleSaveProfile}
-            style={{
-              backgroundColor: '#5865f2',
-              color: '#ffffff',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: 4,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className={styles.saveChanges}
           >
             Save Changes
           </button>

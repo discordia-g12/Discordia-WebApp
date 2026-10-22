@@ -1,0 +1,176 @@
+/* Estilos de SecurityTab: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.rootDiv {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rootDivDiv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rootDivDivDiv {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rootDivDivDivDiv {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background-color: rgba(35, 165, 90, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-positive);
+}
+
+.rootDivDivDivDiv2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--header-primary);
+}
+
+.enabledProtectingAccount {
+  font-size: 13px;
+  color: var(--text-positive);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.rootDivDivButton {
+  background-color: transparent;
+  color: var(--text-normal);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.rootDivDiv2 {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rootDivDiv2Div {
+  font-size: 13px;
+  color: var(--header-secondary);
+  margin-bottom: 12px;
+}
+
+.rootDivDiv2Div2 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  background-color: var(--bg-tertiary);
+  padding: 12px;
+  border-radius: 6px;
+  font-family: JetBrains Mono, monospace;
+  font-size: 13px;
+  color: var(--header-primary);
+  text-align: center;
+}
+
+.rootDivDiv2Div2Div {
+  padding: 4px 0;
+}
+
+.rootDivDiv2Div3 {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.rootDivDiv2Div3Button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--brand);
+  color: var(--text-white);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.changePasswordForm {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.changePassword {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin: 0px;
+}
+
+.rootDivDivButton2 {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.changePasswordFormDiv {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.currentPassword {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-secondary);
+  margin-bottom: 6px;
+}
+
+.changePasswordFormInput {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.updatePassword {
+  background-color: var(--brand);
+  color: var(--text-white);
+  border: none;
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}

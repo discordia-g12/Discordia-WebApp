@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useSession, authService } from '../../platform/auth/session';
 import { AccountSuspendedError, ApiError, requestPasswordReset, upsertMyProfile } from '@discordia/core';
+import styles from './AuthView.module.css';
 
 export interface AuthViewProps {
   onSuccess?: () => void;
@@ -258,12 +259,12 @@ export const AuthView: React.FC<AuthViewProps> = () => {
     return (
       <div className="auth-container" style={fullScreenCenter}>
         <div style={cardStyle}>
-          <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+          <div className={styles.div}>
             <Loader2 className="animate-spin" size={42} color="var(--brand, #5865f2)" style={{ margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: '18px', color: '#f2f3f5', fontWeight: 600, marginBottom: '8px' }}>
+            <h2 className={styles.verificandoSesion}>
               Verificando sesión...
             </h2>
-            <p style={{ fontSize: '14px', color: '#949ba4' }}>
+            <p className={styles.p}>
               Cargando tu perfil e información de Discordia.
             </p>
           </div>
@@ -277,18 +278,18 @@ export const AuthView: React.FC<AuthViewProps> = () => {
     return (
       <div className="auth-container" style={fullScreenCenter}>
         <div style={cardStyle}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ ...iconCircle, backgroundColor: 'rgba(237, 66, 69, 0.15)', color: '#ed4245' }}>
+          <div className={styles.div2}>
+            <div style={{ ...iconCircle, backgroundColor: 'rgba(237, 66, 69, 0.15)', color: 'var(--legacy-red)' }}>
               <AlertCircle size={32} />
             </div>
-            <h2 style={{ fontSize: '20px', color: '#f2f3f5', fontWeight: 700, marginBottom: '8px' }}>
+            <h2 className={styles.h2}>
               {error?.title || 'Error'}
             </h2>
-            <p style={{ fontSize: '14px', color: '#949ba4', lineHeight: 1.5 }}>
+            <p className={styles.p2}>
               {error?.message || 'Ocurrió un error al procesar tu cuenta.'}
             </p>
             {error?.detail && (
-              <p style={{ fontSize: '12px', color: '#da373c', marginTop: '8px', fontFamily: 'monospace' }}>
+              <p className={styles.p3}>
                 {error.detail}
               </p>
             )}
@@ -312,14 +313,14 @@ export const AuthView: React.FC<AuthViewProps> = () => {
     return (
       <div className="auth-container" style={fullScreenCenter}>
         <div style={cardStyle}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <div style={{ ...iconCircle, backgroundColor: 'rgba(237, 66, 69, 0.2)', color: '#ed4245' }}>
+          <div className={styles.div2}>
+            <div style={{ ...iconCircle, backgroundColor: 'rgba(237, 66, 69, 0.2)', color: 'var(--legacy-red)' }}>
               <ShieldAlert size={36} />
             </div>
-            <h2 style={{ fontSize: '22px', color: '#f2f3f5', fontWeight: 700, marginBottom: '8px' }}>
+            <h2 className={styles.cuentaSuspendida}>
               Cuenta Suspendida
             </h2>
-            <p style={{ fontSize: '14px', color: '#dbdee1', lineHeight: 1.5, marginBottom: '12px' }}>
+            <p className={styles.p4}>
               Tu cuenta ha sido suspendida temporal o permanentemente por el equipo de moderación.
             </p>
           </div>
@@ -359,14 +360,14 @@ export const AuthView: React.FC<AuthViewProps> = () => {
     return (
       <div className="auth-container" style={fullScreenCenter}>
         <div style={cardStyle} data-testid="email-unverified-screen">
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div className={styles.div2}>
             <div style={{ ...iconCircle, backgroundColor: 'rgba(88, 101, 242, 0.15)', color: 'var(--brand, #5865f2)' }}>
               <Mail size={32} />
             </div>
-            <h2 style={{ fontSize: '22px', color: '#f2f3f5', fontWeight: 700, marginBottom: '8px' }}>
+            <h2 className={styles.cuentaSuspendida}>
               Verificá tu email
             </h2>
-            <p style={{ fontSize: '14px', color: '#dbdee1', lineHeight: 1.5, marginBottom: '12px' }}>
+            <p className={styles.p4}>
               {pendingEmail ? (
                 <>
                   Te enviamos un enlace de verificación a <strong>{pendingEmail}</strong>.
@@ -376,7 +377,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
               )}{' '}
               Abrilo para activar tu cuenta y después volvé a iniciar sesión.
             </p>
-            <p style={{ fontSize: '12px', color: '#949ba4', lineHeight: 1.5 }}>
+            <p className={styles.p5}>
               ¿No lo encontrás? Revisá la carpeta de spam o correo no deseado.
             </p>
           </div>
@@ -409,14 +410,14 @@ export const AuthView: React.FC<AuthViewProps> = () => {
     return (
       <div className="auth-container" style={fullScreenCenter}>
         <div style={cardStyle}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div className={styles.div2}>
             <div style={{ ...iconCircle, backgroundColor: 'rgba(88, 101, 242, 0.15)', color: 'var(--brand, #5865f2)' }}>
               <Sparkles size={32} />
             </div>
-            <h2 style={{ fontSize: '22px', color: '#f2f3f5', fontWeight: 700, marginBottom: '8px' }}>
+            <h2 className={styles.cuentaSuspendida}>
               Elige tu Nombre de Usuario
             </h2>
-            <p style={{ fontSize: '14px', color: '#949ba4' }}>
+            <p className={styles.p}>
               Tu cuenta fue autenticada, pero el nombre de usuario ya está en uso. Elige uno disponible:
             </p>
           </div>
@@ -429,9 +430,9 @@ export const AuthView: React.FC<AuthViewProps> = () => {
           )}
 
           <form onSubmit={handleConflictSubmit}>
-            <div style={{ marginBottom: '16px' }}>
+            <div className={styles.div3}>
               <label style={labelStyle}>
-                NOMBRE DE USUARIO <span style={{ color: '#ed4245' }}>*</span>
+                NOMBRE DE USUARIO <span className={styles.span}>*</span>
               </label>
               <input
                 type="text"
@@ -444,7 +445,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
               />
             </div>
 
-            <div style={{ marginBottom: '24px' }}>
+            <div className={styles.div4}>
               <label style={labelStyle}>NOMBRE PÚBLICO (OPCIONAL)</label>
               <input
                 type="text"
@@ -496,46 +497,18 @@ export const AuthView: React.FC<AuthViewProps> = () => {
 
       <div style={cardStyle}>
         {/* Encabezado */}
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <div
-            style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '16px',
-              backgroundColor: 'var(--brand, #5865f2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 12px',
-              boxShadow: '0 8px 24px rgba(88, 101, 242, 0.35)',
-            }}
-          >
+        <div className={styles.encabezado}>
+          <div className={styles.encabezadoDiv}>
             <Sparkles size={28} color="#ffffff" />
           </div>
-          <h1
-            style={{
-              fontSize: '24px',
-              fontWeight: 800,
-              color: '#f2f3f5',
-              marginBottom: '6px',
-              lineHeight: '32px',
-              padding: '2px 0',
-            }}
-          >
+          <h1 className={styles.encabezadoH1}>
             {activeTab === 'login'
               ? 'Bienvenido de nuevo'
               : activeTab === 'register'
                 ? 'Crear una cuenta'
                 : 'Recuperar contraseña'}
           </h1>
-          <p
-            style={{
-              fontSize: '14px',
-              color: '#949ba4',
-              lineHeight: '20px',
-              margin: 0,
-            }}
-          >
+          <p className={styles.encabezadoP}>
             {activeTab === 'login'
               ? '¡Nos alegra verte otra vez!'
               : activeTab === 'register'
@@ -559,7 +532,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
             style={{
               ...tabButtonStyle,
               borderBottom: activeTab === 'login' ? '2px solid var(--brand, #5865f2)' : '2px solid transparent',
-              color: activeTab === 'login' ? '#ffffff' : '#949ba4',
+              color: activeTab === 'login' ? 'var(--text-white)' : 'var(--text-muted)',
               fontWeight: activeTab === 'login' ? 700 : 500,
             }}
           >
@@ -577,7 +550,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
             style={{
               ...tabButtonStyle,
               borderBottom: activeTab === 'register' ? '2px solid var(--brand, #5865f2)' : '2px solid transparent',
-              color: activeTab === 'register' ? '#ffffff' : '#949ba4',
+              color: activeTab === 'register' ? 'var(--text-white)' : 'var(--text-muted)',
               fontWeight: activeTab === 'register' ? 700 : 500,
             }}
           >
@@ -601,7 +574,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
                 <Mail size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
                 <span>{PASSWORD_RESET_SENT_MESSAGE}</span>
               </div>
-              <p style={{ fontSize: '12px', color: '#949ba4', lineHeight: 1.5, marginBottom: '16px' }}>
+              <p className={styles.p6}>
                 ¿No lo encontrás? Revisá la carpeta de spam o correo no deseado.
               </p>
               <button
@@ -616,9 +589,9 @@ export const AuthView: React.FC<AuthViewProps> = () => {
             </div>
           ) : (
             <form onSubmit={handleForgotSubmit} noValidate>
-              <div style={{ marginBottom: '22px' }}>
+              <div className={styles.div5}>
                 <label style={labelStyle}>
-                  CORREO ELECTRÓNICO <span style={{ color: '#ed4245' }}>*</span>
+                  CORREO ELECTRÓNICO <span className={styles.span}>*</span>
                 </label>
                 <div style={inputWrapperStyle}>
                   <Mail size={16} color="#949ba4" style={{ marginRight: '8px' }} />
@@ -675,9 +648,9 @@ export const AuthView: React.FC<AuthViewProps> = () => {
           )
         ) : activeTab === 'login' ? (
           <form onSubmit={handleLoginSubmit}>
-            <div style={{ marginBottom: '16px' }}>
+            <div className={styles.div3}>
               <label style={labelStyle}>
-                CORREO ELECTRÓNICO <span style={{ color: '#ed4245' }}>*</span>
+                CORREO ELECTRÓNICO <span className={styles.span}>*</span>
               </label>
               <div style={inputWrapperStyle}>
                 <Mail size={16} color="#949ba4" style={{ marginRight: '8px' }} />
@@ -694,9 +667,9 @@ export const AuthView: React.FC<AuthViewProps> = () => {
               </div>
             </div>
 
-            <div style={{ marginBottom: '22px' }}>
+            <div className={styles.div5}>
               <label style={labelStyle}>
-                CONTRASEÑA <span style={{ color: '#ed4245' }}>*</span>
+                CONTRASEÑA <span className={styles.span}>*</span>
               </label>
               <div style={inputWrapperStyle}>
                 <Lock size={16} color="#949ba4" style={{ marginRight: '8px' }} />
@@ -719,7 +692,7 @@ export const AuthView: React.FC<AuthViewProps> = () => {
                   {showLoginPassword ? <EyeOff size={16} color="#949ba4" /> : <Eye size={16} color="#949ba4" />}
                 </button>
               </div>
-              <div style={{ textAlign: 'right', marginTop: '8px' }}>
+              <div className={styles.div6}>
                 <button
                   type="button"
                   data-testid="link-forgot-password"
@@ -760,9 +733,9 @@ export const AuthView: React.FC<AuthViewProps> = () => {
           </form>
         ) : (
           <form onSubmit={handleRegisterSubmit}>
-            <div style={{ marginBottom: '14px' }}>
+            <div className={styles.div7}>
               <label style={labelStyle}>
-                NOMBRE DE USUARIO <span style={{ color: '#ed4245' }}>*</span>
+                NOMBRE DE USUARIO <span className={styles.span}>*</span>
               </label>
               <div style={inputWrapperStyle}>
                 <UserIcon size={16} color="#949ba4" style={{ marginRight: '8px' }} />
@@ -778,15 +751,15 @@ export const AuthView: React.FC<AuthViewProps> = () => {
                   required
                 />
               </div>
-              <p style={{ fontSize: '11px', color: '#949ba4', marginTop: '4px' }}>
+              <p className={styles.p7}>
                 Tu nombre de usuario único en Discordia (mínimo 3 caracteres alfanuméricos).
               </p>
             </div>
 
 
-            <div style={{ marginBottom: '14px' }}>
+            <div className={styles.div7}>
               <label style={labelStyle}>
-                CORREO ELECTRÓNICO <span style={{ color: '#ed4245' }}>*</span>
+                CORREO ELECTRÓNICO <span className={styles.span}>*</span>
               </label>
               <div style={inputWrapperStyle}>
                 <Mail size={16} color="#949ba4" style={{ marginRight: '8px' }} />
@@ -803,9 +776,9 @@ export const AuthView: React.FC<AuthViewProps> = () => {
               </div>
             </div>
 
-            <div style={{ marginBottom: '12px' }}>
+            <div className={styles.div8}>
               <label style={labelStyle}>
-                CONTRASEÑA <span style={{ color: '#ed4245' }}>*</span>
+                CONTRASEÑA <span className={styles.span}>*</span>
               </label>
               <div style={inputWrapperStyle}>
                 <Lock size={16} color="#949ba4" style={{ marginRight: '8px' }} />
@@ -830,22 +803,22 @@ export const AuthView: React.FC<AuthViewProps> = () => {
               </div>
 
               {/* Indicadores de requisitos de contraseña (CA 4) */}
-              <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '11px' }}>
-                <span style={{ color: passLength ? '#23a55a' : '#949ba4', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div className={styles.indicadoresRequisitosContrasenaCa}>
+                <span className={styles.indicadoresRequisitosContrasenaCaSpan} style={{ color: passLength ? 'var(--status-online)' : 'var(--text-muted)' }}>
                   {passLength ? <Check size={12} /> : <X size={12} />} Mínimo 8 caracteres
                 </span>
-                <span style={{ color: passUpper && passLower ? '#23a55a' : '#949ba4', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span className={styles.indicadoresRequisitosContrasenaCaSpan} style={{ color: passUpper && passLower ? 'var(--status-online)' : 'var(--text-muted)' }}>
                   {passUpper && passLower ? <Check size={12} /> : <X size={12} />} Mayúsculas y minúsculas
                 </span>
-                <span style={{ color: passNumber ? '#23a55a' : '#949ba4', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span className={styles.indicadoresRequisitosContrasenaCaSpan} style={{ color: passNumber ? 'var(--status-online)' : 'var(--text-muted)' }}>
                   {passNumber ? <Check size={12} /> : <X size={12} />} Al menos un número
                 </span>
               </div>
             </div>
 
-            <div style={{ marginBottom: '22px' }}>
+            <div className={styles.div5}>
               <label style={labelStyle}>
-                CONFIRMAR CONTRASEÑA <span style={{ color: '#ed4245' }}>*</span>
+                CONFIRMAR CONTRASEÑA <span className={styles.span}>*</span>
               </label>
               <div style={inputWrapperStyle}>
                 <Lock size={16} color="#949ba4" style={{ marginRight: '8px' }} />

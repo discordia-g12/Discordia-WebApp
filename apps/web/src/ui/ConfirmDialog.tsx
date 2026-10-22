@@ -3,6 +3,7 @@ import { X, AlertTriangle, Trash2, LogOut, UserX, Volume2 } from 'lucide-react';
 import { ConfirmAction } from '../types';
 // import { createInvite } from '@discordia/core';
 import { ModalOverlay } from './ModalOverlay';
+import styles from './ConfirmDialog.module.css';
 
 export interface ConfirmDialogProps {
   action?: ConfirmAction;
@@ -94,7 +95,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   return (
     <ModalOverlay onClose={onCancel} maxWidth={440}>
-      <div style={{ position: 'relative' }}>
+      <div className={styles.div}>
         <button
           onClick={onCancel}
           className="btn-icon"
@@ -105,7 +106,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </button>
 
         <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <div className={styles.div2}>
             {config.icon}
             <h2 className="modal-title" style={{ fontSize: 19, margin: 0 }}>
               {config.title}
@@ -115,7 +116,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             {config.desc}
           </p>
           {targetDetail && action !== 'switch-voice-channel' && (
-            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+            <div className={styles.div3}>
               Detalle: {targetDetail}
             </div>
           )}
@@ -126,18 +127,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             <label className="input-label" htmlFor="server-delete-confirm-input">
               INTRODUCE EL NOMBRE DEL SERVIDOR PARA CONFIRMAR:
             </label>
-            <div
-              style={{
-                padding: '6px 10px',
-                backgroundColor: 'var(--bg-tertiary)',
-                borderRadius: 'var(--radius-xs)',
-                marginBottom: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--header-primary)',
-                letterSpacing: '0.02em',
-              }}
-            >
+            <div className={styles.div4}>
               {targetName}
             </div>
             <input

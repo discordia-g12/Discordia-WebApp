@@ -1,0 +1,141 @@
+/* Estilos de PremiumTab: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.heroCard {
+  padding: 28px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--legacy-fuchsia) 100%);
+  box-shadow: 0 8px 32px rgba(88, 101, 242, 0.3);
+  color: var(--text-white);
+}
+
+.heroCardDiv {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.discordiaPremium {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0px;
+}
+
+.heroCardP {
+  font-size: 15px;
+  margin: 0 0 16px 0;
+  opacity: 0.9;
+}
+
+.heroCardDiv2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.heroCardDiv2Span {
+  background-color: var(--text-white);
+  color: var(--legacy-bg-slate);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.freePlan {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.billingCycleSelector {
+  display: flex;
+  justify-content: center;
+}
+
+.billingCycleSelectorDiv {
+  display: flex;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.monthly999Mo {
+  padding: 8px 18px;
+  color: var(--text-white);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.featureComparisonList {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.includedBenefits {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--header-primary);
+}
+
+.featureComparisonListDiv {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.featureComparisonListDivSpan {
+  font-size: 14px;
+  color: var(--text-normal);
+}
+
+.paymentCta {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.paymentCtaButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--legacy-fuchsia) 100%);
+  color: var(--text-white);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.cancelPremiumSubscription {
+  background-color: transparent;
+  color: var(--text-danger);
+  border: 1px solid rgba(218, 55, 60, 0.4);
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}

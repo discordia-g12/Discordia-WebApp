@@ -315,10 +315,34 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 2: ordenar los estilos (sin cambio visual)
 
-- [ ] Pasar los estilos en línea a **CSS Modules** (`Componente.module.css`) y los colores hex a variables.
-- [ ] Orden: Avatar, UserPanel, ServerRail, MemberList → ChannelSidebar, ChatView, HomeView, VoiceView →
-      modales → AuthView → OwnProfileView, UserSettings, ServerSettings → MobileShell.
-- [ ] PRs chicos. Criterio de cada uno: la app se ve igual y `npm test` pasa.
+- [x] Estilos en línea a **CSS Modules**: 54 módulos (`Componente.module.css`, al lado de cada componente), 5262
+      declaraciones movidas. De 1406 `style={{...}}` quedan 365, con lo que no se puede mover sin cambiar cómo
+      se ve:
+      - valores que dependen del estado (y las propiedades relacionadas: si `border` es dinámico,
+        `borderColor` queda en línea para que siga ganando el mismo);
+      - elementos que también tienen una clase global de `index.css` (la clase de módulo competiría por orden
+        con sus `:hover`, cuando antes el estilo en línea siempre ganaba);
+      - elementos que cambian su propio `style` en eventos (`e.currentTarget.style...`);
+      - props `style` de componentes (`<Avatar style>`).
+      Los objetos de estilo en constantes (`style={inputStyle}`, 48 usos, sobre todo en `AuthView`) tampoco se
+      movieron: `AuthView` se reescribe entera en el paso 4.
+- [x] Colores hex de los estilos a variables: de 802 quedan 143. 22 colores ya tenían variable en `index.css`
+      (mismo valor); los 16 restantes tienen una nueva en la sección "paleta heredada" (`--legacy-*`). Los que
+      quedan en hex son: fallbacks dentro de `var(--x, #hex)`, colores de íconos (`<Icon color="#...">`, que
+      terminan en el atributo `stroke` del SVG, donde `var()` no funciona), datos (colores elegibles de rol y
+      de banner, que se guardan en el backend) y mapas de constantes (paleta de avatares, colores de estado),
+      que se reemplazan con los componentes del paso 3.
+- [x] Verificado sin cambio visual: 44 capturas (escritorio y mobile: login, inicio, servidor, chat, voz,
+      menú del servidor, modales, perfil y todas las pestañas de ajustes) en Chrome contra un backend falso,
+      con la hora fija y sin animaciones, comparadas píxel a píxel antes y después: idénticas. También se
+      revisaron las reglas globales que podían ganarle a una clase de módulo (`.server-item img`,
+      `.message-attachment img`, `.message-divider span`, `.switch input`, `a:hover`): ninguna choca con lo
+      movido.
+- Hecho en un solo cambio (con un codemod sobre el compilador de TypeScript), no en PRs por componente: el
+  orden por componentes tenía sentido a mano; automatizado y verificado con capturas, partirlo solo agregaba
+  pasos. Los nombres de clase salen del comentario que precede al elemento, de su `aria-label` / `title` /
+  `placeholder`, de su texto o del ancestro con nombre más cercano (`roleHeader`, `roleHeaderH3`); 79 de 980
+  quedaron genéricos (`div3`).
 
 ### Paso 3: sistema de diseño
 

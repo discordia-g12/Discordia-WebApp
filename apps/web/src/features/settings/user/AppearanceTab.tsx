@@ -1,6 +1,7 @@
 
 import { Avatar } from '../../../ui/Avatar';
 import type { UserSettingsState } from './useUserSettingsState';
+import styles from './AppearanceTab.module.css';
 
 /** Pestaña "appearance" de UserSettings. */
 export function AppearanceTab({ s }: { s: UserSettingsState }) {
@@ -15,39 +16,22 @@ export function AppearanceTab({ s }: { s: UserSettingsState }) {
     setFontSize,
   } = s;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div className={styles.root}>
       {/* Theme Selector */}
       <div>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f2f3f5', marginBottom: 12 }}>Theme</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+        <h3 className={styles.theme}>Theme</h3>
+        <div className={styles.themeSelectorDiv}>
           {(['dark', 'light', 'auto'] as const).map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setTheme(t)}
-              style={{
-                padding: 16,
-                backgroundColor: '#2b2d31',
-                borderRadius: 8,
-                border: theme === t ? '2px solid #5865f2' : '1px solid rgba(255, 255, 255, 0.06)',
-                color: '#dbdee1',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 8,
-              }}
+              className={styles.themeSelectorDivButton} style={{ borderRadius: 8, border: theme === t ? '2px solid var(--brand)' : '1px solid rgba(255, 255, 255, 0.06)' }}
             >
               <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  backgroundColor: t === 'dark' ? '#1e1f22' : t === 'light' ? '#f2f3f5' : '#5865f2',
-                  border: '1px solid rgba(0,0,0,0.3)',
-                }}
+                className={styles.themeSelectorDivButtonDiv} style={{ backgroundColor: t === 'dark' ? 'var(--bg-tertiary)' : t === 'light' ? 'var(--header-primary)' : 'var(--brand)' }}
               />
-              <span style={{ fontSize: 14, fontWeight: 600, textTransform: 'capitalize' }}>{t}</span>
+              <span className={styles.themeSelectorDivButtonSpan}>{t}</span>
             </button>
           ))}
         </div>
@@ -55,25 +39,17 @@ export function AppearanceTab({ s }: { s: UserSettingsState }) {
 
       {/* Message Display Mode */}
       <div>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f2f3f5', marginBottom: 12 }}>
+        <h3 className={styles.theme}>
           Message Display Mode
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className={styles.messageDisplayModeDiv}>
           <button
             type="button"
             onClick={() => setDisplayMode('cozy')}
-            style={{
-              padding: 16,
-              backgroundColor: '#2b2d31',
-              borderRadius: 8,
-              border: displayMode === 'cozy' ? '2px solid #5865f2' : '1px solid rgba(255, 255, 255, 0.06)',
-              color: '#dbdee1',
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
+            className={styles.messageDisplayModeDivButton} style={{ borderRadius: 8, border: displayMode === 'cozy' ? '2px solid var(--brand)' : '1px solid rgba(255, 255, 255, 0.06)' }}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f2f3f5' }}>Cozy</div>
-            <div style={{ fontSize: 12, color: '#949ba4', marginTop: 4 }}>
+            <div className={styles.cozy}>Cozy</div>
+            <div className={styles.messageDisplayModeDivButtonDiv}>
               Modern, spacious, with full-size user avatars.
             </div>
           </button>
@@ -81,18 +57,10 @@ export function AppearanceTab({ s }: { s: UserSettingsState }) {
           <button
             type="button"
             onClick={() => setDisplayMode('compact')}
-            style={{
-              padding: 16,
-              backgroundColor: '#2b2d31',
-              borderRadius: 8,
-              border: displayMode === 'compact' ? '2px solid #5865f2' : '1px solid rgba(255, 255, 255, 0.06)',
-              color: '#dbdee1',
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
+            className={styles.messageDisplayModeDivButton} style={{ borderRadius: 8, border: displayMode === 'compact' ? '2px solid var(--brand)' : '1px solid rgba(255, 255, 255, 0.06)' }}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f2f3f5' }}>Compact</div>
-            <div style={{ fontSize: 12, color: '#949ba4', marginTop: 4 }}>
+            <div className={styles.cozy}>Compact</div>
+            <div className={styles.messageDisplayModeDivButtonDiv}>
               Dense layout for power users with inline timestamps.
             </div>
           </button>
@@ -101,35 +69,30 @@ export function AppearanceTab({ s }: { s: UserSettingsState }) {
 
       {/* Live Preview Box */}
       <div>
-        <h4 style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: '#949ba4', marginBottom: 8 }}>
+        <h4 className={styles.chatDisplayPreview}>
           Chat Display Preview
         </h4>
         <div
-          style={{
-            backgroundColor: '#1e1f22',
-            borderRadius: 8,
-            padding: 16,
-            fontSize: fontSize,
-          }}
+          className={styles.livePreviewBoxDiv} style={{ fontSize: fontSize }}
         >
           {displayMode === 'cozy' ? (
-            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div className={styles.livePreviewBoxDivDiv}>
               <Avatar user={{ ...baseUser, avatar: baseUser.avatarUrl || baseUser.avatar || "" } as any} size={40} />
               <div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontWeight: 600, color: '#f2f3f5' }}>{displayName}</span>
-                  <span style={{ fontSize: 11, color: '#949ba4' }}>Today at 12:45 PM</span>
+                <div className={styles.livePreviewBoxDivDivDiv}>
+                  <span className={styles.livePreviewBoxDivDivDivSpan}>{displayName}</span>
+                  <span className={styles.todayAt1245}>Today at 12:45 PM</span>
                 </div>
-                <div style={{ color: '#dbdee1', marginTop: 4 }}>
+                <div className={styles.livePreviewBoxDivDivDiv2}>
                   Welcome to Discordia! The user interface adapts in real-time to your preferences.
                 </div>
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: 11, color: '#949ba4' }}>[12:45 PM]</span>
-              <span style={{ fontWeight: 600, color: '#f2f3f5' }}>{displayName}:</span>
-              <span style={{ color: '#dbdee1' }}>
+            <div className={styles.livePreviewBoxDivDivDiv}>
+              <span className={styles.todayAt1245}>[12:45 PM]</span>
+              <span className={styles.livePreviewBoxDivDivDivSpan}>{displayName}:</span>
+              <span className={styles.livePreviewBoxDivDivDivSpan2}>
                 Compact mode gives you maximum line density and screen space.
               </span>
             </div>
@@ -139,11 +102,11 @@ export function AppearanceTab({ s }: { s: UserSettingsState }) {
 
       {/* Font Scaling Slider */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1' }}>
+        <div className={styles.fontScalingSliderDiv}>
+          <label className={styles.chatFontSize}>
             Chat Font Size
           </label>
-          <span style={{ fontSize: 12, color: '#949ba4' }}>{fontSize}px</span>
+          <span className={styles.fontScalingSliderDivSpan}>{fontSize}px</span>
         </div>
         <input
           type="range"
@@ -152,7 +115,7 @@ export function AppearanceTab({ s }: { s: UserSettingsState }) {
           step={1}
           value={fontSize}
           onChange={(e) => setFontSize(Number(e.target.value))}
-          style={{ width: '100%', accentColor: '#5865f2', cursor: 'pointer' }}
+          className={styles.fontScalingSliderInput}
         />
       </div>
     </div>

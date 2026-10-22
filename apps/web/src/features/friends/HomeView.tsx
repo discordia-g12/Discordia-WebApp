@@ -16,6 +16,7 @@ import { DirectMessage, User } from '../../types';
 import { Avatar } from '../../ui/Avatar';
 
 import { ChatView } from '../chat/ChatView';
+import styles from './HomeView.module.css';
 
 /** Pestañas disponibles dentro de la sección de Amigos. */
 export type FriendsTab = 'online' | 'all' | 'pending' | 'blocked' | 'add-friend';
@@ -174,43 +175,27 @@ export const HomeView: React.FC<HomeViewProps> = ({
           ========================================================================== */}
       <aside className="dm-sidebar">
         {/* Campo de Búsqueda Superior */}
-        <div style={{ padding: '10px 10px 8px 10px', borderBottom: '1px solid rgba(0, 0, 0, 0.2)' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: 'var(--bg-tertiary)',
-              borderRadius: 'var(--radius-xs)',
-              padding: '6px 8px',
-              gap: 8,
-            }}
-          >
+        <div className={styles.campoBusquedaSuperior}>
+          <div className={styles.campoBusquedaSuperiorDiv}>
             <input
               type="text"
               placeholder="Encuentra o inicia una conversación"
               value={dmSearchQuery}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDmSearchQuery(e.target.value)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: 'var(--text-normal)',
-                fontSize: 12,
-                width: '100%',
-              }}
+              className={styles.encuentraIniciaUnaConversacion}
             />
             <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
           </div>
         </div>
 
         {/* Botón de Acceso a Amigos */}
-        <div style={{ padding: '8px 8px 4px 8px' }}>
+        <div className={styles.botonAccesoAmigos}>
           <div
             className={`dm-item ${activeDmId === null ? 'active' : ''}`}
             onClick={() => selectDm(null)}
           >
             <Users size={20} style={{ color: activeDmId === null ? 'var(--interactive-active)' : 'inherit' }} />
-            <span style={{ fontWeight: 600, fontSize: 14, flex: 1 }}>Amigos</span>
+            <span className={styles.amigos}>Amigos</span>
             {onlineFriends.length > 0 && (
               <span className="badge badge-brand" style={{ fontSize: 10 }}>
                 {onlineFriends.length}
@@ -220,19 +205,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         {/* Cabecera de Mensajes Directos */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '16px 16px 4px 16px',
-            color: 'var(--text-muted)',
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-          }}
-        >
+        <div className={styles.cabeceraMensajesDirectos}>
           <span>MENSAJES DIRECTOS</span>
           <button
             className="btn-icon"
@@ -257,7 +230,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 onClick={() => selectDm(dm.id)}
               >
                 {/* Avatar con punto de estado */}
-                <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
+                <div className={styles.avatarPuntoEstado}>
                   <Avatar user={recipient || { id: "unknown", displayName: "Usuario" } as any} size={32} />
                   <span
                     className={`status-dot ${recipient?.status || 'offline'}`}
@@ -272,17 +245,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 {/* Info del DM: Nombre y último mensaje */}
-                <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className={styles.infoDmNombreUltimo}>
+                  <div className={styles.infoDmNombreUltimoDiv}>
                     <span
-                      style={{
-                        fontWeight: 600,
-                        fontSize: 13,
-                        color: isSelected ? 'var(--text-white)' : 'var(--text-normal)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
+                      className={styles.infoDmNombreUltimoDivSpan} style={{ color: isSelected ? 'var(--text-white)' : 'var(--text-normal)' }}
                     >
                       {recipient?.displayName || 'User'}
                     </span>
@@ -294,16 +260,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </div>
 
                   {dm.lastMessage && (
-                    <p
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--text-muted)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        marginTop: 2,
-                      }}
-                    >
+                    <p className={styles.infoDmNombreUltimoP}>
                       {dm.lastMessage}
                     </p>
                   )}
@@ -319,7 +276,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* ==========================================================================
           2. ÁREA PRINCIPAL: CHAT DE DM O VISTA DE AMIGOS
           ========================================================================== */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100%' }}>
+      <main className={styles.main}>
         {activeDm ? (
           /* ========================================================================
              CASO A: DM SELECCIONADO (RENDERIZA ChatView)
@@ -338,68 +295,38 @@ export const HomeView: React.FC<HomeViewProps> = ({
           /* ========================================================================
              CASO B: VISTA DE AMIGOS
              ======================================================================== */
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-chat)' }}>
+          <div className={styles.div}>
             {/* Cabecera de Amigos con Pestañas */}
             <header className="chat-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className={styles.cabeceraAmigosPestanasDiv}>
+                <div className={styles.cabeceraAmigosPestanasDivDiv}>
                   <Users size={24} style={{ color: 'var(--text-muted)' }} />
-                  <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--header-primary)' }}>
+                  <h2 className={styles.amigos2}>
                     Amigos
                   </h2>
                 </div>
 
-                <div style={{ width: 1, height: 16, backgroundColor: 'rgba(255, 255, 255, 0.1)' }} />
+                <div className={styles.cabeceraAmigosPestanasDivDiv2} />
 
                 {/* Barra de Pestañas */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className={styles.cabeceraAmigosPestanasDivDiv}>
                   <button
                     onClick={() => setActiveTab('online')}
-                    style={{
-                      backgroundColor: activeTab === 'online' ? 'var(--bg-modifier-selected)' : 'transparent',
-                      color: activeTab === 'online' ? 'var(--interactive-active)' : 'var(--interactive-normal)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-xs)',
-                      padding: '4px 10px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
+                    className={styles.cabeceraAmigosPestanasDivDivButton} style={{ backgroundColor: activeTab === 'online' ? 'var(--bg-modifier-selected)' : 'transparent', color: activeTab === 'online' ? 'var(--interactive-active)' : 'var(--interactive-normal)' }}
                   >
                     Disponible ({onlineFriends.length})
                   </button>
 
                   <button
                     onClick={() => setActiveTab('all')}
-                    style={{
-                      backgroundColor: activeTab === 'all' ? 'var(--bg-modifier-selected)' : 'transparent',
-                      color: activeTab === 'all' ? 'var(--interactive-active)' : 'var(--interactive-normal)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-xs)',
-                      padding: '4px 10px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
+                    className={styles.cabeceraAmigosPestanasDivDivButton} style={{ backgroundColor: activeTab === 'all' ? 'var(--bg-modifier-selected)' : 'transparent', color: activeTab === 'all' ? 'var(--interactive-active)' : 'var(--interactive-normal)' }}
                   >
                     Todos ({allFriends.length})
                   </button>
 
                   <button
                     onClick={() => setActiveTab('pending')}
-                    style={{
-                      backgroundColor: activeTab === 'pending' ? 'var(--bg-modifier-selected)' : 'transparent',
-                      color: activeTab === 'pending' ? 'var(--interactive-active)' : 'var(--interactive-normal)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-xs)',
-                      padding: '4px 10px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
+                    className={styles.cabeceraAmigosPestanasDivDivButton2} style={{ backgroundColor: activeTab === 'pending' ? 'var(--bg-modifier-selected)' : 'transparent', color: activeTab === 'pending' ? 'var(--interactive-active)' : 'var(--interactive-normal)' }}
                   >
                     <span>Pendiente</span>
                     {pendingRequests.length > 0 && (
@@ -411,32 +338,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                   <button
                     onClick={() => setActiveTab('blocked')}
-                    style={{
-                      backgroundColor: activeTab === 'blocked' ? 'var(--bg-modifier-selected)' : 'transparent',
-                      color: activeTab === 'blocked' ? 'var(--interactive-active)' : 'var(--interactive-normal)',
-                      border: 'none',
-                      borderRadius: 'var(--radius-xs)',
-                      padding: '4px 10px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
+                    className={styles.cabeceraAmigosPestanasDivDivButton} style={{ backgroundColor: activeTab === 'blocked' ? 'var(--bg-modifier-selected)' : 'transparent', color: activeTab === 'blocked' ? 'var(--interactive-active)' : 'var(--interactive-normal)' }}
                   >
                     Bloqueado
                   </button>
 
                   <button
                     onClick={() => setActiveTab('add-friend')}
-                    style={{
-                      backgroundColor: activeTab === 'add-friend' ? 'transparent' : 'var(--success)',
-                      color: activeTab === 'add-friend' ? 'var(--status-online)' : 'var(--text-white)',
-                      border: activeTab === 'add-friend' ? '1px solid var(--status-online)' : 'none',
-                      borderRadius: 'var(--radius-xs)',
-                      padding: '4px 12px',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
+                    className={styles.anadirAmigo} style={{ backgroundColor: activeTab === 'add-friend' ? 'transparent' : 'var(--success)', color: activeTab === 'add-friend' ? 'var(--status-online)' : 'var(--text-white)', border: activeTab === 'add-friend' ? '1px solid var(--status-online)' : 'none', borderRadius: 'var(--radius-xs)' }}
                   >
                     Añadir amigo
                   </button>
@@ -445,44 +354,27 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </header>
 
             {/* Contenido Principal de Amigos y Panel Activo Ahora */}
-            <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <div className={styles.contenidoPrincipalAmigosPanel}>
               {/* Columna Izquierda: Listado de amigos o formulario */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 24, overflowY: 'auto' }}>
+              <div className={styles.columnaIzquierdaListadoAmigos}>
                 {activeTab === 'add-friend' ? (
                   /* Formulario Añadir Amigo */
-                  <div style={{ maxWidth: 540 }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 8 }}>
+                  <div className={styles.columnaIzquierdaListadoAmigosDiv}>
+                    <h3 className={styles.anadirAmigo2}>
                       AÑADIR AMIGO
                     </h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
+                    <p className={styles.columnaIzquierdaListadoAmigosDivP}>
                       Puedes añadir amigos usando su nombre de usuario de Discordia.
                     </p>
 
                     <form onSubmit={handleSendFriendRequest}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          backgroundColor: 'var(--bg-tertiary)',
-                          borderRadius: 'var(--radius-md)',
-                          padding: '12px 16px',
-                          border: '1px solid rgba(0, 0, 0, 0.3)',
-                          gap: 12,
-                        }}
-                      >
+                      <div className={styles.columnaIzquierdaListadoAmigosDivDiv}>
                         <input
                           type="text"
                           placeholder="Puedes añadir amigos con su Discordia Tag (ej. danielp)"
                           value={addFriendInput}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddFriendInput(e.target.value)}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            outline: 'none',
-                            color: 'var(--text-normal)',
-                            fontSize: 14,
-                            flex: 1,
-                          }}
+                          className={styles.puedesAnadirAmigosSu}
                         />
                         <button
                           type="submit"
@@ -496,7 +388,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </form>
 
                     {addFriendSuccess && (
-                      <p style={{ color: 'var(--status-online)', fontSize: 13, marginTop: 12 }}>
+                      <p className={styles.columnaIzquierdaListadoAmigosDivP2}>
                         {addFriendSuccess}
                       </p>
                     )}
@@ -504,11 +396,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ) : activeTab === 'pending' ? (
                   /* Solicitudes de Amistad Pendientes */
                   <div>
-                    <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 16 }}>
+                    <h3 className={styles.columnaIzquierdaListadoAmigosH3}>
                       PENDIENTE — {pendingRequests.length}
                     </h3>
                     {pendingRequests.length === 0 ? (
-                      <p style={{ color: 'var(--text-muted)', fontSize: 14, textAlign: 'center', padding: '40px 0' }}>
+                      <p className={styles.columnaIzquierdaListadoAmigosP}>
                         No hay solicitudes de amistad pendientes.
                       </p>
                     ) : (
@@ -525,52 +417,30 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             borderRadius: 'var(--radius-sm)',
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div className={styles.cabeceraAmigosPestanasDiv}>
                             <Avatar user={req.user} size={40} />
                             <div>
-                              <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 14 }}>
+                              <span className={styles.cabeceraAmigosPestanasDivSpan}>
                                 {req.user.displayName}
                               </span>
-                              <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                              <p className={styles.solicitudAmistadEntrante}>
                                 Solicitud de amistad entrante
                               </p>
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div className={styles.cabeceraAmigosPestanasDivDiv}>
                             <button
                               onClick={() => handleAcceptRequest(req.id)}
                               title="Aceptar"
-                              style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: '50%',
-                                backgroundColor: 'var(--bg-secondary)',
-                                color: 'var(--status-online)',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
+                              className={styles.aceptar}
                             >
                               <Check size={18} />
                             </button>
                             <button
                               onClick={() => handleDeclineRequest(req.id)}
                               title="Rechazar"
-                              style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: '50%',
-                                backgroundColor: 'var(--bg-secondary)',
-                                color: 'var(--danger)',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
+                              className={styles.rechazar}
                             >
                               <X size={18} />
                             </button>
@@ -583,35 +453,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   /* Listado de Amigos (Online / All / Blocked) */
                   <div>
                     {/* Barra de Filtro de Amigos */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        backgroundColor: 'var(--bg-tertiary)',
-                        borderRadius: 'var(--radius-xs)',
-                        padding: '8px 12px',
-                        marginBottom: 20,
-                        gap: 8,
-                      }}
-                    >
+                    <div className={styles.barraFiltroAmigos}>
                       <input
                         type="text"
                         placeholder="Buscar amigos"
                         value={friendsSearchQuery}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFriendsSearchQuery(e.target.value)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          color: 'var(--text-normal)',
-                          fontSize: 13,
-                          width: '100%',
-                        }}
+                        className={styles.buscarAmigos}
                       />
                       <Search size={16} style={{ color: 'var(--text-muted)' }} />
                     </div>
 
-                    <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 12 }}>
+                    <h3 className={styles.columnaIzquierdaListadoAmigosH32}>
                       {activeTab === 'online'
                         ? `DISPONIBLE — ${displayedFriends.length}`
                         : activeTab === 'all'
@@ -620,7 +473,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </h3>
 
                     {displayedFriends.length === 0 ? (
-                      <p style={{ color: 'var(--text-muted)', fontSize: 14, textAlign: 'center', padding: '40px 0' }}>
+                      <p className={styles.columnaIzquierdaListadoAmigosP}>
                         No se encontraron amigos en esta categoría.
                       </p>
                     ) : (
@@ -643,10 +496,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           >
                             {/* Información del Amigo */}
                             <div
-                              style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}
+                              className={styles.informacionAmigo}
                               onClick={() => onOpenUserProfile?.(friend.id)}
                             >
-                              <div style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
+                              <div className={styles.informacionAmigoDiv}>
                                 <Avatar user={friend} size={40} />
                                 <span
                                   className={`status-dot ${friend.status || 'offline'}`}
@@ -660,28 +513,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                 />
                               </div>
 
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 14 }}>
+                              <div className={styles.informacionAmigoDiv2}>
+                                <div className={styles.informacionAmigoDiv2Div}>
+                                  <span className={styles.cabeceraAmigosPestanasDivSpan}>
                                     {friend.displayName}
                                   </span>
-                                  <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                                  <span className={styles.solicitudAmistadEntrante}>
                                     @{friend.username}
                                   </span>
                                   {friend.isPremium && (
                                     <Sparkles size={13} style={{ color: 'var(--text-warning)' }} />
                                   )}
                                 </div>
-                                <p
-                                  style={{
-                                    fontSize: 12,
-                                    color: 'var(--text-muted)',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    marginTop: 2,
-                                  }}
-                                >
+                                <p className={styles.informacionAmigoDiv2P}>
                                   {friend.customStatus ||
                                     (friend.status === 'online' ? 'Disponible' : 'Desconectado')}
                                 </p>
@@ -689,7 +533,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             </div>
 
                             {/* Botones de Acción Rápida */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div className={styles.cabeceraAmigosPestanasDivDiv}>
                               {activeTab === 'blocked' ? (
                                 <button
                                   onClick={() => handleUnblock(friend.id)}
@@ -711,18 +555,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                       }
                                     }}
                                     title="Enviar mensaje"
-                                    style={{
-                                      width: 36,
-                                      height: 36,
-                                      borderRadius: '50%',
-                                      backgroundColor: 'var(--bg-secondary)',
-                                      color: 'var(--interactive-normal)',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                    }}
+                                    className={styles.botonIniciarDm}
                                   >
                                     <MessageSquare size={18} />
                                   </button>
@@ -731,18 +564,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                   <button
                                     onClick={() => onStartVoiceCall?.(friend.id)}
                                     title="Iniciar llamada"
-                                    style={{
-                                      width: 36,
-                                      height: 36,
-                                      borderRadius: '50%',
-                                      backgroundColor: 'var(--bg-secondary)',
-                                      color: 'var(--interactive-normal)',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                    }}
+                                    className={styles.botonIniciarDm}
                                   >
                                     <Phone size={18} />
                                   </button>
@@ -751,18 +573,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                   <button
                                     onClick={() => onStartVideoCall?.(friend.id)}
                                     title="Iniciar videollamada"
-                                    style={{
-                                      width: 36,
-                                      height: 36,
-                                      borderRadius: '50%',
-                                      backgroundColor: 'var(--bg-secondary)',
-                                      color: 'var(--interactive-normal)',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                    }}
+                                    className={styles.botonIniciarDm}
                                   >
                                     <Video size={18} />
                                   </button>
@@ -771,18 +582,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                   <button
                                     onClick={() => onOpenUserProfile?.(friend.id)}
                                     title="Más opciones"
-                                    style={{
-                                      width: 36,
-                                      height: 36,
-                                      borderRadius: '50%',
-                                      backgroundColor: 'var(--bg-secondary)',
-                                      color: 'var(--interactive-normal)',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                    }}
+                                    className={styles.botonIniciarDm}
                                   >
                                     <MoreHorizontal size={18} />
                                   </button>
@@ -798,24 +598,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
 
               {/* Columna Derecha: Panel "Activo Ahora" */}
-              <aside
-                style={{
-                  width: 340,
-                  borderLeft: '1px solid rgba(0, 0, 0, 0.2)',
-                  padding: 20,
-                  overflowY: 'auto',
-                }}
-              >
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 16 }}>
+              <aside className={styles.columnaDerechaPanelActivo}>
+                <h3 className={styles.activoAhora}>
                   Activo ahora
                 </h3>
 
                 {/* Tarjetas de Actividad de Amigos (Vacío) */}
-                <div style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--header-secondary)', marginBottom: 8 }}>
+                <div className={styles.tarjetasActividadAmigosVacio}>
+                  <div className={styles.porAhoraTodoEsta}>
                     Por ahora todo está tranquilo
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                  <div className={styles.tarjetasActividadAmigosVacioDiv}>
                     Cuando un amigo empiece una actividad, aparecerá aquí.
                   </div>
                 </div>

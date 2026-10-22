@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { formatMessageTimestamp } from './shared';
 import type { MobileShellState } from './useMobileShellState';
+import styles from './MobileChatScreen.module.css';
 
 /** Sección "VISTA 1: CHAT" de MobileShell. */
 export function MobileChatScreen({ s }: { s: MobileShellState }) {
@@ -27,20 +28,10 @@ export function MobileChatScreen({ s }: { s: MobileShellState }) {
     channelMessages,
   } = s;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+    <div className={styles.root}>
       {/* Header de Chat */}
-      <div
-        style={{
-          height: 52,
-          padding: '0 12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: 'var(--bg-secondary)',
-          borderBottom: '1px solid rgba(0, 0, 0, 0.2)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+      <div className={styles.headerChat}>
+        <div className={styles.headerChatDiv}>
           <button
             type="button"
             onClick={() => setScreen(activeServerId ? 'channels' : 'home')}
@@ -50,38 +41,19 @@ export function MobileChatScreen({ s }: { s: MobileShellState }) {
             <ArrowLeft size={20} />
           </button>
           <Hash size={18} style={{ color: 'var(--interactive-normal)', flexShrink: 0 }} />
-          <div style={{ minWidth: 0 }}>
-            <span
-              style={{
-                fontWeight: 700,
-                color: 'var(--header-primary)',
-                fontSize: 15,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: 'block',
-              }}
-            >
+          <div className={styles.headerChatDivDiv}>
+            <span className={styles.headerChatDivDivSpan}>
               {activeChannel ? activeChannel.name : activeDm?.recipient?.displayName || 'chat'}
             </span>
             {activeChannel?.topic && (
-              <span
-                style={{
-                  fontSize: 11,
-                  color: 'var(--text-muted)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: 'block',
-                }}
-              >
+              <span className={styles.headerChatDivDivSpan2}>
                 {activeChannel.topic}
               </span>
             )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div className={styles.headerChatDiv2}>
           <button
             type="button"
             onClick={() => onOpenModal?.('search')}
@@ -102,70 +74,40 @@ export function MobileChatScreen({ s }: { s: MobileShellState }) {
       </div>
 
       {/* Flujo de mensajes con scroll */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '12px 0',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          backgroundColor: 'var(--bg-chat)',
-        }}
-      >
+      <div className={styles.flujoMensajesScroll}>
         {channelMessages.length > 0 ? (
           channelMessages.map((msg) => {
             const author = msg.author || currentUser;
             return (
               <div
                 key={msg.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  padding: '4px 16px',
-                  gap: 12,
-                }}
+                className={styles.flujoMensajesScrollDiv}
               >
                 <img
                   src={author.avatarUrl || author.avatar}
                   alt={author.displayName}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 'var(--radius-full)',
-                    objectFit: 'cover',
-                    flexShrink: 0,
-                  }}
+                  className={styles.flujoMensajesScrollDivImg}
                 />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 13 }}>
+                <div className={styles.flujoMensajesScrollDivDiv}>
+                  <div className={styles.flujoMensajesScrollDivDivDiv}>
+                    <span className={styles.flujoMensajesScrollDivDivDivSpan}>
                       {author.displayName}
                     </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted, #949ba4)' }}>
+                    <span className={styles.flujoMensajesScrollDivDivDivSpan2}>
                       {formatMessageTimestamp(msg.timestamp)}
                     </span>
                   </div>
-                  <div
-                    style={{
-                      color: 'var(--text-normal)',
-                      fontSize: 13,
-                      marginTop: 2,
-                      lineHeight: 1.4,
-                      wordBreak: 'break-word',
-                      userSelect: 'text',
-                    }}
-                  >
+                  <div className={styles.flujoMensajesScrollDivDivDiv2}>
                     {msg.content}
                   </div>
 
                   {/* Adjuntos opcionales */}
                   {msg.attachments?.map((att) => (
-                    <div key={att.id} style={{ marginTop: 6, maxWidth: 280 }}>
+                    <div key={att.id} className={styles.flujoMensajesScrollDivDivDiv3}>
                       <img
                         src={att.url}
                         alt={att.name}
-                        style={{ width: '100%', borderRadius: 'var(--radius-md)' }}
+                        className={styles.flujoMensajesScrollDivDivDiv3Img}
                       />
                     </div>
                   ))}
@@ -174,12 +116,12 @@ export function MobileChatScreen({ s }: { s: MobileShellState }) {
             );
           })
         ) : (
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: 40, padding: 16 }}>
+          <div className={styles.flujoMensajesScrollDiv2}>
             <Hash size={40} style={{ opacity: 0.3, marginBottom: 8 }} />
-            <h4 style={{ color: 'var(--header-primary)', fontSize: 16 }}>
+            <h4 className={styles.flujoMensajesScrollDiv2H4}>
               ¡Bienvenido a #{activeChannel?.name || 'chat'}!
             </h4>
-            <p style={{ fontSize: 12, marginTop: 4 }}>
+            <p className={styles.flujoMensajesScrollDiv2P}>
               Este es el inicio del canal #{activeChannel?.name || 'chat'}.
             </p>
           </div>
@@ -189,14 +131,7 @@ export function MobileChatScreen({ s }: { s: MobileShellState }) {
       {/* Barra inferior de entrada de texto */}
       <form
         onSubmit={handleSendMessage}
-        style={{
-          padding: '8px 12px',
-          backgroundColor: 'var(--bg-secondary)',
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
+        className={styles.barraInferiorEntradaTexto}
       >
         <button
           type="button"

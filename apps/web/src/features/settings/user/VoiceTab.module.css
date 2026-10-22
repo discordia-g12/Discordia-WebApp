@@ -1,0 +1,104 @@
+/* Estilos de VoiceTab: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.audioDevices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.inputDeviceMicrophone {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-secondary);
+  margin-bottom: 6px;
+}
+
+.inputDeviceSelect {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.inputDeviceDiv {
+  margin-top: 12px;
+}
+
+.inputDeviceDivDiv {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--header-secondary);
+  margin-bottom: 4px;
+}
+
+.inputDeviceDivInput {
+  width: 100%;
+  accent-color: var(--brand);
+}
+
+.microphoneTestSection {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.microphoneTestSectionDiv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.micTest {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--header-primary);
+}
+
+.microphoneTestSectionDivDiv {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.microphoneTestSectionDivButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-white);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.levelIndicatorBar {
+  height: 16px;
+  background-color: var(--bg-tertiary);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.levelIndicatorBarDiv {
+  height: 100%;
+  background: linear-gradient(90deg, var(--status-online) 60%, var(--status-idle) 85%, var(--status-dnd) 100%);
+  border-radius: 8px;
+  transition: width 0.1s ease;
+}

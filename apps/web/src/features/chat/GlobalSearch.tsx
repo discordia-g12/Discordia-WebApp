@@ -4,6 +4,7 @@ import {
 Search, Hash, Compass} from 'lucide-react';
 // import { createInvite } from '@discordia/core';
 import { ModalOverlay } from '../../ui/ModalOverlay';
+import styles from './GlobalSearch.module.css';
 
 export interface SearchResultItem {
   id: string;
@@ -110,26 +111,9 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
 
   return (
     <ModalOverlay onClose={onClose} maxWidth={640}>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '85vh',
-          backgroundColor: 'var(--bg-primary)',
-          borderRadius: 'var(--radius-md)',
-          overflow: 'hidden',
-        }}
-      >
+      <div className={styles.div}>
         {/* Barra de Búsqueda Input */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '16px 20px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          }}
-        >
+        <div className={styles.barraBusquedaInput}>
           <Search size={22} style={{ color: 'var(--interactive-normal)' }} />
           <input
             ref={inputRef}
@@ -149,30 +133,13 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
               setSelectedIndex(0);
             }}
           />
-          <kbd
-            style={{
-              fontSize: 11,
-              backgroundColor: 'var(--bg-tertiary)',
-              padding: '2px 6px',
-              borderRadius: 4,
-              color: 'var(--text-muted)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-            }}
-          >
+          <kbd className={styles.esc}>
             ESC
           </kbd>
         </div>
 
         {/* Filtros rápidos */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            padding: '8px 20px',
-            backgroundColor: 'var(--bg-secondary)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-          }}
-        >
+        <div className={styles.filtrosRapidos}>
           {[
             { id: 'all', label: 'Todo' },
             { id: 'messages', label: 'Mensajes' },
@@ -185,16 +152,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                 setFilterType(filter.id as typeof filterType);
                 setSelectedIndex(0);
               }}
-              style={{
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 12,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: filterType === filter.id ? 'var(--brand)' : 'transparent',
-                color: filterType === filter.id ? 'white' : 'var(--interactive-normal)',
-              }}
+              className={styles.filtrosRapidosButton} style={{ backgroundColor: filterType === filter.id ? 'var(--brand)' : 'transparent', color: filterType === filter.id ? 'white' : 'var(--interactive-normal)' }}
             >
               {filter.label}
             </button>
@@ -202,16 +160,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
         </div>
 
         {/* Resultados */}
-        <div
-          style={{
-            overflowY: 'auto',
-            padding: '8px 12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            maxHeight: 380,
-          }}
-        >
+        <div className={styles.resultados}>
           {searchResults.length > 0 ? (
             searchResults.map((item, idx) => {
               const isSelected = idx === selectedIndex;
@@ -223,83 +172,43 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                     onClose();
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: isSelected ? 'var(--bg-modifier-selected)' : 'transparent',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.1s ease',
-                  }}
+                  className={styles.resultadosDiv} style={{ backgroundColor: isSelected ? 'var(--bg-modifier-selected)' : 'transparent' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+                  <div className={styles.resultadosDivDiv}>
                     {/* Icono según tipo */}
                     {item.type === 'message' && item.author ? (
                       <img
                         src={item.author.avatarUrl || item.author.avatar}
                         alt={item.author.displayName}
-                        style={{ width: 34, height: 34, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+                        className={styles.resultadosDivDivImg}
                       />
                     ) : item.type === 'channel' ? (
-                      <div
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: 'var(--radius-sm)',
-                          backgroundColor: 'var(--bg-secondary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'var(--interactive-normal)',
-                        }}
-                      >
+                      <div className={styles.resultadosDivDivDiv}>
                         <Hash size={18} />
                       </div>
                     ) : item.author ? (
                       <img
                         src={item.author.avatarUrl || item.author.avatar}
                         alt={item.author.displayName}
-                        style={{ width: 34, height: 34, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+                        className={styles.resultadosDivDivImg}
                       />
                     ) : (
-                      <div
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: 'var(--radius-full)',
-                          backgroundColor: 'var(--brand)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                        }}
-                      >
+                      <div className={styles.resultadosDivDivDiv2}>
                         <Compass size={18} />
                       </div>
                     )}
 
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--header-primary)' }}>
+                    <div className={styles.resultadosDivDivDiv3}>
+                      <div className={styles.resultadosDivDivDiv3Div}>
+                        <span className={styles.resultadosDivDivDiv3DivSpan}>
                           {item.title}
                         </span>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        <span className={styles.resultadosDivDivDiv3DivSpan2}>
                           {item.subtitle}
                         </span>
                       </div>
                       {item.detail && (
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: 'var(--text-normal)',
-                            marginTop: 2,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
+                        <div className={styles.resultadosDivDivDiv3Div2}>
                           {item.detail}
                         </div>
                       )}
@@ -307,7 +216,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
                   </div>
 
                   {item.timestamp && (
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8, flexShrink: 0 }}>
+                    <span className={styles.resultadosDivSpan}>
                       {new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                     </span>
                   )}
@@ -315,26 +224,15 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({
               );
             })
           ) : (
-            <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
+            <div className={styles.resultadosDiv2}>
               No se encontraron resultados para "{query}".
             </div>
           )}
         </div>
 
         {/* Footer con atajos */}
-        <div
-          style={{
-            padding: '8px 16px',
-            backgroundColor: 'var(--bg-tertiary)',
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: 11,
-            color: 'var(--text-muted)',
-          }}
-        >
-          <div style={{ display: 'flex', gap: 12 }}>
+        <div className={styles.footerAtajos}>
+          <div className={styles.footerAtajosDiv}>
             <span><kbd>↑</kbd> <kbd>↓</kbd> Navegar</span>
             <span><kbd>ENTER</kbd> Seleccionar</span>
             <span><kbd>ESC</kbd> Cerrar</span>

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { VoiceParticipant } from '../channels/ChannelSidebar';
 import { VoiceParticipantMenu } from './VoiceParticipantMenu';
+import styles from './VoiceView.module.css';
 
 export type VoiceViewConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -102,26 +103,14 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
       {/* ==========================================================================
           CABECERA DE ESTADO DE VOZ
           ========================================================================== */}
-      <div
-        style={{
-          height: 48,
-          minHeight: 48,
-          padding: '0 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid rgba(0, 0, 0, 0.2)',
-          backgroundColor: 'var(--bg-secondary-alt)',
-          zIndex: 10,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className={styles.cabeceraEstadoVoz}>
+        <div className={styles.cabeceraEstadoVozDiv}>
           <Volume2 size={22} style={{ color: 'var(--status-online)' }} />
           <div>
-            <span style={{ fontWeight: 700, color: 'var(--header-primary)', fontSize: 15 }}>
+            <span className={styles.cabeceraEstadoVozDivSpan}>
               {channelName}
             </span>
-            <span style={{ color: 'var(--text-muted)', fontSize: 12, marginLeft: 8 }}>
+            <span className={styles.cabeceraEstadoVozDivSpan2}>
               / {serverName}
             </span>
           </div>
@@ -129,24 +118,10 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
 
         {/* Estado de la conexión RTC */}
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 12,
-            color: CONNECTION_LABELS[connectionState].color,
-            fontWeight: 600,
-          }}
+          className={styles.estadoConexionRtc} style={{ color: CONNECTION_LABELS[connectionState].color }}
         >
           <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              backgroundColor: CONNECTION_LABELS[connectionState].color,
-              display: 'inline-block',
-              boxShadow: `0 0 8px ${CONNECTION_LABELS[connectionState].color}`,
-            }}
+            className={styles.estadoConexionRtcSpan} style={{ backgroundColor: CONNECTION_LABELS[connectionState].color, boxShadow: `0 0 8px ${CONNECTION_LABELS[connectionState].color}` }}
           />
           <span>{CONNECTION_LABELS[connectionState].label}</span>
         </div>
@@ -156,16 +131,7 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           GRID ADAPTABLE DE PARTICIPANTES (1-2 cols, 2x2, 3x3)
           ========================================================================== */}
       <div
-        style={{
-          flex: 1,
-          padding: 20,
-          display: 'grid',
-          gridTemplateColumns: gridColumns,
-          gap: 16,
-          alignContent: 'center',
-          justifyContent: 'center',
-          overflowY: 'auto',
-        }}
+        className={styles.gridAdaptableParticipantes1} style={{ gridTemplateColumns: gridColumns }}
       >
         {participants.map(({ user, isSpeaking, isMuted: isUserMuted }) => {
           const isCurrentUser = user.id === currentUserId;
@@ -180,64 +146,25 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
                 e.preventDefault();
                 setContextMenu({ user, x: e.clientX, y: e.clientY });
               }}
-              style={{
-                position: 'relative',
-                backgroundColor: '#1e1f22',
-                borderRadius: 'var(--radius-lg)',
-                minHeight: 180,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: isSpeaking
+              className={styles.gridAdaptableParticipantes1Div} style={{ borderRadius: 'var(--radius-lg)', border: isSpeaking
                   ? '3px solid var(--status-online)'
-                  : '1px solid rgba(255, 255, 255, 0.06)',
-                boxShadow: isSpeaking
+                  : '1px solid rgba(255, 255, 255, 0.06)', boxShadow: isSpeaking
                   ? '0 0 0 2px rgba(35, 165, 90, 0.2), 0 0 20px rgba(35, 165, 90, 0.4)'
-                  : 'var(--shadow-sm)',
-                transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
-                overflow: 'hidden',
-                cursor: 'pointer',
-              }}
+                  : 'var(--shadow-sm)' }}
             >
               {/* Avatar Circular Grande con Halo de Speaking */}
-              <div style={{ position: 'relative' }}>
+              <div className={styles.avatarCircularGrandeHalo}>
                 <div
-                  style={{
-                    width: 88,
-                    height: 88,
-                    borderRadius: '50%',
-                    padding: 3,
-                    border: isSpeaking ? '3px solid var(--status-online)' : '3px solid transparent',
-                    transition: 'border var(--transition-fast)',
-                  }}
+                  className={styles.avatarCircularGrandeHaloDiv} style={{ borderRadius: '50%', border: isSpeaking ? '3px solid var(--status-online)' : '3px solid transparent' }}
                 >
                   {user.avatar ? (
                     <img
                       src={user.avatar}
                       alt={user.displayName}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                      }}
+                      className={styles.avatarCircularGrandeHaloDivImg}
                     />
                   ) : (
-                    <div
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        backgroundColor: 'var(--brand)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 28,
-                        fontWeight: 700,
-                        color: 'var(--text-white)',
-                      }}
-                    >
+                    <div className={styles.avatarCircularGrandeHaloDivDiv}>
                       {getInitials(user.displayName)}
                     </div>
                   )}
@@ -249,71 +176,32 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
                 <div
                   title="Silenciado para vos"
                   aria-label="Silenciado para vos"
-                  style={{
-                    position: 'absolute',
-                    top: 12,
-                    right: 12,
-                    width: 28,
-                    height: 28,
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--danger)',
-                    color: 'var(--text-white)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+                  className={styles.silenciadoVos}
                 >
                   <VolumeX size={15} />
                 </div>
               )}
 
               {/* Etiqueta inferior con nombre y estado de micrófono */}
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 12,
-                  left: 12,
-                  backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                  backdropFilter: 'blur(4px)',
-                  padding: '4px 10px',
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
+              <div className={styles.etiquetaInferiorNombreEstado}>
                 {/* Indicador de micrófono */}
                 {isUserMuted ? (
                   <span
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: 'var(--danger)',
-                    }}
+                    className={styles.microfonoSilenciado}
                     title="Micrófono silenciado"
                   >
                     <MicOff size={14} />
                   </span>
                 ) : (
                   <span
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: isSpeaking ? 'var(--status-online)' : 'var(--text-muted)',
-                    }}
+                    className={styles.etiquetaInferiorNombreEstadoSpan} style={{ color: isSpeaking ? 'var(--status-online)' : 'var(--text-muted)' }}
                     title={isSpeaking ? 'Hablando' : 'En línea'}
                   >
                     <Mic size={14} />
                   </span>
                 )}
 
-                <span
-                  style={{
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: 'var(--header-primary)',
-                  }}
-                >
+                <span className={styles.etiquetaInferiorNombreEstadoSpan2}>
                   {user.displayName}
                   {isCurrentUser && ' (Tú)'}
                 </span>
@@ -330,46 +218,13 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
       {/* ==========================================================================
           BARRA INFERIOR DE CONTROLES FLOTANTE
           ========================================================================== */}
-      <div
-        style={{
-          padding: '16px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'var(--bg-secondary-alt)',
-          borderTop: '1px solid rgba(0, 0, 0, 0.2)',
-          zIndex: 20,
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            backgroundColor: 'var(--bg-floating)',
-            padding: '8px 16px',
-            borderRadius: 'var(--radius-full)',
-            boxShadow: 'var(--shadow-floating)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-          }}
-        >
+      <div className={styles.barraInferiorControlesFlotante}>
+        <div className={styles.barraInferiorControlesFlotanteDiv}>
           {/* Botón Micrófono (mute/unmute) */}
           <button
             onClick={onToggleMute}
             title={isMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              backgroundColor: isMuted ? 'var(--danger)' : 'var(--bg-secondary)',
-              color: 'var(--text-white)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background-color var(--transition-fast)',
-            }}
+            className={styles.botonMicrofonoMuteUnmute} style={{ backgroundColor: isMuted ? 'var(--danger)' : 'var(--bg-secondary)' }}
           >
             {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
           </button>
@@ -378,19 +233,7 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           <button
             onClick={onToggleDeafen}
             title={isDeafened ? 'Reactivar audio' : 'Ensordecer'}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              backgroundColor: isDeafened ? 'var(--danger)' : 'var(--bg-secondary)',
-              color: 'var(--text-white)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background-color var(--transition-fast)',
-            }}
+            className={styles.botonMicrofonoMuteUnmute} style={{ backgroundColor: isDeafened ? 'var(--danger)' : 'var(--bg-secondary)' }}
           >
             <Headphones size={20} />
           </button>
@@ -399,19 +242,7 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           <button
             disabled
             title="Cámara: próximamente"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              backgroundColor: 'var(--bg-secondary)',
-              color: 'var(--text-muted)',
-              border: 'none',
-              cursor: 'not-allowed',
-              opacity: 0.5,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className={styles.botonCamaraPendientePor}
           >
             <VideoOff size={20} />
           </button>
@@ -420,19 +251,7 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           <button
             disabled
             title="Compartir pantalla: próximamente"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              backgroundColor: 'var(--bg-secondary)',
-              color: 'var(--text-muted)',
-              border: 'none',
-              cursor: 'not-allowed',
-              opacity: 0.5,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className={styles.botonCamaraPendientePor}
           >
             <MonitorOff size={20} />
           </button>
@@ -441,21 +260,7 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
           <button
             onClick={onDisconnect}
             title="Desconectar"
-            style={{
-              height: 44,
-              padding: '0 20px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'var(--danger)',
-              color: 'var(--text-white)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              fontWeight: 700,
-              fontSize: 14,
-              transition: 'background-color var(--transition-fast)',
-            }}
+            className={styles.botonRojoDesconectarLeave}
           >
             <PhoneOff size={18} />
             <span>Desconectar</span>

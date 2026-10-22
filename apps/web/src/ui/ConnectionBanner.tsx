@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import styles from './ConnectionBanner.module.css';
 
 /**
  * Banner flotante de conectividad (offline / restablecido).
@@ -28,20 +29,7 @@ export function ConnectionBanner() {
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: offline ? 'var(--status-danger, #ed4245)' : 'var(--status-online, #23a55a)',
-        color: '#ffffff',
-        textAlign: 'center',
-        padding: '8px 16px',
-        fontSize: '13px',
-        fontWeight: 600,
-        zIndex: 9999,
-        boxShadow: '0 -2px 10px rgba(0,0,0,0.3)',
-      }}
+      className={styles.root} style={{ backgroundColor: offline ? 'var(--status-danger, #ed4245)' : 'var(--status-online, #23a55a)' }}
     >
       {offline ? '⚠️ Conexión perdida — Intentando reconectar...' : '✓ Conexión restablecida'}
     </div>

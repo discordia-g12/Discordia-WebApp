@@ -11,6 +11,7 @@ import {
   banErrorMessage,
 } from '@discordia/core';
 import type { Role, ServerMember } from '../../types';
+import styles from './ServerMembersTab.module.css';
 
 export interface ServerMembersTabProps {
   serverId: string;
@@ -112,83 +113,55 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#f2f3f5' }}>
+    <div className={styles.root}>
+      <div className={styles.rootDiv}>
+        <div className={styles.rootDivDiv}>
           Server Members{membersQuery.data ? ` (${total})` : ''}
         </div>
 
-        <div style={{ position: 'relative', width: 260 }}>
-          <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: '#949ba4' }} />
+        <div className={styles.rootDivDiv2}>
+          <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search members..."
-            style={{
-              width: '100%',
-              backgroundColor: '#1e1f22',
-              color: '#dbdee1',
-              border: '1px solid rgba(0, 0, 0, 0.3)',
-              borderRadius: 4,
-              padding: '8px 12px 8px 34px',
-              fontSize: 13,
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+            className={styles.searchMembers}
           />
         </div>
       </div>
 
       {search.trim() && hasNextPage && (
-        <div style={{ fontSize: 12, color: '#949ba4' }}>
+        <div className={styles.rootDiv2}>
           La búsqueda solo incluye los miembros ya cargados; seguí bajando en la lista para cargar más.
         </div>
       )}
 
       {error && (
-        <div
-          style={{
-            backgroundColor: 'rgba(218, 55, 60, 0.15)',
-            border: '1px solid rgba(218, 55, 60, 0.3)',
-            color: '#fa777c',
-            borderRadius: 4,
-            padding: '6px 10px',
-            fontSize: 12,
-          }}
-        >
+        <div className={styles.rootDiv3}>
           {error}
         </div>
       )}
 
       {notice && (
-        <div
-          style={{
-            backgroundColor: 'rgba(35, 165, 90, 0.15)',
-            border: '1px solid rgba(35, 165, 90, 0.3)',
-            color: '#57f287',
-            borderRadius: 4,
-            padding: '6px 10px',
-            fontSize: 12,
-          }}
-        >
+        <div className={styles.rootDiv4}>
           {notice}
         </div>
       )}
 
       {membersQuery.isLoading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#949ba4', fontSize: 13 }}>
+        <div className={styles.rootDiv5}>
           <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Cargando miembros...
         </div>
       )}
 
       {membersQuery.isError && (
-        <div style={{ fontSize: 13, color: '#fa777c' }}>
+        <div className={styles.rootDiv6}>
           {membersQuery.error instanceof Error ? membersQuery.error.message : 'No se pudieron cargar los miembros.'}{' '}
           <button
             type="button"
             onClick={() => membersQuery.refetch()}
-            style={{ background: 'none', border: 'none', color: '#00a8fc', cursor: 'pointer', padding: 0, fontSize: 13 }}
+            className={styles.reintentar}
           >
             Reintentar
           </button>
@@ -198,10 +171,10 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
       {membersQuery.isSuccess && (
         <div
           ref={listRef}
-          style={{ backgroundColor: '#2b2d31', borderRadius: 8, maxHeight: 520, overflowY: 'auto' }}
+          className={styles.rootDiv7}
         >
           {filteredMembers.length === 0 && (
-            <div style={{ padding: 16, fontSize: 13, color: '#949ba4' }}>
+            <div className={styles.rootDiv7Div}>
               {search.trim() ? 'Ningún miembro cargado coincide con la búsqueda.' : 'Este servidor no tiene miembros.'}
             </div>
           )}
@@ -220,81 +193,32 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
             );
 
             return (
-              <div key={member.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: '12px 16px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      backgroundColor: '#5865f2',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 14,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
+              <div key={member.id} className={styles.rootDiv7Div2}>
+              <div className={styles.rootDiv7Div2Div}>
+                <div className={styles.rootDiv7Div2DivDiv}>
+                  <div className={styles.rootDiv7Div2DivDivDiv}>
                     {name.charAt(0).toUpperCase()}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                    <span
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: '#f2f3f5',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
+                  <div className={styles.rootDiv7Div2DivDivDiv2}>
+                    <span className={styles.rootDiv7Div2DivDivDiv2Span}>
                       {name}
                     </span>
                     {isOwner && (
-                      <span title="Server Owner" style={{ color: '#faa81a', display: 'flex', alignItems: 'center' }}>
+                      <span title="Server Owner" className={styles.serverOwner}>
                         <Crown size={15} />
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    justifyContent: 'flex-end',
-                    gap: 6,
-                  }}
-                >
+                <div className={styles.rootDiv7Div2DivDiv2}>
                   {memberRoles.map((role) => (
                     <span
                       key={role.id}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                        color: '#dbdee1',
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
+                      className={styles.rootDiv7Div2DivDiv2Span}
                     >
                       <span
-                        style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: role.color, flexShrink: 0 }}
+                        className={styles.rootDiv7Div2DivDiv2SpanSpan} style={{ backgroundColor: role.color }}
                       />
                       {role.name}
                       {!role.isDefault && (
@@ -303,14 +227,7 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
                           onClick={() => handleRemove(member, role)}
                           disabled={isMutating}
                           title={`Quitar el rol ${role.name}`}
-                          style={{
-                            display: 'flex',
-                            background: 'none',
-                            border: 'none',
-                            padding: 0,
-                            color: '#949ba4',
-                            cursor: isMutating ? 'default' : 'pointer',
-                          }}
+                          className={styles.rootDiv7Div2DivDiv2SpanButton} style={{ cursor: isMutating ? 'default' : 'pointer' }}
                         >
                           <X size={12} />
                         </button>
@@ -326,18 +243,7 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
                     }}
                     disabled={isMutating}
                     title="Asignar un rol"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 22,
-                      height: 22,
-                      borderRadius: 4,
-                      backgroundColor: 'transparent',
-                      color: '#949ba4',
-                      border: '1px dashed rgba(255, 255, 255, 0.25)',
-                      cursor: isMutating ? 'default' : 'pointer',
-                    }}
+                    className={styles.asignarUnRol} style={{ cursor: isMutating ? 'default' : 'pointer' }}
                   >
                     <Plus size={12} />
                   </button>
@@ -348,18 +254,7 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
                       onClick={() => openBanPanel(member)}
                       disabled={isMutating}
                       title={`Banear a ${name}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 22,
-                        height: 22,
-                        borderRadius: 4,
-                        backgroundColor: 'transparent',
-                        color: '#fa777c',
-                        border: '1px solid rgba(218, 55, 60, 0.4)',
-                        cursor: isMutating ? 'default' : 'pointer',
-                      }}
+                      className={styles.rootDiv7Div2DivDiv2Button} style={{ cursor: isMutating ? 'default' : 'pointer' }}
                     >
                       <UserX size={12} />
                     </button>
@@ -368,15 +263,8 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
               </div>
 
               {banMemberId === member.id && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                    padding: '0 16px 12px 64px',
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: '#dbdee1' }}>
+                <div className={styles.rootDiv7Div2Div2}>
+                  <span className={styles.rootDiv7Div2Div2Span}>
                     ¿Banear a {name}? Va a salir del servidor y no podrá volver a unirse hasta que se revoque el baneo.
                   </span>
                   <input
@@ -385,28 +273,13 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
                     onChange={(e) => setBanReason(e.target.value)}
                     maxLength={BAN_REASON_MAX_LENGTH}
                     placeholder="Motivo (opcional)"
-                    style={{
-                      backgroundColor: '#1e1f22',
-                      color: '#dbdee1',
-                      border: '1px solid rgba(0, 0, 0, 0.3)',
-                      borderRadius: 4,
-                      padding: '6px 10px',
-                      fontSize: 13,
-                      outline: 'none',
-                    }}
+                    className={styles.motivoOpcional}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <div className={styles.rootDiv7Div2Div2Div}>
                     <button
                       type="button"
                       onClick={() => setBanMemberId(null)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#dbdee1',
-                        cursor: 'pointer',
-                        fontSize: 13,
-                        padding: '6px 10px',
-                      }}
+                      className={styles.cancelar}
                     >
                       Cancelar
                     </button>
@@ -414,19 +287,7 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
                       type="button"
                       onClick={() => handleBan(member)}
                       disabled={banMutation.isPending}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        backgroundColor: '#da373c',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: 4,
-                        padding: '6px 12px',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: banMutation.isPending ? 'default' : 'pointer',
-                      }}
+                      className={styles.rootDiv7Div2Div2DivButton} style={{ cursor: banMutation.isPending ? 'default' : 'pointer' }}
                     >
                       {banMutation.isPending && <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} />}
                       Banear
@@ -436,41 +297,21 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
               )}
 
               {pickerMemberId === member.id && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '0 16px 12px 64px',
-                  }}
-                >
+                <div className={styles.rootDiv7Div2Div3}>
                   {assignableRoles.length === 0 ? (
-                    <span style={{ fontSize: 12, color: '#949ba4' }}>No hay más roles para asignar.</span>
+                    <span className={styles.rootDiv2}>No hay más roles para asignar.</span>
                   ) : (
                     <>
-                      <span style={{ fontSize: 12, color: '#949ba4' }}>Asignar rol:</span>
+                      <span className={styles.rootDiv2}>Asignar rol:</span>
                       {assignableRoles.map((role) => (
                         <button
                           key={role.id}
                           type="button"
                           onClick={() => handleAssign(member, role.id)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                            color: '#dbdee1',
-                            border: '1px solid rgba(255, 255, 255, 0.12)',
-                            borderRadius: 4,
-                            padding: '3px 8px',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
+                          className={styles.rootDiv7Div2Div3Button}
                         >
                           <span
-                            style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: role.color, flexShrink: 0 }}
+                            className={styles.rootDiv7Div2DivDiv2SpanSpan} style={{ backgroundColor: role.color }}
                           />
                           {role.name}
                         </button>
@@ -483,9 +324,9 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ow
             );
           })}
 
-          <div ref={sentinelRef} style={{ height: 1 }} />
+          <div ref={sentinelRef} className={styles.rootDiv7Div3} />
           {isFetchingNextPage && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, color: '#949ba4', fontSize: 12 }}>
+            <div className={styles.rootDiv7Div4}>
               <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Cargando más miembros...
             </div>
           )}

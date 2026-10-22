@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { BottomSheet } from './shared';
 import type { MobileShellState } from './useMobileShellState';
+import styles from './ServerSheet.module.css';
 
 /** Sección "1. SERVER SHEET" de MobileShell. */
 export function ServerSheet({ s }: { s: MobileShellState }) {
@@ -29,19 +30,19 @@ export function ServerSheet({ s }: { s: MobileShellState }) {
       onClose={() => setActiveSheet('none')}
       title={activeServer.name}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className={styles.div}>
         {/* Info del servidor */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className={styles.infoServidor}>
           <img
             src={activeServer.iconUrl || activeServer.icon}
             alt={activeServer.name}
-            style={{ width: 50, height: 50, borderRadius: 'var(--radius-md)', objectFit: 'cover' }}
+            className={styles.infoServidorImg}
           />
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--header-primary)' }}>
+            <div className={styles.infoServidorDiv}>
               {activeServer.name}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            <div className={styles.infoServidorDiv2}>
               {activeServer.members.length} miembros • 5 en línea
             </div>
             {activeServer.boostLevel > 0 && (
@@ -53,28 +54,17 @@ export function ServerSheet({ s }: { s: MobileShellState }) {
         </div>
 
         {/* Cuadrícula de Acciones Rápidas */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        <div className={styles.cuadriculaAccionesRapidas}>
           <button
             type="button"
             onClick={() => {
               setActiveSheet('none');
               onOpenModal?.('invite');
             }}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 6,
-              padding: '12px 6px',
-              backgroundColor: 'var(--bg-primary)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--interactive-normal)',
-              cursor: 'pointer',
-            }}
+            className={styles.cuadriculaAccionesRapidasButton}
           >
             <UserPlus size={20} color="var(--brand)" />
-            <span style={{ fontSize: 11, fontWeight: 600 }}>Invitar</span>
+            <span className={styles.invitar}>Invitar</span>
           </button>
 
           <button
@@ -83,21 +73,10 @@ export function ServerSheet({ s }: { s: MobileShellState }) {
               setActiveSheet('none');
               onConfirmAction?.('ban-member', 'Servidor Mejorado');
             }}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 6,
-              padding: '12px 6px',
-              backgroundColor: 'var(--bg-primary)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--interactive-normal)',
-              cursor: 'pointer',
-            }}
+            className={styles.cuadriculaAccionesRapidasButton}
           >
             <Zap size={20} color="#f47fff" />
-            <span style={{ fontSize: 11, fontWeight: 600 }}>Mejorar</span>
+            <span className={styles.invitar}>Mejorar</span>
           </button>
 
           <button
@@ -105,28 +84,17 @@ export function ServerSheet({ s }: { s: MobileShellState }) {
             onClick={() => {
               setActiveSheet('none');
             }}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 6,
-              padding: '12px 6px',
-              backgroundColor: 'var(--bg-primary)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--interactive-normal)',
-              cursor: 'pointer',
-            }}
+            className={styles.cuadriculaAccionesRapidasButton}
           >
             <Bell size={20} color="var(--status-idle)" />
-            <span style={{ fontSize: 11, fontWeight: 600 }}>Notificaciones</span>
+            <span className={styles.invitar}>Notificaciones</span>
           </button>
         </div>
 
         {/* Toggles de configuración */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, backgroundColor: 'var(--bg-primary)', padding: 12, borderRadius: 'var(--radius-md)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, color: 'var(--header-primary)' }}>
+        <div className={styles.togglesConfiguracion}>
+          <div className={styles.togglesConfiguracionDiv}>
+            <span className={styles.ocultarCanalesSilenciados}>
               Ocultar canales silenciados
             </span>
             <label className="switch">
@@ -139,8 +107,8 @@ export function ServerSheet({ s }: { s: MobileShellState }) {
             </label>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, color: 'var(--header-primary)' }}>
+          <div className={styles.togglesConfiguracionDiv}>
+            <span className={styles.ocultarCanalesSilenciados}>
               Permitir mensajes directos de miembros
             </span>
             <label className="switch">
@@ -155,27 +123,14 @@ export function ServerSheet({ s }: { s: MobileShellState }) {
         </div>
 
         {/* Acciones de peligro */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className={styles.accionesPeligro}>
           <button
             type="button"
             onClick={() => {
               setActiveSheet('none');
               onConfirmAction?.('leave-server', activeServer.name);
             }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '10px 12px',
-              color: 'var(--danger)',
-              background: 'none',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
+            className={styles.accionesPeligroButton}
           >
             <LogOut size={18} /> Abandonar Servidor
           </button>
@@ -187,20 +142,7 @@ export function ServerSheet({ s }: { s: MobileShellState }) {
                 setActiveSheet('none');
                 onConfirmAction?.('delete-server', activeServer.name);
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '10px 12px',
-                color: 'var(--danger)',
-                background: 'none',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
+              className={styles.accionesPeligroButton}
             >
               <Trash2 size={18} /> Eliminar Servidor
             </button>

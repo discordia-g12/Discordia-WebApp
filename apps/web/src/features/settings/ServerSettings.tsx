@@ -28,6 +28,7 @@ import { AuditLogTab } from './server/AuditLogTab';
 import { NotificationsTab } from './server/NotificationsTab';
 import { EmojisTab } from './server/EmojisTab';
 import { BoostTab } from './server/BoostTab';
+import styles from './ServerSettings.module.css';
 
 export interface ServerSettingsProps {
   server?: Server;
@@ -50,56 +51,21 @@ export const ServerSettings: React.FC<ServerSettingsProps> = (props) => {
   } = s;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100%',
-        width: '100%',
-        backgroundColor: '#313338',
-        color: '#dbdee1',
-        overflow: 'hidden',
-        position: 'relative',
-      }}
-    >
+    <div className={styles.root}>
       {/* Sidebar Navigation */}
       <nav
-        style={{
-          width: sidebarCollapsed ? 64 : 240,
-          backgroundColor: '#2b2d31',
-          borderRight: '1px solid rgba(0, 0, 0, 0.25)',
-          display: 'flex',
-          flexDirection: 'column',
-          flexShrink: 0,
-          transition: 'width 0.2s ease',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-        }}
+        className={styles.sidebarNavigation} style={{ width: sidebarCollapsed ? 64 : 240 }}
       >
         {/* Sidebar Header */}
         <div
-          style={{
-            padding: sidebarCollapsed ? '16px 8px' : '16px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.2)',
-          }}
+          className={styles.sidebarHeader} style={{ padding: sidebarCollapsed ? '16px 8px' : '16px 20px', justifyContent: sidebarCollapsed ? 'center' : 'space-between' }}
         >
           {!sidebarCollapsed && (
-            <div style={{ overflow: 'hidden' }}>
-              <div
-                style={{
-                  fontSize: 15,
-                  fontWeight: 700,
-                  color: '#f2f3f5',
-                  whiteSpace: 'nowrap',
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                }}
-              >
+            <div className={styles.sidebarHeaderDiv}>
+              <div className={styles.sidebarHeaderDivDiv}>
                 {serverState.name}
               </div>
-              <div style={{ fontSize: 11, color: '#949ba4', textTransform: 'uppercase' }}>Server Settings</div>
+              <div className={styles.serverSettings}>Server Settings</div>
             </div>
           )}
 
@@ -110,7 +76,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = (props) => {
             style={{
               background: 'none',
               border: 'none',
-              color: '#b5bac1',
+              color: 'var(--header-secondary)',
               cursor: 'pointer',
               padding: 6,
               borderRadius: 4,
@@ -126,7 +92,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = (props) => {
         </div>
 
         {/* Sidebar Nav Items */}
-        <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+        <div className={styles.sidebarNavItems}>
           {[
             { id: 'overview', label: 'Overview', icon: Sliders },
             { id: 'roles', label: 'Roles', icon: Shield },
@@ -145,7 +111,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = (props) => {
               return (
                 <div
                   key={`div-${index}`}
-                  style={{ height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '8px 6px' }}
+                  className={styles.sidebarNavItemsDiv}
                 />
               );
             }
@@ -166,7 +132,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = (props) => {
                   padding: sidebarCollapsed ? '10px 0' : '8px 12px',
                   justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                   backgroundColor: isActive ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  color: isActive ? '#ffffff' : '#b5bac1',
+                  color: isActive ? 'var(--text-white)' : 'var(--header-secondary)',
                   border: 'none',
                   borderRadius: 4,
                   fontSize: 14,
@@ -179,13 +145,13 @@ export const ServerSettings: React.FC<ServerSettingsProps> = (props) => {
                 onMouseEnter={(e) => {
                   if (!isActive) {
                     e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-                    e.currentTarget.style.color = '#dbdee1';
+                    e.currentTarget.style.color = 'var(--text-normal)';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive) {
                     e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = '#b5bac1';
+                    e.currentTarget.style.color = 'var(--header-secondary)';
                   }
                 }}
               >
@@ -198,53 +164,22 @@ export const ServerSettings: React.FC<ServerSettingsProps> = (props) => {
       </nav>
 
       {/* Main Content Area */}
-      <main
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          backgroundColor: '#313338',
-        }}
-      >
+      <main className={styles.mainContentArea}>
         {/* Top Control Bar with Close ESC button */}
-        <div
-          style={{
-            height: 56,
-            padding: '0 32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.25)',
-            backgroundColor: '#2b2d31',
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#f2f3f5', margin: 0, textTransform: 'capitalize' }}>
+        <div className={styles.topControlBarWith}>
+          <div className={styles.topControlBarWithDiv}>
+            <h2 className={styles.topControlBarWithDivH2}>
               {activeTab.replace('-', ' ')}
             </h2>
             {saveSuccess && (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  backgroundColor: 'rgba(35, 165, 90, 0.2)',
-                  color: '#2dc770',
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
+              <span className={styles.topControlBarWithDivSpan}>
                 <Check size={14} /> Saved
               </span>
             )}
           </div>
 
           {onClose && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className={styles.topControlBarWithDiv2}>
               <button
                 type="button"
                 onClick={onClose}
@@ -255,7 +190,7 @@ export const ServerSettings: React.FC<ServerSettingsProps> = (props) => {
                   alignItems: 'center',
                   background: 'none',
                   border: 'none',
-                  color: '#b5bac1',
+                  color: 'var(--header-secondary)',
                   cursor: 'pointer',
                   padding: 6,
                   borderRadius: 6,
@@ -263,28 +198,18 @@ export const ServerSettings: React.FC<ServerSettingsProps> = (props) => {
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)')}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
-                <div
-                  style={{
-                    border: '2px solid #b5bac1',
-                    borderRadius: '50%',
-                    width: 28,
-                    height: 28,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
+                <div className={styles.closeSettingsEscDiv}>
                   <X size={16} />
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 600, marginTop: 2 }}>ESC</span>
+                <span className={styles.esc}>ESC</span>
               </button>
             </div>
           )}
         </div>
 
         {/* Scrollable View Container */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px' }}>
-          <div style={{ maxWidth: 840 }}>
+        <div className={styles.scrollableViewContainer}>
+          <div className={styles.scrollableViewContainerDiv}>
             {/* 1. OVERVIEW TAB */}
             {activeTab === 'overview' && <OverviewTab s={s} />}
 

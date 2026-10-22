@@ -1,0 +1,71 @@
+/* Estilos de MemberSheet: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.div {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lineaDiv {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-positive);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.lineaDiv2 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lineaDiv2Div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.lineaDiv2DivDiv {
+  position: relative;
+}
+
+.lineaDiv2DivDivImg {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.lineaDiv2DivDiv2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--header-primary);
+}
+
+.lineaDiv2DivDiv3 {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.desconectadosDiv {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.lineaDiv2Div2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0.7;
+}

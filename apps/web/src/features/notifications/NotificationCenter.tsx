@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { Notification} from '../../types';
 import { ModalOverlay } from '../../ui/ModalOverlay';
+import styles from './NotificationCenter.module.css';
 
 export interface NotificationCenterProps {
   notifications?: Notification[];
@@ -63,31 +64,31 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     switch (type) {
       case 'mention':
         return (
-          <span style={{ backgroundColor: 'var(--brand)', color: 'white', padding: 4, borderRadius: 4, display: 'flex' }}>
+          <span className={styles.getTypeBadgeSpan}>
             <AtSign size={13} />
           </span>
         );
       case 'dm':
         return (
-          <span style={{ backgroundColor: 'var(--status-online)', color: 'white', padding: 4, borderRadius: 4, display: 'flex' }}>
+          <span className={styles.getTypeBadgeSpan2}>
             <MessageSquare size={13} />
           </span>
         );
       case 'reply':
         return (
-          <span style={{ backgroundColor: 'var(--status-idle)', color: 'white', padding: 4, borderRadius: 4, display: 'flex' }}>
+          <span className={styles.getTypeBadgeSpan3}>
             <CornerDownLeft size={13} />
           </span>
         );
       case 'reaction':
         return (
-          <span style={{ backgroundColor: '#eb459e', color: 'white', padding: 4, borderRadius: 4, display: 'flex' }}>
+          <span className={styles.getTypeBadgeSpan4}>
             <Smile size={13} />
           </span>
         );
       default:
         return (
-          <span style={{ backgroundColor: 'var(--interactive-muted)', color: 'white', padding: 4, borderRadius: 4, display: 'flex' }}>
+          <span className={styles.getTypeBadgeSpan5}>
             <Bell size={13} />
           </span>
         );
@@ -96,7 +97,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   return (
     <ModalOverlay onClose={onClose} maxWidth={500}>
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
+      <div className={styles.div}>
         {/* Header */}
         <div
           className="modal-header"
@@ -108,7 +109,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             paddingBottom: 14,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className={styles.headerDiv}>
             <Bell size={20} style={{ color: 'var(--brand)' }} />
             <h2 className="modal-title" style={{ fontSize: 18, margin: 0 }}>
               Bandeja de Entrada
@@ -119,7 +120,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className={styles.headerDiv2}>
             <button
               type="button"
               onClick={handleMarkAll}
@@ -136,16 +137,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </div>
 
         {/* Filtros */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 6,
-            padding: '10px 20px',
-            backgroundColor: 'var(--bg-secondary)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-            overflowX: 'auto',
-          }}
-        >
+        <div className={styles.filtros}>
           {[
             { id: 'all', label: 'Todas' },
             { id: 'unread', label: 'No leídas' },
@@ -156,17 +148,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             <button
               key={tab.id}
               onClick={() => setFilter(tab.id as NotificationFilter)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 12,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: filter === tab.id ? 'var(--brand)' : 'transparent',
-                color: filter === tab.id ? 'white' : 'var(--interactive-normal)',
-                transition: 'all 0.15s ease',
-              }}
+              className={styles.filtrosButton} style={{ backgroundColor: filter === tab.id ? 'var(--brand)' : 'transparent', color: filter === tab.id ? 'white' : 'var(--interactive-normal)' }}
             >
               {tab.label}
             </button>
@@ -189,46 +171,24 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               <div
                 key={item.id}
                 onClick={() => onNotificationClick?.(item)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: item.read ? 'var(--bg-secondary)' : 'var(--bg-modifier-selected)',
-                  borderLeft: item.read ? '3px solid transparent' : '3px solid var(--brand)',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.15s ease',
-                }}
+                className={styles.listaNotificacionesDiv} style={{ backgroundColor: item.read ? 'var(--bg-secondary)' : 'var(--bg-modifier-selected)', borderLeft: item.read ? '3px solid transparent' : '3px solid var(--brand)' }}
               >
                 {/* Icono semántico de tipo */}
-                <div style={{ marginTop: 2, flexShrink: 0 }}>
+                <div className={styles.iconoSemanticoTipo}>
                   {getTypeBadge(item.type)}
                 </div>
 
                 {/* Contenido textual */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--header-primary)' }}>
+                <div className={styles.contenidoTextual}>
+                  <div className={styles.contenidoTextualDiv}>
+                    <span className={styles.contenidoTextualDivSpan}>
                       {item.title}
                     </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
+                    <span className={styles.contenidoTextualDivSpan2}>
                       {item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Reciente'}
                     </span>
                   </div>
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--text-normal)',
-                      margin: '4px 0 0 0',
-                      lineHeight: 1.4,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                    }}
-                  >
+                  <p className={styles.contenidoTextualP}>
                     {item.body}
                   </p>
                 </div>
@@ -242,21 +202,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   title={item.read ? 'Marcar como no leída' : 'Marcar como leída'}
                 >
                   <div
-                    style={{
-                      width: 9,
-                      height: 9,
-                      borderRadius: 'var(--radius-full)',
-                      backgroundColor: item.read ? 'var(--interactive-muted)' : 'var(--brand)',
-                    }}
+                    className={styles.botonAlternarLeidoNoDiv} style={{ backgroundColor: item.read ? 'var(--interactive-muted)' : 'var(--brand)' }}
                   />
                 </button>
               </div>
             ))
           ) : (
-            <div style={{ textAlign: 'center', padding: '36px 12px', color: 'var(--text-muted)' }}>
+            <div className={styles.listaNotificacionesDiv2}>
               <Bell size={36} style={{ marginBottom: 10, opacity: 0.4 }} />
-              <div style={{ fontSize: 14, fontWeight: 600 }}>No hay notificaciones aquí</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>
+              <div className={styles.noHayNotificacionesAqui}>No hay notificaciones aquí</div>
+              <div className={styles.listaNotificacionesDiv2Div}>
                 Estás al día con todas las menciones y mensajes de tus servidores.
               </div>
             </div>

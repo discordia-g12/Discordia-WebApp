@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, X, Smile } from 'lucide-react';
 import { Status } from '../../types';
+import styles from './StatusPicker.module.css';
 
 /**
  * Propiedades del componente emergente StatusPicker.
@@ -119,55 +120,27 @@ export const StatusPicker: React.FC<StatusPickerProps> = ({
       ref={containerRef}
       role="dialog"
       aria-label="Selector de estado"
-      style={{
-        position: 'fixed',
-        bottom: position.bottom !== undefined ? `${position.bottom}px` : undefined,
-        left: position.left !== undefined ? `${position.left}px` : undefined,
-        top: position.top !== undefined ? `${position.top}px` : undefined,
-        right: position.right !== undefined ? `${position.right}px` : undefined,
-        width: '310px',
-        backgroundColor: 'var(--bg-floating, #111214)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: 'var(--radius-md, 8px)',
-        boxShadow: 'var(--shadow-floating, 0 12px 32px rgba(0, 0, 0, 0.65))',
-        padding: '12px',
-        zIndex: 9999,
-        animation: 'slideUp 150ms ease',
-        userSelect: 'none',
-      }}
+      className={styles.selectorEstado} style={{ bottom: position.bottom !== undefined ? `${position.bottom}px` : undefined, left: position.left !== undefined ? `${position.left}px` : undefined, top: position.top !== undefined ? `${position.top}px` : undefined, right: position.right !== undefined ? `${position.right}px` : undefined }}
     >
       {/* Encabezado con estado personalizado */}
-      <div style={{ marginBottom: '12px' }}>
+      <div className={styles.encabezadoEstadoPersonalizado}>
         <label
           htmlFor="custom-status-input"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '11px',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            color: 'var(--header-secondary, #b5bac1)',
-            marginBottom: '6px',
-            letterSpacing: '0.04em',
-          }}
+          className={styles.encabezadoEstadoPersonalizadoLabel}
         >
           <span>Estado Personalizado</span>
           <span
-            style={{
-              color:
+            className={styles.encabezadoEstadoPersonalizadoLabelSpan} style={{ color:
                 customText.length >= 60
                   ? 'var(--text-danger, #fa777c)'
-                  : 'var(--text-muted, #949ba4)',
-              fontWeight: 500,
-            }}
+                  : 'var(--text-muted, #949ba4)' }}
           >
             {customText.length}/64
           </span>
         </label>
 
-        <form onSubmit={handleSaveCustom} style={{ display: 'flex', gap: '6px' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
+        <form onSubmit={handleSaveCustom} className={styles.encabezadoEstadoPersonalizadoForm}>
+          <div className={styles.encabezadoEstadoPersonalizadoFormDiv}>
             <input
               id="custom-status-input"
               type="text"
@@ -186,34 +159,13 @@ export const StatusPicker: React.FC<StatusPickerProps> = ({
               <button
                 type="button"
                 onClick={handleClearCustom}
-                style={{
-                  position: 'absolute',
-                  right: '6px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted, #949ba4)',
-                  cursor: 'pointer',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
+                className={styles.limpiarEstado}
                 title="Limpiar estado"
               >
                 <X size={14} />
               </button>
             ) : (
-              <span
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-muted, #949ba4)',
-                  pointerEvents: 'none',
-                }}
-              >
+              <span className={styles.encabezadoEstadoPersonalizadoFormDivSpan}>
                 <Smile size={14} />
               </span>
             )}
@@ -229,17 +181,7 @@ export const StatusPicker: React.FC<StatusPickerProps> = ({
         </form>
 
         {/* Emojis sugeridos */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: '8px',
-            padding: '4px 6px',
-            backgroundColor: 'var(--bg-secondary, #2b2d31)',
-            borderRadius: 'var(--radius-xs, 3px)',
-          }}
-        >
+        <div className={styles.emojisSugeridos}>
           {SUGGESTED_EMOJIS.map((emoji) => (
             <button
               key={emoji}
@@ -269,16 +211,10 @@ export const StatusPicker: React.FC<StatusPickerProps> = ({
       </div>
 
       {/* Separador */}
-      <div
-        style={{
-          height: '1px',
-          backgroundColor: 'rgba(255, 255, 255, 0.08)',
-          margin: '10px 0',
-        }}
-      />
+      <div className={styles.separador} />
 
       {/* Lista de estados de presencia */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      <div className={styles.listaEstadosPresencia}>
         {STATUS_OPTIONS.map((item) => {
           const isSelected = currentStatus === item.id;
 
@@ -317,28 +253,14 @@ export const StatusPicker: React.FC<StatusPickerProps> = ({
             >
               {/* Indicador cromático del estado */}
               <span
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: 'var(--radius-full, 9999px)',
-                  backgroundColor: item.color,
-                  marginTop: '4px',
-                  flexShrink: 0,
-                }}
+                className={styles.indicadorCromaticoEstado} style={{ backgroundColor: item.color }}
               />
 
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className={styles.listaEstadosPresenciaDiv}>
                 <div
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: isSelected
+                  className={styles.listaEstadosPresenciaDivDiv} style={{ color: isSelected
                       ? 'var(--text-white, #ffffff)'
-                      : 'var(--text-normal, #dbdee1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
+                      : 'var(--text-normal, #dbdee1)' }}
                 >
                   <span>{item.label}</span>
                   {isSelected && (
@@ -351,14 +273,7 @@ export const StatusPicker: React.FC<StatusPickerProps> = ({
                 </div>
 
                 {item.description && (
-                  <p
-                    style={{
-                      fontSize: '11px',
-                      color: 'var(--text-muted, #949ba4)',
-                      marginTop: '2px',
-                      lineHeight: '1.2',
-                    }}
-                  >
+                  <p className={styles.listaEstadosPresenciaDivP}>
                     {item.description}
                   </p>
                 )}

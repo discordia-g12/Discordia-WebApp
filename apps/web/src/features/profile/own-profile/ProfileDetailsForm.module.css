@@ -1,0 +1,280 @@
+/* Estilos de ProfileDetailsForm: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  flex: 1;
+  padding: 36px 48px;
+  overflow-y: auto;
+  background-color: var(--bg-primary);
+}
+
+.rootDiv {
+  max-width: 640px;
+}
+
+.rootDivH2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin-bottom: 8px;
+}
+
+.rootDivP {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+
+.rootDivDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.section1Avatar {
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.avatar {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-secondary);
+  margin-bottom: 10px;
+}
+
+.section1AvatarDiv {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.section1AvatarDivDiv {
+  display: flex;
+  gap: 12px;
+}
+
+.section1AvatarDivDivLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--brand);
+  color: var(--text-white);
+  padding: 8px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.section1AvatarDivDivLabelInput {
+  display: none;
+}
+
+.section1AvatarDivDivButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(218, 55, 60, 0.15);
+  color: var(--text-danger);
+  border: 1px solid rgba(218, 55, 60, 0.3);
+  padding: 8px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.section1AvatarDivSpan {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.section1AvatarDiv2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.section1AvatarDiv2Button {
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s;
+}
+
+.nativeColorPickerInput {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-normal);
+}
+
+.nativeColorPickerInputInput {
+  width: 24px;
+  height: 24px;
+  border: none;
+  padding: 0px;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: transparent;
+}
+
+.section1AvatarDiv3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section1AvatarDiv3Div {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.section1AvatarDiv3Span {
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.section1AvatarDiv4 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.displayName {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-secondary);
+}
+
+.section1AvatarDiv4Span {
+  font-size: 12px;
+}
+
+.enterDisplayName {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.section1AvatarSpan {
+  font-size: 12px;
+  color: var(--text-danger);
+  margin-top: 4px;
+  display: block;
+}
+
+.section1AvatarDiv5 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--header-primary);
+}
+
+.tellEveryoneLittleBit {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  resize: none;
+  line-height: 1.4;
+}
+
+.section1AvatarDiv6 {
+  font-size: 14px;
+  color: var(--text-normal);
+  line-height: 1.4;
+}
+
+.section1AvatarDiv7 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.section1AvatarDiv7Button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.section1AvatarDiv7ButtonSpan {
+  font-size: 13px;
+}
+
+.section1AvatarDiv8 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section1AvatarDiv8Span {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--header-primary);
+}
+
+.section6CustomStatusDiv {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.whatSOnYour {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 10px 36px 10px 12px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.clearCustomStatus {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.section6CustomStatusDiv2 {
+  font-size: 14px;
+}

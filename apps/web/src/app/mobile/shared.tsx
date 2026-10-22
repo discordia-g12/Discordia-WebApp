@@ -6,6 +6,7 @@ import {
 import {
   Server,
 } from '../../types';
+import styles from './shared.module.css';
 
 // Tipos, helpers y componentes auxiliares de MobileShell, compartidos por sus pantallas y hojas.
 
@@ -76,59 +77,22 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-        zIndex: 1050,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
-        animation: 'fadeIn 0.2s ease',
-      }}
+      className={styles.bottomSheetRoot}
       onClick={onClose}
     >
       <div
-        style={{
-          backgroundColor: 'var(--bg-secondary)',
-          borderTopLeftRadius: 'var(--radius-lg)',
-          borderTopRightRadius: 'var(--radius-lg)',
-          maxHeight,
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: 'var(--shadow-floating)',
-          animation: 'slideUp 0.25s ease',
-          paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-        }}
+        className={styles.bottomSheetRootDiv} style={{ maxHeight }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Asa o barra de arrastre superior */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px 0' }}>
-          <div
-            style={{
-              width: 36,
-              height: 4,
-              borderRadius: 2,
-              backgroundColor: 'var(--interactive-muted)',
-            }}
-          />
+        <div className={styles.asaBarraArrastreSuperior}>
+          <div className={styles.asaBarraArrastreSuperiorDiv} />
         </div>
 
         {/* Cabecera opcional */}
         {title && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '6px 20px 12px 20px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-            }}
-          >
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--header-primary)', margin: 0 }}>
+          <div className={styles.bottomSheetRootDivDiv}>
+            <h3 className={styles.bottomSheetRootDivDivH3}>
               {title}
             </h3>
             <button onClick={onClose} className="btn-icon" aria-label="Cerrar panel">
@@ -138,7 +102,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         )}
 
         {/* Contenido */}
-        <div style={{ padding: '12px 20px' }}>{children}</div>
+        <div className={styles.contenido}>{children}</div>
       </div>
     </div>
   );
@@ -168,12 +132,12 @@ export /* ======================================================================
     };
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+      <div className={styles.addFriendSheetContentRoot}>
+        <p className={styles.addFriendSheetContentRootP}>
           Puedes añadir amigos mediante su nombre de usuario de Discordia.
         </p>
 
-        <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <form onSubmit={handleSend} className={styles.addFriendSheetContentRootForm}>
           <input
             type="text"
             className="discord-input"
@@ -192,52 +156,33 @@ export /* ======================================================================
         </form>
 
         {isSent && (
-          <div
-            style={{
-              padding: '8px 12px',
-              backgroundColor: 'rgba(35, 165, 90, 0.15)',
-              border: '1px solid var(--status-online)',
-              borderRadius: 'var(--radius-sm)',
-              color: 'var(--text-positive)',
-              fontSize: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
+          <div className={styles.addFriendSheetContentRootDiv}>
             <Check size={16} /> ¡Solicitud de amistad enviada con éxito!
           </div>
         )}
 
         {/* Sugerencias de amigos */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase' }}>
+          <div className={styles.sugerenciasAmigos}>
             SUGERENCIAS DE AMIGOS
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className={styles.sugerenciasAmigosDiv}>
             {([] as any[]).slice(2, 6).map((user) => (
               <div
                 key={user.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 10px',
-                  backgroundColor: 'var(--bg-primary)',
-                  borderRadius: 'var(--radius-md)',
-                }}
+                className={styles.sugerenciasAmigosDivDiv}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className={styles.sugerenciasAmigosDivDivDiv}>
                   <img
                     src={user.avatarUrl || user.avatar}
                     alt={user.displayName}
-                    style={{ width: 34, height: 34, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+                    className={styles.sugerenciasAmigosDivDivDivImg}
                   />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--header-primary)' }}>
+                    <div className={styles.sugerenciasAmigosDivDivDivDiv}>
                       {user.displayName}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    <div className={styles.sugerenciasAmigosDivDivDivDiv2}>
                       @{user.username}
                     </div>
                   </div>
@@ -256,7 +201,7 @@ export /* ======================================================================
                   }}
                 >
                   {addedIds[user.id] ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span className={styles.sugerenciasAmigosDivDivSpan}>
                       <Check size={12} /> Enviada
                     </span>
                   ) : (

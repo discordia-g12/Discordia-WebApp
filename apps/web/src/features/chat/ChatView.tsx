@@ -26,6 +26,7 @@ import {
 import { Channel, DirectMessage, Message, User, MessageAttachment, Reaction } from '../../types';
 
 import { Avatar } from '../../ui/Avatar';
+import styles from './ChatView.module.css';
 
 
 /**
@@ -398,7 +399,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     return parts.map((part, index) => {
       if (!part) return null;
       if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={index} style={{ color: 'var(--header-primary)', fontWeight: 600 }}>{part.slice(2, -2)}</strong>;
+        return <strong key={index} className={styles.formattedContentStrong}>{part.slice(2, -2)}</strong>;
       }
       if (part.startsWith('@')) {
         const username = part.slice(1);
@@ -422,7 +423,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             href={part}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ color: 'var(--text-link)', wordBreak: 'break-all' }}
+            className={styles.formattedContentA}
           >
             {part}
           </a>
@@ -441,9 +442,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
           1. CABECERA DEL CANAL / DM
           ========================================================================== */}
       <header className="chat-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden' }}>
+        <div className={styles.div}>
           {isDirectMessage ? (
-            <div style={{ position: 'relative', width: 28, height: 28 }}>
+            <div className={styles.div2}>
               <Avatar user={directMessage?.recipient || { id: "unknown", username: chatTitle, displayName: chatTitle } as any} size={28} />
               <span
                 className={`status-dot ${directMessage?.recipient?.status || 'offline'}`}
@@ -456,44 +457,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <Hash size={24} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
           )}
 
-          <h2
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: 'var(--header-primary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
+          <h2 className={styles.h2}>
             {chatTitle}
           </h2>
 
-          <div
-            style={{
-              width: 1,
-              height: 16,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              margin: '0 4px',
-              flexShrink: 0,
-            }}
-          />
+          <div className={styles.div3} />
 
-          <p
-            style={{
-              fontSize: 13,
-              color: 'var(--text-muted)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
+          <p className={styles.p}>
             {chatTopic}
           </p>
         </div>
 
         {/* Acciones de la Cabecera */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className={styles.accionesCabecera}>
           {isDirectMessage && (
             <>
               <button
@@ -548,28 +524,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </button>
           )}
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: 'var(--bg-tertiary)',
-              padding: '4px 8px',
-              borderRadius: 'var(--radius-xs)',
-              gap: 6,
-              marginLeft: 4,
-            }}
-          >
+          <div className={styles.accionesCabeceraDiv}>
             <input
               type="text"
               placeholder="Search"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: 'var(--text-normal)',
-                fontSize: 12,
-                width: 120,
-              }}
+              className={styles.search}
             />
             <Search size={14} style={{ color: 'var(--text-muted)' }} />
           </div>
@@ -580,35 +539,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
           MODAL / DROPDOWN DE MENSAJES FIJADOS
           ========================================================================== */}
       {isPinnedPanelOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'var(--header-height)',
-            right: 16,
-            width: 400,
-            maxHeight: 480,
-            backgroundColor: 'var(--bg-secondary)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-floating)',
-            zIndex: 100,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              padding: '12px 16px',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className={styles.div4}>
+          <div className={styles.div5}>
+            <div className={styles.div6}>
               <Pin size={16} style={{ color: 'var(--status-idle)' }} />
-              <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 13 }}>
+              <span className={styles.span}>
                 Pinned Messages ({pinnedMessages.length})
               </span>
             </div>
@@ -620,32 +555,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <X size={16} />
             </button>
           </div>
-          <div style={{ overflowY: 'auto', padding: '8px 12px', flex: 1 }}>
+          <div className={styles.div7}>
             {pinnedMessages.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>
+              <p className={styles.p2}>
                 No pinned messages in this channel yet.
               </p>
             ) : (
               pinnedMessages.map((msg) => (
                 <div
                   key={msg.id}
-                  style={{
-                    backgroundColor: 'var(--bg-primary)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: 10,
-                    marginBottom: 8,
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                  }}
+                  className={styles.div8}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 12 }}>
+                  <div className={styles.div9}>
+                    <span className={styles.span2}>
                       {msg.author?.displayName || 'User'}
                     </span>
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                    <span className={styles.span3}>
                       {formatMessageTime(msg.timestamp)}
                     </span>
                   </div>
-                  <p style={{ fontSize: 13, color: 'var(--text-normal)' }}>{msg.content}</p>
+                  <p className={styles.p3}>{msg.content}</p>
                 </div>
               ))
             )}
@@ -656,39 +585,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {/* ==========================================================================
           2. HILO DE MENSAJES
           ========================================================================== */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '16px 0',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+      <div className={styles.div10}>
         {/* Mensaje de Bienvenida del Canal */}
-        <div style={{ padding: '32px 16px 16px 16px' }}>
-          <div
-            style={{
-              width: 68,
-              height: 68,
-              borderRadius: '50%',
-              backgroundColor: '#404249',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: 12,
-            }}
-          >
+        <div className={styles.mensajeBienvenidaCanal}>
+          <div className={styles.mensajeBienvenidaCanalDiv}>
             {isDirectMessage ? (
-              <span style={{ fontSize: 32 }}>👋</span>
+              <span className={styles.mensajeBienvenidaCanalDivSpan}>👋</span>
             ) : (
               <Hash size={44} style={{ color: 'var(--header-primary)' }} />
             )}
           </div>
-          <h1 style={{ fontSize: 32, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 8 }}>
+          <h1 className={styles.mensajeBienvenidaCanalH1}>
             Welcome to {isDirectMessage ? chatTitle : `#${chatTitle}`}!
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+          <p className={styles.mensajeBienvenidaCanalP}>
             {isDirectMessage
               ? `This is the start of your direct message history with ${chatTitle}.`
               : `This is the start of the #${chatTitle} channel.`}
@@ -701,7 +611,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         {/* Loading Skeleton */}
         {isLoading ? (
-          <div style={{ flex: 1, padding: '16px 0', overflow: 'hidden' }}>
+          <div className={styles.div11}>
             <style>{`
               @keyframes pulse {
                 0% { opacity: 0.4; }
@@ -744,9 +654,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
           if (msg.type === 'deleted') {
             return (
               <div key={msg.id} className="message-row" style={{ opacity: 0.6, fontStyle: 'italic' }}>
-                <div style={{ width: 40, marginRight: 16 }} />
+                <div className={styles.div12} />
                 <div className="message-content-wrapper">
-                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                  <span className={styles.thisMessageWasDeleted}>
                     [This message was deleted]
                   </span>
                 </div>
@@ -758,7 +668,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           if (msg.type === 'system') {
             return (
               <div key={msg.id} className="message-row system">
-                <span style={{ marginRight: 8 }}>✨</span>
+                <span className={styles.span4}>✨</span>
                 <span>{msg.content}</span>
                 <span className="message-timestamp" style={{ marginLeft: 8 }}>
                   {formatCompactTime(msg.timestamp)}
@@ -905,18 +815,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
               {/* Avatar o Timestamp Compacto */}
               {isConsecutive ? (
-                <div
-                  style={{
-                    width: 40,
-                    marginRight: 16,
-                    textAlign: 'right',
-                    fontSize: 10,
-                    color: 'var(--text-muted)',
-                    opacity: 0.6,
-                    userSelect: 'none',
-                    lineHeight: '22px',
-                  }}
-                >
+                <div className={styles.div13}>
                   {formatCompactTime(msg.timestamp)}
                 </div>
               ) : (
@@ -927,28 +826,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <div className="message-content-wrapper">
                 {/* Referencia de Respuesta previa si existe */}
                 {msg.replyTo && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      fontSize: 12,
-                      color: 'var(--text-muted)',
-                      marginBottom: 4,
-                    }}
-                  >
+                  <div className={styles.contenidoMensajeDiv}>
                     <CornerUpLeft size={12} />
-                    <span style={{ fontWeight: 600, color: 'var(--interactive-hover)' }}>
+                    <span className={styles.contenidoMensajeDivSpan}>
                       @{msg.replyTo.author?.displayName || 'User'}
                     </span>
-                    <span
-                      style={{
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: 360,
-                      }}
-                    >
+                    <span className={styles.contenidoMensajeDivSpan2}>
                       {msg.replyTo.content}
                     </span>
                   </div>
@@ -981,7 +864,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     {msg.isPinned && (
                       <span
                         title="Mensaje fijado"
-                        style={{ display: 'flex', alignItems: 'center', color: 'var(--status-idle)' }}
+                        className={styles.mensajeFijado}
                       >
                         <Pin size={12} />
                       </span>
@@ -991,7 +874,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                 {/* Editor Inline si está en modo edición */}
                 {editingMessageId === msg.id ? (
-                  <div style={{ marginTop: 4 }}>
+                  <div className={styles.contenidoMensajeDiv2}>
                     <input
                       type="text"
                       className="discord-input"
@@ -1003,7 +886,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       }}
                       autoFocus
                     />
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                    <div className={styles.contenidoMensajeDiv2Div}>
                       escape para{' '}
                       <button
                         className="btn-link"
@@ -1026,7 +909,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   <div className="message-content">
                     {renderFormattedContent(msg.content)}
                     {msg.editedTimestamp && (
-                      <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4 }}>
+                      <span className={styles.edited}>
                         (edited)
                       </span>
                     )}
@@ -1046,7 +929,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             src={att.url}
                             alt={att.name}
                             loading="lazy"
-                            style={{ maxHeight: 320, cursor: 'pointer' }}
+                            className={styles.contenidoMensajeImg}
                             onClick={() => window.open(att.url, '_blank')}
                           />
                         </div>
@@ -1054,38 +937,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     }
                     return (
                       <div key={att.id} className="file-attachment-card">
-                        <div
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 'var(--radius-sm)',
-                            backgroundColor: 'var(--brand)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                          }}
-                        >
+                        <div className={styles.contenidoMensajeDiv3}>
                           <FileText size={20} />
                         </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className={styles.contenidoMensajeDiv4}>
                           <a
                             href={att.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{
-                              fontWeight: 600,
-                              color: 'var(--text-link)',
-                              display: 'block',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              fontSize: 13,
-                            }}
+                            className={styles.contenidoMensajeDiv4A}
                           >
                             {att.name}
                           </a>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          <span className={styles.contenidoMensajeDiv4Span}>
                             {att.size || 'Unknown size'}
                           </span>
                         </div>
@@ -1106,7 +970,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           title={`${r.users.length} personas reaccionaron`}
                         >
                           <span>{r.emoji}</span>
-                          <span style={{ fontWeight: 600 }}>{r.count}</span>
+                          <span className={styles.contenidoMensajeSpan}>{r.count}</span>
                         </button>
                       );
                     })}
@@ -1136,39 +1000,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {/* ==========================================================================
           3. COMPOSER INFERIOR
           ========================================================================== */}
-      <div style={{ padding: '0 16px 20px 16px', position: 'relative' }}>
+      <div className={styles.div14}>
         {/* Indicador de Respuesta "Replying to..." */}
         {replyingTo && (
-          <div
-            style={{
-              backgroundColor: 'var(--bg-secondary)',
-              borderTopLeftRadius: 'var(--radius-md)',
-              borderTopRightRadius: 'var(--radius-md)',
-              padding: '6px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: 12,
-              color: 'var(--text-muted)',
-              borderBottom: '1px solid rgba(0, 0, 0, 0.2)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className={styles.div15}>
+            <div className={styles.div6}>
               <span>Replying to</span>
-              <strong style={{ color: 'var(--header-primary)' }}>
+              <strong className={styles.strong}>
                 @{replyingTo.author?.displayName || 'User'}
               </strong>
             </div>
             <button
               onClick={() => setReplyingTo(null)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--interactive-normal)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-              }}
+              className={styles.button}
             >
               <X size={14} />
             </button>
@@ -1177,24 +1021,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         {/* Previsualización de archivo a adjuntar */}
         {attachment && (
-          <div
-            style={{
-              backgroundColor: 'var(--bg-secondary)',
-              padding: '8px 12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: 12,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className={styles.div16}>
+            <div className={styles.accionesCabecera}>
               <FileText size={16} style={{ color: 'var(--brand)' }} />
-              <span style={{ color: 'var(--text-normal)' }}>{attachment.name}</span>
-              <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({attachment.size})</span>
+              <span className={styles.accionesCabeceraSpan}>{attachment.name}</span>
+              <span className={styles.accionesCabeceraSpan2}>({attachment.size})</span>
             </div>
             <button
               onClick={() => setAttachment(null)}
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              className={styles.button2}
             >
               <X size={14} />
             </button>
@@ -1203,22 +1038,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         {/* Popover de Autocompletado de Menciones (@) */}
         {mentionCandidates.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '100%',
-              left: 16,
-              width: 280,
-              backgroundColor: 'var(--bg-secondary)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: 'var(--shadow-floating)',
-              zIndex: 100,
-              padding: 4,
-              marginBottom: 8,
-            }}
-          >
-            <div style={{ padding: '6px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
+          <div className={styles.div17}>
+            <div className={styles.div18}>
               MEMBERS MATCHING @{mentionQuery}
             </div>
             {mentionCandidates.map((candidate) => (
@@ -1228,10 +1049,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 onClick={() => handleSelectMention(candidate)}
               >
                 <Avatar user={candidate} size={24} />
-                <span style={{ fontWeight: 600, color: 'var(--header-primary)', fontSize: 13 }}>
+                <span className={styles.span}>
                   {candidate.displayName}
                 </span>
-                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                <span className={styles.accionesCabeceraSpan2}>
                   @{candidate.username}
                 </span>
               </div>
@@ -1241,25 +1062,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         {/* Popover de Emojis */}
         {isEmojiPickerOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '100%',
-              right: 16,
-              width: 280,
-              backgroundColor: 'var(--bg-floating)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: 'var(--shadow-floating)',
-              padding: 12,
-              zIndex: 100,
-              marginBottom: 8,
-            }}
-          >
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>
+          <div className={styles.div19}>
+            <div className={styles.emojis}>
               EMOJIS
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 }}>
+            <div className={styles.div20}>
               {POPULAR_EMOJIS.map((em) => (
                 <button
                   key={em}
@@ -1279,13 +1086,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
         {/* Input Bar */}
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: 'var(--bg-secondary)',
-            borderRadius: replyingTo || attachment ? '0 0 8px 8px' : 'var(--radius-md)',
-            padding: '4px 12px',
-          }}
+          className={styles.inputBar} style={{ borderRadius: replyingTo || attachment ? '0 0 8px 8px' : 'var(--radius-md)' }}
         >
           {/* Botón Adjuntar */}
           <button

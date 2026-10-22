@@ -1,5 +1,6 @@
 
 import type { ServerSettingsState } from './useServerSettingsState';
+import styles from './NotificationsTab.module.css';
 
 /** Pestaña "notifications" de ServerSettings. */
 export function NotificationsTab({ s }: { s: ServerSettingsState }) {
@@ -14,14 +15,14 @@ export function NotificationsTab({ s }: { s: ServerSettingsState }) {
     setSuppressEveryone,
   } = s;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f2f3f5', margin: 0 }}>
+    <div className={styles.root}>
+      <h3 className={styles.serverNotificationSettings}>
         Server Notification Settings
       </h3>
 
       {/* Notification Frequency Radio */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1' }}>
+      <div className={styles.notificationFrequencyRadio}>
+        <label className={styles.defaultNotificationFrequency}>
           Default Notification Frequency
         </label>
         {(
@@ -33,45 +34,28 @@ export function NotificationsTab({ s }: { s: ServerSettingsState }) {
         ).map((option) => (
           <label
             key={option.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '12px 16px',
-              backgroundColor: '#2b2d31',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
+            className={styles.notificationFrequencyRadioLabel}
           >
             <input
               type="radio"
               name="serverNotifs"
               checked={notifPreference === option.id}
               onChange={() => setNotifPreference(option.id)}
-              style={{ accentColor: '#5865f2', width: 16, height: 16 }}
+              className={styles.notificationFrequencyRadioLabelInput}
             />
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#f2f3f5' }}>{option.title}</div>
-              <div style={{ fontSize: 12, color: '#949ba4' }}>{option.desc}</div>
+              <div className={styles.notificationFrequencyRadioLabelDiv}>{option.title}</div>
+              <div className={styles.notificationFrequencyRadioLabelDiv2}>{option.desc}</div>
             </div>
           </label>
         ))}
       </div>
 
       {/* Server Mute Switch */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '14px 18px',
-          backgroundColor: '#2b2d31',
-          borderRadius: 8,
-        }}
-      >
+      <div className={styles.serverMuteSwitch}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f2f3f5' }}>Mute Server</div>
-          <div style={{ fontSize: 12, color: '#949ba4', marginTop: 2 }}>
+          <div className={styles.notificationFrequencyRadioLabelDiv}>Mute Server</div>
+          <div className={styles.serverMuteSwitchDiv}>
             Temporarily silence notifications without leaving the server.
           </div>
         </div>
@@ -80,7 +64,7 @@ export function NotificationsTab({ s }: { s: ServerSettingsState }) {
             type="checkbox"
             checked={isServerMuted}
             onChange={(e) => setIsServerMuted(e.target.checked)}
-            style={{ opacity: 0, width: 0, height: 0 }}
+            className={styles.serverMuteSwitchInput}
           />
           <span
             className="slider"
@@ -91,22 +75,13 @@ export function NotificationsTab({ s }: { s: ServerSettingsState }) {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: isServerMuted ? '#23a55a' : '#80848e',
+              backgroundColor: isServerMuted ? 'var(--status-online)' : 'var(--status-offline)',
               borderRadius: 24,
               transition: '0.2s',
             }}
           >
             <span
-              style={{
-                position: 'absolute',
-                height: 18,
-                width: 18,
-                left: isServerMuted ? 19 : 3,
-                bottom: 3,
-                backgroundColor: '#ffffff',
-                borderRadius: '50%',
-                transition: '0.2s',
-              }}
+              className={styles.serverMuteSwitchSpan} style={{ left: isServerMuted ? 19 : 3 }}
             />
           </span>
         </label>
@@ -114,22 +89,13 @@ export function NotificationsTab({ s }: { s: ServerSettingsState }) {
 
       {isServerMuted && (
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1', marginBottom: 6 }}>
+          <label className={styles.muteDuration}>
             Mute Duration
           </label>
           <select
             value={muteDuration}
             onChange={(e) => setMuteDuration(e.target.value)}
-            style={{
-              width: '100%',
-              backgroundColor: '#1e1f22',
-              color: '#dbdee1',
-              border: '1px solid rgba(0, 0, 0, 0.3)',
-              borderRadius: 4,
-              padding: '8px 10px',
-              fontSize: 14,
-              outline: 'none',
-            }}
+            className={styles.rootSelect}
           >
             <option value="15_min">For 15 Minutes</option>
             <option value="1_hour">For 1 Hour</option>
@@ -141,21 +107,12 @@ export function NotificationsTab({ s }: { s: ServerSettingsState }) {
       )}
 
       {/* Suppress @everyone */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '14px 18px',
-          backgroundColor: '#2b2d31',
-          borderRadius: 8,
-        }}
-      >
+      <div className={styles.serverMuteSwitch}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#f2f3f5' }}>
+          <div className={styles.notificationFrequencyRadioLabelDiv}>
             Suppress @everyone and @here
           </div>
-          <div style={{ fontSize: 12, color: '#949ba4', marginTop: 2 }}>
+          <div className={styles.serverMuteSwitchDiv}>
             Mute all broadcast mentions regardless of member permissions.
           </div>
         </div>
@@ -164,7 +121,7 @@ export function NotificationsTab({ s }: { s: ServerSettingsState }) {
             type="checkbox"
             checked={suppressEveryone}
             onChange={(e) => setSuppressEveryone(e.target.checked)}
-            style={{ opacity: 0, width: 0, height: 0 }}
+            className={styles.serverMuteSwitchInput}
           />
           <span
             className="slider"
@@ -175,22 +132,13 @@ export function NotificationsTab({ s }: { s: ServerSettingsState }) {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: suppressEveryone ? '#23a55a' : '#80848e',
+              backgroundColor: suppressEveryone ? 'var(--status-online)' : 'var(--status-offline)',
               borderRadius: 24,
               transition: '0.2s',
             }}
           >
             <span
-              style={{
-                position: 'absolute',
-                height: 18,
-                width: 18,
-                left: suppressEveryone ? 19 : 3,
-                bottom: 3,
-                backgroundColor: '#ffffff',
-                borderRadius: '50%',
-                transition: '0.2s',
-              }}
+              className={styles.serverMuteSwitchSpan} style={{ left: suppressEveryone ? 19 : 3 }}
             />
           </span>
         </label>

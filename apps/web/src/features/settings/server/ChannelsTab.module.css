@@ -1,0 +1,213 @@
+/* Estilos de ChannelsTab: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.rootDiv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.serverChannelsCategories {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-primary);
+}
+
+.rootDivButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--brand);
+  color: var(--text-white);
+  border: none;
+  padding: 8px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.categorizedChannels {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.categorizedChannelsDiv {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.categorizedChannelsDivDiv {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+}
+
+.categorizedChannelsDivDiv2 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.categorizedChannelsDivDiv2Div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.categorizedChannelsDivDiv2DivDiv {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.categorizedChannelsDivDiv2DivDivSpan {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+
+.categorizedChannelsDivDiv2DivDivSpan2 {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.rootDiv2 {
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.rootDiv2Div {
+  background-color: var(--bg-primary);
+  width: 100%;
+  max-width: 440px;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+.createChannel {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin: 0 0 16px 0;
+}
+
+.channelType {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-secondary);
+  margin-bottom: 8px;
+}
+
+.channelTypeDiv {
+  display: flex;
+  gap: 10px;
+}
+
+.channelTypeDivButton {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.channelTypeDivButtonDiv {
+  text-align: left;
+}
+
+.text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.postMessagesImages {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.channelName {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-secondary);
+  margin-bottom: 6px;
+}
+
+.newChannel {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.categorySelectorSelect {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+.modalActionButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.cancel {
+  background-color: transparent;
+  color: var(--text-normal);
+  border: none;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.createChannel2 {
+  background-color: var(--brand);
+  color: var(--text-white);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { useServerBansQuery, useUnbanMemberMutation, useUserProfiles, ApiError, unbanErrorMessage } from '@discordia/core';
 import type { ServerBan } from '../../types';
+import styles from './ServerBansTab.module.css';
 
 export interface ServerBansTabProps {
   serverId: string;
@@ -47,72 +48,44 @@ export const ServerBansTab: React.FC<ServerBansTabProps> = ({ serverId }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#f2f3f5' }}>
+    <div className={styles.root}>
+      <div className={styles.rootDiv}>
+        <div className={styles.rootDivDiv}>
           Bans{bansQuery.data ? ` (${bans.length})` : ''}
         </div>
 
-        <div style={{ position: 'relative', width: 260 }}>
-          <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: '#949ba4' }} />
+        <div className={styles.rootDivDiv2}>
+          <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search bans..."
-            style={{
-              width: '100%',
-              backgroundColor: '#1e1f22',
-              color: '#dbdee1',
-              border: '1px solid rgba(0, 0, 0, 0.3)',
-              borderRadius: 4,
-              padding: '8px 12px 8px 34px',
-              fontSize: 13,
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+            className={styles.searchBans}
           />
         </div>
       </div>
 
       {error && (
-        <div
-          style={{
-            backgroundColor: 'rgba(218, 55, 60, 0.15)',
-            border: '1px solid rgba(218, 55, 60, 0.3)',
-            color: '#fa777c',
-            borderRadius: 4,
-            padding: '6px 10px',
-            fontSize: 12,
-          }}
-        >
+        <div className={styles.rootDiv2}>
           {error}
         </div>
       )}
 
       {notice && (
-        <div
-          style={{
-            backgroundColor: 'rgba(35, 165, 90, 0.15)',
-            border: '1px solid rgba(35, 165, 90, 0.3)',
-            color: '#57f287',
-            borderRadius: 4,
-            padding: '6px 10px',
-            fontSize: 12,
-          }}
-        >
+        <div className={styles.rootDiv3}>
           {notice}
         </div>
       )}
 
       {bansQuery.isLoading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#949ba4', fontSize: 13 }}>
+        <div className={styles.rootDiv4}>
           <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Cargando baneos...
         </div>
       )}
 
       {bansQuery.isError && (
-        <div style={{ fontSize: 13, color: '#fa777c' }}>
+        <div className={styles.rootDiv5}>
           {isForbidden ? (
             'Necesitás el permiso "Ban Members" para ver y revocar los baneos de este servidor.'
           ) : (
@@ -121,7 +94,7 @@ export const ServerBansTab: React.FC<ServerBansTabProps> = ({ serverId }) => {
               <button
                 type="button"
                 onClick={() => bansQuery.refetch()}
-                style={{ background: 'none', border: 'none', color: '#00a8fc', cursor: 'pointer', padding: 0, fontSize: 13 }}
+                className={styles.reintentar}
               >
                 Reintentar
               </button>
@@ -131,9 +104,9 @@ export const ServerBansTab: React.FC<ServerBansTabProps> = ({ serverId }) => {
       )}
 
       {bansQuery.isSuccess && (
-        <div style={{ backgroundColor: '#2b2d31', borderRadius: 8, maxHeight: 520, overflowY: 'auto' }}>
+        <div className={styles.rootDiv6}>
           {filteredBans.length === 0 && (
-            <div style={{ padding: 16, fontSize: 13, color: '#949ba4' }}>
+            <div className={styles.rootDiv6Div}>
               {search.trim() ? 'Ningún usuario baneado coincide con la búsqueda.' : 'No hay usuarios baneados en este servidor.'}
             </div>
           )}
@@ -145,67 +118,30 @@ export const ServerBansTab: React.FC<ServerBansTabProps> = ({ serverId }) => {
             return (
               <div
                 key={ban.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: '12px 16px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                }}
+                className={styles.rootDiv6Div2}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      backgroundColor: '#4e5058',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 14,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
+                <div className={styles.rootDiv6Div2Div}>
+                  <div className={styles.rootDiv6Div2DivDiv}>
                     {name.charAt(0).toUpperCase()}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: '#f2f3f5',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
+                  <div className={styles.rootDiv6Div2DivDiv2}>
+                    <span className={styles.rootDiv6Div2DivDiv2Span}>
                       {name}
                     </span>
-                    <span style={{ fontSize: 12, color: '#949ba4' }}>
+                    <span className={styles.rootDiv6Div2DivDiv2Span2}>
                       {ban.reason ? `Motivo: ${ban.reason}` : 'Sin motivo'} ·{' '}
                       {new Date(ban.createdAt).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <div className={styles.rootDiv6Div2Div2}>
                   {isConfirming ? (
                     <>
                       <button
                         type="button"
                         onClick={() => setConfirmUserId(null)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#dbdee1',
-                          cursor: 'pointer',
-                          fontSize: 13,
-                          padding: '6px 10px',
-                        }}
+                        className={styles.cancelar}
                       >
                         Cancelar
                       </button>
@@ -213,16 +149,7 @@ export const ServerBansTab: React.FC<ServerBansTabProps> = ({ serverId }) => {
                         type="button"
                         onClick={() => handleUnban(ban)}
                         disabled={unbanMutation.isPending}
-                        style={{
-                          backgroundColor: '#da373c',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: 4,
-                          padding: '6px 12px',
-                          fontSize: 13,
-                          fontWeight: 600,
-                          cursor: unbanMutation.isPending ? 'default' : 'pointer',
-                        }}
+                        className={styles.confirmar} style={{ cursor: unbanMutation.isPending ? 'default' : 'pointer' }}
                       >
                         Confirmar
                       </button>
@@ -233,16 +160,7 @@ export const ServerBansTab: React.FC<ServerBansTabProps> = ({ serverId }) => {
                       onClick={() => setConfirmUserId(ban.userId)}
                       disabled={unbanMutation.isPending}
                       title={`Revocar el baneo de ${name}`}
-                      style={{
-                        backgroundColor: 'transparent',
-                        color: '#dbdee1',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        borderRadius: 4,
-                        padding: '6px 12px',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: unbanMutation.isPending ? 'default' : 'pointer',
-                      }}
+                      className={styles.revocarBaneo} style={{ cursor: unbanMutation.isPending ? 'default' : 'pointer' }}
                     >
                       Revocar baneo
                     </button>

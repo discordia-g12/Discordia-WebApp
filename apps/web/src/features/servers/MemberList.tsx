@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Sparkles, Shield, ShieldCheck } from 'lucide-react';
 import { User, Role } from '../../types';
+import styles from './MemberList.module.css';
 
 
 /**
@@ -85,7 +86,7 @@ export const MemberList: React.FC<MemberListProps> = ({
         if (group.list.length === 0) return null;
 
         return (
-          <div key={group.key} style={{ marginBottom: 16 }}>
+          <div key={group.key} className={styles.div}>
             {/* Cabecera del Grupo Jerárquico */}
             <div className="member-group-header">
               {group.title} — {group.list.length}
@@ -104,19 +105,13 @@ export const MemberList: React.FC<MemberListProps> = ({
                   title={`Ver perfil de ${user.displayName}`}
                 >
                   {/* Avatar con punto indicador de presencia */}
-                  <div style={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
+                  <div className={styles.avatarPuntoIndicadorPresencia}>
                     <img
                       src={
                         user.avatar || ''
                       }
                       alt={user.displayName}
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        display: 'block',
-                      }}
+                      className={styles.avatarPuntoIndicadorPresenciaImg}
                     />
                     <span
                       className={`status-dot ${user.status || 'offline'}`}
@@ -131,21 +126,14 @@ export const MemberList: React.FC<MemberListProps> = ({
                   </div>
 
                   {/* Nombre, insignias y estado personalizado */}
-                  <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div className={styles.nombreInsigniasEstadoPersonalizado}>
+                    <div className={styles.nombreInsigniasEstadoPersonalizadoDiv}>
                       <span
-                        style={{
-                          fontWeight: 600,
-                          fontSize: 13,
-                          color: roleColor,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
+                        className={styles.nombreInsigniasEstadoPersonalizadoDivSpan} style={{ color: roleColor }}
                       >
                         {user.displayName}
                         {isCurrentUser && (
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>
+                          <span className={styles.tu}>
                             (tú)
                           </span>
                         )}
@@ -174,16 +162,7 @@ export const MemberList: React.FC<MemberListProps> = ({
 
                     {/* Estado personalizado */}
                     {user.customStatus && (
-                      <p
-                        style={{
-                          fontSize: 11,
-                          color: 'var(--text-muted)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          marginTop: 1,
-                        }}
-                      >
+                      <p className={styles.nombreInsigniasEstadoPersonalizadoP}>
                         {user.customStatus}
                       </p>
                     )}

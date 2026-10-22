@@ -1,0 +1,176 @@
+/* Estilos de ServerBansTab: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rootDiv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rootDivDiv {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-primary);
+}
+
+.rootDivDiv2 {
+  position: relative;
+  width: 260px;
+}
+
+.searchBans {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 8px 12px 8px 34px;
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.rootDiv2 {
+  background-color: rgba(218, 55, 60, 0.15);
+  border: 1px solid rgba(218, 55, 60, 0.3);
+  color: var(--text-danger);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.rootDiv3 {
+  background-color: rgba(35, 165, 90, 0.15);
+  border: 1px solid rgba(35, 165, 90, 0.3);
+  color: var(--legacy-green-bright);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.rootDiv4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.rootDiv5 {
+  font-size: 13px;
+  color: var(--text-danger);
+}
+
+.reintentar {
+  background: none;
+  border: none;
+  color: var(--text-link);
+  cursor: pointer;
+  padding: 0px;
+  font-size: 13px;
+}
+
+.rootDiv6 {
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.rootDiv6Div {
+  padding: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.rootDiv6Div2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.rootDiv6Div2Div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0px;
+}
+
+.rootDiv6Div2DivDiv {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--interactive-muted);
+  color: var(--text-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.rootDiv6Div2DivDiv2 {
+  display: flex;
+  flex-direction: column;
+  min-width: 0px;
+}
+
+.rootDiv6Div2DivDiv2Span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--header-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rootDiv6Div2DivDiv2Span2 {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.rootDiv6Div2Div2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cancelar {
+  background: none;
+  border: none;
+  color: var(--text-normal);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.confirmar {
+  background-color: var(--danger);
+  color: var(--text-white);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.revocarBaneo {
+  background-color: transparent;
+  color: var(--text-normal);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}

@@ -5,6 +5,7 @@ import {
 import { User, Server } from '../../types';
 import { createInvite } from '@discordia/core';
 import { ModalOverlay } from '../../ui/ModalOverlay';
+import styles from './InviteModal.module.css';
 
 export interface InviteModalProps {
   server?: Server;
@@ -90,7 +91,7 @@ export const InviteModal: React.FC<InviteModalProps> = ({
 
   return (
     <ModalOverlay onClose={onClose} maxWidth={480}>
-      <div style={{ position: 'relative' }}>
+      <div className={styles.div}>
         <button
           onClick={onClose}
           className="btn-icon"
@@ -105,7 +106,7 @@ export const InviteModal: React.FC<InviteModalProps> = ({
             Invitar amigos a {server?.name}
           </h2>
           <p className="modal-subtitle">
-            Canal predeterminado de bienvenida: <strong style={{ color: 'var(--header-primary)' }}>#general</strong>
+            Canal predeterminado de bienvenida: <strong className={styles.general}>#general</strong>
           </p>
         </div>
 
@@ -115,7 +116,7 @@ export const InviteModal: React.FC<InviteModalProps> = ({
             <label className="input-label" htmlFor="generated-invite-input">
               O ENVÍA UN ENLACE DE INVITACIÓN AL SERVIDOR
             </label>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className={styles.enlaceGeneradoBotonCopiarDiv}>
               <input
                 id="generated-invite-input"
                 className="discord-input"
@@ -146,7 +147,7 @@ export const InviteModal: React.FC<InviteModalProps> = ({
                 )}
               </button>
             </div>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+            <span className={styles.enlaceGeneradoBotonCopiarSpan}>
               {expiration === 'never'
                 ? 'Tu enlace de invitación no caducará nunca.'
                 : `Tu enlace caduca en ${EXPIRATION_OPTIONS.find((o) => o.value === expiration)?.label}.`}
@@ -154,7 +155,7 @@ export const InviteModal: React.FC<InviteModalProps> = ({
           </div>
 
           {/* Selectores de expiración y límites */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className={styles.selectoresExpiracionLimites}>
             <div>
               <label className="input-label" htmlFor="expiration-select">EXPIRAR DESPUÉS DE</label>
               <select
@@ -193,39 +194,23 @@ export const InviteModal: React.FC<InviteModalProps> = ({
           {/* Lista rápida de amigos para invitar directamente */}
           <div>
             <div className="input-label">AMIGOS CONECTADOS RECIENTEMENTE</div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-                maxHeight: 140,
-                overflowY: 'auto',
-                paddingRight: 4,
-              }}
-            >
+            <div className={styles.listaRapidaAmigosInvitarDiv}>
               {Object.values(({} as Record<string, User>)).slice(1, 5).map((user) => (
                 <div
                   key={user.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--bg-secondary)',
-                  }}
+                  className={styles.listaRapidaAmigosInvitarDivDiv}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className={styles.listaRapidaAmigosInvitarDivDivDiv}>
                     <img
                       src={user.avatarUrl || user.avatar}
                       alt={user.displayName}
-                      style={{ width: 30, height: 30, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+                      className={styles.listaRapidaAmigosInvitarDivDivDivImg}
                     />
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--header-primary)' }}>
+                      <div className={styles.listaRapidaAmigosInvitarDivDivDivDiv}>
                         {user.displayName}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      <div className={styles.listaRapidaAmigosInvitarDivDivDivDiv2}>
                         @{user.username}
                       </div>
                     </div>

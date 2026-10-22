@@ -26,6 +26,7 @@ import { isLocalCategoryId } from '@discordia/core';
 import { Avatar } from '../../ui/Avatar';
 import { VoiceParticipantMenu } from '../voice/VoiceParticipantMenu';
 import { UserPanel } from '../profile/UserPanel';
+import styles from './ChannelSidebar.module.css';
 
 /** Participante conectado a una sala de voz. */
 export interface VoiceParticipant {
@@ -324,7 +325,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
       }}
     >
       {/* Cabecera del servidor */}
-      <div ref={headerRef} style={{ position: 'relative' }}>
+      <div ref={headerRef} className={styles.cabeceraServidor}>
         <div
           role="button"
           tabIndex={0}
@@ -357,18 +358,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           aria-expanded={isServerMenuOpen}
           aria-haspopup="menu"
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-            <h2
-              style={{
-                fontSize: '15px',
-                fontWeight: 700,
-                color: 'var(--header-primary, #f2f3f5)',
-                margin: 0,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
+          <div className={styles.cabeceraServidorDiv}>
+            <h2 className={styles.cabeceraServidorDivH2}>
               {server.name}
             </h2>
             {server.boostLevel > 0 && (
@@ -410,7 +401,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 onOpenServerBoost?.();
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f47fff' }}>
+              <span className={styles.opcionBoostSpan}>
                 <Sparkles size={16} />
                 <span>Mejora del servidor</span>
               </span>
@@ -433,7 +424,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 onInvitePeople?.();
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className={styles.invitarPersonasSpan}>
                 <UserPlus size={16} />
                 <span>Invitar personas</span>
               </span>
@@ -447,7 +438,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 onOpenServerSettings?.();
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className={styles.invitarPersonasSpan}>
                 <Settings size={16} />
                 <span>Ajustes del servidor</span>
               </span>
@@ -462,7 +453,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   onCreateChannel();
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className={styles.invitarPersonasSpan}>
                   <Plus size={16} />
                   <span>Crear canal</span>
                 </span>
@@ -478,7 +469,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   onCreateCategory();
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className={styles.invitarPersonasSpan}>
                   <FolderPlus size={16} />
                   <span>Crear categoría</span>
                 </span>
@@ -493,7 +484,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 onOpenNotificationSettings?.();
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className={styles.invitarPersonasSpan}>
                 <Bell size={16} />
                 <span>Ajustes de notificaciones</span>
               </span>
@@ -507,7 +498,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 onOpenPrivacySettings?.();
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className={styles.invitarPersonasSpan}>
                 <Shield size={16} />
                 <span>Ajustes de privacidad</span>
               </span>
@@ -521,7 +512,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 onOpenServerProfile?.();
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className={styles.invitarPersonasSpan}>
                 <UserCheck size={16} />
                 <span>Editar perfil del servidor</span>
               </span>
@@ -537,7 +528,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 onToggleHideMutedChannels?.();
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className={styles.invitarPersonasSpan}>
                 <EyeOff size={16} />
                 <span>Ocultar canales silenciados</span>
               </span>
@@ -554,7 +545,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   onDeleteServer?.();
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className={styles.invitarPersonasSpan}>
                   <Trash2 size={16} />
                   <span>Eliminar servidor</span>
                 </span>
@@ -567,7 +558,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   onLeaveServer?.();
                 }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className={styles.invitarPersonasSpan}>
                   <LogOut size={16} />
                   <span>Abandonar servidor</span>
                 </span>
@@ -583,36 +574,16 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           role="button"
           tabIndex={0}
           onClick={onOpenServerBoost}
-          style={{
-            margin: '8px 8px 0 8px',
-            padding: '6px 10px',
-            background:
-              'linear-gradient(135deg, rgba(244, 127, 255, 0.15) 0%, rgba(255, 115, 250, 0.05) 100%)',
-            border: '1px solid rgba(244, 127, 255, 0.3)',
-            borderRadius: 'var(--radius-sm, 4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            cursor: 'pointer',
-            transition: 'background-color 150ms ease',
-          }}
+          className={styles.verVentajasEstadoBoost}
           title="Ver ventajas y estado de Boost"
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className={styles.verVentajasEstadoBoostDiv}>
             <Sparkles size={14} color="#f47fff" />
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: '#f47fff',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-              }}
-            >
+            <span className={styles.verVentajasEstadoBoostDivSpan}>
               Nivel {server.boostLevel}
             </span>
           </div>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted, #949ba4)' }}>
+          <span className={styles.verVentajasEstadoBoostSpan}>
             {server.boostCount} mejoras
           </span>
         </div>
@@ -629,12 +600,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         }}
       >
         {isLoading ? (
-          <div style={{ padding: '16px 8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className={styles.listaCategoriasCanalesScrollDiv}>
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: 0.5 }}>
-                <div style={{ height: '12px', width: '40%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
-                <div style={{ height: '24px', width: '80%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
-                <div style={{ height: '24px', width: '70%', backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))', borderRadius: '4px' }} />
+              <div key={i} className={styles.listaCategoriasCanalesScrollDivDiv}>
+                <div className={styles.listaCategoriasCanalesScrollDivDivDiv} />
+                <div className={styles.listaCategoriasCanalesScrollDivDivDiv2} />
+                <div className={styles.listaCategoriasCanalesScrollDivDivDiv3} />
               </div>
             ))}
           </div>
@@ -643,7 +614,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             const isCollapsed = Boolean(collapsedCategories[category.id]);
 
             return (
-              <div key={category.id} style={{ marginBottom: '8px' }}>
+              <div key={category.id} className={styles.listaCategoriasCanalesScrollDiv2}>
                 {/* Encabezado de la Categoría */}
                 <div
                   className="category-header"
@@ -677,15 +648,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                         e.stopPropagation();
                         onCreateChannel(category.id);
                       }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'inherit',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '2px',
-                      }}
+                      className={styles.crearCanalEstaCategoria}
                       title="Crear canal en esta categoría"
                       aria-label={`Crear canal en ${category.name}`}
                     >
@@ -696,7 +659,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
                 {/* Canales de la categoría */}
                 {!isCollapsed && (
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div className={styles.listaCategoriasCanalesScrollDiv2Div}>
                     {category.channels.map((channel) => {
                       const isActive = channel.id === activeChannelId;
                       const isVoiceActive = channel.id === activeVoiceChannelId && isVoiceConnected;
@@ -755,14 +718,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                             )}
 
                             {/* Badges de no leído o límite de participantes */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div className={styles.badgesNoLeidoLimite}>
                               {channel.userLimit && channel.type === 'voice' && (
-                                <span
-                                  style={{
-                                    fontSize: '11px',
-                                    color: 'var(--text-muted, #949ba4)',
-                                  }}
-                                >
+                                <span className={styles.verVentajasEstadoBoostSpan}>
                                   {participants.length}/{channel.userLimit}
                                 </span>
                               )}
@@ -784,17 +742,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
                           {/* Lista de participantes de voz en vivo dentro del canal */}
                           {channel.type === 'voice' && participants.length > 0 && (
-                            <div
-                              style={{
-                                paddingLeft: '32px',
-                                paddingRight: '12px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '2px',
-                                marginTop: '2px',
-                                marginBottom: '4px',
-                              }}
-                            >
+                            <div className={styles.listaCategoriasCanalesScrollDiv2DivDiv}>
                               {participants.map((p) => {
                                 const isParticipantSpeaking = Boolean(p.isSpeaking);
                                 const isOtherUser = p.user.id !== currentUser.id;
@@ -809,67 +757,39 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                                       e.stopPropagation();
                                       setParticipantMenu({ user: p.user, x: e.clientX, y: e.clientY });
                                     }}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      padding: '3px 6px',
-                                      borderRadius: 'var(--radius-xs, 3px)',
-                                      backgroundColor: isVoiceActive
+                                    className={styles.listaCategoriasCanalesScrollDiv2DivDivDiv} style={{ backgroundColor: isVoiceActive
                                         ? 'rgba(255, 255, 255, 0.03)'
-                                        : 'transparent',
-                                    }}
+                                        : 'transparent' }}
                                   >
-                                    <div
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        minWidth: 0,
-                                      }}
-                                    >
+                                    <div className={styles.cabeceraServidorDiv}>
                                       <Avatar
                                         user={p.user}
                                         size={22}
                                         speaking={isParticipantSpeaking}
                                       />
                                       <span
-                                        style={{
-                                          fontSize: '12px',
-                                          fontWeight: 500,
-                                          color: isParticipantSpeaking
+                                        className={styles.cabeceraServidorDivSpan} style={{ color: isParticipantSpeaking
                                             ? 'var(--status-online, #23a55a)'
-                                            : 'var(--text-normal, #dbdee1)',
-                                          whiteSpace: 'nowrap',
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                        }}
+                                            : 'var(--text-normal, #dbdee1)' }}
                                       >
                                         {p.user.displayName || p.user.username}
                                       </span>
                                     </div>
 
                                     {/* Indicadores de audio del participante */}
-                                    <div
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '4px',
-                                        color: 'var(--text-muted, #949ba4)',
-                                      }}
-                                    >
+                                    <div className={styles.indicadoresAudioParticipante}>
                                       {p.isMuted && (
-                                        <span title="Micrófono silenciado" style={{ display: 'flex' }}>
+                                        <span title="Micrófono silenciado" className={styles.microfonoSilenciado}>
                                           <MicOff size={13} color="var(--danger, #da373c)" />
                                         </span>
                                       )}
                                       {p.isDeafened && (
-                                        <span title="Ensordecido" style={{ display: 'flex' }}>
+                                        <span title="Ensordecido" className={styles.microfonoSilenciado}>
                                           <HeadphoneOff size={13} color="var(--danger, #da373c)" />
                                         </span>
                                       )}
                                       {isLocallyMuted && (
-                                        <span title="Silenciado para vos" style={{ display: 'flex' }}>
+                                        <span title="Silenciado para vos" className={styles.microfonoSilenciado}>
                                           <VolumeX size={13} color="var(--danger, #da373c)" />
                                         </span>
                                       )}

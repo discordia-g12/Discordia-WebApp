@@ -23,6 +23,7 @@ import { BillingTab } from './user/BillingTab';
 import { AppearanceTab } from './user/AppearanceTab';
 import { VoiceTab } from './user/VoiceTab';
 import { NotificationsTab } from './user/NotificationsTab';
+import styles from './UserSettings.module.css';
 
 export interface UserSettingsProps {
   currentUser?: User;
@@ -44,45 +45,19 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
   } = s;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100%',
-        width: '100%',
-        backgroundColor: '#313338',
-        color: '#dbdee1',
-        overflow: 'hidden',
-        position: 'relative',
-      }}
-    >
+    <div className={styles.root}>
       {/* Sidebar */}
       <nav
-        style={{
-          width: sidebarCollapsed ? 64 : 240,
-          backgroundColor: '#2b2d31',
-          borderRight: '1px solid rgba(0, 0, 0, 0.25)',
-          display: 'flex',
-          flexDirection: 'column',
-          flexShrink: 0,
-          transition: 'width 0.2s ease',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-        }}
+        className={styles.sidebar} style={{ width: sidebarCollapsed ? 64 : 240 }}
       >
         {/* Sidebar Top Toggle */}
         <div
-          style={{
-            padding: sidebarCollapsed ? '16px 8px' : '16px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: sidebarCollapsed ? 'center' : 'space-between',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.2)',
-          }}
+          className={styles.sidebarTopToggle} style={{ padding: sidebarCollapsed ? '16px 8px' : '16px 20px', justifyContent: sidebarCollapsed ? 'center' : 'space-between' }}
         >
           {!sidebarCollapsed && (
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#f2f3f5' }}>User Settings</div>
-              <div style={{ fontSize: 11, color: '#949ba4', textTransform: 'uppercase' }}>Preferences</div>
+              <div className={styles.userSettings}>User Settings</div>
+              <div className={styles.preferences}>Preferences</div>
             </div>
           )}
           <button
@@ -92,7 +67,7 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
             style={{
               background: 'none',
               border: 'none',
-              color: '#b5bac1',
+              color: 'var(--header-secondary)',
               cursor: 'pointer',
               padding: 6,
               borderRadius: 4,
@@ -105,10 +80,10 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
         </div>
 
         {/* Categories and Nav links */}
-        <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+        <div className={styles.categoriesNavLinks}>
           {/* Group 1: User Settings */}
           {!sidebarCollapsed && (
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#949ba4', padding: '6px 12px' }}>
+            <div className={styles.userSettings2}>
               User Settings
             </div>
           )}
@@ -127,22 +102,7 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
                 type="button"
                 onClick={() => setActiveTab(item.id as SettingsTab)}
                 title={sidebarCollapsed ? item.label : undefined}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: sidebarCollapsed ? '10px 0' : '8px 12px',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                  backgroundColor: isActive ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  color: isActive ? '#ffffff' : '#b5bac1',
-                  border: 'none',
-                  borderRadius: 4,
-                  fontSize: 14,
-                  fontWeight: isActive ? 600 : 500,
-                  cursor: 'pointer',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
+                className={styles.categoriesNavLinksButton} style={{ padding: sidebarCollapsed ? '10px 0' : '8px 12px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', backgroundColor: isActive ? 'rgba(255, 255, 255, 0.1)' : 'transparent', color: isActive ? 'var(--text-white)' : 'var(--header-secondary)', fontWeight: isActive ? 600 : 500 }}
               >
                 <Icon size={18} />
                 {!sidebarCollapsed && <span>{item.label}</span>}
@@ -150,11 +110,11 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
             );
           })}
 
-          <div style={{ height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '10px 6px' }} />
+          <div className={styles.categoriesNavLinksDiv} />
 
           {/* Group 2: App Settings */}
           {!sidebarCollapsed && (
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: '#949ba4', padding: '6px 12px' }}>
+            <div className={styles.userSettings2}>
               App Settings
             </div>
           )}
@@ -172,22 +132,7 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
                 type="button"
                 onClick={() => setActiveTab(item.id as SettingsTab)}
                 title={sidebarCollapsed ? item.label : undefined}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: sidebarCollapsed ? '10px 0' : '8px 12px',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                  backgroundColor: isActive ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  color: isActive ? '#ffffff' : '#b5bac1',
-                  border: 'none',
-                  borderRadius: 4,
-                  fontSize: 14,
-                  fontWeight: isActive ? 600 : 500,
-                  cursor: 'pointer',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
+                className={styles.categoriesNavLinksButton} style={{ padding: sidebarCollapsed ? '10px 0' : '8px 12px', justifyContent: sidebarCollapsed ? 'center' : 'flex-start', backgroundColor: isActive ? 'rgba(255, 255, 255, 0.1)' : 'transparent', color: isActive ? 'var(--text-white)' : 'var(--header-secondary)', fontWeight: isActive ? 600 : 500 }}
               >
                 <Icon size={18} />
                 {!sidebarCollapsed && <span>{item.label}</span>}
@@ -195,10 +140,10 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
             );
           })}
 
-          <div style={{ flex: 1 }} />
+          <div className={styles.categoriesNavLinksDiv2} />
 
           {/* Logout Button */}
-          <div style={{ height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', margin: '10px 6px' }} />
+          <div className={styles.categoriesNavLinksDiv} />
           <button
             type="button"
             onClick={() => {
@@ -213,7 +158,7 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
               padding: sidebarCollapsed ? '10px 0' : '8px 12px',
               justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
               backgroundColor: 'transparent',
-              color: '#fa777c',
+              color: 'var(--text-danger)',
               border: 'none',
               borderRadius: 4,
               fontSize: 14,
@@ -232,46 +177,15 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
       </nav>
 
       {/* Main Content Area */}
-      <main
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          backgroundColor: '#313338',
-        }}
-      >
+      <main className={styles.mainContentArea}>
         {/* Top Header with ESC Button */}
-        <div
-          style={{
-            height: 56,
-            padding: '0 32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.25)',
-            backgroundColor: '#2b2d31',
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#f2f3f5', margin: 0, textTransform: 'capitalize' }}>
+        <div className={styles.topHeaderWithEsc}>
+          <div className={styles.topHeaderWithEscDiv}>
+            <h2 className={styles.topHeaderWithEscDivH2}>
               {activeTab}
             </h2>
             {saveSuccess && (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  backgroundColor: 'rgba(35, 165, 90, 0.2)',
-                  color: '#2dc770',
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
+              <span className={styles.topHeaderWithEscDivSpan}>
                 <Check size={14} /> Changes Saved
               </span>
             )}
@@ -288,7 +202,7 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
                 alignItems: 'center',
                 background: 'none',
                 border: 'none',
-                color: '#b5bac1',
+                color: 'var(--header-secondary)',
                 cursor: 'pointer',
                 padding: 6,
                 borderRadius: 6,
@@ -296,27 +210,17 @@ export const UserSettings: React.FC<UserSettingsProps> = (props) => {
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
-              <div
-                style={{
-                  border: '2px solid #b5bac1',
-                  borderRadius: '50%',
-                  width: 28,
-                  height: 28,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
+              <div className={styles.closeSettingsEscDiv}>
                 <X size={16} />
               </div>
-              <span style={{ fontSize: 10, fontWeight: 600, marginTop: 2 }}>ESC</span>
+              <span className={styles.esc}>ESC</span>
             </button>
           )}
         </div>
 
         {/* View Details */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px' }}>
-          <div style={{ maxWidth: 740 }}>
+        <div className={styles.viewDetails}>
+          <div className={styles.viewDetailsDiv}>
             {/* 1. PROFILE TAB */}
             {activeTab === 'profile' && <ProfileTab s={s} />}
 

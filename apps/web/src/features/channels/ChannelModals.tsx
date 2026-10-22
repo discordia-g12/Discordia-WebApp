@@ -3,10 +3,11 @@ import { ModalOverlay } from '../../ui/ModalOverlay';
 import { Hash, Volume2, X } from 'lucide-react';
 import { Channel, Category } from '../../types';
 import { errorMessageFor, isLocalCategoryId, EditChannelRequest } from '@discordia/core';
+import styles from './ChannelModals.module.css';
 
 const FormError: React.FC<{ message: string | null }> = ({ message }) =>
   message ? (
-    <div role="alert" style={{ color: 'var(--danger)', fontSize: 14, marginTop: -8, marginBottom: 16 }}>
+    <div role="alert" className={styles.formErrorRoot}>
       {message}
     </div>
   ) : null;
@@ -54,55 +55,48 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
 
   return (
     <ModalOverlay onClose={onClose}>
-      <div style={{ backgroundColor: 'var(--bg-primary)', width: 440, borderRadius: 8, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ margin: 0, color: 'var(--header-primary)', fontSize: 20 }}>Crear canal</h2>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+      <div className={styles.createChannelModalDiv} onClick={e => e.stopPropagation()}>
+        <div className={styles.createChannelModalDivDiv}>
+          <div className={styles.createChannelModalDivDivDiv}>
+            <h2 className={styles.crearCanal}>Crear canal</h2>
+            <button onClick={onClose} className={styles.createChannelModalDivDivDivButton}>
               <X size={20} />
             </button>
           </div>
           
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>Tipo de canal</label>
+            <div className={styles.createChannelModalDivDivDiv2}>
+              <label className={styles.tipoCanal}>Tipo de canal</label>
               
               <div
                 onClick={() => setType('text')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 4, cursor: 'pointer',
-                  backgroundColor: type === 'text' ? 'var(--bg-modifier-selected)' : 'var(--bg-secondary)',
-                  marginBottom: 8
-                }}
+                className={styles.createChannelModalDivDivDiv2Div} style={{ backgroundColor: type === 'text' ? 'var(--bg-modifier-selected)' : 'var(--bg-secondary)' }}
               >
                 <Hash size={24} color="var(--text-muted)" />
                 <div>
-                  <div style={{ color: 'var(--text-normal)', fontWeight: 500 }}>Texto</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Envía mensajes, imágenes, GIFs, emojis y más</div>
+                  <div className={styles.texto}>Texto</div>
+                  <div className={styles.createChannelModalDivDivDiv2DivDiv}>Envía mensajes, imágenes, GIFs, emojis y más</div>
                 </div>
-                <input type="radio" checked={type === 'text'} readOnly style={{ marginLeft: 'auto' }} />
+                <input type="radio" checked={type === 'text'} readOnly className={styles.createChannelModalDivDivDiv2DivInput} />
               </div>
               
               <div
                 onClick={() => setType('voice')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 4, cursor: 'pointer',
-                  backgroundColor: type === 'voice' ? 'var(--bg-modifier-selected)' : 'var(--bg-secondary)'
-                }}
+                className={styles.createChannelModalDivDivDiv2Div2} style={{ backgroundColor: type === 'voice' ? 'var(--bg-modifier-selected)' : 'var(--bg-secondary)' }}
               >
                 <Volume2 size={24} color="var(--text-muted)" />
                 <div>
-                  <div style={{ color: 'var(--text-normal)', fontWeight: 500 }}>Voz</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Reúnanse con voz y video</div>
+                  <div className={styles.texto}>Voz</div>
+                  <div className={styles.createChannelModalDivDivDiv2DivDiv}>Reúnanse con voz y video</div>
                 </div>
-                <input type="radio" checked={type === 'voice'} readOnly style={{ marginLeft: 'auto' }} />
+                <input type="radio" checked={type === 'voice'} readOnly className={styles.createChannelModalDivDivDiv2DivInput} />
               </div>
             </div>
 
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>Nombre del canal</label>
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 12, top: 10, color: 'var(--text-muted)' }}>
+            <div className={styles.createChannelModalDivDivDiv3}>
+              <label className={styles.tipoCanal}>Nombre del canal</label>
+              <div className={styles.createChannelModalDivDivDiv3Div}>
+                <span className={styles.createChannelModalDivDivDiv3DivSpan}>
                   {type === 'text' ? <Hash size={18} /> : <Volume2 size={18} />}
                 </span>
                 <input
@@ -110,10 +104,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="nuevo-canal"
-                  style={{
-                    width: '100%', padding: '10px 12px 10px 36px', borderRadius: 4, border: 'none',
-                    backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-normal)', fontSize: 16, boxSizing: 'border-box'
-                  }}
+                  className={styles.nuevoCanal}
                   autoFocus
                 />
               </div>
@@ -122,14 +113,12 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
           </form>
         </div>
         
-        <div style={{ padding: 16, backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-normal)', cursor: 'pointer', padding: '10px 16px', fontWeight: 500 }}>Cancelar</button>
+        <div className={styles.createChannelModalDivDiv2}>
+          <button onClick={onClose} className={styles.cancelar}>Cancelar</button>
           <button 
             onClick={handleSubmit} 
             disabled={!name.trim() || isSubmitting}
-            style={{ 
-              backgroundColor: 'var(--brand)', color: 'white', border: 'none', borderRadius: 4, padding: '10px 24px', fontWeight: 500, cursor: (!name.trim() || isSubmitting) ? 'not-allowed' : 'pointer', opacity: (!name.trim() || isSubmitting) ? 0.5 : 1
-            }}
+            className={styles.crearCanal2} style={{ cursor: (!name.trim() || isSubmitting) ? 'not-allowed' : 'pointer', opacity: (!name.trim() || isSubmitting) ? 0.5 : 1 }}
           >
             Crear canal
           </button>
@@ -208,59 +197,50 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
 
   return (
     <ModalOverlay onClose={onClose}>
-      <div style={{ backgroundColor: 'var(--bg-primary)', width: 440, borderRadius: 8, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ margin: 0, color: 'var(--header-primary)', fontSize: 20 }}>Editar canal</h2>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+      <div className={styles.createChannelModalDiv} onClick={e => e.stopPropagation()}>
+        <div className={styles.createChannelModalDivDiv}>
+          <div className={styles.createChannelModalDivDivDiv}>
+            <h2 className={styles.crearCanal}>Editar canal</h2>
+            <button onClick={onClose} className={styles.createChannelModalDivDivDivButton}>
               <X size={20} />
             </button>
           </div>
           
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>Nombre del canal</label>
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 12, top: 10, color: 'var(--text-muted)' }}>
+            <div className={styles.createChannelModalDivDivDiv2}>
+              <label className={styles.tipoCanal}>Nombre del canal</label>
+              <div className={styles.createChannelModalDivDivDiv3Div}>
+                <span className={styles.createChannelModalDivDivDiv3DivSpan}>
                   {channel.type === 'text' ? <Hash size={18} /> : <Volume2 size={18} />}
                 </span>
                 <input
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  style={{
-                    width: '100%', padding: '10px 12px 10px 36px', borderRadius: 4, border: 'none',
-                    backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-normal)', fontSize: 16, boxSizing: 'border-box'
-                  }}
+                  className={styles.nuevoCanal}
                   autoFocus
                 />
               </div>
             </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>Tema del canal (opcional)</label>
+            <div className={styles.createChannelModalDivDivDiv2}>
+              <label className={styles.tipoCanal}>Tema del canal (opcional)</label>
               <textarea
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
                 placeholder="¿De qué se habla en este canal?"
                 maxLength={1024}
                 rows={3}
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 4, border: 'none', resize: 'vertical',
-                  backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-normal)', fontSize: 14, fontFamily: 'inherit', boxSizing: 'border-box'
-                }}
+                className={styles.queSeHablaEste}
               />
             </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>Categoría</label>
+            <div className={styles.createChannelModalDivDivDiv2}>
+              <label className={styles.tipoCanal}>Categoría</label>
               <select
                 value={categoryId || ''}
                 onChange={e => setCategoryId(e.target.value ? e.target.value : null)}
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 4, border: 'none',
-                  backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-normal)', fontSize: 14, boxSizing: 'border-box'
-                }}
+                className={styles.createChannelModalDivDivDiv2Select}
               >
                 <option value="">(Sin categoría / Sección general)</option>
                 {selectableCategories.map(cat => (
@@ -272,21 +252,19 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
           </form>
         </div>
         
-        <div style={{ padding: 16, backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className={styles.createChannelModalDivDiv3}>
           <button 
             onClick={handleDelete}
-            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '10px 16px', fontWeight: 500 }}
+            className={styles.eliminarCanal}
           >
             Eliminar canal
           </button>
-          <div style={{ display: 'flex', gap: 12 }}>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-normal)', cursor: 'pointer', padding: '10px 16px', fontWeight: 500 }}>Cancelar</button>
+          <div className={styles.createChannelModalDivDiv3Div}>
+          <button onClick={onClose} className={styles.cancelar}>Cancelar</button>
           <button 
             onClick={handleSubmit} 
             disabled={!name.trim() || isSubmitting}
-            style={{ 
-              backgroundColor: 'var(--brand)', color: 'white', border: 'none', borderRadius: 4, padding: '10px 24px', fontWeight: 500, cursor: (!name.trim() || isSubmitting) ? 'not-allowed' : 'pointer', opacity: (!name.trim() || isSubmitting) ? 0.5 : 1
-            }}
+            className={styles.crearCanal2} style={{ cursor: (!name.trim() || isSubmitting) ? 'not-allowed' : 'pointer', opacity: (!name.trim() || isSubmitting) ? 0.5 : 1 }}
           >
             Guardar cambios
           </button>
@@ -337,28 +315,25 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
 
   return (
     <ModalOverlay onClose={onClose}>
-      <div style={{ backgroundColor: 'var(--bg-primary)', width: 440, borderRadius: 8, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-        <div style={{ padding: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ margin: 0, color: 'var(--header-primary)', fontSize: 20 }}>Crear categoría</h2>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+      <div className={styles.createChannelModalDiv} onClick={e => e.stopPropagation()}>
+        <div className={styles.createChannelModalDivDiv}>
+          <div className={styles.createChannelModalDivDivDiv}>
+            <h2 className={styles.crearCanal}>Crear categoría</h2>
+            <button onClick={onClose} className={styles.createChannelModalDivDivDivButton}>
               <X size={20} />
             </button>
           </div>
           
           <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: 12, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>Nombre de la categoría</label>
+            <div className={styles.createChannelModalDivDivDiv3}>
+              <label className={styles.tipoCanal}>Nombre de la categoría</label>
               <input
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="NUEVA CATEGORÍA"
                 maxLength={100}
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 4, border: 'none',
-                  backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-normal)', fontSize: 16, boxSizing: 'border-box'
-                }}
+                className={styles.nuevaCategoria}
                 autoFocus
               />
             </div>
@@ -366,14 +341,12 @@ export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
           </form>
         </div>
         
-        <div style={{ padding: 16, backgroundColor: 'var(--bg-secondary)', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-normal)', cursor: 'pointer', padding: '10px 16px', fontWeight: 500 }}>Cancelar</button>
+        <div className={styles.createChannelModalDivDiv2}>
+          <button onClick={onClose} className={styles.cancelar}>Cancelar</button>
           <button 
             onClick={handleSubmit} 
             disabled={!name.trim() || isSubmitting}
-            style={{ 
-              backgroundColor: 'var(--brand)', color: 'white', border: 'none', borderRadius: 4, padding: '10px 24px', fontWeight: 500, cursor: (!name.trim() || isSubmitting) ? 'not-allowed' : 'pointer', opacity: (!name.trim() || isSubmitting) ? 0.5 : 1
-            }}
+            className={styles.crearCanal2} style={{ cursor: (!name.trim() || isSubmitting) ? 'not-allowed' : 'pointer', opacity: (!name.trim() || isSubmitting) ? 0.5 : 1 }}
           >
             Crear categoría
           </button>

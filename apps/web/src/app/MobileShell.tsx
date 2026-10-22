@@ -13,6 +13,7 @@ import { MobileHomeScreen } from './mobile/MobileHomeScreen';
 import { ServerSheet } from './mobile/ServerSheet';
 import { ProfileSheet } from './mobile/ProfileSheet';
 import { MemberSheet } from './mobile/MemberSheet';
+import styles from './MobileShell.module.css';
 
 export interface MobileShellProps {
   initialScreen?: MobileScreen;
@@ -27,19 +28,7 @@ export const MobileShell: React.FC<MobileShellProps> = (props) => {
   const { screen, activeSheet, setActiveSheet } = s;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100dvh',
-        width: '100%',
-        backgroundColor: 'var(--bg-tertiary)',
-        color: 'var(--text-normal)',
-        overflow: 'hidden',
-        position: 'relative',
-        userSelect: 'none',
-      }}
-    >
+    <div className={styles.root}>
       {/* ====================================================================
           VISTA 1: CHAT A PANTALLA COMPLETA
           ==================================================================== */}

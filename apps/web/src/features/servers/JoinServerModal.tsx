@@ -4,6 +4,7 @@ import { getInvitePreview } from '@discordia/core';
 import { X } from 'lucide-react';
 
 import { ModalOverlay } from '../../ui/ModalOverlay';
+import styles from './JoinServerModal.module.css';
 
 export interface JoinServerModalProps {
   isOpen?: boolean;
@@ -62,7 +63,7 @@ export const JoinServerModal: React.FC<JoinServerModalProps> = ({
 
   return (
     <ModalOverlay onClose={onClose} maxWidth={460}>
-      <div style={{ position: 'relative' }}>
+      <div className={styles.div}>
         <button
           onClick={onClose}
           className="btn-icon"
@@ -93,7 +94,7 @@ export const JoinServerModal: React.FC<JoinServerModalProps> = ({
                 onChange={(e) => setInviteUrl(e.target.value)}
                 placeholder="https://discordia.gg/h7K9xQ2 o h7K9xQ2"
               />
-              <span style={{ display: 'block', marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+              <span className={styles.span}>
                 Las invitaciones tienen un aspecto como: <code>h7K9xQ2</code> o{' '}
                 <code>https://discordia.gg/indie-devs</code>
               </span>
@@ -101,41 +102,29 @@ export const JoinServerModal: React.FC<JoinServerModalProps> = ({
 
             {/* Vista previa del servidor detectado */}
             {previewServer && (
-              <div
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '14px',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8 }}>
+              <div className={styles.div2}>
+                <div className={styles.previaServidor}>
                   VISTA PREVIA DEL SERVIDOR
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className={styles.div3}>
                   <img
                     src={previewServer?.iconUrl || previewServer?.icon}
                     alt={previewServer?.name}
-                    style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 'var(--radius-md)',
-                      objectFit: 'cover',
-                    }}
+                    className={styles.img}
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontWeight: 700, color: 'var(--header-primary)', fontSize: 15 }}>
+                  <div className={styles.div4}>
+                    <div className={styles.div5}>
+                      <span className={styles.span2}>
                         {previewServer?.name}
                       </span>
                       <span className="badge badge-brand" style={{ fontSize: 10 }}>Comunidad</span>
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    <div className={styles.div6}>
                       {previewServer?.description}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, fontSize: 11 }}>
+                    <div className={styles.div7}>
 
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)' }}>
+                      <span className={styles.span3}>
                         <span className="status-dot offline" style={{ width: 8, height: 8 }} />
                         {previewServer?.membersCount || 1} Miembros totales
                       </span>

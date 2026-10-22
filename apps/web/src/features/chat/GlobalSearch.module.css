@@ -1,0 +1,161 @@
+/* Estilos de GlobalSearch: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.div {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.barraBusquedaInput {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.esc {
+  font-size: 11px;
+  background-color: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filtrosRapidos {
+  display: flex;
+  gap: 8px;
+  padding: 8px 20px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.filtrosRapidosButton {
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.resultados {
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 380px;
+}
+
+.resultadosDiv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.resultadosDivDiv {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0px;
+  flex: 1;
+}
+
+.resultadosDivDivImg {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.resultadosDivDivDiv {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--interactive-normal);
+}
+
+.resultadosDivDivDiv2 {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background-color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.resultadosDivDivDiv3 {
+  min-width: 0px;
+  flex: 1;
+}
+
+.resultadosDivDivDiv3Div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.resultadosDivDivDiv3DivSpan {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--header-primary);
+}
+
+.resultadosDivDivDiv3DivSpan2 {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.resultadosDivDivDiv3Div2 {
+  font-size: 12px;
+  color: var(--text-normal);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resultadosDivSpan {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.resultadosDiv2 {
+  text-align: center;
+  padding: 36px 0;
+  color: var(--text-muted);
+}
+
+.footerAtajos {
+  padding: 8px 16px;
+  background-color: var(--bg-tertiary);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.footerAtajosDiv {
+  display: flex;
+  gap: 12px;
+}

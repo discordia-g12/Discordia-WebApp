@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Status } from '../types';
+import styles from './Avatar.module.css';
 
 /**
  * Propiedades del componente Avatar.
@@ -121,7 +122,7 @@ export const Avatar: React.FC<AvatarProps> = ({
         cursor: onClick ? 'pointer' : 'default',
         borderRadius: 'var(--radius-full)',
         boxShadow: speaking
-          ? '0 0 0 2px #23a55a, 0 0 8px rgba(35, 165, 90, 0.7)'
+          ? '0 0 0 2px var(--status-online), 0 0 8px rgba(35, 165, 90, 0.7)'
           : undefined,
         transition: 'box-shadow 150ms ease, transform 150ms ease',
       }}
@@ -132,31 +133,11 @@ export const Avatar: React.FC<AvatarProps> = ({
           src={avatarSrc}
           alt={user.displayName || user.username}
           onError={() => setImageError(true)}
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 'var(--radius-full)',
-            objectFit: 'cover',
-            display: 'block',
-            userSelect: 'none',
-          }}
+          className={styles.img}
         />
       ) : (
         <div
-          style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 'var(--radius-full)',
-            backgroundColor: bgColor,
-            color: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-            fontSize: `${Math.max(10, Math.round(size * 0.38))}px`,
-            letterSpacing: '0.02em',
-            userSelect: 'none',
-          }}
+          className={styles.div} style={{ backgroundColor: bgColor, fontSize: `${Math.max(10, Math.round(size * 0.38))}px` }}
         >
           {initials}
         </div>

@@ -6,6 +6,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { ServerSettingsState } from './useServerSettingsState';
+import styles from './ChannelsTab.module.css';
 
 /** Pestaña "channels" de ServerSettings. */
 export function ChannelsTab({ s }: { s: ServerSettingsState }) {
@@ -23,78 +24,46 @@ export function ChannelsTab({ s }: { s: ServerSettingsState }) {
     handleDeleteChannel,
   } = s;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#f2f3f5' }}>
+    <div className={styles.root}>
+      <div className={styles.rootDiv}>
+        <div className={styles.serverChannelsCategories}>
           Server Channels & Categories
         </div>
         <button
           type="button"
           onClick={() => setShowCreateChannelModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            backgroundColor: '#5865f2',
-            color: '#ffffff',
-            border: 'none',
-            padding: '8px 14px',
-            borderRadius: 4,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
+          className={styles.rootDivButton}
         >
           <Plus size={16} /> Create Channel
         </button>
       </div>
 
       {/* Categorized Channels */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className={styles.categorizedChannels}>
         {categories.map((cat) => (
           <div
             key={cat.id}
-            style={{
-              backgroundColor: '#2b2d31',
-              borderRadius: 8,
-              padding: '16px',
-            }}
+            className={styles.categorizedChannelsDiv}
           >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                color: '#949ba4',
-                letterSpacing: '0.04em',
-                marginBottom: 12,
-              }}
-            >
+            <div className={styles.categorizedChannelsDivDiv}>
               {cat.name} ({cat.channels.length})
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className={styles.categorizedChannelsDivDiv2}>
               {cat.channels.map((chan) => (
                 <div
                   key={chan.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    backgroundColor: '#1e1f22',
-                    borderRadius: 4,
-                  }}
+                  className={styles.categorizedChannelsDivDiv2Div}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className={styles.categorizedChannelsDivDiv2DivDiv}>
                     {chan.type === 'voice' ? (
                       <Volume2 size={16} color="#949ba4" />
                     ) : (
                       <Hash size={16} color="#949ba4" />
                     )}
-                    <span style={{ fontSize: 14, fontWeight: 500, color: '#dbdee1' }}>{chan.name}</span>
+                    <span className={styles.categorizedChannelsDivDiv2DivDivSpan}>{chan.name}</span>
                     {chan.topic && (
-                      <span style={{ fontSize: 12, color: '#949ba4' }}>— {chan.topic}</span>
+                      <span className={styles.categorizedChannelsDivDiv2DivDivSpan2}>— {chan.topic}</span>
                     )}
                   </div>
 
@@ -105,12 +74,12 @@ export function ChannelsTab({ s }: { s: ServerSettingsState }) {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#949ba4',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                       padding: 4,
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = '#fa777c')}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = '#949ba4')}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-danger)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                   >
                     <Trash2 size={15} />
                   </button>
@@ -123,84 +92,40 @@ export function ChannelsTab({ s }: { s: ServerSettingsState }) {
 
       {/* Create Channel Modal */}
       {showCreateChannelModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#313338',
-              width: '100%',
-              maxWidth: 440,
-              borderRadius: 8,
-              padding: 24,
-              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
-            }}
-          >
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#f2f3f5', margin: '0 0 16px 0' }}>
+        <div className={styles.rootDiv2}>
+          <div className={styles.rootDiv2Div}>
+            <h3 className={styles.createChannel}>
               Create Channel
             </h3>
 
-            <form onSubmit={handleCreateChannel} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleCreateChannel} className={styles.categorizedChannels}>
               {/* Channel Type */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1', marginBottom: 8 }}>
+                <label className={styles.channelType}>
                   Channel Type
                 </label>
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className={styles.channelTypeDiv}>
                   <button
                     type="button"
                     onClick={() => setNewChannelType('text')}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '10px',
-                      backgroundColor: newChannelType === 'text' ? '#2b2d31' : '#1e1f22',
-                      border: newChannelType === 'text' ? '2px solid #5865f2' : '1px solid rgba(0,0,0,0.3)',
-                      borderRadius: 6,
-                      color: '#dbdee1',
-                      cursor: 'pointer',
-                    }}
+                    className={styles.channelTypeDivButton} style={{ backgroundColor: newChannelType === 'text' ? 'var(--bg-secondary)' : 'var(--bg-tertiary)', border: newChannelType === 'text' ? '2px solid var(--brand)' : '1px solid rgba(0,0,0,0.3)', borderRadius: 6 }}
                   >
                     <Hash size={18} />
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>Text</div>
-                      <div style={{ fontSize: 11, color: '#949ba4' }}>Post messages, images</div>
+                    <div className={styles.channelTypeDivButtonDiv}>
+                      <div className={styles.text}>Text</div>
+                      <div className={styles.postMessagesImages}>Post messages, images</div>
                     </div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setNewChannelType('voice')}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '10px',
-                      backgroundColor: newChannelType === 'voice' ? '#2b2d31' : '#1e1f22',
-                      border: newChannelType === 'voice' ? '2px solid #5865f2' : '1px solid rgba(0,0,0,0.3)',
-                      borderRadius: 6,
-                      color: '#dbdee1',
-                      cursor: 'pointer',
-                    }}
+                    className={styles.channelTypeDivButton} style={{ backgroundColor: newChannelType === 'voice' ? 'var(--bg-secondary)' : 'var(--bg-tertiary)', border: newChannelType === 'voice' ? '2px solid var(--brand)' : '1px solid rgba(0,0,0,0.3)', borderRadius: 6 }}
                   >
                     <Volume2 size={18} />
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>Voice</div>
-                      <div style={{ fontSize: 11, color: '#949ba4' }}>Talk, share video</div>
+                    <div className={styles.channelTypeDivButtonDiv}>
+                      <div className={styles.text}>Voice</div>
+                      <div className={styles.postMessagesImages}>Talk, share video</div>
                     </div>
                   </button>
                 </div>
@@ -208,7 +133,7 @@ export function ChannelsTab({ s }: { s: ServerSettingsState }) {
 
               {/* Channel Name */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1', marginBottom: 6 }}>
+                <label className={styles.channelName}>
                   Channel Name
                 </label>
                 <input
@@ -217,38 +142,19 @@ export function ChannelsTab({ s }: { s: ServerSettingsState }) {
                   value={newChannelName}
                   onChange={(e) => setNewChannelName(e.target.value)}
                   placeholder="new-channel"
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#1e1f22',
-                    color: '#dbdee1',
-                    border: '1px solid rgba(0, 0, 0, 0.3)',
-                    borderRadius: 4,
-                    padding: '8px 10px',
-                    fontSize: 14,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                  }}
+                  className={styles.newChannel}
                 />
               </div>
 
               {/* Category Selector */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1', marginBottom: 6 }}>
+                <label className={styles.channelName}>
                   Category
                 </label>
                 <select
                   value={newChannelCategory}
                   onChange={(e) => setNewChannelCategory(e.target.value)}
-                  style={{
-                    width: '100%',
-                    backgroundColor: '#1e1f22',
-                    color: '#dbdee1',
-                    border: '1px solid rgba(0, 0, 0, 0.3)',
-                    borderRadius: 4,
-                    padding: '8px 10px',
-                    fontSize: 14,
-                    outline: 'none',
-                  }}
+                  className={styles.categorySelectorSelect}
                 >
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
@@ -259,33 +165,17 @@ export function ChannelsTab({ s }: { s: ServerSettingsState }) {
               </div>
 
               {/* Modal Action Buttons */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+              <div className={styles.modalActionButtons}>
                 <button
                   type="button"
                   onClick={() => setShowCreateChannelModal(false)}
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#dbdee1',
-                    border: 'none',
-                    padding: '8px 16px',
-                    fontSize: 14,
-                    cursor: 'pointer',
-                  }}
+                  className={styles.cancel}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  style={{
-                    backgroundColor: '#5865f2',
-                    color: '#ffffff',
-                    border: 'none',
-                    padding: '8px 18px',
-                    borderRadius: 4,
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
+                  className={styles.createChannel2}
                 >
                   Create Channel
                 </button>

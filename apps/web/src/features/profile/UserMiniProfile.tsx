@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { User, Status } from '../../types';
 import { Avatar } from '../../ui/Avatar';
+import styles from './UserMiniProfile.module.css';
 
 /**
  * Propiedades del componente emergente UserMiniProfile.
@@ -111,22 +112,7 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
       ref={containerRef}
       role="dialog"
       aria-label="Perfil de usuario rápido"
-      style={{
-        position: 'fixed',
-        bottom: anchorPosition.bottom !== undefined ? `${anchorPosition.bottom}px` : undefined,
-        left: anchorPosition.left !== undefined ? `${anchorPosition.left}px` : undefined,
-        top: anchorPosition.top !== undefined ? `${anchorPosition.top}px` : undefined,
-        right: anchorPosition.right !== undefined ? `${anchorPosition.right}px` : undefined,
-        width: '320px',
-        backgroundColor: 'var(--bg-floating, #111214)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: 'var(--radius-lg, 12px)',
-        boxShadow: 'var(--shadow-floating, 0 12px 32px rgba(0, 0, 0, 0.65))',
-        overflow: 'hidden',
-        zIndex: 9990,
-        animation: 'slideUp 150ms ease',
-        userSelect: 'none',
-      }}
+      className={styles.perfilUsuarioRapido} style={{ bottom: anchorPosition.bottom !== undefined ? `${anchorPosition.bottom}px` : undefined, left: anchorPosition.left !== undefined ? `${anchorPosition.left}px` : undefined, top: anchorPosition.top !== undefined ? `${anchorPosition.top}px` : undefined, right: anchorPosition.right !== undefined ? `${anchorPosition.right}px` : undefined }}
     >
       {/* Banner de perfil */}
       <div
@@ -142,22 +128,7 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
           <button
             type="button"
             onClick={onEditProfile}
-            style={{
-              position: 'absolute',
-              top: '8px',
-              right: '8px',
-              width: '28px',
-              height: '28px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: 'rgba(0, 0, 0, 0.55)',
-              border: 'none',
-              color: 'var(--text-white, #ffffff)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'background-color 150ms ease',
-            }}
+            className={styles.editarPerfil}
             title="Editar perfil"
           >
             <Pencil size={14} />
@@ -166,25 +137,10 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
       </div>
 
       {/* Contenedor principal de cuerpo */}
-      <div style={{ padding: '0 16px 16px 16px', position: 'relative' }}>
+      <div className={styles.contenedorPrincipalCuerpo}>
         {/* Avatar superpuesto con anillo protector */}
-        <div
-          style={{
-            marginTop: '-38px',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'space-between',
-            marginBottom: '10px',
-          }}
-        >
-          <div
-            style={{
-              borderRadius: 'var(--radius-full)',
-              border: '5px solid var(--bg-floating, #111214)',
-              backgroundColor: 'var(--bg-floating, #111214)',
-              display: 'inline-block',
-            }}
-          >
+        <div className={styles.avatarSuperpuestoAnilloProtector}>
+          <div className={styles.avatarSuperpuestoAnilloProtectorDiv}>
             <Avatar
               user={user}
               size={68}
@@ -195,26 +151,12 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
 
           {/* Badges de usuario */}
           {user.badges && user.badges.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                gap: '4px',
-                backgroundColor: 'var(--bg-secondary, #2b2d31)',
-                padding: '4px 6px',
-                borderRadius: 'var(--radius-sm, 4px)',
-                marginBottom: '4px',
-              }}
-            >
+            <div className={styles.avatarSuperpuestoAnilloProtectorDiv2}>
               {user.badges.map((badge) => (
                 <span
                   key={badge}
                   title={badge}
-                  style={{
-                    fontSize: '11px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    cursor: 'default',
-                  }}
+                  className={styles.avatarSuperpuestoAnilloProtectorDiv2Span}
                 >
                   {badge.includes('Nitro') ? (
                     <Gem size={14} color="#f47fff" />
@@ -232,25 +174,11 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
         </div>
 
         {/* Nombres de usuario */}
-        <div style={{ marginBottom: '10px' }}>
-          <h3
-            style={{
-              fontSize: '18px',
-              fontWeight: 700,
-              color: 'var(--header-primary, #f2f3f5)',
-              margin: 0,
-              lineHeight: 1.2,
-            }}
-          >
+        <div className={styles.nombresUsuario}>
+          <h3 className={styles.nombresUsuarioH3}>
             {user.displayName}
           </h3>
-          <p
-            style={{
-              fontSize: '13px',
-              color: 'var(--text-muted, #949ba4)',
-              margin: '2px 0 0 0',
-            }}
-          >
+          <p className={styles.nombresUsuarioP}>
             @{user.username}
             {user.discriminator ? `#${user.discriminator}` : ''}
           </p>
@@ -258,54 +186,20 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
 
         {/* Bocadillo con estado personalizado */}
         {user.customStatus && (
-          <div
-            style={{
-              backgroundColor: 'var(--bg-secondary, #2b2d31)',
-              borderRadius: 'var(--radius-sm, 4px)',
-              padding: '8px 10px',
-              fontSize: '12px',
-              color: 'var(--text-normal, #dbdee1)',
-              marginBottom: '12px',
-              borderLeft: '3px solid var(--brand, #5865f2)',
-              wordBreak: 'break-word',
-            }}
-          >
+          <div className={styles.contenedorPrincipalCuerpoDiv}>
             <span>{user.customStatus}</span>
           </div>
         )}
 
         {/* Saldo de Puntos 💠 */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: 'var(--bg-secondary, #2b2d31)',
-            padding: '8px 12px',
-            borderRadius: 'var(--radius-sm, 4px)',
-            marginBottom: '10px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '15px' }}>💠</span>
+        <div className={styles.saldoPuntos}>
+          <div className={styles.saldoPuntosDiv}>
+            <span className={styles.saldoPuntosDivSpan}>💠</span>
             <div>
-              <div
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: 'var(--text-muted, #949ba4)',
-                }}
-              >
+              <div className={styles.puntosDiscordia}>
                 Puntos Discordia
               </div>
-              <div
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: 'var(--header-primary, #f2f3f5)',
-                }}
-              >
+              <div className={styles.saldoPuntosDivDiv}>
                 {user.points ?? 0} pts
               </div>
             </div>
@@ -328,27 +222,14 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
 
         {/* Tarjeta Promocional / Activa de Premium */}
         <div
-          style={{
-            background: user.isPremium
+          className={styles.tarjetaPromocionalActivaPremium} style={{ background: user.isPremium
               ? 'linear-gradient(135deg, rgba(244, 127, 255, 0.15) 0%, rgba(88, 101, 242, 0.15) 100%)'
-              : 'linear-gradient(135deg, #5865f2 0%, #eb459e 100%)',
-            border: user.isPremium ? '1px solid rgba(244, 127, 255, 0.4)' : 'none',
-            borderRadius: 'var(--radius-sm, 4px)',
-            padding: '10px 12px',
-            marginBottom: '12px',
-            color: '#ffffff',
-          }}
+              : 'linear-gradient(135deg, var(--brand) 0%, var(--legacy-fuchsia) 100%)', border: user.isPremium ? '1px solid rgba(244, 127, 255, 0.4)' : 'none', borderRadius: 'var(--radius-sm, 4px)' }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className={styles.tarjetaPromocionalActivaPremiumDiv}>
+            <div className={styles.saldoPuntosDiv}>
               <Sparkles size={16} color={user.isPremium ? '#f47fff' : '#ffffff'} />
-              <span style={{ fontSize: '12px', fontWeight: 700 }}>
+              <span className={styles.saldoPuntosDivSpan2}>
                 {user.isPremium ? 'Discordia Nitro Activo' : 'Consigue Discordia Nitro'}
               </span>
             </div>
@@ -356,45 +237,24 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
               <button
                 type="button"
                 onClick={onSubscribePremium}
-                style={{
-                  backgroundColor: '#ffffff',
-                  color: '#111214',
-                  border: 'none',
-                  borderRadius: 'var(--radius-xs, 3px)',
-                  padding: '3px 8px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                className={styles.mejorar}
               >
                 Mejorar
               </button>
             )}
           </div>
           {user.isPremium && user.premiumSince && (
-            <p
-              style={{
-                fontSize: '11px',
-                color: 'var(--text-muted, #949ba4)',
-                margin: '4px 0 0 0',
-              }}
-            >
+            <p className={styles.tarjetaPromocionalActivaPremiumP}>
               Suscriptor desde {new Date(user.premiumSince).toLocaleDateString('es-ES')}
             </p>
           )}
         </div>
 
         {/* Separador */}
-        <div
-          style={{
-            height: '1px',
-            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-            margin: '8px 0',
-          }}
-        />
+        <div className={styles.separador} />
 
         {/* Submenú de Estado de Presencia */}
-        <div style={{ marginBottom: '4px' }}>
+        <div className={styles.submenuEstadoPresencia}>
           <div
             role="button"
             tabIndex={0}
@@ -420,16 +280,11 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
               e.currentTarget.style.color = 'var(--interactive-normal, #b5bac1)';
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className={styles.submenuEstadoPresenciaDiv}>
               <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor:
+                className={styles.submenuEstadoPresenciaDivSpan} style={{ backgroundColor:
                     STATUS_QUICK_OPTIONS.find((s) => s.id === user.status)?.color ||
-                    'var(--status-online)',
-                }}
+                    'var(--status-online)' }}
               />
               <span>Cambiar Estado</span>
             </div>
@@ -438,17 +293,7 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
 
           {/* Opciones desplegables de presencia */}
           {showStatusMenu && (
-            <div
-              style={{
-                marginLeft: '12px',
-                marginTop: '4px',
-                paddingLeft: '6px',
-                borderLeft: '2px solid rgba(255, 255, 255, 0.08)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px',
-              }}
-            >
+            <div className={styles.submenuEstadoPresenciaDiv2}>
               {STATUS_QUICK_OPTIONS.map((opt) => (
                 <div
                   key={opt.id}
@@ -479,14 +324,9 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
                     e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className={styles.saldoPuntosDiv}>
                     <span
-                      style={{
-                        width: '7px',
-                        height: '7px',
-                        borderRadius: 'var(--radius-full)',
-                        backgroundColor: opt.color,
-                      }}
+                      className={styles.saldoPuntosDivSpan3} style={{ backgroundColor: opt.color }}
                     />
                     <span>{opt.label}</span>
                   </div>
@@ -526,7 +366,7 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
         </div>
 
         {/* Acciones de Cuenta */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <div className={styles.accionesCuenta}>
           {onOpenSettings && (
             <div
               role="button"

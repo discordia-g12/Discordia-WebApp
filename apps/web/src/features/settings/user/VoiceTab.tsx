@@ -4,6 +4,7 @@ import {
   MicOff,
 } from 'lucide-react';
 import type { UserSettingsState } from './useUserSettingsState';
+import styles from './VoiceTab.module.css';
 
 /** Pestaña "voice" de UserSettings. */
 export function VoiceTab({ s }: { s: UserSettingsState }) {
@@ -21,35 +22,26 @@ export function VoiceTab({ s }: { s: UserSettingsState }) {
     micLevel,
   } = s;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div className={styles.root}>
       {/* Audio Devices */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className={styles.audioDevices}>
         {/* Input Device */}
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1', marginBottom: 6 }}>
+          <label className={styles.inputDeviceMicrophone}>
             Input Device (Microphone)
           </label>
           <select
             value={inputDevice}
             onChange={(e) => setInputDevice(e.target.value)}
-            style={{
-              width: '100%',
-              backgroundColor: '#1e1f22',
-              color: '#dbdee1',
-              border: '1px solid rgba(0, 0, 0, 0.3)',
-              borderRadius: 4,
-              padding: '10px 12px',
-              fontSize: 14,
-              outline: 'none',
-            }}
+            className={styles.inputDeviceSelect}
           >
             <option value="Default - Microphone (Built-in)">Default - Microphone (Built-in)</option>
             <option value="External USB Microphone">External USB Microphone</option>
             <option value="Headset Microphone (Bluetooth)">Headset Microphone (Bluetooth)</option>
           </select>
 
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#b5bac1', marginBottom: 4 }}>
+          <div className={styles.inputDeviceDiv}>
+            <div className={styles.inputDeviceDivDiv}>
               <span>Input Volume</span>
               <span>{inputVolume}%</span>
             </div>
@@ -59,37 +51,28 @@ export function VoiceTab({ s }: { s: UserSettingsState }) {
               max={100}
               value={inputVolume}
               onChange={(e) => setInputVolume(Number(e.target.value))}
-              style={{ width: '100%', accentColor: '#5865f2' }}
+              className={styles.inputDeviceDivInput}
             />
           </div>
         </div>
 
         {/* Output Device */}
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#b5bac1', marginBottom: 6 }}>
+          <label className={styles.inputDeviceMicrophone}>
             Output Device (Speakers)
           </label>
           <select
             value={outputDevice}
             onChange={(e) => setOutputDevice(e.target.value)}
-            style={{
-              width: '100%',
-              backgroundColor: '#1e1f22',
-              color: '#dbdee1',
-              border: '1px solid rgba(0, 0, 0, 0.3)',
-              borderRadius: 4,
-              padding: '10px 12px',
-              fontSize: 14,
-              outline: 'none',
-            }}
+            className={styles.inputDeviceSelect}
           >
             <option value="Default - Speakers (Built-in)">Default - Speakers (Built-in)</option>
             <option value="Headphones (AirPods)">Headphones (AirPods)</option>
             <option value="External Studio Monitors">External Studio Monitors</option>
           </select>
 
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#b5bac1', marginBottom: 4 }}>
+          <div className={styles.inputDeviceDiv}>
+            <div className={styles.inputDeviceDivDiv}>
               <span>Output Volume</span>
               <span>{outputVolume}%</span>
             </div>
@@ -99,25 +82,18 @@ export function VoiceTab({ s }: { s: UserSettingsState }) {
               max={100}
               value={outputVolume}
               onChange={(e) => setOutputVolume(Number(e.target.value))}
-              style={{ width: '100%', accentColor: '#5865f2' }}
+              className={styles.inputDeviceDivInput}
             />
           </div>
         </div>
       </div>
 
       {/* Microphone Test Section */}
-      <div
-        style={{
-          backgroundColor: '#2b2d31',
-          borderRadius: 8,
-          padding: 20,
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div className={styles.microphoneTestSection}>
+        <div className={styles.microphoneTestSectionDiv}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f2f3f5' }}>Mic Test</div>
-            <div style={{ fontSize: 13, color: '#949ba4' }}>
+            <div className={styles.micTest}>Mic Test</div>
+            <div className={styles.microphoneTestSectionDivDiv}>
               Having mic issues? Click &ldquo;Let&apos;s Check&rdquo; to test your audio output level.
             </div>
           </div>
@@ -125,19 +101,7 @@ export function VoiceTab({ s }: { s: UserSettingsState }) {
           <button
             type="button"
             onClick={() => setIsTestingMic(!isTestingMic)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              backgroundColor: isTestingMic ? '#da373c' : '#5865f2',
-              color: '#ffffff',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: 4,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className={styles.microphoneTestSectionDivButton} style={{ backgroundColor: isTestingMic ? 'var(--danger)' : 'var(--brand)' }}
           >
             {isTestingMic ? <MicOff size={16} /> : <Mic size={16} />}
             {isTestingMic ? 'Stop Testing' : "Let's Check"}
@@ -145,23 +109,9 @@ export function VoiceTab({ s }: { s: UserSettingsState }) {
         </div>
 
         {/* Level Indicator Bar */}
-        <div
-          style={{
-            height: 16,
-            backgroundColor: '#1e1f22',
-            borderRadius: 8,
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
+        <div className={styles.levelIndicatorBar}>
           <div
-            style={{
-              height: '100%',
-              width: `${micLevel}%`,
-              background: 'linear-gradient(90deg, #23a55a 60%, #f0b232 85%, #f23f43 100%)',
-              borderRadius: 8,
-              transition: 'width 0.1s ease',
-            }}
+            className={styles.levelIndicatorBarDiv} style={{ width: `${micLevel}%` }}
           />
         </div>
       </div>

@@ -1,0 +1,139 @@
+/* Estilos de OverviewTab: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.statsHeaderBanner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.members {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.statsHeaderBannerDiv {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin-top: 4px;
+}
+
+.statsHeaderBannerDiv2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--legacy-boost-pink);
+  margin-top: 4px;
+}
+
+.serverIconBasicInfo {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.serverIcon {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-secondary);
+  margin-bottom: 8px;
+}
+
+.iconUploadBoxDiv {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.iconUploadBoxDivImg {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+}
+
+.iconUploadBoxDivLabel {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--text-white);
+  font-size: 11px;
+  font-weight: 600;
+  transition: opacity 0.2s;
+  opacity: 0.9;
+}
+
+.iconUploadBoxDivLabelInput {
+  display: none;
+}
+
+.serverNameInput {
+  flex: 1;
+}
+
+.serverIconSpan {
+  color: var(--danger);
+}
+
+.eGDiscordiaDevelopers {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.tellVisitorsNewMembers {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.saveButtonButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--brand);
+  color: var(--text-white);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}

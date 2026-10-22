@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Home, Plus, Compass } from 'lucide-react';
 import { Server } from '../../types';
+import styles from './ServerRail.module.css';
 
 /**
  * Propiedades del componente ServerRail.
@@ -134,14 +135,7 @@ export const ServerRail: React.FC<ServerRailProps> = ({
       <div className="server-separator" role="separator" />
 
       {/* Lista de servidores */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          width: '100%',
-        }}
-      >
+      <div className={styles.listaServidores}>
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <div key={`sk-${i}`} className="server-item-wrapper" style={{ opacity: 0.5 }}>
@@ -210,7 +204,7 @@ export const ServerRail: React.FC<ServerRailProps> = ({
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'var(--status-online, #23a55a)';
-            e.currentTarget.style.color = '#ffffff';
+            e.currentTarget.style.color = 'var(--text-white)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'var(--bg-primary, #313338)';
@@ -240,7 +234,7 @@ export const ServerRail: React.FC<ServerRailProps> = ({
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'var(--status-online, #23a55a)';
-            e.currentTarget.style.color = '#ffffff';
+            e.currentTarget.style.color = 'var(--text-white)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'var(--bg-primary, #313338)';
@@ -255,38 +249,10 @@ export const ServerRail: React.FC<ServerRailProps> = ({
       {tooltip && (
         <div
           role="tooltip"
-          style={{
-            position: 'fixed',
-            left: '84px',
-            top: `${tooltip.top}px`,
-            transform: 'translateY(-50%)',
-            backgroundColor: 'var(--bg-floating, #111214)',
-            color: 'var(--text-white, #ffffff)',
-            padding: '7px 12px',
-            borderRadius: 'var(--radius-sm, 4px)',
-            fontSize: '13px',
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
-            boxShadow: 'var(--shadow-floating, 0 8px 24px rgba(0,0,0,0.5))',
-            pointerEvents: 'none',
-            zIndex: 9999,
-            animation: 'fadeIn 120ms ease',
-          }}
+          className={styles.servidoresMensajesDirectosDiv} style={{ top: `${tooltip.top}px` }}
         >
           {/* Flecha indicadora izquierda */}
-          <span
-            style={{
-              position: 'absolute',
-              left: '-5px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: 0,
-              height: 0,
-              borderTop: '5px solid transparent',
-              borderBottom: '5px solid transparent',
-              borderRight: '5px solid var(--bg-floating, #111214)',
-            }}
-          />
+          <span className={styles.flechaIndicadoraIzquierda} />
           {tooltip.text}
         </div>
       )}

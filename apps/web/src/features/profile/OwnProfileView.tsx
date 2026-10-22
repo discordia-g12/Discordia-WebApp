@@ -4,6 +4,7 @@ import { useOwnProfileState } from './own-profile/useOwnProfileState';
 import { ProfileTopBar } from './own-profile/ProfileTopBar';
 import { ProfilePreviewCard } from './own-profile/ProfilePreviewCard';
 import { ProfileDetailsForm } from './own-profile/ProfileDetailsForm';
+import styles from './OwnProfileView.module.css';
 
 export interface OwnProfileViewProps {
   currentUser?: User;
@@ -15,28 +16,12 @@ export const OwnProfileView: React.FC<OwnProfileViewProps> = (props) => {
   const s = useOwnProfileState(props);
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        width: '100%',
-        backgroundColor: '#1e1f22',
-        color: '#dbdee1',
-        overflow: 'hidden',
-      }}
-    >
+    <div className={styles.root}>
       {/* Top Navigation Bar */}
       <ProfileTopBar s={s} />
 
       {/* Main Two-Column Layout */}
-      <div
-        style={{
-          display: 'flex',
-          flex: 1,
-          overflow: 'hidden',
-        }}
-      >
+      <div className={styles.mainTwoColumnLayout}>
         {/* Left Column: Live Profile Card Preview */}
         <ProfilePreviewCard s={s} />
 

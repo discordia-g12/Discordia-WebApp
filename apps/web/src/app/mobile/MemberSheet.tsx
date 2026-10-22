@@ -1,6 +1,7 @@
 
 import { BottomSheet } from './shared';
 import type { MobileShellState } from './useMobileShellState';
+import styles from './MemberSheet.module.css';
 
 /** Sección "3. MEMBER SHEET" de MobileShell. */
 export function MemberSheet({ s }: { s: MobileShellState }) {
@@ -11,13 +12,13 @@ export function MemberSheet({ s }: { s: MobileShellState }) {
       onClose={() => setActiveSheet('none')}
       title={`Miembros del Servidor (${activeServer.members.length})`}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className={styles.div}>
         {/* Sección En línea */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-positive)', marginBottom: 8, textTransform: 'uppercase' }}>
+          <div className={styles.lineaDiv}>
             EN LÍNEA — {activeServer.members.filter((m) => m.status !== 'offline').length}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className={styles.lineaDiv2}>
             {activeServer.members
               .filter((m) => m.status !== 'offline')
               .map((member) => (
@@ -27,20 +28,13 @@ export function MemberSheet({ s }: { s: MobileShellState }) {
                     setActiveSheet('none');
                     onOpenModal?.('user-profile', member);
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '6px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                  }}
+                  className={styles.lineaDiv2Div}
                 >
-                  <div style={{ position: 'relative' }}>
+                  <div className={styles.lineaDiv2DivDiv}>
                     <img
                       src={member.avatarUrl || member.avatar}
                       alt={member.displayName}
-                      style={{ width: 32, height: 32, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+                      className={styles.lineaDiv2DivDivImg}
                     />
                     <span
                       className={`status-dot ${member.status}`}
@@ -48,10 +42,10 @@ export function MemberSheet({ s }: { s: MobileShellState }) {
                     />
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--header-primary)' }}>
+                    <div className={styles.lineaDiv2DivDiv2}>
                       {member.displayName}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    <div className={styles.lineaDiv2DivDiv3}>
                       {member.customStatus || `@${member.username}`}
                     </div>
                   </div>
@@ -62,10 +56,10 @@ export function MemberSheet({ s }: { s: MobileShellState }) {
 
         {/* Sección Desconectados */}
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase' }}>
+          <div className={styles.desconectadosDiv}>
             DESCONECTADOS — {activeServer.members.filter((m) => m.status === 'offline').length}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className={styles.lineaDiv2}>
             {activeServer.members
               .filter((m) => m.status === 'offline')
               .map((member) => (
@@ -75,26 +69,18 @@ export function MemberSheet({ s }: { s: MobileShellState }) {
                     setActiveSheet('none');
                     onOpenModal?.('user-profile', member);
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '6px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                    opacity: 0.7,
-                  }}
+                  className={styles.lineaDiv2Div2}
                 >
                   <img
                     src={member.avatarUrl || member.avatar}
                     alt={member.displayName}
-                    style={{ width: 32, height: 32, borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+                    className={styles.lineaDiv2DivDivImg}
                   />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--header-primary)' }}>
+                    <div className={styles.lineaDiv2DivDiv2}>
                       {member.displayName}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    <div className={styles.lineaDiv2DivDiv3}>
                       @{member.username}
                     </div>
                   </div>

@@ -1,0 +1,79 @@
+/* Estilos de ModerationTab: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rootH3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin: 0px;
+}
+
+.rootDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.explicitFilter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
+}
+
+.explicitMediaContentFilter {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--header-primary);
+}
+
+.explicitFilterDiv {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.explicitFilterInput {
+  opacity: 0;
+  width: 0px;
+  height: 0px;
+}
+
+.explicitFilterSpan {
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  bottom: 3px;
+  background-color: var(--text-white);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.blockedWordsTextareaLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-secondary);
+  margin-bottom: 8px;
+}
+
+.word1Phrase2MaliciousLink {
+  width: 100%;
+  background-color: var(--bg-tertiary);
+  color: var(--text-normal);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}

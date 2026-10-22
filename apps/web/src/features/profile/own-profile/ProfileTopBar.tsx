@@ -6,6 +6,7 @@ import {
   Edit3,
 } from 'lucide-react';
 import type { OwnProfileState } from './useOwnProfileState';
+import styles from './ProfileTopBar.module.css';
 
 /** Sección "Top Navigation Bar" de OwnProfileView. */
 export function ProfileTopBar({ s }: { s: OwnProfileState }) {
@@ -19,19 +20,8 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
     handleSave,
   } = s;
   return (
-    <header
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        height: 56,
-        padding: '0 24px',
-        backgroundColor: '#2b2d31',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.25)',
-        flexShrink: 0,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+    <header className={styles.root}>
+      <div className={styles.rootDiv}>
         {onBack && (
           <button
             onClick={onBack}
@@ -41,7 +31,7 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
               gap: 6,
               backgroundColor: 'transparent',
               border: 'none',
-              color: '#b5bac1',
+              color: 'var(--header-secondary)',
               cursor: 'pointer',
               fontSize: 14,
               fontWeight: 500,
@@ -51,11 +41,11 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
-              e.currentTarget.style.color = '#ffffff';
+              e.currentTarget.style.color = 'var(--text-white)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#b5bac1';
+              e.currentTarget.style.color = 'var(--header-secondary)';
             }}
           >
             <ArrowLeft size={18} />
@@ -63,25 +53,12 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
           </button>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <h1 style={{ fontSize: 16, fontWeight: 700, color: '#f2f3f5', margin: 0 }}>
+        <div className={styles.rootDivDiv}>
+          <h1 className={styles.userProfile}>
             User Profile
           </h1>
           {savedIndicator && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                backgroundColor: 'rgba(35, 165, 90, 0.2)',
-                color: '#2dc770',
-                padding: '2px 8px',
-                borderRadius: 12,
-                fontSize: 12,
-                fontWeight: 600,
-                animation: 'fadeIn 0.2s ease',
-              }}
-            >
+            <span className={styles.rootDivDivSpan}>
               <Check size={14} /> Saved
             </span>
           )}
@@ -89,7 +66,7 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
       </div>
 
       {/* Action Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className={styles.actionControls}>
         {mode === 'view' ? (
           <button
             onClick={() => setMode('edit')}
@@ -97,8 +74,8 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: '#5865f2',
-              color: '#ffffff',
+              backgroundColor: 'var(--brand)',
+              color: 'var(--text-white)',
               border: 'none',
               padding: '8px 16px',
               borderRadius: 4,
@@ -107,8 +84,8 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
               cursor: 'pointer',
               transition: 'background-color 0.2s',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#4752c4')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#5865f2')}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--brand-hover)')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--brand)')}
           >
             <Edit3 size={16} />
             <span>Edit Profile</span>
@@ -121,7 +98,7 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
               disabled={mode === 'saving'}
               style={{
                 backgroundColor: 'transparent',
-                color: '#dbdee1',
+                color: 'var(--text-normal)',
                 border: '1px solid rgba(255, 255, 255, 0.15)',
                 padding: '7px 14px',
                 borderRadius: 4,
@@ -148,8 +125,8 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                backgroundColor: isDisplayNameValid ? '#23a55a' : '#4e5058',
-                color: '#ffffff',
+                backgroundColor: isDisplayNameValid ? 'var(--status-online)' : 'var(--interactive-muted)',
+                color: 'var(--text-white)',
                 border: 'none',
                 padding: '8px 16px',
                 borderRadius: 4,
@@ -160,12 +137,12 @@ export function ProfileTopBar({ s }: { s: OwnProfileState }) {
               }}
               onMouseEnter={(e) => {
                 if (mode !== 'saving' && isDisplayNameValid) {
-                  e.currentTarget.style.backgroundColor = '#1a7e44';
+                  e.currentTarget.style.backgroundColor = 'var(--legacy-green-dark)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (mode !== 'saving' && isDisplayNameValid) {
-                  e.currentTarget.style.backgroundColor = '#23a55a';
+                  e.currentTarget.style.backgroundColor = 'var(--status-online)';
                 }
               }}
             >

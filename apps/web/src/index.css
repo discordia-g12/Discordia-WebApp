@@ -53,6 +53,25 @@
   --success: #248046;
   --success-hover: #1a6334;
 
+  /* Paleta heredada: colores que los componentes usaban en hex y no tenían variable. Se van con los
+     tokens de Discord al terminar el rediseño (paso 14). */
+  --legacy-red: #ed4245;
+  --legacy-boost-pink: #f47fff;
+  --legacy-boost-pink-light: #ff73fa;
+  --legacy-fuchsia: #eb459e;
+  --legacy-orange: #faa81a;
+  --legacy-yellow: #fee75c;
+  --legacy-purple: #9b59b6;
+  --legacy-brand-light: #949cf7;
+  --legacy-green: #3ba55d;
+  --legacy-green-bright: #57f287;
+  --legacy-green-soft: #57d68d;
+  --legacy-green-dark: #1a7e44;
+  --legacy-bg-darker: #202225;
+  --legacy-bg-slate: #2e3338;
+  --legacy-bg-not-quite-black: #23272a;
+  --legacy-black: #000000;
+
   /* Medidas y Bordes */
   --radius-xs: 3px;
   --radius-sm: 4px;

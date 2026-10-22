@@ -12,6 +12,7 @@ import { User, Status } from '../../types';
 import { Avatar } from '../../ui/Avatar';
 import { UserMiniProfile } from './UserMiniProfile';
 import { StatusPicker } from './StatusPicker';
+import styles from './UserPanel.module.css';
 
 /**
  * Propiedades del componente UserPanel.
@@ -112,40 +113,15 @@ export const UserPanel: React.FC<UserPanelProps> = ({
     >
       {/* Barra de Conexión de Voz (Voice Connected) */}
       {inVoiceChannel && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '7px 10px',
-            backgroundColor: 'rgba(35, 165, 90, 0.12)',
-            borderBottom: '1px solid rgba(35, 165, 90, 0.25)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+        <div className={styles.div}>
+          <div className={styles.div2}>
             <Radio size={16} color="var(--status-online, #23a55a)" style={{ flexShrink: 0 }} />
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: 'var(--status-online, #23a55a)',
-                  lineHeight: 1.1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
+            <div className={styles.div3}>
+              <div className={styles.div4}>
                 <span>Voz Conectada</span>
               </div>
               <div
-                style={{
-                  fontSize: '11px',
-                  color: 'var(--text-muted, #949ba4)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
+                className={styles.div5}
                 title={`${voiceChannelName || 'Canal de voz'} / ${voiceServerName || 'Servidor'}`}
               >
                 {voiceChannelName || 'Canal de voz'} / {voiceServerName || 'Discordia'}
@@ -174,15 +150,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
       )}
 
       {/* Controles de Usuario Principales */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: 'var(--user-panel-height, 52px)',
-          padding: '0 8px',
-        }}
-      >
+      <div className={styles.controlesUsuarioPrincipales}>
         {/* Sección de Avatar e Identidad de Usuario */}
         <div
           role="button"
@@ -216,29 +184,12 @@ export const UserPanel: React.FC<UserPanelProps> = ({
             statusBg="var(--bg-secondary-alt, #232428)"
           />
 
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div
-              style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--header-primary, #f2f3f5)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                lineHeight: 1.2,
-              }}
-            >
+          <div className={styles.avatarEIdentidadUsuarioDiv}>
+            <div className={styles.avatarEIdentidadUsuarioDivDiv}>
               {currentUser.displayName}
             </div>
             <div
-              style={{
-                fontSize: '11px',
-                color: 'var(--text-muted, #949ba4)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                lineHeight: 1.2,
-              }}
+              className={styles.avatarEIdentidadUsuarioDivDiv2}
               title={currentUser.customStatus || getStatusLabel(currentUser.status)}
             >
               {currentUser.customStatus || getStatusLabel(currentUser.status)}
@@ -247,7 +198,7 @@ export const UserPanel: React.FC<UserPanelProps> = ({
         </div>
 
         {/* Botones de Acción Rápida: Micrófono, Auriculares, Ajustes */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+        <div className={styles.botonesAccionRapidaMicrofono}>
           {/* Micrófono */}
           <button
             type="button"

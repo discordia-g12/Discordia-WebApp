@@ -1,0 +1,179 @@
+/* Estilos de BoostTab: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.heroBanner {
+  padding: 28px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(244, 127, 255, 0.2) 0%, rgba(88, 101, 242, 0.25) 100%);
+  border: 1px solid rgba(244, 127, 255, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.heroBannerDiv {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.heroBannerDivDiv {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--legacy-boost-pink) 0%, var(--legacy-boost-pink-light) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(244, 127, 255, 0.4);
+}
+
+.heroBannerDivH3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin: 0px;
+}
+
+.heroBannerDivSpan {
+  font-size: 13px;
+  color: var(--text-normal);
+}
+
+.progressNextLevelDiv {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--header-secondary);
+  margin-bottom: 6px;
+}
+
+.progressNextLevelDiv2 {
+  height: 8px;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressNextLevelDiv2Div {
+  height: 100%;
+  background: linear-gradient(90deg, var(--legacy-boost-pink) 0%, var(--brand) 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.heroBannerDiv2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: rgba(35, 165, 90, 0.2);
+  border: 1px solid var(--status-online);
+  border-radius: 6px;
+  color: var(--text-positive);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.actionsPointsBalance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.actionsPointsBalanceDiv {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yourWalletBalance {
+  font-size: 13px;
+  color: var(--header-secondary);
+}
+
+.actionsPointsBalanceDivSpan {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.actionsPointsBalanceDiv2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.retractBoost {
+  background-color: transparent;
+  color: var(--text-danger);
+  border: 1px solid rgba(218, 55, 60, 0.4);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actionsPointsBalanceDiv2Button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, var(--legacy-boost-pink) 0%, var(--legacy-boost-pink-light) 100%);
+  color: var(--text-white);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(244, 127, 255, 0.35);
+}
+
+.unlockedLevelPerks {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-primary);
+  margin-bottom: 12px;
+}
+
+.boostPerksTableDiv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.boostPerksTableDivDiv {
+  background-color: var(--bg-secondary);
+  padding: 16px;
+}
+
+.level12Boosts {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin-bottom: 4px;
+}
+
+.boostPerksTableDivDivUl {
+  margin: 0px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-normal);
+  line-height: 1.5;
+}

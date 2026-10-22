@@ -3,6 +3,7 @@ import {
   Phone, PhoneOff, Radio 
 } from 'lucide-react';
 import { User } from '../../types';
+import styles from './IncomingCallModal.module.css';
 
 export interface IncomingCallModalProps {
   caller?: User;
@@ -26,75 +27,36 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        bottom: 24,
-        right: 24,
-        zIndex: 1200,
-        width: 320,
-        backgroundColor: 'var(--bg-floating)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-floating)',
-        padding: '20px',
-        animation: 'slideUp 0.25s ease',
-        color: 'var(--text-normal)',
-      }}
+      className={styles.root}
       role="alertdialog"
       aria-labelledby="incoming-call-title"
     >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+      <div className={styles.rootDiv}>
         {/* Avatar del llamante con pulso animado */}
-        <div style={{ position: 'relative', marginBottom: 14 }}>
-          <div
-            style={{
-              position: 'absolute',
-              inset: -6,
-              borderRadius: 'var(--radius-full)',
-              border: '2px solid var(--status-online)',
-              animation: 'pulse 1.8s infinite ease-in-out',
-            }}
-          />
+        <div className={styles.avatarLlamantePulsoAnimado}>
+          <div className={styles.avatarLlamantePulsoAnimadoDiv} />
           <img
             src={caller.avatarUrl || caller.avatar}
             alt={caller.displayName}
-            style={{
-              width: 68,
-              height: 68,
-              borderRadius: 'var(--radius-full)',
-              objectFit: 'cover',
-              border: '3px solid var(--bg-floating)',
-            }}
+            className={styles.avatarLlamantePulsoAnimadoImg}
           />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              right: 0,
-              backgroundColor: 'var(--status-online)',
-              borderRadius: 'var(--radius-full)',
-              padding: 4,
-              border: '2px solid var(--bg-floating)',
-              color: 'white',
-              display: 'flex',
-            }}
-          >
+          <div className={styles.avatarLlamantePulsoAnimadoDiv2}>
             <Radio size={12} />
           </div>
         </div>
 
         {/* Nombre y subtítulo */}
-        <h4 id="incoming-call-title" style={{ fontSize: 17, fontWeight: 700, color: 'var(--header-primary)', margin: 0 }}>
+        <h4 id="incoming-call-title" className={styles.nombreSubtitulo}>
           {caller.displayName}
         </h4>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+        <span className={styles.rootDivSpan}>
           te está llamando... ({channelName})
         </span>
 
         {/* Botones redondos de respuesta */}
-        <div style={{ display: 'flex', gap: 24, marginTop: 20 }}>
+        <div className={styles.botonesRedondosRespuesta}>
           {/* Rechazar */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <div className={styles.rechazar}>
             <button
               type="button"
               onClick={onDecline}
@@ -118,11 +80,11 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
             >
               <PhoneOff size={24} />
             </button>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Rechazar</span>
+            <span className={styles.rechazar2}>Rechazar</span>
           </div>
 
           {/* Aceptar */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <div className={styles.rechazar}>
             <button
               type="button"
               onClick={onAccept}
@@ -146,7 +108,7 @@ export const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
             >
               <Phone size={24} />
             </button>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Aceptar</span>
+            <span className={styles.rechazar2}>Aceptar</span>
           </div>
         </div>
       </div>

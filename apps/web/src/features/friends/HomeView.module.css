@@ -1,0 +1,363 @@
+/* Estilos de HomeView: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.campoBusquedaSuperior {
+  padding: 10px 10px 8px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.campoBusquedaSuperiorDiv {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-xs);
+  padding: 6px 8px;
+  gap: 8px;
+}
+
+.encuentraIniciaUnaConversacion {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-normal);
+  font-size: 12px;
+  width: 100%;
+}
+
+.botonAccesoAmigos {
+  padding: 8px 8px 4px 8px;
+}
+
+.amigos {
+  font-weight: 600;
+  font-size: 14px;
+  flex: 1;
+}
+
+.cabeceraMensajesDirectos {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 4px 16px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.avatarPuntoEstado {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.infoDmNombreUltimo {
+  min-width: 0px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.infoDmNombreUltimoDiv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.infoDmNombreUltimoDivSpan {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.infoDmNombreUltimoP {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0px;
+  height: 100%;
+}
+
+.div {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-chat);
+}
+
+.cabeceraAmigosPestanasDiv {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cabeceraAmigosPestanasDivDiv {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.amigos2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--header-primary);
+}
+
+.cabeceraAmigosPestanasDivDiv2 {
+  width: 1px;
+  height: 16px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.cabeceraAmigosPestanasDivDivButton {
+  border: none;
+  border-radius: var(--radius-xs);
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cabeceraAmigosPestanasDivDivButton2 {
+  border: none;
+  border-radius: var(--radius-xs);
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.anadirAmigo {
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.contenidoPrincipalAmigosPanel {
+  display: flex;
+  flex: 1;
+  min-height: 0px;
+  overflow: hidden;
+}
+
+.columnaIzquierdaListadoAmigos {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.columnaIzquierdaListadoAmigosDiv {
+  max-width: 540px;
+}
+
+.anadirAmigo2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin-bottom: 8px;
+}
+
+.columnaIzquierdaListadoAmigosDivP {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.columnaIzquierdaListadoAmigosDivDiv {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  gap: 12px;
+}
+
+.puedesAnadirAmigosSu {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-normal);
+  font-size: 14px;
+  flex: 1;
+}
+
+.columnaIzquierdaListadoAmigosDivP2 {
+  color: var(--status-online);
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.columnaIzquierdaListadoAmigosH3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.columnaIzquierdaListadoAmigosP {
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 40px 0;
+}
+
+.cabeceraAmigosPestanasDivSpan {
+  font-weight: 600;
+  color: var(--header-primary);
+  font-size: 14px;
+}
+
+.solicitudAmistadEntrante {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.aceptar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--bg-secondary);
+  color: var(--status-online);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rechazar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--bg-secondary);
+  color: var(--danger);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.barraFiltroAmigos {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  margin-bottom: 20px;
+  gap: 8px;
+}
+
+.buscarAmigos {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-normal);
+  font-size: 13px;
+  width: 100%;
+}
+
+.columnaIzquierdaListadoAmigosH32 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.informacionAmigo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0px;
+}
+
+.informacionAmigoDiv {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.informacionAmigoDiv2 {
+  min-width: 0px;
+}
+
+.informacionAmigoDiv2Div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.informacionAmigoDiv2P {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.botonIniciarDm {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--bg-secondary);
+  color: var(--interactive-normal);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.columnaDerechaPanelActivo {
+  width: 340px;
+  border-left: 1px solid rgba(0, 0, 0, 0.2);
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.activoAhora {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin-bottom: 16px;
+}
+
+.tarjetasActividadAmigosVacio {
+  text-align: center;
+  padding: 40px 20px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.porAhoraTodoEsta {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--header-secondary);
+  margin-bottom: 8px;
+}
+
+.tarjetasActividadAmigosVacioDiv {
+  font-size: 13px;
+  color: var(--text-muted);
+}
