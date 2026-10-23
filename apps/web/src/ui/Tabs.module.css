@@ -7,6 +7,8 @@
 
 .tab {
   position: relative;
+  display: inline-flex;
+  flex-direction: column;
   padding: var(--space-1) 0;
   background: none;
   border: 0;
@@ -26,6 +28,16 @@
 
 .selected {
   font-weight: 700;
+}
+
+/* Reserva el ancho de la versión en negrita: al cambiar de pestaña las demás no se corren */
+.tab::after {
+  content: attr(data-text);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 700;
+  pointer-events: none;
 }
 
 .underline {

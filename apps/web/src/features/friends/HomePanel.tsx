@@ -7,10 +7,12 @@ import { useVoice } from '../voice/VoiceProvider';
 import { useVoiceParticipants } from '../voice/useVoiceParticipants';
 import { useDmStore } from './dmStore';
 import { HomeView } from './HomeView';
+import { LegacyHomeView } from './legacy/LegacyHomeView';
 
 /**
- * Inicio: amigos y mensajes directos, con la barra de usuario. Con sidebarContainer (rediseño) la barra de
- * mensajes directos va a la columna izquierda del layout, que ya tiene su propia barra de usuario.
+ * Inicio: amigos y mensajes directos. Con sidebarContainer (rediseño, dentro de AppShell) es la vista
+ * nueva y la lista de mensajes directos va a la columna izquierda del layout, que ya tiene su barra de
+ * usuario; sin él, la vista anterior con su propia barra de usuario.
  */
 export function HomePanel({ sidebarContainer }: { sidebarContainer?: HTMLElement | null }) {
   const currentUser = useCurrentUser();
@@ -22,11 +24,24 @@ export function HomePanel({ sidebarContainer }: { sidebarContainer?: HTMLElement
   const userPanel = useUserPanelActions();
   const { sendMessage } = useMessageActions();
 
+  const shared = {
+    currentUserId: currentUser.id,
+    directMessages,
+    activeDirectMessageId: selectedDmId,
+    onSelectDirectMessage: (id: string | null) => setSelectedDmId(id),
+    onOpenUserProfile: openUserProfile,
+    onSendMessage: (_dmId: string, text: string) => sendMessage(text, undefined, undefined),
+  };
+
+  if (sidebarContainer !== undefined) {
+    return <HomeView sidebarContainer={sidebarContainer} {...shared} />;
+  }
+
   return (
-    <HomeView
-      sidebarContainer={sidebarContainer}
+    <LegacyHomeView
+      {...shared}
       userPanel={
-        sidebarContainer !== undefined ? null : <UserPanel
+        <UserPanel
           currentUser={currentUser}
           isMuted={voice.room.isMuted}
           isDeafened={voice.room.isDeafened}
@@ -45,12 +60,6 @@ export function HomePanel({ sidebarContainer }: { sidebarContainer?: HTMLElement
           onLogout={userPanel.onLogout}
         />
       }
-      currentUserId={currentUser.id}
-      directMessages={directMessages}
-      activeDirectMessageId={selectedDmId}
-      onSelectDirectMessage={(id) => setSelectedDmId(id)}
-      onOpenUserProfile={openUserProfile}
-      onSendMessage={(_dmId, text) => sendMessage(text, undefined, undefined)}
     />
   );
 }

@@ -1,633 +1,359 @@
-import React, { useState, useMemo } from 'react';
+import { useId, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Users,
-  Search,
-  MessageSquare,
-  Phone,
-  Video,
-  Plus,
-  X,
-  Check,
-  MoreHorizontal,
-  UserX,
-  Sparkles
-} from 'lucide-react';
-import { DirectMessage, User } from '../../types';
-import { Avatar } from '../../ui/legacy/Avatar';
-
+import { Plus, Search } from 'lucide-react';
+import type { DirectMessage, Status, User } from '../../types';
+import { ActionLink, BlockButton, EmptyState, SquareAvatar, Tabs, UnderlineInput, type TabItem } from '../../ui';
 import { ChatView } from '../chat/ChatView';
+import { useHomeState, type FriendsTab, type HomeState } from './useHomeState';
+import type { HomeViewProps as LegacyHomeViewProps } from './legacy/LegacyHomeView';
 import styles from './HomeView.module.css';
 
-/** Pestañas disponibles dentro de la sección de Amigos. */
-export type FriendsTab = 'online' | 'all' | 'pending' | 'blocked' | 'add-friend';
-
-/**
- * Propiedades del componente principal HomeView.
- */
-export interface HomeViewProps {
-  /** ID del usuario en sesión activa. */
-  currentUserId?: string;
-  /** Lista de mensajes directos recientes. */
-  directMessages?: DirectMessage[];
-  /** ID del mensaje directo activo. Si es null, se muestra la pestaña de Amigos. */
-  activeDirectMessageId?: string | null;
-  /** Callback al seleccionar un mensaje directo o volver a la vista de amigos (null). */
-  onSelectDirectMessage?: (dmId: string | null) => void;
-  /** Callback para abrir el perfil modal de un usuario. */
-  onOpenUserProfile?: (userId: string) => void;
-  /** Callback para iniciar llamada de audio con un usuario. */
-  onStartVoiceCall?: (userId: string) => void;
-  /** Callback para iniciar llamada de video con un usuario. */
-  onStartVideoCall?: (userId: string) => void;
-  /** Callback opcional al enviar mensaje en un DM. */
-  onSendMessage?: (dmId: string, content: string) => void;
-  /** Panel del usuario (perfil y controles de audio) anclado al pie del sidebar de mensajes directos. */
-  userPanel?: React.ReactNode;
-  /**
-   * Rediseño: elemento donde va la barra de mensajes directos (la columna izquierda del layout), en
-   * lugar de al lado del contenido. Se reemplaza al rediseñar el inicio (paso 6).
-   */
+export interface HomeViewProps extends Omit<LegacyHomeViewProps, 'userPanel'> {
+  /** Columna izquierda del layout (AppShell): ahí va la lista de mensajes directos, por portal. */
   sidebarContainer?: HTMLElement | null;
 }
 
-/** Sin contenedor (undefined), el nodo va en su lugar; con contenedor, por portal (null: todavía no montó). */
-const portalTo = (container: HTMLElement | null | undefined, node: React.ReactNode) =>
-  container === undefined ? node : container ? createPortal(node, container) : null;
+const STATUS_LABEL: Record<Status, string> = {
+  online: 'Conectado',
+  idle: 'Ausente',
+  dnd: 'No molestar',
+  invisible: 'Desconectado',
+  offline: 'Desconectado',
+};
+
+const isOffline = (status?: Status) => !status || status === 'offline' || status === 'invisible';
 
 /**
- * Solicitud de amistad simulada para la pestaña Pending.
+ * Inicio del rediseño (PDF, pág. 6). En la barra lateral, MENSAJES DIRECTOS con el buscador; en el
+ * contenido, AMIGOS con sus pestañas (subrayado que se desliza), el buscador y la lista, y a la derecha
+ * ACTIVO AHORA. Las filas de las tres columnas están alineadas por las mismas líneas.
+ *
+ * El chat de un DM todavía es el del diseño anterior: se rediseña junto con el chat de canal (paso 7).
  */
-interface FriendRequest {
-  id: string;
-  user: User;
-  type: 'incoming' | 'outgoing';
-}
-
-/**
- * Vista de inicio de Discordia con panel de Mensajes Directos y vista de Amigos.
- */
-export const HomeView: React.FC<HomeViewProps> = ({
+export function HomeView({
+  sidebarContainer,
   currentUserId,
   directMessages = [],
-  activeDirectMessageId: externalActiveDmId,
+  activeDirectMessageId,
   onSelectDirectMessage,
   onOpenUserProfile,
   onStartVoiceCall,
   onStartVideoCall,
   onSendMessage,
-  userPanel,
-  sidebarContainer,
-}) => {
-  // Estado local para DM seleccionado si no es controlado exteriormente
-  const [internalActiveDmId, setInternalActiveDmId] = useState<string | null>(null);
-  const activeDmId =
-    externalActiveDmId !== undefined ? externalActiveDmId : internalActiveDmId;
-
-  // Estado de pestañas de amigos
-  const [activeTab, setActiveTab] = useState<FriendsTab>('online');
-  const [friendsSearchQuery, setFriendsSearchQuery] = useState('');
-  const [dmSearchQuery, setDmSearchQuery] = useState('');
-
-  // Formulario "Añadir Amigo"
-  const [addFriendInput, setAddFriendInput] = useState('');
-  const [addFriendSuccess, setAddFriendSuccess] = useState<string | null>(null);
-
-  // Lista local de solicitudes pendientes
-  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
-
-  // Lista de usuarios bloqueados simulados
-  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
-
-  // Directorio de todos los amigos (excluyendo al usuario actual)
-  const allFriends = useMemo(() => {
-    return ([] as User[]).filter((u) => u.id !== currentUserId);
-  }, [currentUserId]);
-
-  // Amigos conectados (status != offline)
-  const onlineFriends = useMemo(() => {
-    return allFriends.filter(
-      (u) =>
-        u.status !== 'offline' &&
-        u.status !== 'invisible' &&
-        !blockedUserIds.includes(u.id)
-    );
-  }, [allFriends, blockedUserIds]);
-
-  // Filtrado de DMs en la barra lateral
-  const filteredDms = useMemo(() => {
-    if (!dmSearchQuery.trim()) return directMessages;
-    const q = dmSearchQuery.toLowerCase();
-    return directMessages.filter((dm) => {
-      const name = dm.recipient?.displayName.toLowerCase() || '';
-      const user = dm.recipient?.username.toLowerCase() || '';
-      return name.includes(q) || user.includes(q);
-    });
-  }, [directMessages, dmSearchQuery]);
-
-  // DM activo actual
-  const activeDm = useMemo(() => {
-    if (!activeDmId) return null;
-    return directMessages.find((dm) => dm.id === activeDmId) || null;
-  }, [activeDmId, directMessages]);
-
-  const selectDm = (dmId: string | null) => {
-    if (onSelectDirectMessage) {
-      onSelectDirectMessage(dmId);
-    } else {
-      setInternalActiveDmId(dmId);
-    }
-  };
-
-  const handleAcceptRequest = (reqId: string) => {
-    setPendingRequests((prev) => prev.filter((r) => r.id !== reqId));
-  };
-
-  const handleDeclineRequest = (reqId: string) => {
-    setPendingRequests((prev) => prev.filter((r) => r.id !== reqId));
-  };
-
-  const handleUnblock = (userId: string) => {
-    setBlockedUserIds((prev) => prev.filter((id) => id !== userId));
-  };
-
-  const handleSendFriendRequest = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!addFriendInput.trim()) return;
-    setAddFriendSuccess(`¡Éxito! Tu solicitud de amistad a ${addFriendInput} fue enviada.`);
-    setAddFriendInput('');
-    setTimeout(() => setAddFriendSuccess(null), 4000);
-  };
-
-  // Filtrado de amigos según pestaña y búsqueda
-  const displayedFriends = useMemo(() => {
-    let list: User[] = [];
-    if (activeTab === 'online') {
-      list = onlineFriends;
-    } else if (activeTab === 'all') {
-      list = allFriends.filter((u) => !blockedUserIds.includes(u.id));
-    } else if (activeTab === 'blocked') {
-      list = allFriends.filter((u) => blockedUserIds.includes(u.id));
-    }
-
-    if (!friendsSearchQuery.trim()) return list;
-    const q = friendsSearchQuery.toLowerCase();
-    return list.filter(
-      (u) =>
-        u.displayName.toLowerCase().includes(q) ||
-        u.username.toLowerCase().includes(q)
-    );
-  }, [activeTab, onlineFriends, allFriends, blockedUserIds, friendsSearchQuery]);
+}: HomeViewProps) {
+  const home = useHomeState({ currentUserId, directMessages, activeDirectMessageId, onSelectDirectMessage });
+  const sidebar = <DmSidebar home={home} onNewMessage={() => home.setActiveTab('add-friend')} />;
 
   return (
-    <div className="home-layout">
-      {/* ==========================================================================
-          1. SIDEBAR DE MENSAJES DIRECTOS (240px)
-          ========================================================================== */}
-      {portalTo(sidebarContainer, <aside className="dm-sidebar">
-        {/* Campo de Búsqueda Superior */}
-        <div className={styles.campoBusquedaSuperior}>
-          <div className={styles.campoBusquedaSuperiorDiv}>
-            <input
-              type="text"
-              placeholder="Encuentra o inicia una conversación"
-              value={dmSearchQuery}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDmSearchQuery(e.target.value)}
-              className={styles.encuentraIniciaUnaConversacion}
-            />
-            <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-          </div>
+    <>
+      {sidebarContainer ? createPortal(sidebar, sidebarContainer) : null}
+      {home.activeDm ? (
+        <ChatView
+          directMessage={home.activeDm}
+          messages={[]}
+          currentUserId={currentUserId}
+          users={{}}
+          onOpenUserProfile={onOpenUserProfile}
+          onStartVoiceCall={() => onStartVoiceCall?.(home.activeDm!.recipientId)}
+          onStartVideoCall={() => onStartVideoCall?.(home.activeDm!.recipientId)}
+          onSendMessage={(content) => onSendMessage?.(home.activeDm!.id, content)}
+        />
+      ) : (
+        <FriendsView home={home} onOpenUserProfile={onOpenUserProfile} onStartVoiceCall={onStartVoiceCall} />
+      )}
+    </>
+  );
+}
+
+// ==========================================
+// Barra lateral: mensajes directos
+// ==========================================
+
+function DmSidebar({ home, onNewMessage }: { home: HomeState; onNewMessage: () => void }) {
+  return (
+    <div className={styles.sidebar}>
+      <div className={styles.row}>
+        <SearchField
+          label="Buscar conversaciones"
+          placeholder="Encuentra o inicia una conversación"
+          value={home.dmSearchQuery}
+          onChange={home.setDmSearchQuery}
+        />
+      </div>
+      <div className={`${styles.row} ${styles.sectionRow}`}>
+        <h2 className={styles.label}>Mensajes directos /</h2>
+        <button type="button" className={styles.iconButton} onClick={onNewMessage} aria-label="Nuevo mensaje directo" title="Nuevo mensaje directo">
+          <Plus size={14} strokeWidth={1.5} aria-hidden="true" />
+        </button>
+      </div>
+
+      {home.filteredDms.length === 0 ? (
+        <div className={styles.sidebarEmpty}>
+          {home.dmSearchQuery.trim() ? (
+            <EmptyState title="sin resultados" hint={`ninguna conversación coincide con "${home.dmSearchQuery.trim()}"`} />
+          ) : (
+            <EmptyState title="sin conversaciones" hint="escribile a un amigo y la conversación aparecerá aquí" />
+          )}
         </div>
-
-        {/* Botón de Acceso a Amigos */}
-        <div className={styles.botonAccesoAmigos}>
-          <div
-            className={`dm-item ${activeDmId === null ? 'active' : ''}`}
-            onClick={() => selectDm(null)}
-          >
-            <Users size={20} style={{ color: activeDmId === null ? 'var(--interactive-active)' : 'inherit' }} />
-            <span className={styles.amigos}>Amigos</span>
-            {onlineFriends.length > 0 && (
-              <span className="badge badge-brand" style={{ fontSize: 10 }}>
-                {onlineFriends.length}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Cabecera de Mensajes Directos */}
-        <div className={styles.cabeceraMensajesDirectos}>
-          <span>MENSAJES DIRECTOS</span>
-          <button
-            className="btn-icon"
-            style={{ width: 20, height: 20 }}
-            title="Crear MD"
-            onClick={() => setActiveTab('add-friend')}
-          >
-            <Plus size={14} />
-          </button>
-        </div>
-
-        {/* Lista de Mensajes Directos Recientes */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 16 }} className="scrollbar-thin">
-          {filteredDms.map((dm) => {
-            const recipient = dm.recipient || { id: dm.recipientId || 'unknown', name: 'Usuario', displayName: 'Usuario' } as any;
-            const isSelected = activeDmId === dm.id;
-
-            return (
-              <div
-                key={dm.id}
-                className={`dm-item ${isSelected ? 'active' : ''}`}
-                onClick={() => selectDm(dm.id)}
-              >
-                {/* Avatar con punto de estado */}
-                <div className={styles.avatarPuntoEstado}>
-                  <Avatar user={recipient || { id: "unknown", displayName: "Usuario" } as any} size={32} />
-                  <span
-                    className={`status-dot ${recipient?.status || 'offline'}`}
-                    style={{
-                      position: 'absolute',
-                      bottom: -2,
-                      right: -2,
-                      width: 10,
-                      height: 10,
-                    }}
-                  />
-                </div>
-
-                {/* Info del DM: Nombre y último mensaje */}
-                <div className={styles.infoDmNombreUltimo}>
-                  <div className={styles.infoDmNombreUltimoDiv}>
-                    <span
-                      className={styles.infoDmNombreUltimoDivSpan} style={{ color: isSelected ? 'var(--text-white)' : 'var(--text-normal)' }}
-                    >
-                      {recipient?.displayName || 'User'}
-                    </span>
-                    {dm.unreadCount && dm.unreadCount > 0 ? (
-                      <span className="badge badge-danger" style={{ fontSize: 10, padding: '1px 5px' }}>
-                        {dm.unreadCount}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  {dm.lastMessage && (
-                    <p className={styles.infoDmNombreUltimoP}>
-                      {dm.lastMessage}
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {userPanel}
-      </aside>)}
-
-      {/* ==========================================================================
-          2. ÁREA PRINCIPAL: CHAT DE DM O VISTA DE AMIGOS
-          ========================================================================== */}
-      <main className={styles.main}>
-        {activeDm ? (
-          /* ========================================================================
-             CASO A: DM SELECCIONADO (RENDERIZA ChatView)
-             ======================================================================== */
-          <ChatView
-            directMessage={activeDm}
-            messages={[]}
-            currentUserId={currentUserId}
-            users={{}}
-            onOpenUserProfile={onOpenUserProfile}
-            onStartVoiceCall={() => onStartVoiceCall?.(activeDm.recipientId)}
-            onStartVideoCall={() => onStartVideoCall?.(activeDm.recipientId)}
-            onSendMessage={(content) => onSendMessage?.(activeDm.id, content)}
-          />
-        ) : (
-          /* ========================================================================
-             CASO B: VISTA DE AMIGOS
-             ======================================================================== */
-          <div className={styles.div}>
-            {/* Cabecera de Amigos con Pestañas */}
-            <header className="chat-header">
-              <div className={styles.cabeceraAmigosPestanasDiv}>
-                <div className={styles.cabeceraAmigosPestanasDivDiv}>
-                  <Users size={24} style={{ color: 'var(--text-muted)' }} />
-                  <h2 className={styles.amigos2}>
-                    Amigos
-                  </h2>
-                </div>
-
-                <div className={styles.cabeceraAmigosPestanasDivDiv2} />
-
-                {/* Barra de Pestañas */}
-                <div className={styles.cabeceraAmigosPestanasDivDiv}>
-                  <button
-                    onClick={() => setActiveTab('online')}
-                    className={styles.cabeceraAmigosPestanasDivDivButton} style={{ backgroundColor: activeTab === 'online' ? 'var(--bg-modifier-selected)' : 'transparent', color: activeTab === 'online' ? 'var(--interactive-active)' : 'var(--interactive-normal)' }}
-                  >
-                    Disponible ({onlineFriends.length})
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('all')}
-                    className={styles.cabeceraAmigosPestanasDivDivButton} style={{ backgroundColor: activeTab === 'all' ? 'var(--bg-modifier-selected)' : 'transparent', color: activeTab === 'all' ? 'var(--interactive-active)' : 'var(--interactive-normal)' }}
-                  >
-                    Todos ({allFriends.length})
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('pending')}
-                    className={styles.cabeceraAmigosPestanasDivDivButton2} style={{ backgroundColor: activeTab === 'pending' ? 'var(--bg-modifier-selected)' : 'transparent', color: activeTab === 'pending' ? 'var(--interactive-active)' : 'var(--interactive-normal)' }}
-                  >
-                    <span>Pendiente</span>
-                    {pendingRequests.length > 0 && (
-                      <span className="badge badge-danger" style={{ fontSize: 10, padding: '1px 5px' }}>
-                        {pendingRequests.length}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('blocked')}
-                    className={styles.cabeceraAmigosPestanasDivDivButton} style={{ backgroundColor: activeTab === 'blocked' ? 'var(--bg-modifier-selected)' : 'transparent', color: activeTab === 'blocked' ? 'var(--interactive-active)' : 'var(--interactive-normal)' }}
-                  >
-                    Bloqueado
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('add-friend')}
-                    className={styles.anadirAmigo} style={{ backgroundColor: activeTab === 'add-friend' ? 'transparent' : 'var(--success)', color: activeTab === 'add-friend' ? 'var(--status-online)' : 'var(--text-white)', border: activeTab === 'add-friend' ? '1px solid var(--status-online)' : 'none', borderRadius: 'var(--radius-xs)' }}
-                  >
-                    Añadir amigo
-                  </button>
-                </div>
-              </div>
-            </header>
-
-            {/* Contenido Principal de Amigos y Panel Activo Ahora */}
-            <div className={styles.contenidoPrincipalAmigosPanel}>
-              {/* Columna Izquierda: Listado de amigos o formulario */}
-              <div className={styles.columnaIzquierdaListadoAmigos}>
-                {activeTab === 'add-friend' ? (
-                  /* Formulario Añadir Amigo */
-                  <div className={styles.columnaIzquierdaListadoAmigosDiv}>
-                    <h3 className={styles.anadirAmigo2}>
-                      AÑADIR AMIGO
-                    </h3>
-                    <p className={styles.columnaIzquierdaListadoAmigosDivP}>
-                      Puedes añadir amigos usando su nombre de usuario de Discordia.
-                    </p>
-
-                    <form onSubmit={handleSendFriendRequest}>
-                      <div className={styles.columnaIzquierdaListadoAmigosDivDiv}>
-                        <input
-                          type="text"
-                          placeholder="Puedes añadir amigos con su Discordia Tag (ej. danielp)"
-                          value={addFriendInput}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddFriendInput(e.target.value)}
-                          className={styles.puedesAnadirAmigosSu}
-                        />
-                        <button
-                          type="submit"
-                          className="btn btn-primary"
-                          disabled={!addFriendInput.trim()}
-                          style={{ padding: '8px 16px', fontSize: 13 }}
-                        >
-                          Enviar solicitud de amistad
-                        </button>
-                      </div>
-                    </form>
-
-                    {addFriendSuccess && (
-                      <p className={styles.columnaIzquierdaListadoAmigosDivP2}>
-                        {addFriendSuccess}
-                      </p>
-                    )}
-                  </div>
-                ) : activeTab === 'pending' ? (
-                  /* Solicitudes de Amistad Pendientes */
-                  <div>
-                    <h3 className={styles.columnaIzquierdaListadoAmigosH3}>
-                      PENDIENTE — {pendingRequests.length}
-                    </h3>
-                    {pendingRequests.length === 0 ? (
-                      <p className={styles.columnaIzquierdaListadoAmigosP}>
-                        No hay solicitudes de amistad pendientes.
-                      </p>
-                    ) : (
-                      pendingRequests.map((req) => (
-                        <div
-                          key={req.id}
-                          className="friend-row-hover"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '12px 16px',
-                            borderTop: '1px solid rgba(255, 255, 255, 0.04)',
-                            borderRadius: 'var(--radius-sm)',
-                          }}
-                        >
-                          <div className={styles.cabeceraAmigosPestanasDiv}>
-                            <Avatar user={req.user} size={40} />
-                            <div>
-                              <span className={styles.cabeceraAmigosPestanasDivSpan}>
-                                {req.user.displayName}
-                              </span>
-                              <p className={styles.solicitudAmistadEntrante}>
-                                Solicitud de amistad entrante
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className={styles.cabeceraAmigosPestanasDivDiv}>
-                            <button
-                              onClick={() => handleAcceptRequest(req.id)}
-                              title="Aceptar"
-                              className={styles.aceptar}
-                            >
-                              <Check size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDeclineRequest(req.id)}
-                              title="Rechazar"
-                              className={styles.rechazar}
-                            >
-                              <X size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                ) : (
-                  /* Listado de Amigos (Online / All / Blocked) */
-                  <div>
-                    {/* Barra de Filtro de Amigos */}
-                    <div className={styles.barraFiltroAmigos}>
-                      <input
-                        type="text"
-                        placeholder="Buscar amigos"
-                        value={friendsSearchQuery}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFriendsSearchQuery(e.target.value)}
-                        className={styles.buscarAmigos}
-                      />
-                      <Search size={16} style={{ color: 'var(--text-muted)' }} />
-                    </div>
-
-                    <h3 className={styles.columnaIzquierdaListadoAmigosH32}>
-                      {activeTab === 'online'
-                        ? `DISPONIBLE — ${displayedFriends.length}`
-                        : activeTab === 'all'
-                        ? `TODOS LOS AMIGOS — ${displayedFriends.length}`
-                        : `BLOQUEADO — ${displayedFriends.length}`}
-                    </h3>
-
-                    {displayedFriends.length === 0 ? (
-                      <p className={styles.columnaIzquierdaListadoAmigosP}>
-                        No se encontraron amigos en esta categoría.
-                      </p>
-                    ) : (
-                      displayedFriends.map((friend) => {
-                        const existingDm = directMessages.find((dm) => dm.recipientId === friend.id);
-
-                        return (
-                          <div
-                            key={friend.id}
-                            className="friend-row-hover"
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              padding: '10px 12px',
-                              borderTop: '1px solid rgba(255, 255, 255, 0.04)',
-                              borderRadius: 'var(--radius-sm)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {/* Información del Amigo */}
-                            <div
-                              className={styles.informacionAmigo}
-                              onClick={() => onOpenUserProfile?.(friend.id)}
-                            >
-                              <div className={styles.informacionAmigoDiv}>
-                                <Avatar user={friend} size={40} />
-                                <span
-                                  className={`status-dot ${friend.status || 'offline'}`}
-                                  style={{
-                                    position: 'absolute',
-                                    bottom: -2,
-                                    right: -2,
-                                    width: 10,
-                                    height: 10,
-                                  }}
-                                />
-                              </div>
-
-                              <div className={styles.informacionAmigoDiv2}>
-                                <div className={styles.informacionAmigoDiv2Div}>
-                                  <span className={styles.cabeceraAmigosPestanasDivSpan}>
-                                    {friend.displayName}
-                                  </span>
-                                  <span className={styles.solicitudAmistadEntrante}>
-                                    @{friend.username}
-                                  </span>
-                                  {friend.isPremium && (
-                                    <Sparkles size={13} style={{ color: 'var(--text-warning)' }} />
-                                  )}
-                                </div>
-                                <p className={styles.informacionAmigoDiv2P}>
-                                  {friend.customStatus ||
-                                    (friend.status === 'online' ? 'Disponible' : 'Desconectado')}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Botones de Acción Rápida */}
-                            <div className={styles.cabeceraAmigosPestanasDivDiv}>
-                              {activeTab === 'blocked' ? (
-                                <button
-                                  onClick={() => handleUnblock(friend.id)}
-                                  className="btn btn-secondary"
-                                  style={{ fontSize: 12, padding: '4px 10px' }}
-                                >
-                                  <UserX size={14} />
-                                  <span>Desbloquear</span>
-                                </button>
-                              ) : (
-                                <>
-                                  {/* Botón Iniciar DM */}
-                                  <button
-                                    onClick={() => {
-                                      if (existingDm) {
-                                        selectDm(existingDm.id);
-                                      } else {
-                                        selectDm(`dm-${friend.id}`);
-                                      }
-                                    }}
-                                    title="Enviar mensaje"
-                                    className={styles.botonIniciarDm}
-                                  >
-                                    <MessageSquare size={18} />
-                                  </button>
-
-                                  {/* Botón Iniciar Llamada */}
-                                  <button
-                                    onClick={() => onStartVoiceCall?.(friend.id)}
-                                    title="Iniciar llamada"
-                                    className={styles.botonIniciarDm}
-                                  >
-                                    <Phone size={18} />
-                                  </button>
-
-                                  {/* Botón Iniciar Videollamada */}
-                                  <button
-                                    onClick={() => onStartVideoCall?.(friend.id)}
-                                    title="Iniciar videollamada"
-                                    className={styles.botonIniciarDm}
-                                  >
-                                    <Video size={18} />
-                                  </button>
-
-                                  {/* Más Opciones */}
-                                  <button
-                                    onClick={() => onOpenUserProfile?.(friend.id)}
-                                    title="Más opciones"
-                                    className={styles.botonIniciarDm}
-                                  >
-                                    <MoreHorizontal size={18} />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Columna Derecha: Panel "Activo Ahora" */}
-              <aside className={styles.columnaDerechaPanelActivo}>
-                <h3 className={styles.activoAhora}>
-                  Activo ahora
-                </h3>
-
-                {/* Tarjetas de Actividad de Amigos (Vacío) */}
-                <div className={styles.tarjetasActividadAmigosVacio}>
-                  <div className={styles.porAhoraTodoEsta}>
-                    Por ahora todo está tranquilo
-                  </div>
-                  <div className={styles.tarjetasActividadAmigosVacioDiv}>
-                    Cuando un amigo empiece una actividad, aparecerá aquí.
-                  </div>
-                </div>
-              </aside>
-            </div>
-          </div>
-        )}
-      </main>
+      ) : (
+        <ul className={styles.dmList}>
+          {home.filteredDms.map((dm) => (
+            <li key={dm.id}>
+              <DmItem dm={dm} active={dm.id === home.activeDmId} onPress={() => home.selectDm(dm.id)} />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
-};
+}
+
+/** Conversación: nombre y estado con barra final; desconectada, en gris (PDF, pág. 6). Sin avatar. */
+function DmItem({ dm, active, onPress }: { dm: DirectMessage; active: boolean; onPress: () => void }) {
+  const name = dm.recipient?.displayName || 'Usuario';
+  const status = dm.recipient?.status;
+  const unread = dm.unreadCount ?? 0;
+
+  return (
+    <button
+      type="button"
+      className={`${styles.dm} ${active ? styles.dmActive : ''} ${isOffline(status) ? styles.dmOffline : ''}`}
+      onClick={onPress}
+      aria-current={active ? 'page' : undefined}
+    >
+      <span className={styles.dmName}>{name}</span>
+      <span className={styles.dmMeta}>
+        {STATUS_LABEL[status ?? 'offline']}/{unread > 0 && <strong> {unread} sin leer</strong>}
+      </span>
+    </button>
+  );
+}
+
+// ==========================================
+// Contenido: amigos y activo ahora
+// ==========================================
+
+function FriendsView({
+  home,
+  onOpenUserProfile,
+  onStartVoiceCall,
+}: {
+  home: HomeState;
+  onOpenUserProfile?: (userId: string) => void;
+  onStartVoiceCall?: (userId: string) => void;
+}) {
+  const tabs: TabItem<FriendsTab>[] = [
+    { value: 'online', label: 'Disponible', count: home.onlineFriends.length },
+    { value: 'all', label: 'Todos', count: home.allFriends.length },
+    { value: 'pending', label: 'Pendiente', count: home.pendingRequests.length || undefined },
+    { value: 'blocked', label: 'Bloqueado' },
+    { value: 'add-friend', label: 'Añadir amigo' },
+  ];
+  const showSearch = home.activeTab !== 'add-friend' && home.activeTab !== 'pending';
+
+  return (
+    <div className={styles.friends}>
+      <header className={`${styles.row} ${styles.friendsHeader}`}>
+        <h1 className={styles.friendsTitle}>Amigos</h1>
+        <div className={styles.tabs}>
+          <Tabs items={tabs} value={home.activeTab} onChange={home.setActiveTab} label="Amigos" />
+        </div>
+      </header>
+
+      <section className={styles.friendsMain} aria-label="Lista de amigos">
+        {showSearch && (
+          <div className={styles.row}>
+            <SearchField
+              label="Buscar amigos"
+              placeholder="Buscar amigos"
+              value={home.friendsSearchQuery}
+              onChange={home.setFriendsSearchQuery}
+            />
+          </div>
+        )}
+        {/* Se vuelve a montar al cambiar de pestaña: el contenido entra escalonado */}
+        <div key={home.activeTab} className={styles.tabContent}>
+          <TabContent home={home} onOpenUserProfile={onOpenUserProfile} onStartVoiceCall={onStartVoiceCall} />
+        </div>
+      </section>
+
+      <aside className={styles.activeNow} aria-labelledby="activo-ahora">
+        <div className={styles.row}>
+          <h2 id="activo-ahora" className={styles.label}>
+            Activo ahora
+          </h2>
+        </div>
+        <div className={styles.activeNowBody}>
+          <EmptyState title="por ahora todo está tranquilo" hint="cuando un amigo empiece una actividad aparecerá aquí." />
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function TabContent({
+  home,
+  onOpenUserProfile,
+  onStartVoiceCall,
+}: {
+  home: HomeState;
+  onOpenUserProfile?: (userId: string) => void;
+  onStartVoiceCall?: (userId: string) => void;
+}) {
+  if (home.activeTab === 'add-friend') return <AddFriend home={home} />;
+
+  if (home.activeTab === 'pending') {
+    if (home.pendingRequests.length === 0) {
+      return <Empty title="no hay solicitudes pendientes" hint="cuando alguien te agregue vas a verlo acá" />;
+    }
+    return (
+      <ul className={styles.list}>
+        {home.pendingRequests.map((req) => (
+          <FriendRow key={req.id} user={req.user} detail={req.type === 'incoming' ? 'Solicitud entrante/' : 'Solicitud enviada/'}>
+            {req.type === 'incoming' && <ActionLink onPress={() => home.handleAcceptRequest(req.id)}>aceptar</ActionLink>}
+            <ActionLink onPress={() => home.handleDeclineRequest(req.id)}>{req.type === 'incoming' ? 'rechazar' : 'cancelar'}</ActionLink>
+          </FriendRow>
+        ))}
+      </ul>
+    );
+  }
+
+  const query = home.friendsSearchQuery.trim();
+  if (home.displayedFriends.length === 0) {
+    if (query) return <Empty title="sin resultados" hint={`nadie coincide con "${query}"`} />;
+    if (home.activeTab === 'blocked') return <Empty title="no bloqueaste a nadie" hint="los usuarios que bloquees aparecerán aquí" />;
+    if (home.activeTab === 'all') {
+      return (
+        <Empty title="todavía no tenés amigos" hint="añadí a alguien con su nombre de usuario">
+          <ActionLink onPress={() => home.setActiveTab('add-friend')}>añadir amigo</ActionLink>
+        </Empty>
+      );
+    }
+    return <Empty title="nadie disponible por ahora" hint="cuando tus amigos se conecten aparecerán aquí" />;
+  }
+
+  return (
+    <ul className={styles.list}>
+      {home.displayedFriends.map((friend) => (
+        <FriendRow
+          key={friend.id}
+          user={friend}
+          detail={`@${friend.username} · ${friend.customStatus || STATUS_LABEL[friend.status]}/`}
+          onOpenProfile={() => onOpenUserProfile?.(friend.id)}
+        >
+          {home.activeTab === 'blocked' ? (
+            <ActionLink onPress={() => home.handleUnblock(friend.id)}>desbloquear</ActionLink>
+          ) : (
+            <>
+              <ActionLink onPress={() => home.messageFriend(friend.id)}>mensaje</ActionLink>
+              <ActionLink onPress={() => onStartVoiceCall?.(friend.id)}>llamar</ActionLink>
+              <ActionLink onPress={() => onOpenUserProfile?.(friend.id)}>perfil</ActionLink>
+            </>
+          )}
+        </FriendRow>
+      ))}
+    </ul>
+  );
+}
+
+/** Fila de la lista: avatar cuadrado con presencia, nombre, detalle y acciones con guion bajo a la derecha. */
+function FriendRow({
+  user,
+  detail,
+  onOpenProfile,
+  children,
+}: {
+  user: User;
+  detail: string;
+  onOpenProfile?: () => void;
+  children: ReactNode;
+}) {
+  const identity = (
+    <>
+      <SquareAvatar user={user} size={32} status={user.status} />
+      <span className={styles.friendText}>
+        <span className={styles.friendName}>{user.displayName}</span>
+        <span className={styles.friendDetail}>{detail}</span>
+      </span>
+    </>
+  );
+
+  return (
+    <li className={styles.friendRow}>
+      {onOpenProfile ? (
+        <button type="button" className={styles.friendIdentity} onClick={onOpenProfile}>
+          {identity}
+        </button>
+      ) : (
+        <span className={styles.friendIdentity}>{identity}</span>
+      )}
+      <span className={styles.friendActions}>{children}</span>
+    </li>
+  );
+}
+
+function AddFriend({ home }: { home: HomeState }) {
+  return (
+    <form className={styles.addFriend} onSubmit={home.handleSendFriendRequest}>
+      <div>
+        <h2 className={styles.addFriendTitle}>Añadir amigo</h2>
+        <p className={styles.addFriendText}>Podés añadir amigos con su nombre de usuario de Discordia.</p>
+      </div>
+      <UnderlineInput
+        label="nombre de usuario"
+        value={home.addFriendInput}
+        onChange={(e) => home.setAddFriendInput(e.target.value)}
+        placeholder="ej. danielp"
+        autoComplete="off"
+      />
+      <BlockButton type="submit" disabled={!home.addFriendInput.trim()}>
+        Enviar solicitud
+      </BlockButton>
+      {home.addFriendSuccess && (
+        <p className={styles.addFriendSuccess} role="status">
+          / {home.addFriendSuccess}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function Empty({ title, hint, children }: { title: string; hint: string; children?: ReactNode }) {
+  return (
+    <div className={styles.empty}>
+      <EmptyState title={title} hint={hint} />
+      {children}
+    </div>
+  );
+}
+
+/** Buscador entre las líneas de la fila, con la lupa a la derecha. */
+function SearchField({
+  label,
+  placeholder,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const id = useId();
+  return (
+    <div className={styles.search}>
+      <label htmlFor={id} className={styles.srOnly}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="search"
+        className={styles.searchInput}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <Search size={14} strokeWidth={1.5} aria-hidden="true" className={styles.searchIcon} />
+    </div>
+  );
+}

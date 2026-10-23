@@ -59,6 +59,7 @@ export function Tabs<T extends string>({ items, value, onChange, label }: TabsPr
             tabIndex={selected ? 0 : -1}
             disabled={item.disabled}
             className={`${styles.tab} ${selected ? styles.selected : ''}`}
+            data-text={item.count !== undefined ? `${item.label} (${item.count})` : item.label}
             onClick={() => onChange(item.value)}
             onKeyDown={(e) => move(e, item.value)}
           >

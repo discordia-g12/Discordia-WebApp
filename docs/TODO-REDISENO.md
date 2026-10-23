@@ -437,8 +437,27 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 6: Home y amigos (`HomeView`)
 
-- [ ] Tres columnas (DMs, amigos, activo ahora), pestañas con subrayado deslizable y estados vacíos.
-- [ ] Chat de DMs (sección 3).
+- [x] Lógica del inicio en `features/friends/useHomeState.ts` (pestañas, búsquedas, solicitudes, bloqueados,
+      DM activo), compartida por la vista nueva (`HomeView`) y la anterior (`legacy/LegacyHomeView`).
+      `HomePanel` elige: dentro de `AppShell` la nueva; si no, la anterior con su barra de usuario.
+- [x] Tres columnas con las mismas filas de 48 px, así las líneas quedan alineadas (PDF, pág. 6):
+      - Barra lateral: buscador entre líneas, `MENSAJES DIRECTOS /` con `+` (lleva a añadir amigo) y las
+        conversaciones sin avatar: nombre, estado con barra final (`Conectado/`; en gris si está
+        desconectada) y los no leídos. La abierta lleva una barra negra a la izquierda.
+      - Amigos: `AMIGOS` en su celda y las pestañas (`DISPONIBLE (0)`, `TODOS`, `PENDIENTE`, `BLOQUEADO`,
+        `AÑADIR AMIGO`) apoyadas en la línea, con el subrayado que se desliza; buscador; filas con avatar
+        cuadrado y presencia, `@usuario · estado/` y acciones `_mensaje`, `_llamar`, `_perfil`
+        (`_desbloquear`, `_aceptar` / `_rechazar` en sus pestañas). Añadir amigo con campo subrayado y
+        bloque negro.
+      - `ACTIVO AHORA` con su estado vacío.
+- [x] Estados vacíos propios de cada pestaña y de las búsquedas (`sin resultados`); desde `todos` vacío,
+      `_añadir amigo`. Al cambiar de pestaña el contenido entra escalonado.
+- [x] `Tabs`: reserva el ancho de la pestaña en negrita, así las demás no se corren al cambiar.
+- [ ] Chat de DMs (sección 3): queda para el paso 7, con el chat de canal (es el mismo componente,
+      `ChatView`); por ahora se ve el del diseño anterior dentro de la grilla nueva. La marca de agua ya
+      muestra el nombre del otro usuario.
+- Sin backend de amigos todavía: la lista de amigos sale vacía y las solicitudes y bloqueos son locales
+  (igual que en la vista anterior).
 
 ### Paso 7: servidor y chat (`ChannelSidebar`, `ChatView`, `MemberList`)
 
