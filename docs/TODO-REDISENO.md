@@ -488,6 +488,10 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
   diseño anterior no hacía nada).
 - Corregido de paso: al responder a un mensaje sin el objeto `author` (lo normal desde el backend), la
   barra decía "@usuario" en vez del nombre.
+- Corregido después: la línea de `SectionLabel` (categorías, grupos de miembros) tachaba el título, porque
+  iba a una altura fija en `em` que dependía del interlineado. Ahora se alinea por la línea base (grid
+  con `align-items: baseline`) y apoya en el pie de las letras. La `v` de colapsar quedó
+  junto al título (antes, a 24 px).
 - Para el paso 12: en oscuro, el tinte celeste de la barra lateral del servidor queda gris azulado.
 
 ### Paso 8: voz (`VoiceView`)
