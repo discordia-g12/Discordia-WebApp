@@ -38,6 +38,12 @@ describe.each<ColorScheme>(['light', 'dark'])('contraste WCAG AA (%s)', (scheme)
     expect(contrast(c.onDanger, c.danger)).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('las líneas que marcan algo (bordes de campos y opciones, pestaña activa) se distinguen (3:1)', () => {
+    for (const bg of backgrounds(scheme)) {
+      expect(contrast(c.lineStrong, bg), `${c.lineStrong} sobre ${bg}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it('el contorno de foco se distingue del fondo (3:1, componente no textual)', () => {
     for (const bg of backgrounds(scheme)) {
       expect(contrast(c.focus, bg), `sobre ${bg}`).toBeGreaterThanOrEqual(3);

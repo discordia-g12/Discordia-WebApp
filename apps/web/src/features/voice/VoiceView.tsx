@@ -23,6 +23,11 @@ export const CONNECTION_LABEL: Record<VoiceViewConnectionState, string> = {
 };
 
 /** Columnas del mosaico según cuántas fichas hay (los participantes más la de invitar). */
+/** Late solo mientras conecta o reconecta; desconectado es un estado quieto (y legible). */
+export function isPending(state: VoiceViewConnectionState): boolean {
+  return state === 'connecting' || state === 'reconnecting';
+}
+
 function columnsFor(tiles: number): number {
   if (tiles <= 1) return 1;
   if (tiles <= 4) return 2;
@@ -66,7 +71,7 @@ export function VoiceView({
           •{channelName}
           {serverName && <span className={styles.server}> / {serverName}</span>}
         </h1>
-        <p className={`${styles.status} ${connectionState !== 'connected' ? styles.statusPending : ''}`} role="status">
+        <p className={`${styles.status} ${isPending(connectionState) ? styles.statusPending : ''}`} role="status">
           {CONNECTION_LABEL[connectionState]}
         </p>
       </header>

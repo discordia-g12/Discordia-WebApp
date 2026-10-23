@@ -50,7 +50,9 @@ export function OwnProfileScreen(props: OwnProfileViewProps) {
     >
       <SettingsCell title="Vista previa">
         <article className={styles.card} aria-label="Así ven tu perfil">
-          <div className={styles.banner} style={{ background: s.bannerColor }} />
+          {/* Sin banner guardado, la franja neutra del tema (el estado arranca con el azul de Discord, que es
+              el valor por defecto del diseño anterior) */}
+          <div className={styles.banner} style={user.bannerColor ? { background: s.bannerColor } : undefined} />
           <div className={styles.cardBody}>
             <SquareAvatar user={{ ...user, displayName: s.displayName || user.displayName, avatar: s.avatarUrl }} size="lg" status={s.status} />
             <p className={styles.cardName}>{s.displayName || 'Sin nombre'}</p>

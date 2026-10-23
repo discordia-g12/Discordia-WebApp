@@ -43,6 +43,12 @@ describe('flag del rediseño (data-ui)', () => {
     expect(html.dataset.theme).toBeUndefined();
   });
 
+  it('sin elección, sigue el tema del sistema', () => {
+    visit('?ui=nuevo');
+    initUiFlag(true);
+    expect(html.dataset.theme).toBe('system');
+  });
+
   it('fuera de desarrollo no se activa aunque la URL lo pida', () => {
     visit('?ui=nuevo');
 

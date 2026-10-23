@@ -51,7 +51,7 @@
 
 /* En un servidor la barra lateral se tiñe de celeste (PDF, pág. 7) */
 .sky {
-  background: color-mix(in srgb, var(--color-glow) 30%, transparent);
+  background: var(--color-sky-tint);
 }
 
 /* Contenido del diseño anterior (canales, mensajes directos): ocupa el ancho de la columna */

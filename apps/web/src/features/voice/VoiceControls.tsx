@@ -2,7 +2,7 @@ import { MonitorUp, PhoneOff, VideoOff, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../../app/uiStore';
 import { useVoice } from './VoiceProvider';
 import { useVoiceParticipants } from './useVoiceParticipants';
-import { CONNECTION_LABEL, type VoiceViewConnectionState } from './VoiceView';
+import { CONNECTION_LABEL, isPending, type VoiceViewConnectionState } from './VoiceView';
 import styles from './VoiceControls.module.css';
 
 export interface VoiceControlsProps {
@@ -27,7 +27,7 @@ export function VoiceControls({ channelName, serverName, connectionState, tone =
       <button type="button" className={styles.where} onClick={onOpenCall} disabled={!onOpenCall}>
         <span className={styles.channel}>•{channelName}</span>
         {serverName && <span className={styles.meta}> / {serverName}</span>}
-        <span className={`${styles.meta} ${connectionState !== 'connected' ? styles.pending : ''}`}> {CONNECTION_LABEL[connectionState]}</span>
+        <span className={`${styles.meta} ${isPending(connectionState) ? styles.pending : ''}`}> {CONNECTION_LABEL[connectionState]}</span>
       </button>
       <div className={styles.buttons}>
         <Control icon={VideoOff} label="Cámara: próximamente" disabled />

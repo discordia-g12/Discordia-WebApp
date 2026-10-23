@@ -23,6 +23,10 @@ export const palette = {
   gray300: '#9aa0a6',
   gray350: '#7d858c',
   gray200: '#b8babc',
+  /** Líneas fuertes de noche: celeste apagado (el blanco de la tinta se veía duro sobre la noche). */
+  slate400: '#6b8794',
+  /** Celeste decorativo de noche: la marca de agua de un servidor, tan sutil como el cielo de día. */
+  slate800: '#2b4550',
   red600: '#c0392b',
 } as const;
 
@@ -50,6 +54,10 @@ export interface SemanticColors {
   focus: string;
   /** Resplandor celeste (intro, pie del degradé de noche). */
   glow: string;
+  /** Tinte celeste del fondo en un servidor (barra lateral). En oscuro, apenas un velo. */
+  skyTint: string;
+  /** Celeste decorativo (marca de agua de un servidor): nunca texto que haya que leer. */
+  skyDecoration: string;
 }
 
 export const colors: Record<ColorScheme, SemanticColors> = {
@@ -67,6 +75,8 @@ export const colors: Record<ColorScheme, SemanticColors> = {
     onDanger: palette.white,
     focus: palette.ink,
     glow: palette.sky100,
+    skyTint: 'rgba(168, 219, 239, 0.3)',
+    skyDecoration: palette.sky100,
   },
   dark: {
     background: palette.night900,
@@ -75,12 +85,14 @@ export const colors: Record<ColorScheme, SemanticColors> = {
     textDisplayInactive: palette.gray350,
     decoration: '#2a3438',
     line: 'rgba(168, 219, 239, 0.2)',
-    lineStrong: palette.paper,
+    lineStrong: palette.slate400,
     inverseBackground: palette.paper,
     inverseText: palette.night900,
     danger: palette.red600,
     onDanger: palette.white,
     focus: palette.paper,
     glow: palette.sky100,
+    skyTint: 'rgba(168, 219, 239, 0.06)',
+    skyDecoration: palette.slate800,
   },
 };

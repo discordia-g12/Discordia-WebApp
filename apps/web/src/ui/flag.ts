@@ -40,9 +40,8 @@ export function initUiFlag(enabled: boolean = import.meta.env.DEV): boolean {
   const active = (ui ?? store?.getItem(UI_KEY)) === 'nuevo';
   if (active) {
     root.dataset.ui = 'nuevo';
-    const theme = (tema && THEMES[tema]) || store?.getItem(THEME_KEY);
-    if (theme && theme !== 'light') root.dataset.theme = theme;
-    else delete root.dataset.theme;
+    // La URL primero: con el storage bloqueado, ?tema= tiene que seguir andando en esta visita
+    applyTheme((tema && (THEMES[tema] as ThemePreference)) || getThemePreference());
   } else {
     delete root.dataset.ui;
     delete root.dataset.theme;
@@ -57,16 +56,21 @@ export function isNewUi(): boolean {
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
-/** Tema elegido en Ajustes → Experiencia (o con ?tema=). Sin elección, claro (el paso 12 lo pasa a sistema). */
+/** Tema elegido en Ajustes → Experiencia (o con ?tema=). Sin elección, el del sistema (prefers-color-scheme). */
 export function getThemePreference(): ThemePreference {
   const saved = storage()?.getItem(THEME_KEY);
-  return saved === 'dark' || saved === 'system' ? saved : 'light';
+  return saved === 'dark' || saved === 'light' ? saved : 'system';
+}
+
+/** Claro es sin data-theme; oscuro y sistema lo ponen (tokens.css resuelve sistema con la media query). */
+function applyTheme(theme: ThemePreference) {
+  const root = document.documentElement;
+  if (theme === 'light') delete root.dataset.theme;
+  else root.dataset.theme = theme;
 }
 
 /** Aplica el tema en <html> (los tokens hacen el resto) y lo recuerda en este navegador. */
 export function setThemePreference(theme: ThemePreference) {
   storage()?.setItem(THEME_KEY, theme);
-  const root = document.documentElement;
-  if (theme === 'light') delete root.dataset.theme;
-  else root.dataset.theme = theme;
+  applyTheme(theme);
 }

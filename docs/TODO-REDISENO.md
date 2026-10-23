@@ -52,9 +52,11 @@ tokens bajo `[data-theme="dark"]`, así que no requiere tocar componentes.
 | Inactivo | `#50565c` / `#6b7177` | `#9aa0a6` (7:1) / `#7d858c` (5:1) |
 | Bloque invertido | negro con texto claro | `#f2f2f0` con texto oscuro |
 | Líneas | `#312f34` al ~25% | `#a8dbef` al ~20% |
+| Líneas que marcan (bordes, pestaña activa) | `#312f34` | `#6b8794` (el blanco era duro; 4.3:1) |
+| Celeste de un servidor (tinte / marca de agua) | cielo al 30% / `#a8dbef` | cielo al 6% / `#2b4550` |
 
 - `tokens.css` ya trae el oscuro: con `data-theme="dark"`, o con `data-theme="system"` y la preferencia del
-  sistema. Sin `data-theme` queda el claro; el paso 12 pasa el default a `system`.
+  sistema. Sin elección guardada, sigue al sistema (desde el paso 12).
 - Por defecto sigue la preferencia del sistema (`prefers-color-scheme`). Selector manual en
   *Ajustes → Experiencia* (Claro / Oscuro / Sistema), guardado en `localStorage` (web) y `AsyncStorage` (mobile).
 - MVP: se entrega el claro completo; el oscuro sale cuando todas las pantallas estén migradas a tokens (paso 12).
@@ -493,7 +495,7 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
   igual tapaba el pie de las letras: la línea quedó debajo del título, de borde a borde y separada por
   4 px (cambio respecto del PDF, donde cruza el texto). La `v` de colapsar quedó junto al título (antes,
   a 24 px).
-- Para el paso 12: en oscuro, el tinte celeste de la barra lateral del servidor queda gris azulado.
+- Resuelto en el paso 12: en oscuro, el tinte celeste de la barra lateral del servidor quedaba gris azulado.
 
 ### Paso 8: voz (`VoiceView`)
 
@@ -649,7 +651,23 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 12: modo oscuro
 
-- [ ] Completar `[data-theme="dark"]`, revisar contraste pantalla por pantalla, selector en ajustes.
+- [x] Revisión pantalla por pantalla en oscuro (acceso, inicio, chat, voz, menú de usuario, avisos, modales,
+      confirmación, ajustes de servidor, perfil propio, reconexión y mobile), con capturas en Chrome. Los
+      componentes del rediseño ya usaban solo tokens: no hubo colores fijos que cambiar (los que quedan son
+      datos: banner, roles y presencia, y el negro de la intro, que es a propósito).
+- [x] Líneas que marcan algo (`lineStrong`): de `#f2f2f0` a `#6b8794`. El blanco sobre la noche hacía de la
+      grilla una reja; el celeste apagado da 4.95:1 y 4.25:1 sobre el degradé. Nuevo test: `lineStrong`
+      tiene que llegar a 3:1 (componente no textual) en los dos temas.
+- [x] Celeste de un servidor en tokens propios: `skyTint` (fondo de la barra lateral; en oscuro, un velo
+      del 6% en lugar del bloque gris azulado que dejaba el 30%) y `skyDecoration` (marca de agua; en oscuro,
+      `#2b4550`, tan sutil como el cielo de día). Antes salían los dos de `--color-glow`.
+- [x] El estado de la llamada (`conectando/`, `reconectando/`) late solo mientras conecta. `desconectado/`
+      latía y en el punto más bajo no se leía.
+- [x] La vista previa del perfil propio sin banner guardado muestra la franja neutra del tema (antes, el azul
+      de Discord por defecto del diseño anterior).
+- [x] Sin elección guardada, el tema sigue al sistema (`prefers-color-scheme`). `?tema=` sigue teniendo
+      prioridad aunque el storage esté bloqueado. El selector de *Experiencia* ya estaba (paso 9a).
+- Para el paso 13: `nativeTheme()` ya trae `skyTint` y `skyDecoration` (salen de los mismos tokens).
 
 ### Paso 13: app mobile nativa
 

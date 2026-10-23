@@ -85,7 +85,7 @@
 
 /* En un servidor la pantalla se tiñe de celeste, como la barra lateral del escritorio */
 .sky {
-  background: color-mix(in srgb, var(--color-glow) 30%, transparent);
+  background: var(--color-sky-tint);
 }
 
 /* El encabezado no crece tanto como la marca de agua del escritorio, y un nombre largo queda en un
