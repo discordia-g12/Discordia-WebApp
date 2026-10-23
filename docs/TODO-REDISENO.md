@@ -523,9 +523,40 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 - [x] 9a. Selector de tema en *Experiencia* (Claro / Oscuro / Sistema): es el tema real de la app
       (`setThemePreference` en `ui/flag.ts`: `data-theme` en `<html>` y `localStorage`). El modo de los
       mensajes y el tamaño de letra siguen siendo locales, como antes.
-- [ ] 9b. Ajustes del servidor sobre el mismo marco (`RESUMEN`, `ROLES`, `MIEMBROS`, `INVITACIONES`,
-      `BANEOS`, `ELIMINAR`, sección 3) y el perfil propio (`OwnProfileView`). Mientras tanto se ven los
-      del diseño anterior a pantalla completa.
+- [x] 9b. Ajustes del servidor (`settings/server/ServerSettingsScreen`, mismo estado que la vista anterior):
+      `RESUMEN` (ícono, nombre, descripción y números), `ROLES` (crear con color, lista, editar nombre y
+      color, por defecto, eliminar, miembros del rol, permisos con interruptores agrupados y la barra
+      negra de cambios sin guardar), `MIEMBROS` (paginados al bajar, roles como etiquetas con ×, `_rol +`,
+      `_banear` con motivo y bloque rojo), `BANEOS` (revocar con confirmación en la fila; sin permiso, un
+      vacío que lo explica), `CANALES`, `MODERACIÓN` (filtros, palabras bloqueadas, registro de
+      auditoría vacío), `NOTIFICACIÓN`, `EMOJIS` y `MEJORAS`; acciones `INVITAR` y `ELIMINAR` (dueña) o
+      `ABANDONAR`, que abren el modal y la confirmación de siempre. La lógica de miembros y baneos pasó a
+      `moderation/useServerMembersAdmin` y `useServerBansAdmin` (compartida con las pestañas
+      anteriores). No hay `INVITACIONES` como sección: la app no lista invitaciones, solo las crea.
+- [x] 9c. `CANALES` contra el backend: crear canal (texto o voz, con categoría o sin ella) y categoría,
+      borrar canal y categoría, con los hooks de core que ya usaba la barra lateral y sus mismos mensajes
+      de error. La lista sale del servidor de las props, que se actualiza cuando el backend confirma.
+- [x] 9c. `MIEMBROS`: `_silenciar` (15 minutos, 1 hora, 24 horas o hasta quitarlo, con motivo) y
+      `_expulsar` (con motivo, bloque rojo), contra `POST /servers/{id}/mutes` y
+      `DELETE /servers/{id}/members/{usuario}`. En core: `kickMember`, `muteMember`, `unmuteMember`, sus
+      mensajes de error y `useKickMemberMutation`, `useMuteMemberMutation`, `useUnmuteMemberMutation`. El
+      backend no dice quién está silenciado, así que el panel ofrece siempre `_quitar silencio`.
+- [x] 9c. Nada simula guardarse: lo que el backend todavía no guarda queda deshabilitado con
+      `próximamente` y "/ Todavía no se guarda en el servidor." (`SettingsCell soon` y `SoonFieldset`: un
+      fieldset deshabilitado). Servidor: identidad (no hay `PATCH /servers/{id}`), moderación,
+      notificaciones, emojis y mejoras. Usuario: contraseña, dos factores, notificaciones, voz, factura,
+      modo de los mensajes y tamaño de letra. Perfil: banner. La presencia (conectado, ausente...) queda
+      habilitada con la aclaración de que vale solo para la sesión. Se sacaron los "guardado/" que
+      aparecían antes de que respondiera el backend: el aviso de la app ya lo confirma.
+- Pendiente de backend para habilitarlas: `PATCH /servers/{id}`, moderación automática, preferencias de
+  notificaciones, emojis, mejoras y puntos (Payments), banner y presencia en el perfil, cambio de
+  contraseña y 2FA.
+- [x] 9b. Perfil propio (`profile/own-profile/OwnProfileScreen`) en el mismo marco: vista previa en vivo
+      (banner como franja, avatar cuadrado encima) y edición de avatar, banner, nombre (validado), bio y
+      estado.
+- [x] Los tres bajan como cortina encima de la grilla. Los modales y avisos se movieron fuera de la grilla
+      (que aísla su apilado) para quedar arriba de los ajustes; Escape cierra primero el modal de arriba.
+- [x] Textos al castellano: permisos (`server/shared.ts`) y mensajes del estado del servidor.
 
 ### Paso 10: modales, toasts y conexión
 

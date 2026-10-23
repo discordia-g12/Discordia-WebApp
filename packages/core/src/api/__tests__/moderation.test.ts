@@ -1,7 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../client';
 import { ApiError } from '../errors';
-import { banErrorMessage, banMember, getServerBans, unbanErrorMessage, unbanMember } from '../moderation';
+import {
+  banErrorMessage,
+  banMember,
+  getServerBans,
+  kickErrorMessage,
+  kickMember,
+  muteErrorMessage,
+  muteMember,
+  unbanErrorMessage,
+  unbanMember,
+  unmuteMember,
+} from '../moderation';
 import type { ServerBanBackendResponse } from '../../types';
 
 function backendBan(overrides: Partial<ServerBanBackendResponse> = {}): ServerBanBackendResponse {
@@ -115,5 +126,40 @@ describe('mensajes de error de moderación', () => {
     expect(unbanErrorMessage(apiError(403))).toBe('No tenés permiso para revocar baneos en este servidor.');
     expect(unbanErrorMessage(apiError(404))).toBe('Ese usuario ya no está baneado.');
     expect(unbanErrorMessage(new Error('boom'))).toBe('No se pudo revocar el baneo.');
+  });
+
+  it('expulsa con el motivo como parámetro de la URL', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    globalThis.fetch = fetchMock;
+
+    await kickMember('srv-1', 'auth0|user-1', '  spam  ');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(init.method).toBe('DELETE');
+    expect(String(url)).toBe('http://localhost:8000/api/v1/servers/srv-1/members/auth0%7Cuser-1?reason=spam');
+  });
+
+  it('silencia con duración y sin ella (hasta quitarlo), y quita el silencio', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ id: 'm1' }, 201))
+      .mockResolvedValueOnce(jsonResponse({ id: 'm2' }, 201))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    globalThis.fetch = fetchMock;
+
+    await muteMember('srv-1', 'u1', 3600, 'flood');
+    await muteMember('srv-1', 'u1', null);
+    await unmuteMember('srv-1', 'u1');
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ user_id: 'u1', duration_seconds: 3600, reason: 'flood' });
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ user_id: 'u1' });
+    expect(fetchMock.mock.calls[2][1].method).toBe('DELETE');
+    expect(String(fetchMock.mock.calls[2][0])).toBe('http://localhost:8000/api/v1/servers/srv-1/mutes/u1');
+  });
+
+  it('traduce los errores de expulsar y silenciar', () => {
+    expect(kickErrorMessage(apiError(403))).toBe('Necesitás el permiso "Expulsar miembros" para hacer esto.');
+    expect(muteErrorMessage(apiError(400))).toBe('No podés silenciar al dueño del servidor ni a vos mismo.');
+    expect(muteErrorMessage(apiError(404))).toBe('Esa persona no estaba silenciada.');
   });
 });

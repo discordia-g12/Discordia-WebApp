@@ -37,18 +37,22 @@ describe('UserSettingsScreen (rediseño)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar /' }));
 
     expect(onUpdateUser).toHaveBeenCalledWith(expect.objectContaining({ displayName: 'Mar M.', status: 'dnd' }));
-    expect(screen.getByText('guardado/')).toBeTruthy();
+    // Sin "guardado/" inmediato: lo confirma el aviso de la app cuando responde el backend
+    expect(screen.queryByText('guardado/')).toBeNull();
   });
 
-  it('valida la contraseña nueva y avisa el error', () => {
+  it('lo que no se guarda en el servidor queda deshabilitado con "próximamente"', () => {
     renderSettings();
-    const cell = screen.getByRole('region', { name: 'Contraseña y seguridad' });
 
-    fireEvent.change(within(cell).getByLabelText('contraseña actual'), { target: { value: 'vieja' } });
-    fireEvent.change(within(cell).getByLabelText('contraseña nueva'), { target: { value: 'corta' } });
-    fireEvent.click(within(cell).getByRole('button', { name: 'Actualizar contraseña /' }));
+    const password = screen.getByRole('region', { name: 'Contraseña y seguridad' });
+    expect(within(password).getByText('próximamente')).toBeTruthy();
+    // Deshabilitados por el fieldset (la propiedad .disabled de cada control no lo refleja; :disabled sí)
+    expect(within(password).getByRole('button', { name: 'Actualizar contraseña /' }).matches(':disabled')).toBe(true);
+    expect(within(password).getByLabelText('contraseña actual').matches(':disabled')).toBe(true);
 
-    expect(within(cell).getByRole('alert').textContent).toBe('/ La contraseña nueva debe tener al menos 8 caracteres.');
+    fireEvent.click(screen.getByRole('button', { name: 'Factura' }));
+    const points = screen.getByRole('region', { name: 'Puntos' });
+    expect(within(points).getAllByRole('button', { name: '_comprar' }).every((b) => b.matches(':disabled'))).toBe(true);
   });
 
   it('EXPERIENCIA cambia el tema de la app y lo recuerda', () => {
@@ -63,14 +67,13 @@ describe('UserSettingsScreen (rediseño)', () => {
     expect(document.documentElement.dataset.theme).toBeUndefined();
   });
 
-  it('NOTIFICACIÓN: interruptores accesibles', () => {
+  it('NOTIFICACIÓN: interruptores accesibles, deshabilitados hasta que se guarden', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: 'Notificación' }));
 
     const sounds = screen.getByRole('switch', { name: 'Sonidos' });
     expect(sounds.getAttribute('aria-checked')).toBe('true');
-    fireEvent.click(sounds);
-    expect(sounds.getAttribute('aria-checked')).toBe('false');
+    expect(sounds.matches(':disabled')).toBe(true);
   });
 
   it('el buscador filtra el menú por lo que hay adentro de cada sección', () => {

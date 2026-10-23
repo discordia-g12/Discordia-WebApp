@@ -229,11 +229,21 @@ describe.each([
     );
     fireEvent.click(await screen.findByText('Ajustes del servidor'));
 
-    for (const tab of ['Roles', 'Emoji', 'Server Boost', 'Channels', 'Moderation', 'Audit Log', 'Members', 'Bans', 'Notifications', 'Overview']) {
-      fireEvent.click(screen.getAllByText(tab)[0]);
+    if (newUi) {
+      // El chat sigue montado debajo: se busca adentro del diálogo de ajustes
+      const settings = within(screen.getByRole('dialog', { name: 'Ajustes del servidor' }));
+      for (const section of ['Roles', 'Miembros', 'Baneos', 'Canales', 'Moderación', 'Notificación', 'Emojis', 'Mejoras', 'Resumen']) {
+        fireEvent.click(settings.getByRole('button', { name: section }));
+        expect(settings.getByRole('main', { name: section })).toBeTruthy();
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes del servidor' }));
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ajustes del servidor' })).toBeNull());
+    } else {
+      for (const tab of ['Roles', 'Emoji', 'Server Boost', 'Channels', 'Moderation', 'Audit Log', 'Members', 'Bans', 'Notifications', 'Overview']) {
+        fireEvent.click(screen.getAllByText(tab)[0]);
+      }
+      fireEvent.click(screen.getByTitle('Close settings (ESC)'));
     }
-
-    fireEvent.click(screen.getByTitle('Close settings (ESC)'));
     expect(await screen.findByText('hola mundo')).toBeTruthy();
   });
 
@@ -249,8 +259,15 @@ describe.each([
     fireEvent.click(await screen.findByTitle('Ver perfil y estado'));
     fireEvent.click(await screen.findByTitle('Editar perfil'));
 
-    // Vista de perfil a pantalla completa: ya no está el rail
-    await waitFor(() => expect(screen.queryByLabelText('Servidor Torton')).toBeNull());
+    if (newUi) {
+      // El perfil baja como cortina encima de la grilla (que sigue montada) y se cierra con la ×
+      expect(await screen.findByRole('dialog', { name: 'Mi perfil' })).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Cerrar mi perfil' }));
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Mi perfil' })).toBeNull());
+    } else {
+      // Vista de perfil a pantalla completa: ya no está el rail
+      await waitFor(() => expect(screen.queryByLabelText('Servidor Torton')).toBeNull());
+    }
   });
 
   it.runIf(newUi)('la marca de agua sigue el contexto: AMIGOS en el inicio y el nombre del servidor', async () => {

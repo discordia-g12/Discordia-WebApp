@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { X } from 'lucide-react';
 import { DisplayText, transitions, useMotionPreset } from '../../ui';
@@ -49,9 +49,14 @@ export function SettingsScreen<T extends string>({
   const [query, setQuery] = useState('');
   const current = sections.find((s) => s.id === active);
 
+  const screenRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      // Si hay un modal abierto encima (invitar, confirmar), Escape es para ese modal
+      const otherModal = [...document.querySelectorAll('[aria-modal="true"]')].some((el) => el !== screenRef.current);
+      if (!otherModal) onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -63,7 +68,7 @@ export function SettingsScreen<T extends string>({
     !q || s.label.toLowerCase().includes(q) || s.items.some((item) => item.toLowerCase().includes(q));
 
   return (
-    <motion.div className={styles.screen} role="dialog" aria-modal="true" aria-label={title} {...curtain}>
+    <motion.div ref={screenRef} className={styles.screen} role="dialog" aria-modal="true" aria-label={title} {...curtain}>
       <div className={styles.side}>
         <div className={styles.head}>
           <div className={styles.identity}>{identity}</div>
@@ -120,13 +125,43 @@ export function SettingsScreen<T extends string>({
   );
 }
 
-/** Celda de la grilla: título con barra final y su contenido. wide ocupa las dos columnas. */
-export function SettingsCell({ title, wide = false, children }: { title: string; wide?: boolean; children: ReactNode }) {
+/**
+ * Celda de la grilla: título con barra final y su contenido. wide ocupa las dos columnas.
+ * soon: todavía no se guarda en el backend; se muestra "próximamente" y los controles quedan
+ * deshabilitados (un fieldset disabled deshabilita todo lo de adentro), así nada simula guardarse.
+ */
+export function SettingsCell({
+  title,
+  wide = false,
+  soon = false,
+  children,
+}: {
+  title: string;
+  wide?: boolean;
+  soon?: boolean;
+  children: ReactNode;
+}) {
   return (
     <section className={`${styles.cell} ${wide ? styles.wide : ''}`} aria-label={title}>
-      <h2 className={styles.cellTitle}>{title} /</h2>
-      <div className={styles.cellBody}>{children}</div>
+      <h2 className={styles.cellTitle}>
+        {title} /{soon && <span className={styles.soonTag}>próximamente</span>}
+      </h2>
+      {soon ? (
+        <SoonFieldset>{children}</SoonFieldset>
+      ) : (
+        <div className={styles.cellBody}>{children}</div>
+      )}
     </section>
+  );
+}
+
+/** Parte de una celda que todavía no se guarda en el backend: deshabilitada, con la aclaración. */
+export function SoonFieldset({ children, note = 'Todavía no se guarda en el servidor.' }: { children: ReactNode; note?: string }) {
+  return (
+    <fieldset className={styles.soon} disabled>
+      <legend className={styles.soonNote}>/ {note}</legend>
+      {children}
+    </fieldset>
   );
 }
 

@@ -163,6 +163,41 @@
   text-transform: uppercase;
 }
 
+.soonTag {
+  margin-left: var(--space-3);
+  padding: 0 var(--space-1);
+  vertical-align: middle;
+  font-size: var(--font-meta-size);
+  text-transform: none;
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+/* Lo que todavía no se guarda: deshabilitado y atenuado (texto en el gris que llega a AA) */
+.soon {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-5);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--color-text-muted);
+}
+
+.soon > :not(legend) {
+  opacity: 0.6;
+}
+
+.soon > button {
+  align-self: flex-start;
+}
+
+.soonNote {
+  padding: 0;
+  font-size: var(--font-meta-size);
+}
+
 .cellBody {
   display: flex;
   flex-direction: column;

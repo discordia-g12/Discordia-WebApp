@@ -29,7 +29,7 @@ import {
   CreateRoleRequest,
   UpdateRoleInfoRequest,
 } from '../api/roles';
-import { banMember, getServerBans, unbanMember } from '../api/moderation';
+import { banMember, getServerBans, kickMember, muteMember, unbanMember, unmuteMember } from '../api/moderation';
 import { getMessages, sendMessage, GetMessagesOptions } from '../api/messages';
 import type { Category, Role, Server } from '../types';
 import { useSession } from '../auth/session';
@@ -109,6 +109,32 @@ export function useUnbanMemberMutation(serverId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['server-bans', serverId] });
     },
+  });
+}
+
+export function useKickMemberMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason?: string }) => kickMember(serverId, userId, reason),
+    // El expulsado deja de ser miembro (puede volver con una invitación)
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['server-members', serverId] });
+      queryClient.invalidateQueries({ queryKey: ['role-members', serverId] });
+    },
+  });
+}
+
+/** Silenciar no cambia la lista de miembros (el backend no expone quién está silenciado). */
+export function useMuteMemberMutation(serverId: string) {
+  return useMutation({
+    mutationFn: ({ userId, durationSeconds, reason }: { userId: string; durationSeconds: number | null; reason?: string }) =>
+      muteMember(serverId, userId, durationSeconds, reason),
+  });
+}
+
+export function useUnmuteMemberMutation(serverId: string) {
+  return useMutation({
+    mutationFn: (userId: string) => unmuteMember(serverId, userId),
   });
 }
 

@@ -28,7 +28,8 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
 /**
  * Ajustes de usuario del rediseño (PDF, pág. 11) sobre SettingsScreen: CUENTA, NOTIFICACIÓN, VOZ,
  * FACTURA, EXPERIENCIA y CERRAR SESIÓN. El estado es el de useUserSettingsState (compartido con la vista
- * anterior); el tema de Experiencia es el real de la app (data-theme).
+ * anterior). Van al backend la información de la cuenta y el estado personalizado; el tema es el real de
+ * la app (data-theme). Lo que todavía no se guarda queda deshabilitado con "próximamente".
  */
 export function UserSettingsScreen(props: UserSettingsProps) {
   const s = useUserSettingsState(props);
@@ -86,12 +87,13 @@ function AccountSection({ s }: { s: UserSettingsState }) {
           onChange={(e) => s.setBio(e.target.value)}
           hint={`${s.bio.length}/190`}
         />
+        {/* Va al backend (updateMyProfile); el aviso de la app confirma cuando responde */}
         <BlockButton onPress={s.handleSaveProfile}>Guardar</BlockButton>
-        {s.saveSuccess && <Feedback>guardado/</Feedback>}
       </SettingsCell>
 
       <SettingsCell title="Estado">
         <Choice label="Estado" options={STATUS_OPTIONS} value={s.status === 'offline' ? 'invisible' : s.status} onChange={s.setStatus} />
+        <p className={styles.note}>/ La presencia vale para esta sesión: todavía no se guarda en el servidor. El estado personalizado sí.</p>
         <UnderlineInput
           label="estado personalizado"
           value={s.customStatus}
@@ -102,7 +104,7 @@ function AccountSection({ s }: { s: UserSettingsState }) {
         <BlockButton onPress={s.handleSaveProfile}>Guardar estado</BlockButton>
       </SettingsCell>
 
-      <SettingsCell title="Contraseña y seguridad">
+      <SettingsCell title="Contraseña y seguridad" soon>
         <form className={styles.form} onSubmit={s.handleUpdatePassword} noValidate>
           <UnderlineInput label="contraseña actual" secret value={s.currentPassword} onChange={(e) => s.setCurrentPassword(e.target.value)} autoComplete="current-password" />
           <UnderlineInput
@@ -121,7 +123,7 @@ function AccountSection({ s }: { s: UserSettingsState }) {
         </form>
       </SettingsCell>
 
-      <SettingsCell title="Autenticación de dos factores">
+      <SettingsCell title="Autenticación de dos factores" soon>
         <SettingsRow title="activada/" description="Tu cuenta pide un código además de la contraseña.">
           <ActionLink onPress={() => s.setShowBackupCodes(!s.showBackupCodes)} aria-expanded={s.showBackupCodes}>
             {s.showBackupCodes ? 'ocultar códigos' : 'mostrar códigos'}
@@ -155,7 +157,7 @@ function NotificationsSection({ s }: { s: UserSettingsState }) {
     { title: 'Vista previa', description: 'Quién escribe y el comienzo del mensaje en los avisos.', checked: s.previewContent, set: s.setPreviewContent },
   ];
   return (
-    <SettingsCell title="Notificaciones de la app" wide>
+    <SettingsCell title="Notificaciones de la app" wide soon>
       {toggles.map((t) => (
         <SettingsRow key={t.title} title={t.title} description={t.description}>
           <Switch label={t.title} checked={t.checked} onChange={t.set} />
@@ -216,7 +218,7 @@ function Range({
 function VoiceSection({ s }: { s: UserSettingsState }) {
   return (
     <>
-      <SettingsCell title="Entrada">
+      <SettingsCell title="Entrada" soon>
         <DeviceSelect
           label="micrófono"
           value={s.inputDevice}
@@ -225,7 +227,7 @@ function VoiceSection({ s }: { s: UserSettingsState }) {
         />
         <Range label="volumen de entrada" value={s.inputVolume} onChange={s.setInputVolume} />
       </SettingsCell>
-      <SettingsCell title="Salida">
+      <SettingsCell title="Salida" soon>
         <DeviceSelect
           label="parlantes"
           value={s.outputDevice}
@@ -234,7 +236,7 @@ function VoiceSection({ s }: { s: UserSettingsState }) {
         />
         <Range label="volumen de salida" value={s.outputVolume} onChange={s.setOutputVolume} />
       </SettingsCell>
-      <SettingsCell title="Prueba de micrófono" wide>
+      <SettingsCell title="Prueba de micrófono" wide soon>
         <SettingsRow title={s.isTestingMic ? 'escuchando/' : '¿problemas con el micrófono?'} description="Hablá y mirá si la barra se mueve.">
           <BlockButton onPress={() => s.setIsTestingMic(!s.isTestingMic)}>{s.isTestingMic ? 'Detener' : 'Probar'}</BlockButton>
         </SettingsRow>
@@ -270,7 +272,7 @@ function BillingSection({ s }: { s: UserSettingsState }) {
   const price = s.billingCycle === 'monthly' ? '$9.99 por mes' : '$99.99 por año';
   return (
     <>
-      <SettingsCell title="Discordia Premium">
+      <SettingsCell title="Discordia Premium" soon>
         <div>
           <p className={styles.planTitle}>{s.isPremium ? 'suscripción activa/' : 'plan gratis/'}</p>
           <p className={styles.note}>Más calidad, archivos más grandes y mejoras de servidor.</p>
@@ -300,10 +302,9 @@ function BillingSection({ s }: { s: UserSettingsState }) {
             {`Suscribirme · ${price}`}
           </BlockButton>
         )}
-        {s.paymentStatus === 'success' && <Feedback>suscripción activa/</Feedback>}
       </SettingsCell>
 
-      <SettingsCell title="Puntos">
+      <SettingsCell title="Puntos" soon>
         <p className={styles.points}>
           {s.points.toLocaleString('es-AR')}
           <span className={styles.pointsUnit}> puntos</span>
@@ -325,7 +326,6 @@ function BillingSection({ s }: { s: UserSettingsState }) {
             </li>
           ))}
         </ul>
-        {s.billingFeedback && <Feedback>{s.billingFeedback}</Feedback>}
       </SettingsCell>
     </>
   );
@@ -357,7 +357,7 @@ function ExperienceSection({ s }: { s: UserSettingsState }) {
         </SettingsRow>
       </SettingsCell>
 
-      <SettingsCell title="Modo de los mensajes">
+      <SettingsCell title="Modo de los mensajes" soon>
         <Choice
           label="Modo de los mensajes"
           options={[
@@ -372,7 +372,7 @@ function ExperienceSection({ s }: { s: UserSettingsState }) {
         </p>
       </SettingsCell>
 
-      <SettingsCell title="Tamaño de letra">
+      <SettingsCell title="Tamaño de letra" soon>
         <Range label="tamaño del chat" value={s.fontSize} onChange={s.setFontSize} min={12} max={18} unit="px" />
         <p className={styles.preview} style={{ fontSize: s.fontSize }}>
           Así se van a ver los mensajes.

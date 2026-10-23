@@ -74,3 +74,61 @@ export function unbanErrorMessage(err: unknown): string {
     'No se pudo revocar el baneo.'
   );
 }
+
+/** Duraciones de silencio que ofrece la interfaz (null: hasta que se quite). */
+export const MUTE_DURATIONS: { seconds: number | null; label: string }[] = [
+  { seconds: 15 * 60, label: '15 minutos' },
+  { seconds: 60 * 60, label: '1 hora' },
+  { seconds: 24 * 60 * 60, label: '24 horas' },
+  { seconds: null, label: 'hasta quitarlo' },
+];
+
+/**
+ * Expulsa a un miembro (requiere KICK_MEMBERS). A diferencia del baneo, puede volver a unirse con una
+ * invitación. El motivo va como parámetro de la URL (el backend no recibe cuerpo en el DELETE).
+ */
+export async function kickMember(serverId: string, userId: string, reason?: string): Promise<void> {
+  await api.delete(`/api/v1/servers/${serverId}/members/${encodeURIComponent(userId)}`, {
+    query: { reason: reason?.trim() || undefined },
+  });
+}
+
+/** Silencia a un miembro en el servidor (requiere MUTE_MEMBERS). Sin duración, hasta que se quite. */
+export async function muteMember(serverId: string, userId: string, durationSeconds: number | null, reason?: string): Promise<void> {
+  await api.post(`/api/v1/servers/${serverId}/mutes`, {
+    user_id: userId,
+    duration_seconds: durationSeconds ?? undefined,
+    reason: reason?.trim() || undefined,
+  });
+}
+
+/** Quita el silencio de un miembro (requiere MUTE_MEMBERS). */
+export async function unmuteMember(serverId: string, userId: string): Promise<void> {
+  await api.delete(`/api/v1/servers/${serverId}/mutes/${encodeURIComponent(userId)}`);
+}
+
+/** Mensaje para el usuario cuando falla una expulsión. */
+export function kickErrorMessage(err: unknown): string {
+  return errorMessageFor(
+    err,
+    {
+      400: 'No podés expulsar al dueño del servidor ni a vos mismo.',
+      403: 'Necesitás el permiso "Expulsar miembros" para hacer esto.',
+      404: 'Esa persona ya no es miembro del servidor.',
+    },
+    'No se pudo expulsar al miembro.'
+  );
+}
+
+/** Mensaje para el usuario cuando falla silenciar o quitar el silencio. */
+export function muteErrorMessage(err: unknown): string {
+  return errorMessageFor(
+    err,
+    {
+      400: 'No podés silenciar al dueño del servidor ni a vos mismo.',
+      403: 'Necesitás el permiso "Silenciar miembros" para hacer esto.',
+      404: 'Esa persona no estaba silenciada.',
+    },
+    'No se pudo cambiar el silencio del miembro.'
+  );
+}

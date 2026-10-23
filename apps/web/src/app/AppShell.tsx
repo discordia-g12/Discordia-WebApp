@@ -39,8 +39,7 @@ function useShellContext(): { word: string; tone: Tone } {
  * Escritorio del rediseño (paso 5 de docs/TODO-REDISENO.md): grilla de líneas finas sobre el degradé que
  * deriva despacio. Rail | barra lateral (contenido, marca de agua cortada y barra de usuario) | contenido.
  *
- * El contenido de la barra lateral y de la columna principal todavía es el del diseño anterior: se
- * rediseña en los pasos 6 (inicio) y 7 (servidor y chat).
+ * El contenido de cada columna es de su feature (inicio, canales, chat, voz, miembros).
  */
 export function AppShell() {
   const appView = useUIStore((s) => s.appView);
@@ -52,38 +51,42 @@ export function AppShell() {
   const [sidebarSlot, setSidebarSlot] = useState<HTMLDivElement | null>(null);
   const isHome = selectedServerId === 'home';
 
+  // Modales y avisos van fuera de la grilla: la grilla aísla su apilado (isolation) y los ajustes se montan
+  // encima de ella, así los modales que se abren desde los ajustes (invitar, eliminar) quedan arriba de todo.
   return (
-    <div className={styles.shell}>
-      <div className={styles.drift} aria-hidden="true" />
+    <>
+      <div className={styles.shell}>
+        <div className={styles.drift} aria-hidden="true" />
 
-      <ServerRailPanel />
+        <ServerRailPanel />
 
-      <aside className={`${styles.sidebar} ${styles[tone]}`} aria-label={isHome ? 'Mensajes directos' : 'Canales'}>
-        <div ref={setSidebarSlot} className={styles.sidebarContent}>
-          {!isHome && <ChannelSidebarPanel showUserPanel={false} />}
-        </div>
-        <div className={styles.sidebarFoot}>
-          <DisplayText variant="watermark" tone={tone}>
-            {word}
-          </DisplayText>
-          <VoiceControlsPanel tone={tone} />
-          <UserBarPanel tone={tone} />
-        </div>
-      </aside>
+        <aside className={`${styles.sidebar} ${styles[tone]}`} aria-label={isHome ? 'Mensajes directos' : 'Canales'}>
+          <div ref={setSidebarSlot} className={styles.sidebarContent}>
+            {!isHome && <ChannelSidebarPanel showUserPanel={false} />}
+          </div>
+          <div className={styles.sidebarFoot}>
+            <DisplayText variant="watermark" tone={tone}>
+              {word}
+            </DisplayText>
+            <VoiceControlsPanel tone={tone} />
+            <UserBarPanel tone={tone} />
+          </div>
+        </aside>
 
-      <main className={styles.main}>
-        {isHome ? (
-          <HomePanel sidebarContainer={sidebarSlot} />
-        ) : appView === 'voice' ? (
-          <VoicePanel />
-        ) : (
-          <ChatPanel />
-        )}
-        {!isHome && isMemberListOpen && appView === 'chat' && <MemberListPanel />}
-      </main>
+        <main className={styles.main}>
+          {isHome ? (
+            <HomePanel sidebarContainer={sidebarSlot} />
+          ) : appView === 'voice' ? (
+            <VoicePanel />
+          ) : (
+            <ChatPanel />
+          )}
+          {!isHome && isMemberListOpen && appView === 'chat' && <MemberListPanel />}
+        </main>
+      </div>
 
       <GlobalModals />
       {toast && <ToastNotification message={toast.message} type={toast.type} />}
-    </div>
+    </>
   );
 }

@@ -114,7 +114,7 @@ export function useServerSettingsState(props: ServerSettingsProps) {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('Icon image must be less than 5 MB.');
+        alert('El ícono tiene que pesar menos de 5 MB.');
         return;
       }
       const reader = new FileReader();
@@ -271,7 +271,7 @@ export function useServerSettingsState(props: ServerSettingsProps) {
 
   // Delete channel
   const handleDeleteChannel = (catId: string, chanId: string) => {
-    const confirmed = window.confirm('Are you sure you want to delete this channel?');
+    const confirmed = window.confirm('¿Eliminar este canal?');
     if (!confirmed) return;
 
     const updatedCategories = categories.map((cat) => {
@@ -291,7 +291,7 @@ export function useServerSettingsState(props: ServerSettingsProps) {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('Emoji size cannot exceed 5 MB.');
+        alert('El emoji tiene que pesar menos de 5 MB.');
         return;
       }
       const reader = new FileReader();
@@ -313,7 +313,7 @@ export function useServerSettingsState(props: ServerSettingsProps) {
   const handleBoostServer = () => {
     const BOOST_COST = 500;
     if (userPoints < BOOST_COST) {
-      setBoostFeedback('Insufficient points balance. Purchase points in Billing Settings!');
+      setBoostFeedback('No te alcanzan los puntos: comprá más en Ajustes → Factura.');
       return;
     }
 
@@ -332,7 +332,7 @@ export function useServerSettingsState(props: ServerSettingsProps) {
       boostLevel: newLevel,
     }));
 
-    setBoostFeedback('Server Boost applied successfully! 🎉 Thank you for your support.');
+    setBoostFeedback('Mejoraste el servidor. ¡Gracias!');
     setTimeout(() => setBoostFeedback(null), 4000);
   };
 
@@ -354,7 +354,7 @@ export function useServerSettingsState(props: ServerSettingsProps) {
       boostLevel: newLevel,
     }));
 
-    setBoostFeedback('Boost retracted. 500 💠 points refunded to your wallet.');
+    setBoostFeedback('Retiraste la mejora: te devolvimos 500 puntos.');
     setTimeout(() => setBoostFeedback(null), 4000);
   };
 

@@ -1,16 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React from 'react';
 import { Crown, Loader2, Plus, Search, UserX, X } from 'lucide-react';
-import {
-  useAssignRoleMutation,
-  useBanMemberMutation,
-  useRemoveRoleMutation,
-  useRolesQuery,
-  useServerMembersQuery,
-  useUserProfiles,
-  BAN_REASON_MAX_LENGTH,
-  banErrorMessage,
-} from '@discordia/core';
-import type { Role, ServerMember } from '../../types';
+import { BAN_REASON_MAX_LENGTH } from '@discordia/core';
+import type { Role } from '../../types';
+import { useServerMembersAdmin } from './useServerMembersAdmin';
 import styles from './ServerMembersTab.module.css';
 
 export interface ServerMembersTabProps {
@@ -24,93 +16,34 @@ export interface ServerMembersTabProps {
  * con los roles de cada miembro, y permite asignar o quitar roles y banear miembros.
  */
 export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({ serverId, ownerId, currentUserId }) => {
-  const membersQuery = useServerMembersQuery(serverId);
-  const rolesQuery = useRolesQuery(serverId);
-  const assignMutation = useAssignRoleMutation(serverId);
-  const removeMutation = useRemoveRoleMutation(serverId);
-  const banMutation = useBanMemberMutation(serverId);
-
-  const [search, setSearch] = useState('');
-  const [pickerMemberId, setPickerMemberId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  // Miembro con el panel de baneo abierto (confirmación + motivo opcional)
-  const [banMemberId, setBanMemberId] = useState<string | null>(null);
-  const [banReason, setBanReason] = useState('');
-
-  const listRef = useRef<HTMLDivElement>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = membersQuery;
-  const members: ServerMember[] = useMemo(
-    () => membersQuery.data?.pages.flatMap((page) => page.items) ?? [],
-    [membersQuery.data]
-  );
-  const total = membersQuery.data?.pages[0]?.total ?? 0;
-  const profiles = useUserProfiles(members.map((member) => member.userId));
-
-  const roles: Role[] = rolesQuery.data ?? [];
-  const rolesById = useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles]);
-  const isMutating = assignMutation.isPending || removeMutation.isPending || banMutation.isPending;
-
-  // Carga la siguiente página cuando el final de la lista entra en vista
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasNextPage) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && !isFetchingNextPage) fetchNextPage();
-      },
-      { root: listRef.current }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, members.length]);
-
-  // Apodo en el servidor > nombre del perfil
-  const displayName = (member: ServerMember) =>
-    member.nickname || profiles[member.userId]?.displayName || 'Usuario';
-
-  const filteredMembers = members.filter((member) =>
-    displayName(member).toLowerCase().includes(search.trim().toLowerCase())
-  );
-
-  const handleAssign = async (member: ServerMember, roleId: string) => {
-    setError(null);
-    setPickerMemberId(null);
-    try {
-      await assignMutation.mutateAsync({ roleId, userId: member.userId });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo asignar el rol.');
-    }
-  };
-
-  const openBanPanel = (member: ServerMember) => {
-    setPickerMemberId(null);
-    setBanReason('');
-    setBanMemberId(banMemberId === member.id ? null : member.id);
-  };
-
-  const handleBan = async (member: ServerMember) => {
-    setError(null);
-    setNotice(null);
-    try {
-      await banMutation.mutateAsync({ userId: member.userId, reason: banReason });
-      setBanMemberId(null);
-      setNotice(`${displayName(member)} fue baneado del servidor.`);
-    } catch (err) {
-      setError(banErrorMessage(err));
-    }
-  };
-
-  const handleRemove = async (member: ServerMember, role: Role) => {
-    setError(null);
-    try {
-      await removeMutation.mutateAsync({ roleId: role.id, userId: member.userId });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo quitar el rol.');
-    }
-  };
+  const {
+    membersQuery,
+    banMutation,
+    search,
+    setSearch,
+    pickerMemberId,
+    setPickerMemberId,
+    error,
+    notice,
+    banMemberId,
+    setBanMemberId,
+    banReason,
+    setBanReason,
+    listRef,
+    sentinelRef,
+    hasNextPage,
+    isFetchingNextPage,
+    total,
+    roles,
+    rolesById,
+    isMutating,
+    displayName,
+    filteredMembers,
+    handleAssign,
+    openBanPanel,
+    handleBan,
+    handleRemove,
+  } = useServerMembersAdmin(serverId);
 
   return (
     <div className={styles.root}>
