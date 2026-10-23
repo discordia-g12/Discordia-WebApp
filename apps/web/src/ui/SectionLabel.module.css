@@ -1,19 +1,13 @@
-/* Línea y título en la misma celda, alineados por la línea base: la línea (que no tiene texto) apoya su
-   borde de abajo en la base de las letras, así cruza el pie del título como en el PDF sin tacharlo,
-   cualquiera sea el tamaño o el interlineado. */
+/* El título arriba y la línea de la grilla debajo, de borde a borde y con aire: no toca las letras
+   (apoyada en el pie del texto, igual lo tapaba según la fuente y el tamaño) */
 .root {
-  display: grid;
-  align-items: baseline;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.line,
-.heading,
-.toggle {
-  grid-area: 1 / 1;
-}
-
-/* De borde a borde, por debajo del texto */
 .line {
+  order: 1;
   height: var(--line-hairline);
   background: var(--color-line-strong);
   opacity: 0.6;
@@ -22,7 +16,7 @@
 .heading,
 .toggle {
   position: relative;
-  justify-self: start;
+  align-self: flex-start;
   display: inline-flex;
   align-items: baseline;
   gap: var(--space-2);

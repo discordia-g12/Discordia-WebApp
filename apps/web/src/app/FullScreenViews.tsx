@@ -3,7 +3,6 @@ import { useUIStore } from './uiStore';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
 import { useUpdateServer } from '../features/servers/serverActions';
 import { useCurrentUser, useCurrentUserStore } from '../features/profile/currentUserStore';
-import { logoutWithToast } from '../features/profile/profileActions';
 import { UserSettingsScreen } from '../features/settings/user/UserSettingsScreen';
 import { ServerSettingsScreen } from '../features/settings/server/ServerSettingsScreen';
 import { OwnProfileScreen } from '../features/profile/own-profile/OwnProfileScreen';
@@ -30,7 +29,7 @@ export function FullScreenViews() {
           currentUser={currentUser}
           onClose={close}
           onUpdateUser={saveProfile}
-          onLogout={logoutWithToast}
+          onLogout={() => useUIStore.getState().openConfirm('logout', '')}
         />
       )}
       {appView === 'server-settings' && currentServer && (

@@ -95,6 +95,13 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it('cerrar sesión no es destructiva: bloque negro, no rojo', () => {
+    render(<ConfirmDialog action="logout" targetName="" onConfirm={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.getByRole('alertdialog', { name: '¿Cerrar sesión?' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cerrar sesión /' }).className).not.toMatch(/danger/);
+  });
+
   it('eliminar un servidor pide escribir su nombre antes de habilitar el botón', () => {
     const onConfirm = vi.fn();
     render(<ConfirmDialog action="delete-server" targetName="Torton" onConfirm={onConfirm} onCancel={vi.fn()} />);

@@ -29,6 +29,8 @@ interface ConfirmState {
   targetName: string;
   /** Dato extra (en el cambio de canal de voz, el canal actual). */
   targetDetail: string;
+  /** Qué hacer al confirmar, si no lo resuelve GlobalModals (borrar un canal desde los ajustes, ...). */
+  onConfirm?: () => void | Promise<void>;
 }
 
 export interface UIState {
@@ -64,7 +66,12 @@ export interface UIState {
   setActiveModal: (modal: Modal) => void;
   setSelectedProfileUserId: (id: string | null) => void;
   /** Abre la confirmación de una acción crítica. */
-  openConfirm: (action: ConfirmAction, targetName: string, targetDetail?: string) => void;
+  openConfirm: (
+    action: ConfirmAction,
+    targetName: string,
+    targetDetail?: string,
+    onConfirm?: () => void | Promise<void>
+  ) => void;
   setConfirmAction: (action: ConfirmAction) => void;
   setPendingVoiceChannelId: (id: string | null) => void;
   /** Abre el modal de crear canal, con la categoría elegida. */
@@ -106,9 +113,9 @@ export const useUIStore = create<UIState>((set) => ({
 
   setActiveModal: (activeModal) => set({ activeModal }),
   setSelectedProfileUserId: (selectedProfileUserId) => set({ selectedProfileUserId }),
-  openConfirm: (action, targetName, targetDetail = '') =>
-    set({ confirm: { action, targetName, targetDetail }, activeModal: 'confirm-action' }),
-  setConfirmAction: (action) => set((s) => ({ confirm: { ...s.confirm, action } })),
+  openConfirm: (action, targetName, targetDetail = '', onConfirm) =>
+    set({ confirm: { action, targetName, targetDetail, onConfirm }, activeModal: 'confirm-action' }),
+  setConfirmAction: (action) => set((s) => ({ confirm: { ...s.confirm, action, onConfirm: action ? s.confirm.onConfirm : undefined } })),
   setPendingVoiceChannelId: (pendingVoiceChannelId) => set({ pendingVoiceChannelId }),
   openCreateChannel: (channelModalCategoryId) => set({ channelModalCategoryId, activeModal: 'create-channel' }),
   openEditChannel: (targetChannelForAction) => set({ targetChannelForAction, activeModal: 'edit-channel' }),

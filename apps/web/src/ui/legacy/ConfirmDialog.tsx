@@ -82,6 +82,20 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       icon: <Volume2 size={24} color="var(--brand)" />,
       isDanger: false,
     },
+    'delete-category': {
+      title: `Eliminar la categoría ${targetName}`,
+      desc: `¿Estás seguro de que quieres eliminar ${targetName}? Sus canales quedan sin categoría.`,
+      confirmBtn: 'Eliminar Categoría',
+      icon: <Trash2 size={24} color="var(--danger)" />,
+      isDanger: true,
+    },
+    logout: {
+      title: '¿Cerrar sesión?',
+      desc: 'Vas a salir de Discordia en este navegador.',
+      confirmBtn: 'Cerrar Sesión',
+      icon: <LogOut size={24} color="var(--brand)" />,
+      isDanger: false,
+    },
     'transfer-ownership': {
       title: `Transferir propiedad a @${targetName}`,
       desc: `Vas a ceder el control total del servidor a @${targetName}. Perderás los privilegios de propietario supremo.`,

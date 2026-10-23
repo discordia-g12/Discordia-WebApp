@@ -54,9 +54,8 @@ export function UserSettingsScreen(props: UserSettingsProps) {
       actions={[
         {
           label: 'Cerrar sesión',
-          onPress: () => {
-            if (window.confirm('¿Cerrar sesión en Discordia?')) props.onLogout?.();
-          },
+          // onLogout abre la confirmación (FullScreenViews): la del rediseño, no la del navegador
+          onPress: () => props.onLogout?.(),
         },
       ]}
       onClose={() => props.onClose?.()}

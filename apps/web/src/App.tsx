@@ -11,6 +11,7 @@ import { useUIStore } from './app/uiStore';
 import { useIsMobile } from './app/useIsMobile';
 import { DesktopLayout } from './app/DesktopLayout';
 import { MobileLayout } from './app/MobileLayout';
+import { useEnsureChannelSelected } from './features/servers/useCurrentServer';
 
 /**
  * Raíz de la web: arranca la sesión y, con sesión, monta lo que vive mientras dura (voz, chat en
@@ -72,6 +73,7 @@ export default function App() {
 function AuthenticatedApp() {
   const isMobile = useIsMobile();
   const { usersMap } = useUsers();
+  useEnsureChannelSelected();
 
   // Llamada entrante simulada para testing
   useEffect(() => {

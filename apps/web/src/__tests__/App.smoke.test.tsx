@@ -290,6 +290,31 @@ describe.each([
     expect(screen.getAllByTitle('Ver perfil y estado')).toHaveLength(1);
   });
 
+  it('un servidor recién abierto sin canal elegido (creado o unido) muestra su primer canal de texto', async () => {
+    renderApp();
+    await screen.findByLabelText('Servidor Torton');
+    // Como queda después de crear un servidor o unirse: el servidor elegido, sin canal suyo
+    act(() => useUIStore.setState({ selectedServerId: 's1', selectedChannelId: 'canal-de-otro-servidor', appView: 'home' }));
+
+    expect(await screen.findByText('hola mundo')).toBeTruthy();
+    expect(useUIStore.getState().selectedChannelId).toBe('c1');
+    expect(useUIStore.getState().appView).toBe('chat');
+  });
+
+  it.runIf(newUi)('cerrar sesión pide confirmación con el modal del rediseño, no con el del navegador', async () => {
+    const browserConfirm = vi.spyOn(window, 'confirm');
+    renderApp();
+    fireEvent.click(await screen.findByLabelText('Ajustes de usuario'));
+    fireEvent.click(await screen.findByRole('button', { name: /Cerrar sesión/i }));
+
+    expect(await screen.findByRole('alertdialog', { name: '¿Cerrar sesión?' })).toBeTruthy();
+    expect(browserConfirm).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '_cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    // Sigue en los ajustes, con la sesión abierta
+    expect(screen.getByRole('dialog', { name: 'Ajustes de usuario' })).toBeTruthy();
+  });
+
   it.runIf(newUi)('sin red: la línea de reconexión arriba y "reconectando/" en la barra de usuario', async () => {
     renderApp();
     await screen.findByTitle('Ver perfil y estado');

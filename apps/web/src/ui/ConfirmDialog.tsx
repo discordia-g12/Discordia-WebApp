@@ -37,6 +37,10 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Eliminar canal?', text: `Se borra •${name} con todos sus mensajes. No se puede deshacer.`, confirm: 'Eliminar', danger: true };
     case 'switch-voice-channel':
       return { title: '¿Cambiar de canal?', text: `Estás conectado a ${detail || 'otro canal de voz'}. Si entrás a ${name}, salís de ese canal.`, confirm: 'Cambiar', danger: false };
+    case 'delete-category':
+      return { title: '¿Eliminar categoría?', text: `Se borra la categoría ${name}. Sus canales quedan sin categoría.`, confirm: 'Eliminar', danger: true };
+    case 'logout':
+      return { title: '¿Cerrar sesión?', text: 'Vas a salir de Discordia en este navegador.', confirm: 'Cerrar sesión', danger: false };
     case 'transfer-ownership':
       return { title: '¿Transferir el servidor?', text: `El servidor pasa a ser de @${name} y perdés el control total sobre él.`, confirm: 'Transferir', danger: true };
   }

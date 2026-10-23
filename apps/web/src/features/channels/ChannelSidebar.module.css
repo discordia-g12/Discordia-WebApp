@@ -146,7 +146,8 @@
 .addChannel {
   position: absolute;
   right: var(--space-5);
-  bottom: 0;
+  /* A la altura del título (la línea de la sección va debajo) */
+  top: 0;
   padding: 0 var(--space-1);
   background: none;
   border: 0;

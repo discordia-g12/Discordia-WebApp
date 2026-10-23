@@ -220,6 +220,10 @@ export const auth0Provider: WebAuthAdapter = {
   },
 
   async loginWithCredentials(credentials: { email: string; password: string }): Promise<void> {
+    // Se descarta la sesión anterior antes de intentar: si este login falla (contraseña, email sin
+    // verificar), no tiene que quedar vivo el token de otra cuenta. Con él, el arranque siguiente creaba
+    // el perfil nuevo a nombre de la cuenta anterior.
+    clearSession();
     const { accessToken, user, expiresIn } = await passwordRealmLogin(credentials);
     saveSession(accessToken, user, expiresIn);
   },
@@ -230,6 +234,7 @@ export const auth0Provider: WebAuthAdapter = {
     username: string;
     displayName?: string;
   }): Promise<void> {
+    clearSession();
     await databaseSignup(signupData);
 
     // CA 1: Registro exitoso -> Autenticación automática.

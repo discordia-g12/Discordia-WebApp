@@ -32,6 +32,7 @@ import { LegacyIncomingCallModal } from '../features/voice/legacy/LegacyIncoming
 import { useCurrentServer } from '../features/servers/useCurrentServer';
 import { clearInviteFromUrl, useCreateServer, useJoinServer } from '../features/servers/serverActions';
 import { useCurrentUser } from '../features/profile/currentUserStore';
+import { logoutWithToast } from '../features/profile/profileActions';
 import { useVoice } from '../features/voice/VoiceProvider';
 import { useUIStore } from './uiStore';
 import { useUsers } from './UsersProvider';
@@ -79,7 +80,18 @@ export function GlobalModals() {
   };
 
   const confirm = async () => {
-    const { action, targetName } = ui.confirm;
+    const { action, targetName, onConfirm } = ui.confirm;
+    if (onConfirm) {
+      // Quien abrió la confirmación sabe qué hacer (y muestra sus propios avisos)
+      closeConfirm();
+      await onConfirm();
+      return;
+    }
+    if (action === 'logout') {
+      closeConfirm();
+      logoutWithToast();
+      return;
+    }
     if (action === 'delete-server' && currentServer) {
       try {
         await deleteServer(currentServer.id);

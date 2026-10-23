@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { auth0Provider } from '../auth0';
+import { auth0Provider, hasStoredSession } from '../auth0';
 import { AccountSuspendedError, EmailNotVerifiedError } from '@discordia/core';
 
 function jsonResponse(status: number, body: unknown) {
@@ -51,6 +51,27 @@ describe('auth0Provider.loginWithCredentials - respuestas de /oauth/token', () =
     expect(err).not.toBeInstanceOf(EmailNotVerifiedError);
     expect(err).not.toBeInstanceOf(AccountSuspendedError);
     expect((err as Error).message).toBe('El correo electrónico o la contraseña son incorrectos.');
+  });
+
+  it('un login que falla no deja viva la sesión de la cuenta anterior', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(200, {
+        access_token: 'token-cuenta-vieja',
+        expires_in: 86400,
+        id_token: fakeIdToken({ sub: 'auth0|vieja', email: CREDS.email }),
+      }),
+    );
+    await auth0Provider.loginWithCredentials(CREDS);
+    expect(await auth0Provider.getToken()).toBe('token-cuenta-vieja');
+
+    // Cuenta nueva, todavía sin verificar: el login se rechaza
+    fetchMock.mockResolvedValueOnce(jsonResponse(403, { error: 'access_denied', error_description: 'email_not_verified' }));
+    await expect(auth0Provider.loginWithCredentials(CREDS)).rejects.toBeInstanceOf(EmailNotVerifiedError);
+
+    // No queda sesión guardada: el arranque siguiente no puede usar el token de la cuenta anterior
+    expect(hasStoredSession()).toBe(false);
+    expect(sessionStorage.getItem('discordia_auth_session')).toBeNull();
   });
 
   it('lee el username elegido al registrarse desde el claim del ID token', async () => {

@@ -18,6 +18,7 @@ import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, ty
 import type { ServerSettingsProps } from '../ServerSettings';
 import { PERMISSION_CATEGORIES, PRESET_ROLE_COLORS } from './shared';
 import { useServerSettingsState, type ServerSettingsState } from './useServerSettingsState';
+import { useUIStore } from '../../../app/uiStore';
 import styles from './ServerSettingsScreen.module.css';
 
 type Section = 'overview' | 'roles' | 'members' | 'bans' | 'channels' | 'moderation' | 'notifications' | 'emojis' | 'boost';
@@ -640,24 +641,27 @@ function useChannelsAdmin(server: Server) {
     if (created) setCategoryName('');
   };
 
+  // Se confirma con el modal del rediseño (encima de los ajustes), no con el confirm del navegador
   const handleDeleteChannel = (channel: Channel) => {
-    if (!window.confirm(`¿Eliminar el canal •${channel.name}? Se pierden sus mensajes.`)) return;
-    void run(
-      () => deleteChannel.mutateAsync({ serverId: server.id, channelId: channel.id }),
-      `Se eliminó •${channel.name}.`,
-      { 403: 'No tenés permisos para eliminar canales en este servidor.' },
-      'No se pudo eliminar el canal.'
-    );
+    useUIStore.getState().openConfirm('delete-channel', channel.name, '', async () => {
+      await run(
+        () => deleteChannel.mutateAsync({ serverId: server.id, channelId: channel.id }),
+        `Se eliminó •${channel.name}.`,
+        { 403: 'No tenés permisos para eliminar canales en este servidor.' },
+        'No se pudo eliminar el canal.'
+      );
+    });
   };
 
   const handleDeleteCategory = (category: Category) => {
-    if (!window.confirm(`¿Eliminar la categoría ${category.name}? Sus canales quedan sin categoría.`)) return;
-    void run(
-      () => deleteCategory.mutateAsync({ serverId: server.id, categoryId: category.id }),
-      `Se eliminó la categoría ${category.name}.`,
-      { 403: 'No tenés permisos para eliminar categorías en este servidor.' },
-      'No se pudo eliminar la categoría.'
-    );
+    useUIStore.getState().openConfirm('delete-category', category.name, '', async () => {
+      await run(
+        () => deleteCategory.mutateAsync({ serverId: server.id, categoryId: category.id }),
+        `Se eliminó la categoría ${category.name}.`,
+        { 403: 'No tenés permisos para eliminar categorías en este servidor.' },
+        'No se pudo eliminar la categoría.'
+      );
+    });
   };
 
   return {

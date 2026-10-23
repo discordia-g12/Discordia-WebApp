@@ -14,7 +14,8 @@ export function useCreateServer() {
         name,
         icon: icon instanceof File ? icon : undefined,
       });
-      useUIStore.getState().setSelectedServerId(newServer.id);
+      // Abre el servidor con su primer canal de texto (•general)
+      selectServer(newServer.id, [newServer]);
       useUIStore.getState().setActiveModal(null);
       showToast('Servidor creado', 'success');
     } catch (error) {
@@ -44,13 +45,17 @@ export function useJoinServer() {
   const queryClient = useQueryClient();
 
   return async (invite: string) => {
+    let serverId: string;
     try {
-      await joinServerViaInvite(inviteCodeFrom(invite));
+      ({ server_id: serverId } = await joinServerViaInvite(inviteCodeFrom(invite)));
     } catch {
       throw new Error('La invitación no es válida o ya venció.');
     }
     await queryClient.invalidateQueries({ queryKey: ['servers'] });
     clearInviteFromUrl();
+    // Abre el servidor al que se unió (useEnsureChannelSelected elige su primer canal de texto)
+    useUIStore.getState().setSelectedServerId(serverId);
+    useUIStore.getState().setAppView('chat');
     showToast('Te uniste al servidor', 'success');
   };
 }

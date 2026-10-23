@@ -46,11 +46,14 @@ export const mobileAuthAdapter: AuthAdapter = {
   },
 
   async loginWithCredentials(credentials) {
+    // Sin la sesión anterior: si este login falla, no tiene que quedar el token de otra cuenta
+    session = null
     const { accessToken, user } = await passwordRealmLogin(credentials)
     session = { token: accessToken, user }
   },
 
   async signupWithCredentials(data) {
+    session = null
     await databaseSignup(data)
     // Login automático tras registro exitoso (lanza EmailNotVerifiedError si falta verificar el email)
     await mobileAuthAdapter.loginWithCredentials({ email: data.email, password: data.password })

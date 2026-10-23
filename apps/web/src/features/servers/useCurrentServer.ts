@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useServerMembersQuery, useServersQuery } from '@discordia/core';
 import type { Server, Status, User } from '../../types';
 import { useUIStore } from '../../app/uiStore';
@@ -46,6 +46,25 @@ export function useCurrentServer() {
   }, [allServerChannels, selectedChannelId]);
 
   return { servers, isLoadingServers, currentServer, allServerChannels, currentChannel };
+}
+
+/**
+ * Mantiene un canal válido elegido: si hay un servidor abierto y el canal seleccionado no es suyo (recién
+ * creado o unido, el canal se borró, o el servidor no tenía canales de texto y se creó el primero), elige
+ * su primer canal de texto y muestra el chat. Sin esto el chat quedaba sin canal hasta tocar uno a mano.
+ */
+export function useEnsureChannelSelected() {
+  const { currentServer, currentChannel, allServerChannels } = useCurrentServer();
+
+  useEffect(() => {
+    if (!currentServer || currentChannel) return;
+    const firstText = allServerChannels.find((ch) => ch.type === 'text');
+    if (!firstText) return;
+    const ui = useUIStore.getState();
+    ui.setSelectedChannelId(firstText.id);
+    // La vista de voz sin canal válido tampoco sirve: vuelve al chat
+    if (ui.appView === 'voice' || ui.appView === 'home') ui.setAppView('chat');
+  }, [currentServer, currentChannel, allServerChannels]);
 }
 
 /** Miembros del servidor seleccionado como usuarios (con nombre provisorio hasta tener el perfil). */

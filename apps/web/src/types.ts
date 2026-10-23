@@ -73,6 +73,8 @@ export type ConfirmAction =
   | 'leave-server'
   | 'transfer-ownership'
   | 'switch-voice-channel'
+  | 'delete-category'
+  | 'logout'
   | null;
 
 /** Errores de validación durante la edición del perfil de usuario. */
