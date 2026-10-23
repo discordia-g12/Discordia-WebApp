@@ -54,3 +54,19 @@ export function initUiFlag(enabled: boolean = import.meta.env.DEV): boolean {
 export function isNewUi(): boolean {
   return document.documentElement.dataset.ui === 'nuevo';
 }
+
+export type ThemePreference = 'light' | 'dark' | 'system';
+
+/** Tema elegido en Ajustes → Experiencia (o con ?tema=). Sin elección, claro (el paso 12 lo pasa a sistema). */
+export function getThemePreference(): ThemePreference {
+  const saved = storage()?.getItem(THEME_KEY);
+  return saved === 'dark' || saved === 'system' ? saved : 'light';
+}
+
+/** Aplica el tema en <html> (los tokens hacen el resto) y lo recuerda en este navegador. */
+export function setThemePreference(theme: ThemePreference) {
+  storage()?.setItem(THEME_KEY, theme);
+  const root = document.documentElement;
+  if (theme === 'light') delete root.dataset.theme;
+  else root.dataset.theme = theme;
+}

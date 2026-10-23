@@ -93,19 +93,19 @@ export function useUserSettingsState(props: UserSettingsProps) {
   const handleUpdatePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword) {
-      setPasswordMsg({ type: 'error', text: 'Current password is required.' });
+      setPasswordMsg({ type: 'error', text: 'Ingresá tu contraseña actual.' });
       return;
     }
     if (newPassword.length < 8) {
-      setPasswordMsg({ type: 'error', text: 'New password must be at least 8 characters long.' });
+      setPasswordMsg({ type: 'error', text: 'La contraseña nueva debe tener al menos 8 caracteres.' });
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ type: 'error', text: 'Passwords do not match.' });
+      setPasswordMsg({ type: 'error', text: 'Las contraseñas no coinciden.' });
       return;
     }
 
-    setPasswordMsg({ type: 'success', text: 'Password successfully updated!' });
+    setPasswordMsg({ type: 'success', text: 'Contraseña actualizada.' });
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
@@ -123,7 +123,7 @@ export function useUserSettingsState(props: UserSettingsProps) {
   };
 
   const handleCancelPremium = () => {
-    const confirmCancel = window.confirm('Are you sure you want to cancel your Discordia Premium subscription?');
+    const confirmCancel = window.confirm('¿Cancelar tu suscripción a Discordia Premium?');
     if (!confirmCancel) return;
     setIsPremium(false);
   };
@@ -134,7 +134,7 @@ export function useUserSettingsState(props: UserSettingsProps) {
     setTimeout(() => {
       setPoints((prev) => prev + amount);
       setPurchasingPackage(null);
-      setBillingFeedback(`Successfully purchased ${amount.toLocaleString()} 💠 Points!`);
+      setBillingFeedback(`Compraste ${amount.toLocaleString('es-AR')} puntos.`);
       setTimeout(() => setBillingFeedback(null), 3500);
     }, 1000);
   };

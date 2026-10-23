@@ -508,9 +508,24 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 9: ajustes (`UserSettings`, `ServerSettings`, `OwnProfileView`)
 
-- [ ] Pantalla completa con menú gigante y celdas de grilla; cortina de entrada y salida.
-- [ ] Partir los archivos por pestaña (hoy tienen 1600–2600 líneas).
-- [ ] Selector de tema en *Experiencia*.
+- [x] Partir los archivos por pestaña: hecho en el paso 1.4.
+- [x] 9a. Marco compartido `settings/SettingsScreen` (PDF, pág. 11): identidad, buscador (filtra el menú
+      por la palabra o por lo que hay adentro de cada sección) e índice de la sección arriba a la
+      izquierda; menú de palabras gigantes abajo (la activa con una barra); celdas en grilla de líneas
+      finas que bajan escalonadas; `×` y Escape. Piezas: `SettingsCell`, `SettingsRow`, `Choice`
+      (opciones en una fila, la elegida en bloque negro), `Switch` (cuadrado) y `Feedback`. Entra bajando
+      como cortina y sale subiendo: se monta encima de la grilla (que sigue montada, así no se pierde el
+      chat ni la llamada) con `AnimatePresence` en `DesktopLayout`.
+- [x] 9a. Ajustes de usuario (`settings/user/UserSettingsScreen`, mismo estado que la vista anterior):
+      `CUENTA` (información, estado, contraseña y seguridad, dos factores), `NOTIFICACIÓN`, `VOZ`,
+      `FACTURA` (premium y puntos), `EXPERIENCIA` y `CERRAR SESIÓN` (con confirmación). Los mensajes del
+      estado compartido pasaron al castellano.
+- [x] 9a. Selector de tema en *Experiencia* (Claro / Oscuro / Sistema): es el tema real de la app
+      (`setThemePreference` en `ui/flag.ts`: `data-theme` en `<html>` y `localStorage`). El modo de los
+      mensajes y el tamaño de letra siguen siendo locales, como antes.
+- [ ] 9b. Ajustes del servidor sobre el mismo marco (`RESUMEN`, `ROLES`, `MIEMBROS`, `INVITACIONES`,
+      `BANEOS`, `ELIMINAR`, sección 3) y el perfil propio (`OwnProfileView`). Mientras tanto se ven los
+      del diseño anterior a pantalla completa.
 
 ### Paso 10: modales, toasts y conexión
 

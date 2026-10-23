@@ -201,11 +201,20 @@ describe.each([
     renderApp();
     fireEvent.click(await screen.findByLabelText('Ajustes de usuario'));
 
-    for (const tab of ['Security & 2FA', 'Discordia Premium', 'Billing & Points', 'Appearance', 'Voice & Audio', 'Notifications', 'My Account & Profile']) {
-      fireEvent.click(screen.getAllByText(tab)[0]);
+    if (newUi) {
+      // Menú de palabras gigantes; cada sección muestra sus celdas
+      for (const section of ['Notificación', 'Voz', 'Factura', 'Experiencia', 'Cuenta']) {
+        fireEvent.click(screen.getByRole('button', { name: section }));
+        expect(screen.getByRole('main', { name: section })).toBeTruthy();
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes de usuario' }));
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ajustes de usuario' })).toBeNull());
+    } else {
+      for (const tab of ['Security & 2FA', 'Discordia Premium', 'Billing & Points', 'Appearance', 'Voice & Audio', 'Notifications', 'My Account & Profile']) {
+        fireEvent.click(screen.getAllByText(tab)[0]);
+      }
+      fireEvent.click(screen.getByTitle('Close settings (ESC)'));
     }
-
-    fireEvent.click(screen.getByTitle('Close settings (ESC)'));
     expect(await screen.findByLabelText('Servidor Torton')).toBeTruthy();
   });
 

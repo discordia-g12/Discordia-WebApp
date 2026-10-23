@@ -50,3 +50,16 @@ describe('flag del rediseño (data-ui)', () => {
     expect(html.dataset.ui).toBeUndefined();
   });
 });
+
+describe('preferencia de tema', () => {
+  it('se aplica en <html> y se recuerda', async () => {
+    const { getThemePreference, setThemePreference } = await import('../flag');
+    setThemePreference('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(getThemePreference()).toBe('dark');
+
+    setThemePreference('light');
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+    expect(getThemePreference()).toBe('light');
+  });
+});

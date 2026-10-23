@@ -1,0 +1,170 @@
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.identityName {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+}
+
+.identityMeta {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-5);
+}
+
+.form > button {
+  align-self: flex-start;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line-height);
+  color: var(--color-text-muted);
+}
+
+.planTitle {
+  margin: 0 0 2px;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+}
+
+.codes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--line-hairline) solid var(--color-line);
+  border-left: var(--line-hairline) solid var(--color-line);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: var(--font-body-small-size);
+}
+
+.codes li {
+  padding: var(--space-2);
+  text-align: center;
+  border-right: var(--line-hairline) solid var(--color-line);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
+
+/* Campos de voz: etiqueta en negrita y el control entre líneas, como UnderlineInput */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fieldLabel {
+  font-size: var(--font-label-size);
+  font-weight: 700;
+}
+
+.fieldValue {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.select {
+  width: 100%;
+  padding: var(--space-1) var(--space-5);
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-top: var(--line-hairline) solid var(--color-line);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+  border-radius: var(--radius);
+}
+
+.range {
+  width: 100%;
+  accent-color: var(--color-text);
+}
+
+/* Nivel del micrófono: una barra que se llena (solo transform) */
+.meter {
+  height: var(--space-2);
+  border: var(--line-hairline) solid var(--color-line-strong);
+  overflow: hidden;
+}
+
+.meterFill {
+  display: block;
+  height: 100%;
+  background: var(--color-inverse-background);
+  transform-origin: left;
+  transition: transform 120ms linear;
+}
+
+.features {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-body-small-size);
+  line-height: 1.7;
+}
+
+.points {
+  margin: 0;
+  font-size: var(--font-display-size);
+  line-height: var(--font-display-line-height);
+  letter-spacing: var(--font-display-letter-spacing);
+}
+
+.pointsUnit {
+  font-size: var(--font-body-size);
+  letter-spacing: 0;
+  color: var(--color-text-muted);
+}
+
+.packs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--line-hairline) solid var(--color-line);
+}
+
+.packs li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: var(--line-hairline) solid var(--color-line);
+  font-size: var(--font-body-small-size);
+}
+
+.badge {
+  margin-left: var(--space-2);
+  padding: 0 var(--space-1);
+  font-size: var(--font-meta-size);
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+.packAction {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.preview {
+  margin: 0;
+  padding: var(--space-3) 0;
+  border-top: var(--line-hairline) solid var(--color-line);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
