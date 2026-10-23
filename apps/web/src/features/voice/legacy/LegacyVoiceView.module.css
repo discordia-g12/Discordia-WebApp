@@ -1,0 +1,209 @@
+/* Estilos de VoiceView: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.cabeceraEstadoVoz {
+  height: 48px;
+  min-height: 48px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  background-color: var(--bg-secondary-alt);
+  z-index: 10;
+}
+
+.cabeceraEstadoVozDiv {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cabeceraEstadoVozDivSpan {
+  font-weight: 700;
+  color: var(--header-primary);
+  font-size: 15px;
+}
+
+.cabeceraEstadoVozDivSpan2 {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.estadoConexionRtc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.estadoConexionRtcSpan {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.gridAdaptableParticipantes1 {
+  flex: 1;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  align-content: center;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.gridAdaptableParticipantes1Div {
+  position: relative;
+  background-color: var(--bg-tertiary);
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.avatarCircularGrandeHalo {
+  position: relative;
+}
+
+.avatarCircularGrandeHaloDiv {
+  width: 88px;
+  height: 88px;
+  padding: 3px;
+  transition: border var(--transition-fast);
+}
+
+.avatarCircularGrandeHaloDivImg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatarCircularGrandeHaloDivDiv {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-white);
+}
+
+.silenciadoVos {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--danger);
+  color: var(--text-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.etiquetaInferiorNombreEstado {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.microfonoSilenciado {
+  display: flex;
+  align-items: center;
+  color: var(--danger);
+}
+
+.etiquetaInferiorNombreEstadoSpan {
+  display: flex;
+  align-items: center;
+}
+
+.etiquetaInferiorNombreEstadoSpan2 {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--header-primary);
+}
+
+.barraInferiorControlesFlotante {
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-secondary-alt);
+  border-top: 1px solid rgba(0, 0, 0, 0.2);
+  z-index: 20;
+}
+
+.barraInferiorControlesFlotanteDiv {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--bg-floating);
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-floating);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.botonMicrofonoMuteUnmute {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--text-white);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast);
+}
+
+.botonCamaraPendientePor {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--bg-secondary);
+  color: var(--text-muted);
+  border: none;
+  cursor: not-allowed;
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.botonRojoDesconectarLeave {
+  height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-full);
+  background-color: var(--danger);
+  color: var(--text-white);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  transition: background-color var(--transition-fast);
+}

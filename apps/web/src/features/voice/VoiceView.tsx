@@ -1,272 +1,142 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import {
-  Volume2,
-  VolumeX,
-  Mic,
-  MicOff,
-  Headphones,
-  VideoOff,
-  MonitorOff,
-  PhoneOff,
-  Sparkles,
-} from 'lucide-react';
-import { VoiceParticipant } from '../channels/ChannelSidebar';
+import { useCallback, useState, type MouseEvent } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { MicOff, Shapes } from 'lucide-react';
+import { transitions } from '../../ui';
+import type { VoiceParticipant } from '../channels/ChannelSidebar';
+import type { VoiceViewConnectionState, VoiceViewProps as LegacyVoiceViewProps } from './legacy/LegacyVoiceView';
 import { VoiceParticipantMenu } from './VoiceParticipantMenu';
 import styles from './VoiceView.module.css';
 
-export type VoiceViewConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+export type { VoiceViewConnectionState };
 
-const CONNECTION_LABELS: Record<VoiceViewConnectionState, { label: string; color: string }> = {
-  connected: { label: 'Voz conectada', color: 'var(--status-online)' },
-  connecting: { label: 'Conectando…', color: 'var(--status-idle)' },
-  reconnecting: { label: 'Reconectando…', color: 'var(--status-idle)' },
-  disconnected: { label: 'Desconectado', color: 'var(--danger)' },
+export interface VoiceViewProps extends LegacyVoiceViewProps {
+  /** Abre la invitación al servidor ("Invitar a la llamada +"). */
+  onInvite?: () => void;
+}
+
+/** Estado de la conexión con barra final, como el resto del microcopy. */
+export const CONNECTION_LABEL: Record<VoiceViewConnectionState, string> = {
+  connected: 'conectado/',
+  connecting: 'conectando/',
+  reconnecting: 'reconectando/',
+  disconnected: 'desconectado/',
 };
 
-/**
- * Propiedades para la vista de sala de voz en tiempo real.
- */
-export interface VoiceViewProps {
-  /** Nombre del canal de voz activo. */
-  channelName?: string;
-  /** Nombre de la comunidad o servidor activo. */
-  serverName?: string;
-  /** ID del usuario actualmente autenticado. */
-  currentUserId?: string;
-  /** Participantes conectados en la sala de voz, con su estado de audio. */
-  participants?: VoiceParticipant[];
-  /** Estado de la conexión con el servidor de voz. */
-  connectionState?: VoiceViewConnectionState;
-  /** Estado de micrófono silenciado del usuario local. */
-  isMuted?: boolean;
-  /** Estado de ensordecido (deafened) del usuario local. */
-  isDeafened?: boolean;
-  /** Usuarios silenciados solo para este cliente. */
-  locallyMutedUsers?: Record<string, boolean>;
-  /** Callback al alternar micrófono local. */
-  onToggleMute?: () => void;
-  /** Callback al alternar ensordecido local. */
-  onToggleDeafen?: () => void;
-  /** Callback al silenciar o reactivar a otro participante solo para este cliente. */
-  onToggleLocalMute?: (userId: string) => void;
-  /** Callback para abandonar la sala de voz. */
-  onDisconnect?: () => void;
-  /** Callback al hacer clic en un usuario participante. */
-  onSelectUser?: (user: VoiceParticipant['user']) => void;
+/** Columnas del mosaico según cuántas fichas hay (los participantes más la de invitar). */
+function columnsFor(tiles: number): number {
+  if (tiles <= 1) return 1;
+  if (tiles <= 4) return 2;
+  if (tiles <= 9) return 3;
+  return 4;
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)).toUpperCase();
 }
 
 /**
- * Genera iniciales a partir del nombre para avatares de respaldo.
+ * Canal de voz del rediseño (PDF, pág. 10): un mosaico a sangre separado por líneas finas, una ficha por
+ * participante (su foto llenando la ficha, o sus iniciales), y una última con "Invitar a la llamada +" y
+ * "Elegir actividad". Las fichas se reacomodan animadas cuando alguien entra o sale; a quien habla le
+ * pulsa el borde. Los controles de la llamada están en la barra lateral (VoiceControls) y en la barra
+ * de usuario.
  */
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
-
-/**
- * Interfaz de sala de voz en vivo.
- */
-export const VoiceView: React.FC<VoiceViewProps> = ({
-  channelName = 'Voz General',
-  serverName = 'Indie Developers',
+export function VoiceView({
+  channelName = 'Voz',
+  serverName,
   currentUserId = '',
   participants = [],
   connectionState = 'connected',
-  isMuted = false,
-  isDeafened = false,
   locallyMutedUsers = {},
-  onToggleMute,
-  onToggleDeafen,
   onToggleLocalMute,
-  onDisconnect,
   onSelectUser,
-}) => {
-  // Menú de click derecho sobre un participante
-  const [contextMenu, setContextMenu] = useState<{ user: VoiceParticipant['user']; x: number; y: number } | null>(
-    null
-  );
+  onInvite,
+}: VoiceViewProps) {
+  const reduce = useReducedMotion();
+  const [contextMenu, setContextMenu] = useState<{ user: VoiceParticipant['user']; x: number; y: number } | null>(null);
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
-
-  const gridColumns = useMemo(() => {
-    const count = participants.length;
-    if (count <= 1) return '1fr';
-    if (count === 2) return 'repeat(2, 1fr)';
-    if (count <= 4) return 'repeat(2, 1fr)';
-    return 'repeat(3, 1fr)';
-  }, [participants.length]);
+  const columns = columnsFor(participants.length + 1);
+  const layoutTransition = reduce ? transitions.reduced : transitions.slow;
 
   return (
-    <div className="voice-container">
-      {/* ==========================================================================
-          CABECERA DE ESTADO DE VOZ
-          ========================================================================== */}
-      <div className={styles.cabeceraEstadoVoz}>
-        <div className={styles.cabeceraEstadoVozDiv}>
-          <Volume2 size={22} style={{ color: 'var(--status-online)' }} />
-          <div>
-            <span className={styles.cabeceraEstadoVozDivSpan}>
-              {channelName}
-            </span>
-            <span className={styles.cabeceraEstadoVozDivSpan2}>
-              / {serverName}
-            </span>
-          </div>
-        </div>
+    <div className={styles.voice}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>
+          •{channelName}
+          {serverName && <span className={styles.server}> / {serverName}</span>}
+        </h1>
+        <p className={`${styles.status} ${connectionState !== 'connected' ? styles.statusPending : ''}`} role="status">
+          {CONNECTION_LABEL[connectionState]}
+        </p>
+      </header>
 
-        {/* Estado de la conexión RTC */}
-        <div
-          className={styles.estadoConexionRtc} style={{ color: CONNECTION_LABELS[connectionState].color }}
-        >
-          <span
-            className={styles.estadoConexionRtcSpan} style={{ backgroundColor: CONNECTION_LABELS[connectionState].color, boxShadow: `0 0 8px ${CONNECTION_LABELS[connectionState].color}` }}
-          />
-          <span>{CONNECTION_LABELS[connectionState].label}</span>
-        </div>
-      </div>
-
-      {/* ==========================================================================
-          GRID ADAPTABLE DE PARTICIPANTES (1-2 cols, 2x2, 3x3)
-          ========================================================================== */}
-      <div
-        className={styles.gridAdaptableParticipantes1} style={{ gridTemplateColumns: gridColumns }}
-      >
-        {participants.map(({ user, isSpeaking, isMuted: isUserMuted }) => {
-          const isCurrentUser = user.id === currentUserId;
-          const isLocallyMuted = !isCurrentUser && (locallyMutedUsers[user.id] || false);
-
-          return (
-            <div
-              key={user.id}
-              onClick={() => onSelectUser?.(user)}
-              onContextMenu={(e: React.MouseEvent) => {
-                if (isCurrentUser || !onToggleLocalMute) return;
-                e.preventDefault();
-                setContextMenu({ user, x: e.clientX, y: e.clientY });
-              }}
-              className={styles.gridAdaptableParticipantes1Div} style={{ borderRadius: 'var(--radius-lg)', border: isSpeaking
-                  ? '3px solid var(--status-online)'
-                  : '1px solid rgba(255, 255, 255, 0.06)', boxShadow: isSpeaking
-                  ? '0 0 0 2px rgba(35, 165, 90, 0.2), 0 0 20px rgba(35, 165, 90, 0.4)'
-                  : 'var(--shadow-sm)' }}
-            >
-              {/* Avatar Circular Grande con Halo de Speaking */}
-              <div className={styles.avatarCircularGrandeHalo}>
-                <div
-                  className={styles.avatarCircularGrandeHaloDiv} style={{ borderRadius: '50%', border: isSpeaking ? '3px solid var(--status-online)' : '3px solid transparent' }}
+      <ul className={styles.grid} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-label={`Participantes de ${channelName}`}>
+        <AnimatePresence initial={false}>
+          {participants.map(({ user, isSpeaking, isMuted }) => {
+            const isMe = user.id === currentUserId;
+            const locallyMuted = !isMe && Boolean(locallyMutedUsers[user.id]);
+            return (
+              <motion.li
+                key={user.id}
+                layout={!reduce}
+                className={`${styles.tile} ${isSpeaking ? styles.speaking : ''}`}
+                initial={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
+                transition={layoutTransition}
+                // Click derecho en toda la ficha (foto o etiqueta): silenciar solo para mí
+                onContextMenu={(e: MouseEvent) => {
+                  if (isMe || !onToggleLocalMute) return;
+                  e.preventDefault();
+                  setContextMenu({ user, x: e.clientX, y: e.clientY });
+                }}
+              >
+                <button
+                  type="button"
+                  className={styles.tileButton}
+                  onClick={() => onSelectUser?.(user)}
+                  aria-label={`${user.displayName}${isMe ? ' (vos)' : ''}${isSpeaking ? ', hablando' : ''}`}
                 >
                   {user.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={user.displayName}
-                      className={styles.avatarCircularGrandeHaloDivImg}
-                    />
+                    <img src={user.avatar} alt="" className={styles.photo} />
                   ) : (
-                    <div className={styles.avatarCircularGrandeHaloDivDiv}>
-                      {getInitials(user.displayName)}
-                    </div>
+                    <span className={styles.initials} aria-hidden="true">
+                      {initials(user.displayName || user.username)}
+                    </span>
                   )}
-                </div>
-              </div>
-
-              {/* Indicador de silenciado solo para este cliente (se cambia con click derecho) */}
-              {isLocallyMuted && (
-                <div
-                  title="Silenciado para vos"
-                  aria-label="Silenciado para vos"
-                  className={styles.silenciadoVos}
-                >
-                  <VolumeX size={15} />
-                </div>
-              )}
-
-              {/* Etiqueta inferior con nombre y estado de micrófono */}
-              <div className={styles.etiquetaInferiorNombreEstado}>
-                {/* Indicador de micrófono */}
-                {isUserMuted ? (
-                  <span
-                    className={styles.microfonoSilenciado}
-                    title="Micrófono silenciado"
-                  >
-                    <MicOff size={14} />
+                </button>
+                {/* Etiqueta negra al pie de la ficha, como la del rail */}
+                <span className={styles.label}>
+                  {isMuted && <MicOff size={12} strokeWidth={1.5} aria-label="Micrófono silenciado" />}
+                  <span>
+                    {user.displayName}
+                    {isMe && ' (vos)'}
                   </span>
-                ) : (
-                  <span
-                    className={styles.etiquetaInferiorNombreEstadoSpan} style={{ color: isSpeaking ? 'var(--status-online)' : 'var(--text-muted)' }}
-                    title={isSpeaking ? 'Hablando' : 'En línea'}
-                  >
-                    <Mic size={14} />
-                  </span>
-                )}
-
-                <span className={styles.etiquetaInferiorNombreEstadoSpan2}>
-                  {user.displayName}
-                  {isCurrentUser && ' (Tú)'}
+                  {locallyMuted && (
+                    <span className={styles.localMute} aria-label="Silenciado para vos">
+                      · silenciado para vos
+                    </span>
+                  )}
                 </span>
+              </motion.li>
+            );
+          })}
 
-                {user.isPremium && (
-                  <Sparkles size={13} style={{ color: 'var(--text-warning)' }} />
-                )}
-              </div>
+          <motion.li key="invite" layout={!reduce} className={`${styles.tile} ${styles.inviteTile}`} transition={layoutTransition}>
+            <div className={styles.invite}>
+              <button type="button" className={styles.inviteAction} onClick={onInvite} disabled={!onInvite}>
+                Invitar a la llamada <strong aria-hidden="true">+</strong>
+              </button>
+              <button type="button" className={styles.inviteAction} disabled title="Las actividades todavía no están disponibles">
+                Elegir actividad <Shapes size={14} strokeWidth={1.5} aria-hidden="true" />
+                <span className={styles.soon}>próximamente</span>
+              </button>
             </div>
-          );
-        })}
-      </div>
+          </motion.li>
+        </AnimatePresence>
+      </ul>
 
-      {/* ==========================================================================
-          BARRA INFERIOR DE CONTROLES FLOTANTE
-          ========================================================================== */}
-      <div className={styles.barraInferiorControlesFlotante}>
-        <div className={styles.barraInferiorControlesFlotanteDiv}>
-          {/* Botón Micrófono (mute/unmute) */}
-          <button
-            onClick={onToggleMute}
-            title={isMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
-            className={styles.botonMicrofonoMuteUnmute} style={{ backgroundColor: isMuted ? 'var(--danger)' : 'var(--bg-secondary)' }}
-          >
-            {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
-          </button>
-
-          {/* Botón Auriculares (deafen/undeafen) */}
-          <button
-            onClick={onToggleDeafen}
-            title={isDeafened ? 'Reactivar audio' : 'Ensordecer'}
-            className={styles.botonMicrofonoMuteUnmute} style={{ backgroundColor: isDeafened ? 'var(--danger)' : 'var(--bg-secondary)' }}
-          >
-            <Headphones size={20} />
-          </button>
-
-          {/* Botón Cámara (pendiente: por ahora solo audio) */}
-          <button
-            disabled
-            title="Cámara: próximamente"
-            className={styles.botonCamaraPendientePor}
-          >
-            <VideoOff size={20} />
-          </button>
-
-          {/* Botón Compartir Pantalla (pendiente: por ahora solo audio) */}
-          <button
-            disabled
-            title="Compartir pantalla: próximamente"
-            className={styles.botonCamaraPendientePor}
-          >
-            <MonitorOff size={20} />
-          </button>
-
-          {/* Botón Rojo Desconectar (Leave Call) */}
-          <button
-            onClick={onDisconnect}
-            title="Desconectar"
-            className={styles.botonRojoDesconectarLeave}
-          >
-            <PhoneOff size={18} />
-            <span>Desconectar</span>
-          </button>
-        </div>
-      </div>
       {contextMenu && onToggleLocalMute && (
         <VoiceParticipantMenu
           user={contextMenu.user}
@@ -280,4 +150,4 @@ export const VoiceView: React.FC<VoiceViewProps> = ({
       )}
     </div>
   );
-};
+}

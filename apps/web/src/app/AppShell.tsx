@@ -12,6 +12,7 @@ import { VoicePanel } from '../features/voice/VoicePanel';
 import { HomePanel } from '../features/friends/HomePanel';
 import { useDmStore } from '../features/friends/dmStore';
 import { UserBarPanel } from '../features/profile/UserBarPanel';
+import { VoiceControlsPanel } from '../features/voice/VoiceControls';
 import styles from './AppShell.module.css';
 
 type Tone = 'ink' | 'sky' | 'muted';
@@ -65,6 +66,7 @@ export function AppShell() {
           <DisplayText variant="watermark" tone={tone}>
             {word}
           </DisplayText>
+          <VoiceControlsPanel tone={tone} />
           <UserBarPanel tone={tone} />
         </div>
       </aside>

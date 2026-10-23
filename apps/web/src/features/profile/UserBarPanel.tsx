@@ -3,7 +3,10 @@ import { useCurrentUser } from './currentUserStore';
 import { useUserPanelActions } from './profileActions';
 import { UserBar, type UserBarProps } from './UserBar';
 
-/** Barra de usuario conectada a la sesión, la voz y las acciones de perfil. */
+/**
+ * Barra de usuario conectada a la sesión, la voz y las acciones de perfil. Colgar no va acá: está en los
+ * controles de la llamada, justo arriba (VoiceControls).
+ */
 export function UserBarPanel({ tone }: { tone: UserBarProps['tone'] }) {
   const currentUser = useCurrentUser();
   const voice = useVoice();
@@ -19,7 +22,6 @@ export function UserBarPanel({ tone }: { tone: UserBarProps['tone'] }) {
       onToggleMute={voice.room.toggleMute}
       onToggleDeafen={voice.room.toggleDeafen}
       onOpenSettings={actions.onOpenSettings}
-      onDisconnectVoice={voice.disconnect}
       onChangeStatus={actions.onChangeStatus}
       onSaveCustomStatus={actions.onSaveCustomStatus}
       onEditProfile={actions.onEditProfile}

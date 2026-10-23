@@ -3,7 +3,10 @@ import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
 import { useVoice } from './VoiceProvider';
 import { useVoiceParticipants } from './useVoiceParticipants';
+import { useUIStore } from '../../app/uiStore';
+import { isNewUi } from '../../ui/flag';
 import { VoiceView } from './VoiceView';
+import { LegacyVoiceView } from './legacy/LegacyVoiceView';
 
 /** Canal de voz a pantalla completa (mosaico de participantes y controles). */
 export function VoicePanel() {
@@ -12,8 +15,24 @@ export function VoicePanel() {
   const voice = useVoice();
   const { voiceParticipants } = useVoiceParticipants();
 
+  if (isNewUi()) {
+    return (
+      <VoiceView
+        channelName={currentChannel?.name || 'Voz'}
+        serverName={currentServer?.name}
+        currentUserId={currentUser.id}
+        participants={voiceParticipants}
+        connectionState={voice.room.connectionState}
+        locallyMutedUsers={voice.room.locallyMutedUsers}
+        onToggleLocalMute={voice.room.toggleLocalMute}
+        onSelectUser={(u) => openUserProfile(u.id)}
+        onInvite={() => useUIStore.getState().setActiveModal('invite')}
+      />
+    );
+  }
+
   return (
-    <VoiceView
+    <LegacyVoiceView
       channelName={currentChannel?.name || 'Voz'}
       serverName={currentServer?.name}
       currentUserId={currentUser.id}

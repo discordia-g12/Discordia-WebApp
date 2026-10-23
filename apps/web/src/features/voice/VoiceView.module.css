@@ -1,209 +1,197 @@
-/* Estilos de VoiceView: los valores fijos que antes estaban en línea. Los que dependen del estado
-   siguen en el componente (style). */
+/* Canal de voz del rediseño (PDF, pág. 10) */
+.voice {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  color: var(--color-text);
+}
 
-.cabeceraEstadoVoz {
-  height: 48px;
-  min-height: 48px;
-  padding: 0 20px;
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
-  background-color: var(--bg-secondary-alt);
-  z-index: 10;
+  gap: var(--space-4);
+  flex-shrink: 0;
+  height: var(--space-7);
+  padding: 0 var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
 }
 
-.cabeceraEstadoVozDiv {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.cabeceraEstadoVozDivSpan {
-  font-weight: 700;
-  color: var(--header-primary);
-  font-size: 15px;
-}
-
-.cabeceraEstadoVozDivSpan2 {
-  color: var(--text-muted);
-  font-size: 12px;
-  margin-left: 8px;
-}
-
-.estadoConexionRtc {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.estadoConexionRtcSpan {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.gridAdaptableParticipantes1 {
-  flex: 1;
-  padding: 20px;
-  display: grid;
-  gap: 16px;
-  align-content: center;
-  justify-content: center;
-  overflow-y: auto;
-}
-
-.gridAdaptableParticipantes1Div {
-  position: relative;
-  background-color: var(--bg-tertiary);
-  min-height: 180px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+.title {
+  margin: 0;
   overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+}
+
+.server {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.status {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+/* Conectando o reconectando: el texto late */
+.statusPending {
+  animation: blink 1.2s var(--motion-ease-standard) infinite alternate;
+}
+
+@keyframes blink {
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* Mosaico a sangre: llena el espacio; las líneas son los bordes de las fichas */
+.grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+
+.tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: var(--line-hairline) solid var(--color-line-strong);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+/* Quien habla: un borde grueso que pulsa, por dentro de la ficha */
+.tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: var(--line-accent) solid var(--color-line-strong);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.speaking::after {
+  opacity: 1;
+  animation: pulse 0.9s var(--motion-ease-standard) infinite alternate;
+}
+
+@keyframes pulse {
+  to {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speaking::after,
+  .statusPending {
+    animation: none;
+  }
+}
+
+.tileButton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
   cursor: pointer;
 }
 
-.avatarCircularGrandeHalo {
-  position: relative;
-}
-
-.avatarCircularGrandeHaloDiv {
-  width: 88px;
-  height: 88px;
-  padding: 3px;
-  transition: border var(--transition-fast);
-}
-
-.avatarCircularGrandeHaloDivImg {
+.photo {
+  display: block;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
   object-fit: cover;
 }
 
-.avatarCircularGrandeHaloDivDiv {
+/* Sin foto: las iniciales en grande, como un texto de display */
+.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
-  background-color: var(--brand);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-white);
+  font-size: var(--font-display-size);
+  letter-spacing: var(--font-display-letter-spacing);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
 }
 
-.silenciadoVos {
+/* Nombre en la etiqueta negra al pie */
+.label {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background-color: var(--danger);
-  color: var(--text-white);
-  display: flex;
+  left: 0;
+  bottom: 0;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-}
-
-.etiquetaInferiorNombreEstado {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
-  background-color: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.microfonoSilenciado {
-  display: flex;
-  align-items: center;
-  color: var(--danger);
-}
-
-.etiquetaInferiorNombreEstadoSpan {
-  display: flex;
-  align-items: center;
-}
-
-.etiquetaInferiorNombreEstadoSpan2 {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--header-primary);
-}
-
-.barraInferiorControlesFlotante {
-  padding: 16px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-secondary-alt);
-  border-top: 1px solid rgba(0, 0, 0, 0.2);
-  z-index: 20;
-}
-
-.barraInferiorControlesFlotanteDiv {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background-color: var(--bg-floating);
-  padding: 8px 16px;
-  border-radius: var(--radius-full);
-  box-shadow: var(--shadow-floating);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.botonMicrofonoMuteUnmute {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  color: var(--text-white);
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color var(--transition-fast);
-}
-
-.botonCamaraPendientePor {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background-color: var(--bg-secondary);
-  color: var(--text-muted);
-  border: none;
-  cursor: not-allowed;
-  opacity: 0.5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.botonRojoDesconectarLeave {
-  height: 44px;
-  padding: 0 20px;
-  border-radius: var(--radius-full);
-  background-color: var(--danger);
-  color: var(--text-white);
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--space-1) var(--space-3);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-meta-size);
   font-weight: 700;
-  font-size: 14px;
-  transition: background-color var(--transition-fast);
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  pointer-events: none;
+}
+
+.localMute {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* Última ficha: invitar y actividades, abajo a la izquierda (PDF, pág. 10) */
+.inviteTile {
+  display: flex;
+  align-items: flex-end;
+}
+
+.invite {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-6) var(--space-5);
+}
+
+.inviteAction {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.inviteAction:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inviteAction:disabled {
+  cursor: default;
+}
+
+.soon {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
 }

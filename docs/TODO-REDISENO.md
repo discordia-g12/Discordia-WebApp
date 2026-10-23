@@ -492,8 +492,19 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 8: voz (`VoiceView`)
 
-- [ ] Mosaico a sangre con reacomodo animado e indicador de quién habla.
-- [ ] Barra de controles en la barra lateral, `Invitar a la llamada +`, `Elegir actividad`.
+- [x] Mosaico a sangre (`voice/VoiceView`, el anterior en `legacy/`): fichas separadas por líneas finas,
+      la foto llenando la ficha (o las iniciales en grande) y el nombre en la etiqueta negra al pie, con el
+      micrófono silenciado y "silenciado para vos". Las fichas se reacomodan animadas al entrar o salir
+      alguien (`layout` de motion, solo transform); quien habla tiene un borde grueso que pulsa. Columnas
+      según la cantidad (1, 2, 3 o 4). Estado de la conexión en el encabezado (`conectado/`,
+      `reconectando/` latiendo). Click derecho en toda la ficha para silenciar solo para mí.
+- [x] Última ficha con `Invitar a la llamada +` (abre la invitación al servidor) y `Elegir actividad`
+      (deshabilitado, `próximamente`: no hay actividades).
+- [x] Controles en la barra lateral (`voice/VoiceControls`), entre la marca de agua y la barra de usuario,
+      con su mismo tono: en qué canal estás (lleva de vuelta a la llamada desde otro canal o el inicio),
+      el estado, cámara y pantalla (deshabilitadas: la voz es solo audio) y colgar. Se ven en toda la app
+      mientras dura la llamada. Micrófono y audio quedan en la barra de usuario; colgar salió de ahí.
+- [x] Tests del clic derecho corriendo con las dos vistas; tests del mosaico y de los controles.
 
 ### Paso 9: ajustes (`UserSettings`, `ServerSettings`, `OwnProfileView`)
 
