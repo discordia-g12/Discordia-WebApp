@@ -1,0 +1,60 @@
+.nav {
+  display: block;
+  font-size: var(--font-display-size);
+  line-height: var(--font-display-line-height);
+  letter-spacing: var(--font-display-letter-spacing);
+  font-weight: var(--font-display-weight);
+  text-transform: var(--font-display-transform);
+  color: var(--color-text-display-inactive);
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.active {
+  color: var(--color-text);
+}
+
+.button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.button:not(.active):hover {
+  color: var(--color-text-muted);
+}
+
+/* Marca de agua: la palabra queda cortada por el borde de abajo */
+.watermark {
+  position: relative;
+  overflow: hidden;
+  height: calc(var(--font-watermark-size) * 0.62);
+  pointer-events: none;
+  user-select: none;
+}
+
+.watermarkText {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  font-size: var(--font-watermark-size);
+  line-height: var(--font-watermark-line-height);
+  letter-spacing: var(--font-watermark-letter-spacing);
+  font-weight: var(--font-watermark-weight);
+  text-transform: var(--font-watermark-transform);
+}
+
+.ink {
+  color: var(--color-text);
+}
+
+.sky {
+  color: var(--color-glow);
+}
+
+.muted {
+  color: var(--color-decoration);
+}

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
 Search, Hash, Compass} from 'lucide-react';
 // import { createInvite } from '@discordia/core';
-import { ModalOverlay } from '../../ui/ModalOverlay';
+import { ModalOverlay } from '../../ui/legacy/ModalOverlay';
 import styles from './GlobalSearch.module.css';
 
 export interface SearchResultItem {

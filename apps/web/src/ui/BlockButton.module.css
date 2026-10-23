@@ -1,0 +1,63 @@
+.button {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-5);
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) .label {
+  transform: translateX(2px);
+}
+
+.label {
+  transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.danger {
+  color: var(--color-on-danger);
+  background: var(--color-danger);
+}
+
+/* Cargando: una línea que recorre el pie del bloque */
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: var(--line-focus);
+  background: currentColor;
+  transform-origin: left;
+  animation: progress 1.2s var(--motion-ease-standard) infinite;
+}
+
+@keyframes progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress {
+    animation: none;
+    opacity: 0.6;
+  }
+}

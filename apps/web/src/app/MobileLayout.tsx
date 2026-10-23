@@ -2,8 +2,8 @@ import { useCreateCategoryMutation, useCreateChannelMutation, useDeleteChannelMu
 import { useUIStore } from './uiStore';
 import { useUsers } from './UsersProvider';
 import { MobileShell } from './MobileShell';
-import { ConnectionBanner } from '../ui/ConnectionBanner';
-import { ToastNotification } from '../ui/Toast';
+import { ConnectionBanner } from '../ui/legacy/ConnectionBanner';
+import { ToastNotification } from '../ui/legacy/Toast';
 import { CreateServerModal } from '../features/servers/CreateServerModal';
 import { JoinServerModal } from '../features/servers/JoinServerModal';
 import { useCurrentServer } from '../features/servers/useCurrentServer';

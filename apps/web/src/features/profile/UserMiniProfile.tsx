@@ -10,7 +10,7 @@ import {
   Gem,
 } from 'lucide-react';
 import { User, Status } from '../../types';
-import { Avatar } from '../../ui/Avatar';
+import { Avatar } from '../../ui/legacy/Avatar';
 import styles from './UserMiniProfile.module.css';
 
 /**

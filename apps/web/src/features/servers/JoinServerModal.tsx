@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { getInvitePreview } from '@discordia/core';
 import { X } from 'lucide-react';
 
-import { ModalOverlay } from '../../ui/ModalOverlay';
+import { ModalOverlay } from '../../ui/legacy/ModalOverlay';
 import styles from './JoinServerModal.module.css';
 
 export interface JoinServerModalProps {

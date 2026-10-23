@@ -9,7 +9,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { User, Status } from '../../types';
-import { Avatar } from '../../ui/Avatar';
+import { Avatar } from '../../ui/legacy/Avatar';
 import { UserMiniProfile } from './UserMiniProfile';
 import { StatusPicker } from './StatusPicker';
 import styles from './UserPanel.module.css';

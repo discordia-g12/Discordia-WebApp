@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { Channel, DirectMessage, Message, User, MessageAttachment, Reaction } from '../../types';
 
-import { Avatar } from '../../ui/Avatar';
+import { Avatar } from '../../ui/legacy/Avatar';
 import styles from './ChatView.module.css';
 
 

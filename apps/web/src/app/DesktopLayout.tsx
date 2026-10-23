@@ -1,6 +1,6 @@
 import { useUIStore } from './uiStore';
 import { GlobalModals } from './GlobalModals';
-import { ToastNotification } from '../ui/Toast';
+import { ToastNotification } from '../ui/legacy/Toast';
 import { ServerRailPanel } from '../features/servers/ServerRailPanel';
 import { MemberListPanel } from '../features/servers/MemberListPanel';
 import { useCurrentServer } from '../features/servers/useCurrentServer';

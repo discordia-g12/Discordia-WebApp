@@ -1,24 +1,31 @@
-import type { ToastType } from '../app/uiStore';
+import { motion } from 'motion/react';
+import { ActionLink } from './ActionLink';
+import { useMotionPreset } from './motion';
 import styles from './Toast.module.css';
 
-/**
- * Componente Toast para avisos flotantes efímeros.
- */
-export function ToastNotification({
-  message,
-  type = 'info',
-}: {
+interface ToastProps {
+  /** Se muestra con barra final: "Mensaje enviado/". */
   message: string;
-  type?: ToastType;
-}) {
-  const bg =
-    type === 'success' ? '#23a55a' : type === 'danger' ? '#ed4245' : 'var(--brand-blurple, #5865f2)';
+  /** error: borde izquierdo rojo de 4 px. */
+  tone?: 'default' | 'error';
+  /** Acción en el toast (p. ej. reintentar un envío). */
+  action?: { label: string; onPress: () => void };
+}
 
+/**
+ * Aviso: tira negra al pie con texto claro. Entra desde abajo; cuánto dura y dónde se apila lo decide
+ * quien lo muestra (AnimatePresence alrededor para la salida).
+ */
+export function Toast({ message, tone = 'default', action }: ToastProps) {
+  const rise = useMotionPreset('rise');
   return (
-    <div
-      className={styles.root} style={{ backgroundColor: bg }}
-    >
-      {message}
-    </div>
+    <motion.div role={tone === 'error' ? 'alert' : 'status'} className={`${styles.toast} ${tone === 'error' ? styles.error : ''}`} {...rise}>
+      <span>{message}/</span>
+      {action && (
+        <ActionLink onPress={action.onPress} className={styles.action}>
+          {action.label}
+        </ActionLink>
+      )}
+    </motion.div>
   );
 }

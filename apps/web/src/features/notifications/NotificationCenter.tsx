@@ -3,7 +3,7 @@ import {
   X, Check, Bell, Smile, MessageSquare, CornerDownLeft, AtSign, 
 } from 'lucide-react';
 import { Notification} from '../../types';
-import { ModalOverlay } from '../../ui/ModalOverlay';
+import { ModalOverlay } from '../../ui/legacy/ModalOverlay';
 import styles from './NotificationCenter.module.css';
 
 export interface NotificationCenterProps {

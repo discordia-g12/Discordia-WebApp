@@ -13,7 +13,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { DirectMessage, User } from '../../types';
-import { Avatar } from '../../ui/Avatar';
+import { Avatar } from '../../ui/legacy/Avatar';
 
 import { ChatView } from '../chat/ChatView';
 import styles from './HomeView.module.css';

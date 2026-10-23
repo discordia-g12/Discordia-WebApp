@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Status } from '../types';
+import { User, Status } from '../../types';
 import styles from './Avatar.module.css';
 
 /**

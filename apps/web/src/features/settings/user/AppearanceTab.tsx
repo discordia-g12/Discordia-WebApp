@@ -1,5 +1,5 @@
 
-import { Avatar } from '../../../ui/Avatar';
+import { Avatar } from '../../../ui/legacy/Avatar';
 import type { UserSettingsState } from './useUserSettingsState';
 import styles from './AppearanceTab.module.css';
 

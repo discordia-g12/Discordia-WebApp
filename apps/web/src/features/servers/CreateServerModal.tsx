@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { User,    } from '../../types';
 // import { createInvite } from '@discordia/core';
-import { ModalOverlay } from '../../ui/ModalOverlay';
+import { ModalOverlay } from '../../ui/legacy/ModalOverlay';
 import styles from './CreateServerModal.module.css';
 
 export interface CreateServerModalProps {

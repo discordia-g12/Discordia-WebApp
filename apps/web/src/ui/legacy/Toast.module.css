@@ -1,0 +1,16 @@
+/* Estilos de Toast: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.root {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  color: var(--text-white);
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}

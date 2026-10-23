@@ -1,16 +1,20 @@
-/* Estilos de Toast: los valores fijos que antes estaban en línea. Los que dependen del estado
-   siguen en el componente (style). */
+.toast {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
 
-.root {
-  position: fixed;
-  bottom: 32px;
-  right: 32px;
-  color: var(--text-white);
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-  z-index: 9999;
-  animation: fadeIn 0.2s ease-out;
+.error {
+  border-left: var(--line-accent) solid var(--color-danger);
+}
+
+/* La acción va sobre el bloque invertido: hereda su color */
+.action {
+  color: inherit;
 }

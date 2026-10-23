@@ -14,6 +14,17 @@ import { registerQueryCacheCleaner } from './platform/auth/session';
 import './platform/voice';
 import './index.css';
 
+// Rediseño (paso 3 de docs/TODO-REDISENO.md): tokens, fuente y base. Todo queda detrás del flag
+// data-ui="nuevo" (ui/flag.ts); sin el flag la app se ve como siempre.
+import '@discordia/tokens/tokens.css';
+import '@fontsource/schibsted-grotesk/400.css';
+import '@fontsource/schibsted-grotesk/700.css';
+import '@fontsource/schibsted-grotesk/900.css';
+import './ui/base.css';
+import { initUiFlag } from './ui/flag';
+
+initUiFlag();
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -32,10 +43,18 @@ const queryClient = new QueryClient({
 // Registrar limpiador de caché para logout
 registerQueryCacheCleaner(() => queryClient.clear());
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </React.StrictMode>,
-);
+const root = ReactDOM.createRoot(document.getElementById('root')!);
+
+// Catálogo de componentes del rediseño, solo en desarrollo: /?catalogo (con import() dinámico, no
+// llega al build de producción)
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('catalogo')) {
+  import('./ui/Catalog').then(({ Catalog }) => root.render(<Catalog />));
+} else {
+  root.render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </React.StrictMode>,
+  );
+}

@@ -3,7 +3,7 @@ import {
   X, ShieldAlert, AlertTriangle, Sparkles, MessageSquare, Zap , UserX, Flag
 } from 'lucide-react';
 import { User, Server, Role } from '../../types';
-import { ModalOverlay } from '../../ui/ModalOverlay';
+import { ModalOverlay } from '../../ui/legacy/ModalOverlay';
 import styles from './UserProfileModal.module.css';
 
 export interface UserProfileModalProps {

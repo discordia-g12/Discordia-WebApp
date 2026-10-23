@@ -346,12 +346,30 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 3: sistema de diseño
 
-- [ ] Importar `@discordia/tokens/tokens.css` en la web (los tokens ya están, paso 1.3).
-- [ ] Schibsted Grotesk y un activador del flag en desarrollo (`?ui=nuevo`, guardado en `localStorage`).
-- [ ] Componentes base: `Logo`, `DisplayText` (gigante + marca de agua cortada), `SectionLabel` (`X /` con
-      línea), `UnderlineInput`, `ActionLink` (`_editar`), `BlockButton` (bloque negro), `TabsUnderline`,
-      `HairlineGrid`, `SquareAvatar`, `Toast`, `Skeleton`, `EmptyState`.
-- [ ] `motion` + hook `useReducedMotion` con variantes compartidas (`fade`, `rise`, `sweep`, `curtain`).
+- [x] `@discordia/tokens/tokens.css` importado en la web (`main.tsx`), más una base mínima (`ui/base.css`:
+      degradé de fondo en `<html>`, tipografía y foco visible). Todo bajo `[data-ui="nuevo"]`: con el flag
+      apagado la app se ve igual (44 capturas comparadas píxel a píxel).
+- [x] Schibsted Grotesk servida desde el bundle (`@fontsource/schibsted-grotesk`, pesos 400, 700 y 900, los de
+      la escala), sin pedidos a Google Fonts. El navegador la baja solo cuando algo la usa.
+- [x] Flag en desarrollo (`ui/flag.ts`): `?ui=nuevo` / `?ui=viejo` y `?tema=oscuro|claro|sistema`, recordados en
+      `localStorage`. En producción no se activa.
+- [x] Catálogo en `ui/` (exportado por `ui/index.ts`), con los nombres y props de la sección 6: `Logo`,
+      `DisplayText` (nav y marca de agua cortada, con barrido al cambiar de contexto), `SectionLabel` (`X /`
+      cruzado por la línea, colapsable), `UnderlineInput` (`_mostrar` / `_ocultar`, error con barra inicial),
+      `ActionLink` (`_editar`), `BlockButton` (bloque invertido, `danger`, `loading`), `Tabs` (subrayado que se
+      desliza; flechas, Inicio y Fin), `SquareAvatar` (iniciales si no hay foto o no carga), `ServerStrip`
+      (etiqueta negra al pasar el mouse o con foco), `Toast`, `EmptyState`, `Skeleton` y `HairlineGrid`. Las
+      piezas del diseño anterior pasaron a `ui/legacy/` (se borran en el paso 14).
+- [x] `motion` 13 + `useMotionPreset(fade | rise | sweep | curtain)` (`ui/motion.ts`), con duraciones y curvas
+      de los tokens, solo `transform` y `opacity`; con `prefers-reduced-motion`, todo es un fundido de 150 ms.
+      En CSS, las transiciones usan `--motion-duration-*`, que los tokens ya acortan.
+- [x] Página de catálogo para revisar los componentes: `/?catalogo` (y `&tema=oscuro`), solo en desarrollo; no
+      llega al build de producción.
+- [x] Tests de los componentes (comportamiento y accesibilidad), del flag y del movimiento reducido
+      (`ui/__tests__`).
+- [ ] Revisar con diseño: en los pesos 700 y 900 de Schibsted Grotesk la "I" mayúscula tiene remates (se ve en
+      la marca de agua y en las iniciales); en el PDF no. Si molesta: otro peso para la marca de agua o una
+      alternativa de glifo, si la fuente la trae.
 
 ### Paso 4: Auth (`AuthView`)
 

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Server, Channel, User, Status } from '../../types';
 import { isLocalCategoryId } from '@discordia/core';
-import { Avatar } from '../../ui/Avatar';
+import { Avatar } from '../../ui/legacy/Avatar';
 import { VoiceParticipantMenu } from '../voice/VoiceParticipantMenu';
 import { UserPanel } from '../profile/UserPanel';
 import styles from './ChannelSidebar.module.css';

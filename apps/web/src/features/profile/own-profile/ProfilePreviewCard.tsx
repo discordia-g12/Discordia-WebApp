@@ -3,7 +3,7 @@ import {
   Calendar,
   Circle,
 } from 'lucide-react';
-import { Avatar } from '../../../ui/Avatar';
+import { Avatar } from '../../../ui/legacy/Avatar';
 import type { OwnProfileState } from './useOwnProfileState';
 import styles from './ProfilePreviewCard.module.css';
 

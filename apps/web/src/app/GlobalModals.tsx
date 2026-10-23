@@ -5,7 +5,7 @@ import { JoinServerModal } from '../features/servers/JoinServerModal';
 import { InviteModal } from '../features/servers/InviteModal';
 import { UserProfileModal } from '../features/profile/UserProfileModal';
 import { IncomingCallModal } from '../features/voice/IncomingCallModal';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { ConfirmDialog } from '../ui/legacy/ConfirmDialog';
 import { CreateChannelModal, EditChannelModal, CreateCategoryModal } from '../features/channels/ChannelModals';
 import type { Server } from '../types';
 import {

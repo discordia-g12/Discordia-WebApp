@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ModalOverlay } from '../../ui/ModalOverlay';
+import { ModalOverlay } from '../../ui/legacy/ModalOverlay';
 import { Hash, Volume2, X } from 'lucide-react';
 import { Channel, Category } from '../../types';
 import { errorMessageFor, isLocalCategoryId, EditChannelRequest } from '@discordia/core';

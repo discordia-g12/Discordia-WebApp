@@ -6,7 +6,7 @@ import {
   X,
   Circle,
 } from 'lucide-react';
-import { Avatar } from '../../../ui/Avatar';
+import { Avatar } from '../../../ui/legacy/Avatar';
 import { PRESET_BANNER_COLORS, STATUS_CONFIG } from './shared';
 import type { OwnProfileState } from './useOwnProfileState';
 import styles from './ProfileDetailsForm.module.css';
