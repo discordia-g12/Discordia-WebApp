@@ -16,7 +16,7 @@ export const durations = {
   /** Cortina de líneas de ajustes y modales. */
   curtain: 600,
   /** Intro "amanecer". */
-  intro: 1800,
+  intro: 4000,
   /** Tiempo en pantalla de un toast. */
   toast: 4000,
   /** Deriva del degradé de fondo. */

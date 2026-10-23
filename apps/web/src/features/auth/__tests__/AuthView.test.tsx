@@ -1,12 +1,21 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AuthView, PASSWORD_RESET_SENT_MESSAGE } from '../AuthView';
 import { useSession, authService } from '../../../platform/auth/session';
 import { AccountSuspendedError } from '@discordia/core';
 
-describe('AuthView Component - Criterios de Aceptación', () => {
+// Los mismos criterios para las dos vistas: la del rediseño (flag data-ui="nuevo") y la anterior
+describe.each([
+  ['diseño anterior', false],
+  ['rediseño', true],
+])('AuthView (%s) - Criterios de Aceptación', (_name, newUi) => {
+  afterEach(() => {
+    delete document.documentElement.dataset.ui;
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
+    if (newUi) document.documentElement.dataset.ui = 'nuevo';
     useSession.setState({
       status: 'unauthenticated',
       profile: null,

@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useSession, bootstrap } from './platform/auth/session';
 import { AuthView } from './features/auth/AuthView';
+import { DawnIntro } from './features/auth/DawnIntro';
+import { isNewUi } from './ui/flag';
 import { useCurrentUserStore } from './features/profile/currentUserStore';
 import { VoiceProvider } from './features/voice/VoiceProvider';
 import { ChatConnectionProvider } from './features/chat/ChatConnectionProvider';
@@ -39,19 +41,31 @@ export default function App() {
     }
   }, [status]);
 
+  // Intro "amanecer" del rediseño: va encima mientras la sesión arranca, haya sesión o no. Está en el
+  // mismo lugar del árbol en las dos ramas para que no se reinicie si la sesión se resuelve durante la intro.
+  const intro = isNewUi() ? <DawnIntro /> : null;
+
   // Si no está autenticado (bootstrapping, unauthenticated, needs_profile, suspended, error), renderizar AuthView
   if (status !== 'authenticated') {
-    return <AuthView />;
+    return (
+      <>
+        {intro}
+        <AuthView />
+      </>
+    );
   }
 
   return (
-    <VoiceProvider>
-      <ChatConnectionProvider>
-        <UsersProvider>
-          <AuthenticatedApp />
-        </UsersProvider>
-      </ChatConnectionProvider>
-    </VoiceProvider>
+    <>
+      {intro}
+      <VoiceProvider>
+        <ChatConnectionProvider>
+          <UsersProvider>
+            <AuthenticatedApp />
+          </UsersProvider>
+        </ChatConnectionProvider>
+      </VoiceProvider>
+    </>
   );
 }
 

@@ -29,6 +29,11 @@
   opacity: 0.85;
 }
 
+.large {
+  padding: var(--space-4) var(--space-6);
+  font-size: var(--font-body-size);
+}
+
 .danger {
   color: var(--color-on-danger);
   background: var(--color-danger);

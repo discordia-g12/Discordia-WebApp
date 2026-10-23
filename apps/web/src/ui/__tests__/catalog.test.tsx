@@ -34,14 +34,16 @@ describe('UnderlineInput', () => {
     expect(document.getElementById(input.getAttribute('aria-describedby')!)?.textContent).toBe('/ ya está en uso');
   });
 
-  it('secret oculta el texto y lo alterna con _mostrar / _ocultar', () => {
+  it('secret oculta el texto y lo alterna con el ojo', () => {
     render(<UnderlineInput label="contraseña" secret />);
 
     const input = screen.getByLabelText('contraseña') as HTMLInputElement;
     expect(input.type).toBe('password');
-    fireEvent.click(screen.getByText('_mostrar'));
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }));
     expect(input.type).toBe('text');
-    fireEvent.click(screen.getByText('_ocultar'));
+    const hide = screen.getByRole('button', { name: 'Ocultar contraseña' });
+    expect(hide.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(hide);
     expect(input.type).toBe('password');
   });
 });

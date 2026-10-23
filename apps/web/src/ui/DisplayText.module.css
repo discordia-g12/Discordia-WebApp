@@ -58,3 +58,25 @@
 .muted {
   color: var(--color-decoration);
 }
+
+/* Letras de la navegación: cada una sube por separado al activarse (ver RisingLetters) */
+.word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.letter {
+  display: inline-block;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

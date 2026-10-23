@@ -66,7 +66,7 @@ Librería: **`motion`** (ex framer-motion) en web. En mobile, `Animated` y `Layo
 
 | Momento | Efecto |
 |---|---|
-| Primer ingreso | **Intro "amanecer"**: negro → resplandor celeste que sube (`gradiente 1`) → degradé claro (`gradiente 2`), ~1.8 s, se saltea con clic/tecla |
+| Primer ingreso | **Intro "amanecer"**: negro → resplandor celeste que sube (`gradiente 1`) → degradé claro (`gradiente 2`), ~4 s, se saltea con clic/tecla |
 | Login ⇄ registro | Las palabras gigantes se intercambian (la activa sube y se oscurece), el formulario cruza con fundido |
 | Verificando sesión | Barra de progreso que se llena bajo "SESIÓN" |
 | Cambio de vista | La marca de agua se transforma ("AMIGOS" → nombre del servidor) con un barrido horizontal |
@@ -177,9 +177,9 @@ Misma API en `apps/web` y `apps/mobile`; cada uno con su implementación:
 | `Logo` | `size` |
 | `DisplayText` | `children`, `active`, `variant: "nav" \| "watermark"` |
 | `SectionLabel` | `children`, `collapsible`, `open`, `onToggle` |
-| `UnderlineInput` | `label`, `required`, `hint`, `error`, `secret` |
+| `UnderlineInput` | `label`, `required`, `hint`, `error`, `secret`, `size: "default" \| "large"` |
 | `ActionLink` | `children`, `onPress` (se muestra como `_texto`) |
-| `BlockButton` | `children`, `tone: "default" \| "danger"`, `loading` |
+| `BlockButton` | `children`, `tone: "default" \| "danger"`, `size: "default" \| "large"`, `loading` |
 | `Tabs` | `items`, `value`, `onChange` (subrayado deslizable) |
 | `SquareAvatar` | `user`, `size`, `status` |
 | `ServerStrip` | `server`, `active`, `unread` |
@@ -355,7 +355,7 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
       `localStorage`. En producción no se activa.
 - [x] Catálogo en `ui/` (exportado por `ui/index.ts`), con los nombres y props de la sección 6: `Logo`,
       `DisplayText` (nav y marca de agua cortada, con barrido al cambiar de contexto), `SectionLabel` (`X /`
-      cruzado por la línea, colapsable), `UnderlineInput` (`_mostrar` / `_ocultar`, error con barra inicial),
+      cruzado por la línea, colapsable), `UnderlineInput` (ojo para mostrar / ocultar la contraseña, error con barra inicial),
       `ActionLink` (`_editar`), `BlockButton` (bloque invertido, `danger`, `loading`), `Tabs` (subrayado que se
       desliza; flechas, Inicio y Fin), `SquareAvatar` (iniciales si no hay foto o no carga), `ServerStrip`
       (etiqueta negra al pasar el mouse o con foco), `Toast`, `EmptyState`, `Skeleton` y `HairlineGrid`. Las
@@ -373,10 +373,32 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 4: Auth (`AuthView`)
 
-- [ ] Intro "amanecer".
-- [ ] Login / registro con las palabras gigantes como pestañas animadas, campos subrayados, `_ocultar`.
-- [ ] "VERIFICANDO SESIÓN" con barra de progreso.
-- [ ] Errores de validación en línea bajo cada campo (texto chico con barra inicial).
+- [x] Lógica de los formularios en `features/auth/useAuthForms.ts` (validaciones, mensajes, envío y a qué campo
+      corresponde cada error), compartida por la vista nueva (`AuthScreen`) y la anterior
+      (`legacy/LegacyAuthView`, se borra en el paso 14). `AuthView` elige según el flag.
+- [x] Intro "amanecer" (`DawnIntro`, montada en `App` encima de todo mientras arranca la sesión): noche →
+      el resplandor sube (gradiente 1 → 2) con la "D" que aparece y se pierde → degradé del login, ~4 s (`durations.intro`; con 1.8 s no se llegaba a ver).
+      Se saltea con clic o tecla, sale solo la primera vez en el navegador (`localStorage`) y se omite con
+      movimiento reducido.
+- [x] Login / registro: las palabras gigantes navegan; al activarse, las letras suben una tras otra
+      mientras se oscurecen (`DisplayText`, sirve también para el menú de ajustes del paso 9). El formulario
+      entra con un fundido; campos subrayados con un ojo para mostrar / ocultar la contraseña; botón
+      principal en bloque negro y las acciones secundarias en mayúsculas sin fondo (`VOLVER`,
+      `USAR OTRA CUENTA`). El resplandor del fondo deriva despacio (60 s).
+- [x] Acceso en tamaño grande (`size="large"` en `UnderlineInput` y `BlockButton`): columna de 480 px,
+      etiquetas de 15 px, texto de los campos de 18 px y textos de apoyo de 13 px. Con el tamaño del PDF
+      (campos de 11–13 px en una columna de 330 px) el formulario ocupaba muy poco de la pantalla.
+- [x] "VERIFICANDO SESIÓN" con la barra bajo "SESIÓN" (indeterminada: se llena rápido y se acerca al
+      final sin llegar, porque no hay un avance real).
+- [x] Errores en línea bajo cada campo, con barra inicial, `aria-invalid` y el foco en el campo. Los que no
+      son de un campo (credenciales incorrectas, servidor) van sobre el botón con `role="alert"`; el login
+      no dice qué campo falló (CA 2/3).
+- [x] Resto de los estados en el mismo sistema: recuperar contraseña, verificá tu email, cuenta suspendida,
+      error con `Reintentar` y elección de usuario (`needs_profile`).
+- [x] Tests: los criterios de aceptación de `AuthView.test.tsx` corren contra las dos vistas; los propios
+      del rediseño y de la intro, en `AuthScreen.test.tsx`.
+- Placeholders: se mantuvieron los de la vista anterior (`ejemplo@discordia.com`, `ej: alexr`) en lugar
+  de los del PDF, para que los mismos tests cubran las dos vistas hasta el corte.
 
 ### Paso 5: estructura (`App`, `ServerRail`, `UserPanel`)
 

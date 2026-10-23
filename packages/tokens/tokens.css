@@ -67,7 +67,7 @@
   --motion-duration-base: 320ms;
   --motion-duration-slow: 480ms;
   --motion-duration-curtain: 600ms;
-  --motion-duration-intro: 1800ms;
+  --motion-duration-intro: 4000ms;
   --motion-duration-toast: 4000ms;
   --motion-duration-drift: 60000ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
