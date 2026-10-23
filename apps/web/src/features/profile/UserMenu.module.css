@@ -13,7 +13,8 @@
   border-top: var(--line-hairline) solid var(--color-line-strong);
 }
 
-.menu p {
+.menu p,
+.block p {
   margin: 0;
 }
 

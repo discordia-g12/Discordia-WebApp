@@ -28,9 +28,16 @@ const reorderErrorMessage = (err: unknown) =>
 
 /**
  * Barra lateral del servidor seleccionado: canales, voz, menú del servidor y barra de usuario (sin ella
- * con showUserPanel={false}: en el rediseño la pone el layout).
+ * con showUserPanel={false}: en el rediseño la pone el layout). onChannelOpened avisa que se eligió un
+ * canal (mobile pasa de la lista al canal).
  */
-export function ChannelSidebarPanel({ showUserPanel = true }: { showUserPanel?: boolean }) {
+export function ChannelSidebarPanel({
+  showUserPanel = true,
+  onChannelOpened,
+}: {
+  showUserPanel?: boolean;
+  onChannelOpened?: () => void;
+}) {
   const { currentServer, isLoadingServers, allServerChannels } = useCurrentServer();
   const currentUser = useCurrentUser();
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
@@ -56,6 +63,7 @@ export function ChannelSidebarPanel({ showUserPanel = true }: { showUserPanel?: 
       ui().setSelectedChannelId(channelId);
       ui().setAppView('chat');
     }
+    onChannelOpened?.();
   };
 
   const handleMoveChannel = (channelId: string, targetCategoryId: string, beforeChannelId: string | null) => {

@@ -71,7 +71,7 @@ export function VoiceView({
         </p>
       </header>
 
-      <ul className={styles.grid} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-label={`Participantes de ${channelName}`}>
+      <ul className={styles.grid} data-columns={columns} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-label={`Participantes de ${channelName}`}>
         <AnimatePresence initial={false}>
           {participants.map(({ user, isSpeaking, isMuted }) => {
             const isMe = user.id === currentUserId;

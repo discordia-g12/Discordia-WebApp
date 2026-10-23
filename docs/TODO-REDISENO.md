@@ -613,7 +613,38 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 11: mobile web (`MobileShell`)
 
-- [ ] Barra inferior, tira de servidores, encabezados gigantes (sección 5).
+- Hallazgo: el `MobileShell` anterior era una maqueta. Los canales salían del backend, pero el chat
+  agregaba los mensajes a un estado local sin mandarlos por el WebSocket, la voz mostraba
+  "RTC Conectado (64 kbps)" y un participante inventado sin entrar a LiveKit, y micrófono y audio eran
+  estado propio. Por eso no se rediseñó: se armó otro shell sobre los paneles reales del escritorio.
+- [x] `app/mobile/MobileAppShell` (con el flag; `MobileLayout` elige). Usa el mismo `useUIStore` y los
+      mismos paneles que el escritorio (`ChannelSidebarPanel`, `ChatPanel`, `VoicePanel`,
+      `MemberListPanel`, `HomePanel`), así el chat, la voz, los modales, los avisos, la reconexión y los
+      ajustes son los reales. El shell solo agrega la pestaña y si hay un canal abierto.
+- [x] Barra inferior con `Servidores`, `Mensajes`, `Avisos` y `Perfil` (la activa, en bloque invertido).
+      "Notificaciones" pasó a "Avisos": en cuatro columnas de 390 px no entraba.
+- [x] En Servidores, la tira de franjas arriba (`ServerStrip orientation="horizontal"`: la activa baja y no
+      hay etiqueta flotante, que en táctil quedaba colgada), con crear y unirse. Siempre hay un servidor
+      elegido: el último, o el primero. Al volver de Mensajes se retoma el último.
+- [x] Encabezado gigante en cada pantalla: la marca de agua del escritorio, en tinta (acá es el título, con
+      un `h1` para lectores de pantalla). Un nombre largo queda en un renglón más chico en lugar de partirse
+      en tres (`--watermark-one-line-min`).
+- [x] Canal, llamada, miembros y DM abren a pantalla completa con una fila de vuelta (`‹ Torton`). Durante
+      una llamada, los controles y la barra de usuario del escritorio van sobre la barra inferior.
+- [x] Mensajes: la lista de DMs y los amigos. Avisos: vacío con "próximamente" (no hay backend, deuda 6.1).
+      Perfil: identidad, presencia, estado personalizado y atajos, con el mismo contenido que el menú de la
+      barra de usuario (`UserMenuContent`).
+- [x] Reglas de pantalla chica (`max-width: 767px`) en las vistas que se reusan: encabezado del chat que se
+      desliza de costado, inicio en una columna sin ACTIVO AHORA, pestañas de amigos en una fila, miembros a
+      todo el ancho, mosaico de voz de dos columnas como máximo, y ajustes y perfil propio con el menú como
+      fila que se desliza y las celdas de a una. Los modales ya se adaptaban (paso 10).
+- [x] Las vistas a pantalla completa (ajustes y perfil) pasaron a `app/FullScreenViews`, compartido por
+      escritorio y mobile.
+- [x] El shell anterior y sus pantallas, a `app/mobile/legacy/` (se borran en el paso 14).
+- [x] Prueba de humo mobile con el rediseño: elige el servidor, abre el canal, envía por el WebSocket,
+      miembros y vuelta, y las cuatro pestañas.
+- Pendiente: probarlo en teléfonos reales (Safari iOS con la barra de direcciones, teclado abierto sobre la
+  barra de escritura).
 
 ### Paso 12: modo oscuro
 

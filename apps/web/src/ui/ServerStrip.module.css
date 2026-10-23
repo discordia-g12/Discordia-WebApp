@@ -39,6 +39,11 @@
   transform: translateX(var(--space-2));
 }
 
+/* Tira horizontal (mobile): la activa baja hacia el contenido */
+.horizontal.active .strip {
+  transform: translateY(var(--space-1));
+}
+
 .unread {
   position: absolute;
   right: -1px;

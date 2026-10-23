@@ -1,7 +1,9 @@
 import { useCreateCategoryMutation, useCreateChannelMutation, useDeleteChannelMutation, useEditChannelMutation } from '@discordia/core';
 import { useUIStore } from './uiStore';
+import { isNewUi } from '../ui/flag';
+import { MobileAppShell } from './mobile/MobileAppShell';
 import { useUsers } from './UsersProvider';
-import { MobileShell } from './MobileShell';
+import { LegacyMobileShell as MobileShell } from './mobile/legacy/LegacyMobileShell';
 import { ConnectionBanner } from '../ui/legacy/ConnectionBanner';
 import { ToastNotification } from '../ui/legacy/Toast';
 import { LegacyCreateServerModal as CreateServerModal } from '../features/servers/legacy/LegacyCreateServerModal';
@@ -16,8 +18,13 @@ import {
   LegacyEditChannelModal as EditChannelModal,
 } from '../features/channels/legacy/LegacyChannelModals';
 
-/** Pantallas menores a 768 px: el shell mobile y sus modales. */
+/** Pantallas menores a 768 px: el shell mobile y sus modales (con el rediseño, MobileAppShell). */
 export function MobileLayout() {
+  return isNewUi() ? <MobileAppShell /> : <LegacyMobileLayout />;
+}
+
+/** Mobile del diseño anterior. Su shell todavía es una maqueta: el chat y la voz no van al backend. */
+function LegacyMobileLayout() {
   const ui = useUIStore();
   const { servers, currentServer } = useCurrentServer();
   const currentUser = useCurrentUser();

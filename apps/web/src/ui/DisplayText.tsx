@@ -147,7 +147,9 @@ function useFitWidth(ref: React.RefObject<HTMLDivElement | null>, text: string |
       if (oneLine === null || available <= 0) return;
 
       const words = text.split(/\s+/).filter(Boolean);
-      const wrap = oneLine < WATERMARK_ONE_LINE_MIN_PX && words.length > 1;
+      // Quien la usa puede bajar el umbral para partir en renglones (el encabezado de mobile)
+      const oneLineMin = parseFloat(style.getPropertyValue('--watermark-one-line-min')) || WATERMARK_ONE_LINE_MIN_PX;
+      const wrap = oneLine < oneLineMin && words.length > 1;
       const target = wrap ? Math.min(...words.map((w) => fitting(w) ?? oneLine)) : oneLine;
       box.style.setProperty('--watermark-size', `${Math.min(max, Math.max(WATERMARK_MIN_PX, target))}px`);
       box.toggleAttribute('data-wrap', wrap);

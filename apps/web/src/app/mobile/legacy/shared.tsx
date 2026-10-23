@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
   Server,
-} from '../../types';
+} from '../../../types';
 import styles from './shared.module.css';
 
 // Tipos, helpers y componentes auxiliares de MobileShell, compartidos por sus pantallas y hojas.

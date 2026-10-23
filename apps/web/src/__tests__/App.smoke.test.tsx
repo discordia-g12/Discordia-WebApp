@@ -317,7 +317,48 @@ describe.each([
     expect((await screen.findByText('Servidor creado/')).closest('[role="status"]')).toBeTruthy();
   });
 
-  it('mobile: recorre canales, chat, voz y las hojas de servidor, miembros y perfil', async () => {
+  it.runIf(newUi)('mobile: servidor, chat por WebSocket, miembros y las pestañas de abajo', async () => {
+    window.innerWidth = 500;
+    renderApp();
+
+    // Servidores: elige el primero solo y lo pone de encabezado
+    expect(await screen.findByRole('heading', { name: 'Torton' })).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Canal general' }));
+
+    // El chat es el real: historial y envío por el WebSocket del canal
+    expect(await screen.findByText('hola mundo')).toBeTruthy();
+    const ws = await waitFor(() => {
+      const chat = FakeWebSocket.instances.find((w) => w.url.includes('/api/v1/chat/channels/c1/ws'));
+      expect(chat).toBeTruthy();
+      return chat!;
+    });
+    act(() => ws.open());
+    fireEvent.change(screen.getByPlaceholderText(/Enviar mensaje/), { target: { value: 'desde el celu' } });
+    fireEvent.keyDown(screen.getByPlaceholderText(/Enviar mensaje/), { key: 'Enter' });
+    await waitFor(() => expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('desde el celu')));
+
+    // Miembros como pantalla aparte, y la vuelta
+    fireEvent.click(screen.getByRole('button', { name: 'mostrar lista de miembros' }));
+    expect(await screen.findByText('Lbars')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a •general' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Volver a Torton' }));
+    expect(await screen.findByRole('button', { name: 'Canal general' })).toBeTruthy();
+
+    // Pestañas de abajo
+    const tabs = within(screen.getByRole('navigation', { name: 'Secciones' }));
+    fireEvent.click(tabs.getByRole('button', { name: /Mensajes/ }));
+    expect(await screen.findByRole('heading', { name: 'Mensajes' })).toBeTruthy();
+    fireEvent.click(tabs.getByRole('button', { name: /Avisos/ }));
+    expect(await screen.findByText('por ahora no hay avisos')).toBeTruthy();
+    fireEvent.click(tabs.getByRole('button', { name: /Perfil/ }));
+    expect(await screen.findByRole('radiogroup', { name: 'Estado' })).toBeTruthy();
+
+    // Volver a Servidores retoma el último servidor
+    fireEvent.click(tabs.getByRole('button', { name: /Servidores/ }));
+    expect(await screen.findByRole('heading', { name: 'Torton' })).toBeTruthy();
+  });
+
+  it.runIf(!newUi)('mobile: recorre canales, chat, voz y las hojas de servidor, miembros y perfil', async () => {
     window.innerWidth = 500;
     renderApp();
 
@@ -342,6 +383,12 @@ describe.each([
   it('con pantalla chica usa el shell mobile', async () => {
     window.innerWidth = 500;
     renderApp();
+
+    if (newUi) {
+      expect(await screen.findByRole('navigation', { name: 'Secciones' })).toBeTruthy();
+      expect(screen.getAllByLabelText('Añadir un servidor').length).toBeGreaterThan(0);
+      return;
+    }
 
     const nav = await screen.findByLabelText('Mensajes Directos');
     expect(within(document.body).getAllByLabelText('Añadir un servidor').length).toBeGreaterThan(0);

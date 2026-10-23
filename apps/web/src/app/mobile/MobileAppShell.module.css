@@ -1,0 +1,259 @@
+/* Mobile web del rediseño: tira de servidores | contenido | llamada | barra inferior, a pantalla completa */
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  color: var(--color-text);
+}
+
+/* ── Tira de servidores (arriba) ── */
+
+.strips {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: var(--space-7);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--space-7);
+  height: 100%;
+  border-right: var(--line-hairline) solid var(--color-line-strong);
+}
+
+/* Las franjas se deslizan de costado; la activa baja un poco */
+.stripList {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 var(--space-3);
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.stripList::-webkit-scrollbar {
+  display: none;
+}
+
+.stripList li {
+  flex-shrink: 0;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--space-7);
+  height: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-left: var(--line-hairline) solid var(--color-line-strong);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+/* ── Contenido ── */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Pantalla de una pestaña: encabezado gigante y lo que haya debajo, con scroll propio */
+.screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* En un servidor la pantalla se tiñe de celeste, como la barra lateral del escritorio */
+.sky {
+  background: color-mix(in srgb, var(--color-glow) 30%, transparent);
+}
+
+/* El encabezado no crece tanto como la marca de agua del escritorio, y un nombre largo queda en un
+   renglón más chico en vez de partirse en varios */
+.heading {
+  flex-shrink: 0;
+  --font-watermark-size: 72px;
+  --watermark-one-line-min: 26px;
+  padding: var(--space-5) 0 var(--space-3);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.screenBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* La barra de canales y el inicio de escritorio, a todo el ancho */
+.screenBody > nav {
+  flex: 1;
+}
+
+.padded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-4);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+}
+
+/* Algo abierto a pantalla completa: la vuelta arriba y el panel debajo */
+.pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.back {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: none;
+  border: 0;
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.back span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.paneBody {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Mensajes ── */
+
+.dmSlot {
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.friends {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Perfil ── */
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
+
+.identity p {
+  margin: 0;
+}
+
+.name {
+  font-size: var(--font-heading-size);
+  font-weight: 700;
+}
+
+.meta {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+/* ── Llamada en curso: los controles de escritorio, sobre la barra inferior ── */
+
+.call {
+  position: relative;
+  flex-shrink: 0;
+  border-top: var(--line-hairline) solid var(--color-line-strong);
+}
+
+/* ── Barra inferior ── */
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  flex-shrink: 0;
+  height: var(--layout-user-bar-height);
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-left: var(--line-hairline) solid var(--color-line);
+  font-family: inherit;
+  font-size: var(--font-meta-size);
+  letter-spacing: var(--font-label-letter-spacing);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.tab:first-child {
+  border-left: 0;
+}
+
+/* Activa: bloque invertido, como la etiqueta del rail */
+.tabActive {
+  font-weight: 700;
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

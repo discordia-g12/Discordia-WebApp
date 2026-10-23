@@ -588,3 +588,26 @@
   opacity: 0.35;
   cursor: default;
 }
+
+/* ── Pantalla chica (mobile web) ── */
+@media (max-width: 767px) {
+  /* El encabezado se desliza de costado: el canal y sus enlaces no entran en una fila */
+  .header {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 var(--space-4);
+  }
+
+  .header::-webkit-scrollbar {
+    display: none;
+  }
+
+  .titleGroup,
+  .title {
+    flex-shrink: 0;
+  }
+
+  .topic {
+    display: none;
+  }
+}

@@ -10,18 +10,25 @@ interface ServerStripProps {
   /** Actividad nueva: "NEW ACTIVITY IN GENERAL" en la etiqueta, y una marca en la franja. */
   unread?: string | boolean;
   onPress?: () => void;
+  /**
+   * horizontal: tira de servidores de arriba en mobile. La activa baja en lugar de correrse, y no hay
+   * etiqueta flotante (en táctil aparecería al tocar y quedaría colgada): el nombre está en el encabezado.
+   */
+  orientation?: 'vertical' | 'horizontal';
 }
 
 /**
  * Servidor en el rail: una franja rectangular con su imagen. Al pasar el mouse (o con foco) se despliega
  * la etiqueta negra con el nombre y la actividad.
  */
-export function ServerStrip({ server, active = false, unread, onPress }: ServerStripProps) {
+export function ServerStrip({ server, active = false, unread, onPress, orientation = 'vertical' }: ServerStripProps) {
+  const horizontal = orientation === 'horizontal';
   // Posición de la etiqueta (fixed): el rail scrollea y una etiqueta absoluta quedaría recortada
   const [open, setOpen] = useState<{ top: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
   const show = () => {
+    if (horizontal) return;
     const rect = rootRef.current?.getBoundingClientRect();
     if (rect) setOpen({ top: rect.top, left: rect.right });
   };
@@ -31,7 +38,7 @@ export function ServerStrip({ server, active = false, unread, onPress }: ServerS
   return (
     <div
       ref={rootRef}
-      className={`${styles.root} ${active ? styles.active : ''}`}
+      className={`${styles.root} ${active ? styles.active : ''} ${horizontal ? styles.horizontal : ''}`}
       onMouseEnter={() => show()}
       onMouseLeave={() => setOpen(null)}
     >

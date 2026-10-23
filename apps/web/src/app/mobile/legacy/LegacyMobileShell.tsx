@@ -4,16 +4,16 @@ import {
   User,
   Modal,
   ConfirmAction,
-} from '../types';
-import { MobileScreen, BottomSheet, AddFriendSheetContent } from './mobile/shared';
-import { useMobileShellState } from './mobile/useMobileShellState';
-import { MobileChatScreen } from './mobile/MobileChatScreen';
-import { MobileVoiceScreen } from './mobile/MobileVoiceScreen';
-import { MobileHomeScreen } from './mobile/MobileHomeScreen';
-import { ServerSheet } from './mobile/ServerSheet';
-import { ProfileSheet } from './mobile/ProfileSheet';
-import { MemberSheet } from './mobile/MemberSheet';
-import styles from './MobileShell.module.css';
+} from '../../../types';
+import { MobileScreen, BottomSheet, AddFriendSheetContent } from './shared';
+import { useMobileShellState } from './useMobileShellState';
+import { MobileChatScreen } from './MobileChatScreen';
+import { MobileVoiceScreen } from './MobileVoiceScreen';
+import { MobileHomeScreen } from './MobileHomeScreen';
+import { ServerSheet } from './ServerSheet';
+import { ProfileSheet } from './ProfileSheet';
+import { MemberSheet } from './MemberSheet';
+import styles from './LegacyMobileShell.module.css';
 
 export interface MobileShellProps {
   initialScreen?: MobileScreen;
@@ -23,7 +23,7 @@ export interface MobileShellProps {
   onConfirmAction?: (action: ConfirmAction, targetName?: string) => void;
 }
 
-export const MobileShell: React.FC<MobileShellProps> = (props) => {
+export const LegacyMobileShell: React.FC<MobileShellProps> = (props) => {
   const s = useMobileShellState(props);
   const { screen, activeSheet, setActiveSheet } = s;
 

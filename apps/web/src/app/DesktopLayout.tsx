@@ -14,12 +14,9 @@ import { useCurrentUser, useCurrentUserStore } from '../features/profile/current
 import { logoutWithToast } from '../features/profile/profileActions';
 import { ServerSettings } from '../features/settings/ServerSettings';
 import { UserSettings } from '../features/settings/UserSettings';
-import { AnimatePresence } from 'motion/react';
 import { isNewUi } from '../ui/flag';
-import { UserSettingsScreen } from '../features/settings/user/UserSettingsScreen';
-import { ServerSettingsScreen } from '../features/settings/server/ServerSettingsScreen';
-import { OwnProfileScreen } from '../features/profile/own-profile/OwnProfileScreen';
 import { AppShell } from './AppShell';
+import { FullScreenViews } from './FullScreenViews';
 import styles from './DesktopLayout.module.css';
 
 /** Escritorio: vistas a pantalla completa (perfil, ajustes) o la grilla rail / canales / contenido. */
@@ -34,39 +31,12 @@ export function DesktopLayout() {
   const saveProfile = useCurrentUserStore((s) => s.saveProfile);
   const updateServer = useUpdateServer();
 
-  // Rediseño: ajustes de usuario, ajustes del servidor y perfil propio bajan como una cortina encima de
-  // la grilla (que sigue montada, así no se corta el chat ni la llamada) y suben al cerrarse.
+  // Rediseño: la grilla y, encima, ajustes y perfil como cortina
   if (isNewUi()) {
-    const close = () => setAppView('chat');
     return (
       <>
         <AppShell />
-        <AnimatePresence>
-          {appView === 'user-settings' && (
-            <UserSettingsScreen
-              key="user-settings"
-              currentUser={currentUser}
-              onClose={close}
-              onUpdateUser={saveProfile}
-              onLogout={logoutWithToast}
-            />
-          )}
-          {appView === 'server-settings' && currentServer && (
-            <ServerSettingsScreen
-              key="server-settings"
-              server={currentServer}
-              currentUser={currentUser}
-              onClose={close}
-              onUpdateServer={updateServer}
-              onInvite={() => useUIStore.getState().setActiveModal('invite')}
-              onDeleteServer={() => useUIStore.getState().openConfirm('delete-server', currentServer.name)}
-              onLeaveServer={() => useUIStore.getState().openConfirm('leave-server', currentServer.name)}
-            />
-          )}
-          {appView === 'own-profile' && (
-            <OwnProfileScreen key="own-profile" currentUser={currentUser} onBack={close} onSave={saveProfile} />
-          )}
-        </AnimatePresence>
+        <FullScreenViews />
       </>
     );
   }

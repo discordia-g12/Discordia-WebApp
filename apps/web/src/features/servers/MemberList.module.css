@@ -108,3 +108,11 @@
     transform: translateX(var(--space-2));
   }
 }
+
+/* ── Pantalla chica (mobile web) ── */
+@media (max-width: 767px) {
+  .aside {
+    width: 100%;
+    border-left: 0;
+  }
+}

@@ -17,7 +17,7 @@ import {
 import {
   Channel,
   DirectMessage,
-} from '../../types';
+} from '../../../types';
 import type { MobileShellState } from './useMobileShellState';
 import styles from './MobileHomeScreen.module.css';
 

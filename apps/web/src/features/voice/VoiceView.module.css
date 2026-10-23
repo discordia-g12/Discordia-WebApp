@@ -195,3 +195,12 @@
   font-size: var(--font-meta-size);
   color: var(--color-text-muted);
 }
+
+/* ── Pantalla chica (mobile web) ── */
+@media (max-width: 767px) {
+  /* Como máximo dos columnas (la cantidad la pone el componente en línea) */
+  .grid[data-columns='3'],
+  .grid[data-columns='4'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}

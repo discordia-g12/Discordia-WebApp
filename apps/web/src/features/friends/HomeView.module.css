@@ -365,3 +365,44 @@ button.friendIdentity:hover .friendName {
   white-space: nowrap;
   border: 0;
 }
+
+/* ── Pantalla chica (mobile web) ── */
+@media (max-width: 767px) {
+  /* Una columna: la lista de amigos; ACTIVO AHORA no entra (y no tiene backend: siempre vacía) */
+  .friends {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      'header'
+      'main';
+  }
+
+  .activeNow {
+    display: none;
+  }
+
+  .friendsMain {
+    border-right: 0;
+  }
+
+  .friendsTitle {
+    width: auto;
+  }
+
+  /* Las pestañas se deslizan de costado */
+  .tabs {
+    flex: 1;
+    padding: 0 var(--space-4) var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* En una sola fila (el contenedor se desliza); si se parten, la fila de 48 px corta las de arriba */
+  .tabs [role='tablist'] {
+    flex-wrap: nowrap;
+  }
+}

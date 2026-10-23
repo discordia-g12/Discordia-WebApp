@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import {
   Message,
   DirectMessage,
-} from '../../types';
+} from '../../../types';
 import { MobileScreen, ActiveSheet, EMPTY_SERVER } from './shared';
-import type { MobileShellProps } from '../MobileShell';
+import type { MobileShellProps } from './LegacyMobileShell';
 
 /** Estado y handlers de MobileShell: viven en el componente y lo comparten todas sus pestañas. */
 export function useMobileShellState(props: MobileShellProps) {
