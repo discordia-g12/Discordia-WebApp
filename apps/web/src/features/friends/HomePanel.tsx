@@ -8,8 +8,11 @@ import { useVoiceParticipants } from '../voice/useVoiceParticipants';
 import { useDmStore } from './dmStore';
 import { HomeView } from './HomeView';
 
-/** Inicio: amigos y mensajes directos, con la barra de usuario. */
-export function HomePanel() {
+/**
+ * Inicio: amigos y mensajes directos, con la barra de usuario. Con sidebarContainer (rediseño) la barra de
+ * mensajes directos va a la columna izquierda del layout, que ya tiene su propia barra de usuario.
+ */
+export function HomePanel({ sidebarContainer }: { sidebarContainer?: HTMLElement | null }) {
   const currentUser = useCurrentUser();
   const directMessages = useDmStore((s) => s.directMessages);
   const selectedDmId = useUIStore((s) => s.selectedDmId);
@@ -21,8 +24,9 @@ export function HomePanel() {
 
   return (
     <HomeView
+      sidebarContainer={sidebarContainer}
       userPanel={
-        <UserPanel
+        sidebarContainer !== undefined ? null : <UserPanel
           currentUser={currentUser}
           isMuted={voice.room.isMuted}
           isDeafened={voice.room.isDeafened}

@@ -190,47 +190,45 @@
   font: inherit;
 }
 
-.titleRest {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-4);
+/*
+ * Entrada: los elementos del formulario suben uno tras otro (también al cambiar de vista, porque el
+ * panel se vuelve a montar) y las palabras del pie del login, una después de la otra. Solo transform y
+ * opacity; con movimiento reducido, sin desplazamiento ni escalonado.
+ */
+.form > *,
+.navHeading > * {
+  animation: enter var(--motion-duration-slow) var(--motion-ease-enter) both;
 }
 
-/* Barra de "VERIFICANDO SESIÓN": línea fina de fondo y un tramo grueso que se va llenando */
-.progress {
-  position: relative;
-  flex: 0 0 auto;
-  width: calc(var(--font-display-size) * 2.6);
-  height: var(--line-underline);
-  margin-bottom: calc(var(--font-display-size) * 0.12);
-  border-bottom: var(--line-hairline) solid var(--color-line-strong);
-}
+.form > :nth-child(2) { animation-delay: 60ms; }
+.form > :nth-child(3) { animation-delay: 120ms; }
+.form > :nth-child(4) { animation-delay: 180ms; }
+.form > :nth-child(5) { animation-delay: 240ms; }
+.form > :nth-child(6) { animation-delay: 300ms; }
+.form > :nth-child(n + 7) { animation-delay: 360ms; }
 
-.progressFill {
-  position: absolute;
-  inset: 0;
-  background: var(--color-line-strong);
-  transform-origin: left;
-  animation: fill 8s var(--motion-ease-enter) forwards;
-}
+/* Las palabras del pie, después del formulario */
+.navHeading > :nth-child(1) { animation-delay: 200ms; }
+.navHeading > :nth-child(2) { animation-delay: 300ms; }
 
-/* Sin avance real: sube rápido al principio y se acerca al final sin llegar */
-@keyframes fill {
+@keyframes enter {
   from {
-    transform: scaleX(0);
-  }
-  15% {
-    transform: scaleX(0.5);
-  }
-  to {
-    transform: scaleX(0.92);
+    opacity: 0;
+    transform: translateY(var(--space-4));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .progressFill {
-    animation: none;
-    transform: scaleX(0.5);
+  .form > *,
+  .navHeading > * {
+    animation-name: fade;
+    animation-delay: 0ms !important;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
   }
 }
 

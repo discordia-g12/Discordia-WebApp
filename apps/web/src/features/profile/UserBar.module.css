@@ -1,0 +1,109 @@
+/* Barra al pie de la barra lateral: del alto de la grilla, sin bordes, fundida con la marca de agua */
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--layout-user-bar-height);
+  padding: 0 var(--space-4) 0 var(--space-5);
+  transition:
+    background-color var(--motion-duration-slow) var(--motion-ease-standard),
+    color var(--motion-duration-slow) var(--motion-ease-standard);
+}
+
+/* Inicio: bloque negro invertido (PDF, pág. 6) */
+.ink {
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+/* Servidor: sobre el tinte celeste de la barra lateral (PDF, pág. 7) */
+.sky {
+  color: var(--color-text);
+  background: transparent;
+}
+
+/* En llamada: gris, como la marca de agua (PDF, pág. 10) */
+.muted {
+  color: var(--color-text);
+  background: var(--color-decoration);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  flex: 1;
+  padding: var(--space-1) 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name,
+.status {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line-height);
+}
+
+.name {
+  font-weight: 700;
+}
+
+.identity:hover .name {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Controles separados por líneas verticales finas */
+.controls {
+  display: flex;
+  align-items: center;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-5);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-left: var(--line-hairline) solid currentColor;
+  color: inherit;
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.control:last-child {
+  border-right: var(--line-hairline) solid currentColor;
+}
+
+.control:hover {
+  opacity: 1;
+}
+
+/* Micrófono o audio apagados: el ícono tachado a opacidad plena (el rojo es solo para bloques) */
+.controlOff {
+  opacity: 1;
+}
+
+/* El foco del rediseño es del color del texto: sobre el bloque negro no se vería */
+.ink :focus-visible {
+  outline-color: var(--color-inverse-text);
+}

@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { configureClient, retryBootstrap, setAuthAdapter, setVoicePlatform, useSession } from '@discordia/core';
 import App from '../App';
+import { useUIStore } from '../app/uiStore';
 
 /**
  * Prueba de humo de la app completa: arranca autenticada contra un backend falso y recorre las
@@ -97,11 +98,21 @@ async function openServer() {
   await screen.findByText('hola mundo');
 }
 
-describe('App (prueba de humo)', () => {
+// Los mismos recorridos con el diseño anterior y con el rediseño (flag data-ui="nuevo")
+describe.each([
+  ['diseño anterior', false],
+  ['rediseño', true],
+])('App (prueba de humo, %s)', (_name, newUi) => {
   const originalWebSocket = globalThis.WebSocket;
   const originalWidth = window.innerWidth;
 
   beforeEach(async () => {
+    // El estado de la interfaz es un store global: sin esto cada test arranca donde dejó el anterior
+    useUIStore.setState(useUIStore.getInitialState(), true);
+    if (newUi) {
+      document.documentElement.dataset.ui = 'nuevo';
+      localStorage.setItem('discordia_intro_seen', '1');
+    }
     // jsdom no implementa scroll: ChatView baja al último mensaje con scrollIntoView
     Element.prototype.scrollIntoView = vi.fn();
     FakeWebSocket.instances = [];
@@ -128,6 +139,8 @@ describe('App (prueba de humo)', () => {
   });
 
   afterEach(() => {
+    delete document.documentElement.dataset.ui;
+    localStorage.removeItem('discordia_intro_seen');
     cleanup();
     vi.restoreAllMocks();
     globalThis.WebSocket = originalWebSocket;
@@ -225,6 +238,19 @@ describe('App (prueba de humo)', () => {
 
     // Vista de perfil a pantalla completa: ya no está el rail
     await waitFor(() => expect(screen.queryByLabelText('Servidor Torton')).toBeNull());
+  });
+
+  it.runIf(newUi)('la marca de agua sigue el contexto: AMIGOS en el inicio y el nombre del servidor', async () => {
+    // La marca de agua es decorativa (aria-hidden): se busca adentro de ella
+    const watermark = (word: string) =>
+      screen.getAllByText(word).some((el) => el.closest('[aria-hidden="true"]'));
+    renderApp();
+    await waitFor(() => expect(watermark('Amigos')).toBe(true));
+
+    await openServer();
+    await waitFor(() => expect(watermark('Torton')).toBe(true));
+    // Una sola barra de usuario: la del layout, no la de la barra lateral anterior
+    expect(screen.getAllByTitle('Ver perfil y estado')).toHaveLength(1);
   });
 
   it('mobile: recorre canales, chat, voz y las hojas de servidor, miembros y perfil', async () => {

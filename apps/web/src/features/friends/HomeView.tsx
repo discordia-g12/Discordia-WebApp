@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Users,
   Search,
@@ -43,7 +44,16 @@ export interface HomeViewProps {
   onSendMessage?: (dmId: string, content: string) => void;
   /** Panel del usuario (perfil y controles de audio) anclado al pie del sidebar de mensajes directos. */
   userPanel?: React.ReactNode;
+  /**
+   * Rediseño: elemento donde va la barra de mensajes directos (la columna izquierda del layout), en
+   * lugar de al lado del contenido. Se reemplaza al rediseñar el inicio (paso 6).
+   */
+  sidebarContainer?: HTMLElement | null;
 }
+
+/** Sin contenedor (undefined), el nodo va en su lugar; con contenedor, por portal (null: todavía no montó). */
+const portalTo = (container: HTMLElement | null | undefined, node: React.ReactNode) =>
+  container === undefined ? node : container ? createPortal(node, container) : null;
 
 /**
  * Solicitud de amistad simulada para la pestaña Pending.
@@ -67,6 +77,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onStartVideoCall,
   onSendMessage,
   userPanel,
+  sidebarContainer,
 }) => {
   // Estado local para DM seleccionado si no es controlado exteriormente
   const [internalActiveDmId, setInternalActiveDmId] = useState<string | null>(null);
@@ -173,7 +184,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* ==========================================================================
           1. SIDEBAR DE MENSAJES DIRECTOS (240px)
           ========================================================================== */}
-      <aside className="dm-sidebar">
+      {portalTo(sidebarContainer, <aside className="dm-sidebar">
         {/* Campo de Búsqueda Superior */}
         <div className={styles.campoBusquedaSuperior}>
           <div className={styles.campoBusquedaSuperiorDiv}>
@@ -271,7 +282,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         {userPanel}
-      </aside>
+      </aside>)}
 
       {/* ==========================================================================
           2. ÁREA PRINCIPAL: CHAT DE DM O VISTA DE AMIGOS

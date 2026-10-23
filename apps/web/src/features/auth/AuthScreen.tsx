@@ -1,6 +1,6 @@
-import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { useSession, authService, type SessionStatus } from '../../platform/auth/session';
+import { useSession, authService, hasStoredSession, type SessionStatus } from '../../platform/auth/session';
 import { BlockButton, DisplayText, UnderlineInput, useMotionPreset } from '../../ui';
 import { PASSWORD_RESET_SENT_MESSAGE, sanitizeUsername, type AuthField, type AuthForms } from './useAuthForms';
 import styles from './AuthScreen.module.css';
@@ -8,14 +8,25 @@ import styles from './AuthScreen.module.css';
 /**
  * Acceso del rediseño (PDF, págs. 3 a 5): formulario de campos subrayados en la columna izquierda y,
  * al pie, las palabras gigantes que navegan (INICIAR SESIÓN / REGISTRARSE) o titulan el estado
- * (VERIFICANDO SESIÓN, CUENTA SUSPENDIDA, ...). La lógica es la de useAuthForms.
+ * (CUENTA SUSPENDIDA, ...). La lógica es la de useAuthForms.
  *
- * Movimiento: al cambiar entre login y registro, las letras de la palabra activa suben y se oscurecen
- * (DisplayText) y el formulario nuevo entra con un fundido; los demás estados entran subiendo.
+ * Arranque: no hay pantalla de "verificando sesión". Mientras la sesión arranca se muestra lo que
+ * probablemente venga: el login (si no hay una sesión guardada), que ya entra animado y se puede ir
+ * completando, o solo el fondo (si la hay), hasta que aparece la app.
+ *
+ * Movimiento: los campos del formulario y las palabras del pie entran subiendo uno tras otro; al cambiar
+ * entre login y registro, las letras de la palabra activa suben y se oscurecen (DisplayText).
  */
 export function AuthScreen({ forms }: { forms: AuthForms }) {
   const { status, isMock } = useSession();
-  const view = status === 'unauthenticated' ? forms.activeTab : status;
+  // Se decide una vez: si cambiara mientras arranca, el login aparecería y desaparecería
+  const [resuming] = useState(hasStoredSession);
+  const view: View =
+    status === 'unauthenticated' || (status === 'bootstrapping' && !resuming)
+      ? forms.activeTab
+      : status === 'bootstrapping'
+        ? 'resuming'
+        : status;
 
   return (
     <div className={styles.screen}>
@@ -33,7 +44,8 @@ export function AuthScreen({ forms }: { forms: AuthForms }) {
   );
 }
 
-type View = SessionStatus | AuthForms['activeTab'];
+/** resuming: arrancando con una sesión guardada (se ve solo el fondo hasta que aparece la app). */
+type View = Exclude<SessionStatus, 'bootstrapping'> | AuthForms['activeTab'] | 'resuming';
 
 function renderPanel(view: View, forms: AuthForms): ReactNode {
   switch (view) {
@@ -43,10 +55,10 @@ function renderPanel(view: View, forms: AuthForms): ReactNode {
       return <RegisterForm forms={forms} />;
     case 'forgot':
       return <ForgotForm forms={forms} />;
-    case 'bootstrapping':
+    case 'resuming':
       return (
         <p className={styles.srOnly} role="status">
-          Cargando tu perfil e información de Discordia.
+          Recuperando tu sesión.
         </p>
       );
     case 'error':
@@ -62,14 +74,9 @@ function renderPanel(view: View, forms: AuthForms): ReactNode {
   }
 }
 
-/** El panel de cada vista entra con un fundido (se vuelve a montar al cambiar de vista). */
+/** El panel de cada vista se vuelve a montar al cambiar de vista: sus elementos entran escalonados (CSS). */
 function Panel({ children }: { children: ReactNode }) {
-  const fade = useMotionPreset('fade');
-  return (
-    <motion.div className={styles.panel} {...fade} exit={undefined}>
-      {children}
-    </motion.div>
-  );
+  return <div className={styles.panel}>{children}</div>;
 }
 
 // ==========================================
@@ -82,7 +89,7 @@ function Heading({ view, forms }: { view: View; forms: AuthForms }) {
   // Login y registro comparten encabezado: las palabras no se vuelven a montar, se intercambian
   if (view === 'login' || view === 'register') {
     return (
-      <nav className={styles.heading} aria-label="Acceso">
+      <nav className={`${styles.heading} ${styles.navHeading}`} aria-label="Acceso">
         <DisplayText active={view === 'login'} onPress={() => forms.switchTab('login')} data-testid="tab-login">
           Iniciar sesión
         </DisplayText>
@@ -99,36 +106,20 @@ function Heading({ view, forms }: { view: View; forms: AuthForms }) {
   return (
     <motion.header key={view} className={styles.heading} {...rise} exit={undefined}>
       <h1 className={styles.title}>
-        <DisplayText active>{title.main}</DisplayText>
-        {title.rest && (
-          <span className={styles.titleRest}>
-            <DisplayText>{title.rest}</DisplayText>
-            {view === 'bootstrapping' && <SessionProgress />}
-          </span>
-        )}
+        <DisplayText active>{title}</DisplayText>
       </h1>
     </motion.header>
   );
 }
 
-/** Título de cada estado: la primera parte en el color del texto y la segunda (si hay) en gris. */
-const HEADINGS: Partial<Record<View, { main: string; rest?: string }>> = {
-  forgot: { main: 'Recuperar contraseña' },
-  bootstrapping: { main: 'Verificando', rest: 'Sesión' },
-  error: { main: 'Algo falló' },
-  suspended: { main: 'Cuenta suspendida' },
-  email_unverified: { main: 'Verificá tu email' },
-  needs_profile: { main: 'Elegí tu usuario' },
+/** Título de cada estado. */
+const HEADINGS: Partial<Record<View, string>> = {
+  forgot: 'Recuperar contraseña',
+  error: 'Algo falló',
+  suspended: 'Cuenta suspendida',
+  email_unverified: 'Verificá tu email',
+  needs_profile: 'Elegí tu usuario',
 };
-
-/** Barra bajo "SESIÓN" que se va llenando mientras se verifica (indeterminada: no hay un avance real). */
-function SessionProgress() {
-  return (
-    <span className={styles.progress} role="progressbar" aria-label="Verificando sesión">
-      <span className={styles.progressFill} />
-    </span>
-  );
-}
 
 // ==========================================
 // Formularios
@@ -160,8 +151,15 @@ const fieldError = (forms: AuthForms, field: AuthField) =>
 
 const generalError = (forms: AuthForms) => (forms.errorField ? null : forms.formError);
 
+/**
+ * Mientras la sesión arranca el formulario ya se ve y se puede completar, pero no enviar: con el botón
+ * deshabilitado tampoco se envía con Enter.
+ */
+const useSessionStarting = () => useSession((s) => s.status === 'bootstrapping');
+
 function LoginForm({ forms }: { forms: AuthForms }) {
   const { login, isSubmitting } = forms;
+  const starting = useSessionStarting();
   return (
     <form className={styles.form} onSubmit={forms.handleLoginSubmit} noValidate>
       <UnderlineInput
@@ -198,7 +196,7 @@ function LoginForm({ forms }: { forms: AuthForms }) {
         </button>
       </div>
       <FormError>{generalError(forms)}</FormError>
-      <BlockButton size="large" type="submit" loading={isSubmitting} data-testid="btn-submit-login">
+      <BlockButton size="large" type="submit" loading={isSubmitting} disabled={starting} data-testid="btn-submit-login">
         Iniciar sesión
       </BlockButton>
     </form>
@@ -207,6 +205,7 @@ function LoginForm({ forms }: { forms: AuthForms }) {
 
 function RegisterForm({ forms }: { forms: AuthForms }) {
   const { register, isSubmitting } = forms;
+  const starting = useSessionStarting();
   const fieldRef = useFocusOnError(forms.formError, forms.errorField);
   const rules = [
     { met: register.passwordRules.length, label: 'mínimo 8 caracteres' },
@@ -281,7 +280,7 @@ function RegisterForm({ forms }: { forms: AuthForms }) {
         disabled={isSubmitting}
       />
       <FormError>{generalError(forms)}</FormError>
-      <BlockButton size="large" type="submit" loading={isSubmitting} data-testid="btn-submit-register">
+      <BlockButton size="large" type="submit" loading={isSubmitting} disabled={starting} data-testid="btn-submit-register">
         Crear cuenta
       </BlockButton>
     </form>

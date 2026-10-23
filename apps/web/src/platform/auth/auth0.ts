@@ -99,6 +99,22 @@ function loadSession(): boolean {
   return false;
 }
 
+/**
+ * Sin tocar el estado de la sesión: true si hay una sesión guardada vigente o si se está volviendo del
+ * login de Auth0 (/callback). Lo usa la pantalla de acceso para no mostrar el login mientras arranca una
+ * sesión que probablemente exista.
+ */
+export function hasStoredSession(): boolean {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/callback')) return true;
+  if (typeof sessionStorage === 'undefined') return false;
+  try {
+    const data = JSON.parse(sessionStorage.getItem(SESSION_STORAGE_KEY) ?? 'null');
+    return Boolean(data?.token && data.expiresAt && Date.now() < data.expiresAt);
+  } catch {
+    return false;
+  }
+}
+
 function clearSession() {
   currentAccessToken = null;
   currentAuthUser = null;

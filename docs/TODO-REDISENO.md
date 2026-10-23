@@ -19,7 +19,7 @@ redondeados. Todo lo que hoy es "Discord" (gris oscuro, azul violáceo, avatares
 | Bordes / sombras | Radio 0. Sin sombras: la profundidad la dan las líneas y el contraste negro/cielo |
 | Avatares | **Cuadrados**. Portadas de servidor como **franjas rectangulares** con imagen |
 | Tipografía | **Schibsted Grotesk** (Google Fonts, pesos 400–900). Tres escalas: gigante (display), cuerpo, metadato |
-| Display | Palabras gigantes en mayúsculas como navegación (activa negra, inactiva gris) y **marca de agua cortada** al pie de la barra lateral con el contexto actual ("AMIGOS", nombre del servidor) |
+| Display | Palabras gigantes en mayúsculas como navegación (activa negra, inactiva gris) y **marca de agua** al pie de la barra lateral con el contexto actual ("AMIGOS", nombre del servidor), entera y apoyada sobre la barra de usuario |
 | Microcopy | Etiquetas con barra final (`MENSAJES DIRECTOS /`, `Conectado/`), acciones con guion bajo (`_editar`, `_mostrar`), canales con punto (`•general`) |
 | Logo | "D" geométrica (`svg/logo discordia.svg`) |
 
@@ -68,7 +68,7 @@ Librería: **`motion`** (ex framer-motion) en web. En mobile, `Animated` y `Layo
 |---|---|
 | Primer ingreso | **Intro "amanecer"**: negro → resplandor celeste que sube (`gradiente 1`) → degradé claro (`gradiente 2`), ~4 s, se saltea con clic/tecla |
 | Login ⇄ registro | Las palabras gigantes se intercambian (la activa sube y se oscurece), el formulario cruza con fundido |
-| Verificando sesión | Barra de progreso que se llena bajo "SESIÓN" |
+| Arranque de la sesión | Sin pantalla propia: el login entra escalonado (campos y palabras) mientras se verifica por detrás |
 | Cambio de vista | La marca de agua se transforma ("AMIGOS" → nombre del servidor) con un barrido horizontal |
 | Rail | Al pasar el mouse la franja se **despliega** con la etiqueta negra (nombre + actividad) |
 | Pestañas | Subrayado que se **desliza** a la pestaña activa |
@@ -388,8 +388,13 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 - [x] Acceso en tamaño grande (`size="large"` en `UnderlineInput` y `BlockButton`): columna de 480 px,
       etiquetas de 15 px, texto de los campos de 18 px y textos de apoyo de 13 px. Con el tamaño del PDF
       (campos de 11–13 px en una columna de 330 px) el formulario ocupaba muy poco de la pantalla.
-- [x] "VERIFICANDO SESIÓN" con la barra bajo "SESIÓN" (indeterminada: se llena rápido y se acerca al
-      final sin llegar, porque no hay un avance real).
+- [x] Sin pantalla de "VERIFICANDO SESIÓN" (estaba en el PDF; se sacó porque al recargar el login
+      aparecía de pasada). Mientras la sesión arranca se muestra lo que probablemente venga, según
+      `hasStoredSession()` (sesión guardada vigente o vuelta de Auth0 en `/callback`): el login, que ya
+      entra animado y se puede completar pero no enviar hasta que la sesión resuelve, o solo el fondo
+      hasta que aparece la app.
+- [x] Entrada escalonada: los elementos del formulario suben uno tras otro (también al cambiar de
+      vista) y después las palabras del pie. Con movimiento reducido, solo un fundido.
 - [x] Errores en línea bajo cada campo, con barra inicial, `aria-invalid` y el foco en el campo. Los que no
       son de un campo (credenciales incorrectas, servidor) van sobre el botón con `role="alert"`; el login
       no dice qué campo falló (CA 2/3).
@@ -402,10 +407,33 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 5: estructura (`App`, `ServerRail`, `UserPanel`)
 
-- [ ] Layout en grilla con líneas y degradé de fondo animado.
-- [ ] Rail con franjas de imagen, etiqueta negra desplegable, indicador de activo y de actividad nueva.
-- [ ] Barra de usuario negra con estado (`Invisible/`, `En canal de voz/`) y controles de micrófono, audio y ajustes.
-- [ ] Marca de agua del contexto con transición entre vistas.
+- [x] Layout en grilla con líneas y degradé de fondo animado: `app/AppShell` (rail | barra lateral |
+      contenido), que `DesktopLayout` usa con el flag. El degradé deriva 60 s (solo `transform`; quieto con
+      movimiento reducido). `overflow: clip` y no `hidden`: con `hidden` el `scrollIntoView` del chat corría la
+      grilla.
+- [x] Rail (`features/servers/ServerRail`, el anterior en `legacy/`): logo, franjas de imagen
+      (`ServerStrip`), y al pie inicio, crear y explorar con íconos de línea fina. La etiqueta negra se
+      despliega corriéndose desde la franja, con `position: fixed` (el rail scrollea y la recortaría); en
+      las acciones es CSS. Activo: la franja se corre (servidores) o una barra a la izquierda (inicio).
+      Actividad nueva: marca en la franja y "N mensajes nuevos" en la etiqueta.
+- [x] Barra de usuario (`features/profile/UserBar`): avatar cuadrado, nombre, estado con barra final
+      (`Invisible/`, `Conectado/`, el estado personalizado o `En canal de voz/`), micrófono, audio, colgar
+      (en llamada) y ajustes, separados por líneas. El nombre abre el mini perfil y el selector de estado
+      (todavía los del diseño anterior; se rediseñan en el paso 10). Toma el tono de la marca de agua para
+      fundirse con ella: negra en el inicio, sobre el tinte celeste en un servidor, gris en una llamada.
+- [x] Marca de agua del contexto al pie de la barra lateral: `AMIGOS` (o el nombre del otro usuario en un
+      DM), el nombre del servidor en celeste, en gris mientras se mira una llamada; barrido al cambiar.
+      Se lee entera (cambio respecto del PDF, donde queda cortada a lo ancho y por abajo): se ajusta al
+      ancho de la columna midiendo con canvas, hasta su tamaño del token; si un nombre largo quedaría por
+      debajo de 48 px, parte en renglones por palabra. La caja se recorta a la altura de las mayúsculas
+      (`text-box: trim-both cap alphabetic`) para que las letras se apoyen en la barra de usuario.
+- [x] Prueba de humo de la app corriendo también con el rediseño (y el store de la interfaz se reinicia
+      entre tests: antes cada test arrancaba donde dejó el anterior). Tests de `ServerRail` y `UserBar`.
+- Transitorio hasta los pasos 6 y 7: el contenido de la barra lateral (canales, mensajes directos) y de la
+  columna principal es el del diseño anterior, montado dentro de la grilla nueva: `ChannelSidebar` sin su
+  barra de usuario (`showUserPanel={false}`) y la lista de DMs de `HomeView` por portal en la barra lateral.
+- No se hicieron los íconos de arriba a la derecha del PDF (bandeja y ayuda): no hay bandeja de entrada
+  ni ayuda en la app (`NotificationCenter` existe pero no está montado en ningún lado).
 
 ### Paso 6: Home y amigos (`HomeView`)
 

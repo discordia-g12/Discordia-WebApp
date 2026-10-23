@@ -1,54 +1,17 @@
-import React, { useState } from 'react';
-import { Home, Plus, Compass } from 'lucide-react';
-import { Server } from '../../types';
+import { Compass, Home, Plus, type LucideIcon } from 'lucide-react';
+import type { Server } from '../../types';
+import { Logo, ServerStrip, Skeleton } from '../../ui';
+import type { ServerRailProps } from './legacy/LegacyServerRail';
 import styles from './ServerRail.module.css';
 
-/**
- * Propiedades del componente ServerRail.
- */
-export interface ServerRailProps {
-  /** Colección de servidores donde el usuario es miembro. */
-  servers: Server[];
-  /** Identificador del servidor actualmente activo o 'home' para vista principal de mensajes directos. */
-  selectedServerId: string | 'home';
-  /** Manejador invocado al seleccionar un servidor o volver a inicio. */
-  onSelectServer: (serverId: string | 'home') => void;
-  /** Acción para desplegar el modal o flujo de creación/unión de servidor. */
-  onAddServer?: () => void;
-  /** Acción para explorar y descubrir nuevos servidores públicos. */
-  onDiscoverServers?: () => void;
-  /** Contador global opcional de menciones o mensajes directos pendientes en Home. */
-  homeBadgeCount?: number;
-  /** Indica si los servidores se están cargando desde el backend. */
-  isLoading?: boolean;
-}
+export type { ServerRailProps };
 
 /**
- * Obtiene el acrónimo representativo para un servidor sin icono gráfico.
- *
- * @param name - Nombre del servidor.
- * @returns Acrónimo de 1 a 3 caracteres en mayúsculas.
+ * Rail del rediseño (PDF, págs. 6 a 8): el logo arriba, los servidores como franjas de imagen (al pasar
+ * el mouse se despliega la etiqueta negra con el nombre y la actividad) y abajo inicio, crear y
+ * explorar. Misma API que el rail anterior.
  */
-function getServerAcronym(name: string): string {
-  const cleanName = name.trim();
-  if (!cleanName) return '?';
-  const parts = cleanName.split(/\s+/);
-  if (parts.length > 1) {
-    return parts
-      .slice(0, 3)
-      .map((p) => p[0])
-      .join('')
-      .toUpperCase();
-  }
-  return cleanName.slice(0, 3).toUpperCase();
-}
-
-/**
- * Barra vertical primaria de navegación de servidores (Nivel 1).
- * Implementa el carril de iconos, píldoras indicadoras laterales,
- * badges numéricos de mención y tooltips flotantes.
- */
-export const ServerRail: React.FC<ServerRailProps> = ({
+export function ServerRail({
   servers,
   selectedServerId,
   onSelectServer,
@@ -56,208 +19,80 @@ export const ServerRail: React.FC<ServerRailProps> = ({
   onDiscoverServers,
   homeBadgeCount = 0,
   isLoading = false,
-}) => {
-  const [tooltip, setTooltip] = useState<{ text: string; top: number } | null>(null);
-
-  /** Muestra tooltip flotante alineado verticalmente al elemento disparador. */
-  const handleMouseEnter = (text: string, e: React.MouseEvent<HTMLElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setTooltip({
-      text,
-      top: rect.top + rect.height / 2,
-    });
-  };
-
-  /** Oculta el tooltip flotante activo. */
-  const handleMouseLeave = () => {
-    setTooltip(null);
-  };
+}: ServerRailProps) {
+  const isHome = selectedServerId === 'home';
 
   return (
-    <nav
-      className="server-rail-container scrollbar-none"
-      aria-label="Servidores y mensajes directos"
-      style={{
-        width: 'var(--server-sidebar-width, 72px)',
-        height: '100%',
-        backgroundColor: 'var(--bg-tertiary, #1e1f22)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '12px 0',
-        flexShrink: 0,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        userSelect: 'none',
-        position: 'relative',
-      }}
-    >
-      {/* Botón Home / Mensajes directos */}
-      <div
-        className={`server-item-wrapper ${selectedServerId === 'home' ? 'active' : ''}`}
-        onMouseEnter={(e) => handleMouseEnter('Mensajes directos', e)}
-        onMouseLeave={handleMouseLeave}
-        onClick={() => onSelectServer('home')}
-        role="button"
-        tabIndex={0}
-        aria-label="Mensajes directos e inicio"
-      >
-        <span
-          className="server-pill"
-          style={{
-            height:
-              selectedServerId === 'home'
-                ? '40px'
-                : homeBadgeCount > 0
-                ? '8px'
-                : undefined,
-          }}
-        />
-        <div
-          className={`server-item ${selectedServerId === 'home' ? 'active' : ''}`}
-          style={{
-            backgroundColor:
-              selectedServerId === 'home' ? 'var(--brand, #5865f2)' : undefined,
-            color:
-              selectedServerId === 'home' ? 'var(--text-white, #ffffff)' : undefined,
-          }}
-        >
-          <Home size={24} />
-          {homeBadgeCount > 0 && (
-            <span className="server-badge">
-              {homeBadgeCount > 99 ? '99+' : homeBadgeCount}
-            </span>
-          )}
-        </div>
+    <nav className={styles.rail} aria-label="Servidores y mensajes directos">
+      <div className={styles.logo}>
+        <Logo size={22} />
       </div>
 
-      {/* Separador */}
-      <div className="server-separator" role="separator" />
-
-      {/* Lista de servidores */}
-      <div className={styles.listaServidores}>
+      <ul className={styles.strips} aria-busy={isLoading || undefined}>
         {isLoading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <div key={`sk-${i}`} className="server-item-wrapper" style={{ opacity: 0.5 }}>
-              <div className="server-item" style={{ backgroundColor: 'var(--bg-modifier-hover, rgba(78, 80, 88, 0.3))' }} />
-            </div>
-          ))
+          <li className={styles.loading}>
+            <Skeleton lines={3} />
+          </li>
         ) : (
-          servers.map((server) => {
-          const isSelected = server.id === selectedServerId;
-          const hasUnread = Boolean(server.unreadCount && server.unreadCount > 0);
-          const iconUrl = server.iconUrl || server.icon;
-
-          return (
-            <div
-              key={server.id}
-              className={`server-item-wrapper ${isSelected ? 'active' : ''}`}
-              onMouseEnter={(e) => handleMouseEnter(server.name, e)}
-              onMouseLeave={handleMouseLeave}
-              onClick={() => onSelectServer(server.id)}
-              role="button"
-              tabIndex={0}
-              aria-label={`Servidor ${server.name}`}
-            >
-              <span
-                className="server-pill"
-                style={{
-                  height: isSelected ? '40px' : hasUnread ? '8px' : undefined,
-                }}
+          servers.map((server) => (
+            <li key={server.id}>
+              <ServerStrip
+                server={server}
+                active={server.id === selectedServerId}
+                unread={unreadLabel(server)}
+                onPress={() => onSelectServer(server.id)}
               />
-              <div className={`server-item ${isSelected ? 'active' : ''}`}>
-                {iconUrl ? (
-                  <img src={iconUrl} alt={server.name} />
-                ) : (
-                  <span>{getServerAcronym(server.name)}</span>
-                )}
-
-                {hasUnread && (
-                  <span className="server-badge">
-                    {(server.unreadCount ?? 0) > 99 ? '99+' : server.unreadCount}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })
+            </li>
+          ))
         )}
-      </div>
+      </ul>
 
-      {/* Botón Añadir Servidor */}
-      <div
-        className="server-item-wrapper"
-        onMouseEnter={(e) => handleMouseEnter('Añadir un servidor', e)}
-        onMouseLeave={handleMouseLeave}
-        onClick={onAddServer}
-        role="button"
-        tabIndex={0}
-        aria-label="Añadir un servidor"
-        style={{ marginTop: '4px' }}
-      >
-        <span className="server-pill" />
-        <div
-          className="server-item add-server-btn"
-          style={{
-            backgroundColor: 'var(--bg-primary, #313338)',
-            color: 'var(--status-online, #23a55a)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--status-online, #23a55a)';
-            e.currentTarget.style.color = 'var(--text-white)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--bg-primary, #313338)';
-            e.currentTarget.style.color = 'var(--status-online, #23a55a)';
-          }}
-        >
-          <Plus size={22} />
-        </div>
+      <div className={styles.actions}>
+        <RailAction
+          icon={Home}
+          label="Mensajes directos"
+          active={isHome}
+          badge={homeBadgeCount > 0}
+          onPress={() => onSelectServer('home')}
+        />
+        <RailAction icon={Plus} label="Añadir un servidor" onPress={onAddServer} />
+        <RailAction icon={Compass} label="Descubrir servidores" onPress={onDiscoverServers} />
       </div>
-
-      {/* Botón Descubrir Servidores */}
-      <div
-        className="server-item-wrapper"
-        onMouseEnter={(e) => handleMouseEnter('Descubrir servidores públicos', e)}
-        onMouseLeave={handleMouseLeave}
-        onClick={onDiscoverServers}
-        role="button"
-        tabIndex={0}
-        aria-label="Descubrir servidores públicos"
-      >
-        <span className="server-pill" />
-        <div
-          className="server-item discover-server-btn"
-          style={{
-            backgroundColor: 'var(--bg-primary, #313338)',
-            color: 'var(--status-online, #23a55a)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--status-online, #23a55a)';
-            e.currentTarget.style.color = 'var(--text-white)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--bg-primary, #313338)';
-            e.currentTarget.style.color = 'var(--status-online, #23a55a)';
-          }}
-        >
-          <Compass size={22} />
-        </div>
-      </div>
-
-      {/* Tooltip flotante posicionado con portal / fixed */}
-      {tooltip && (
-        <div
-          role="tooltip"
-          className={styles.servidoresMensajesDirectosDiv} style={{ top: `${tooltip.top}px` }}
-        >
-          {/* Flecha indicadora izquierda */}
-          <span className={styles.flechaIndicadoraIzquierda} />
-          {tooltip.text}
-        </div>
-      )}
     </nav>
   );
-};
+}
 
-export default ServerRail;
+function unreadLabel(server: Server): string | false {
+  const count = server.unreadCount ?? 0;
+  if (count <= 0) return false;
+  return count === 1 ? '1 mensaje nuevo' : `${count > 99 ? '99+' : count} mensajes nuevos`;
+}
+
+/** Acción al pie del rail: ícono de línea fina, con la misma etiqueta negra que las franjas al pasar el mouse. */
+function RailAction({
+  icon: Icon,
+  label,
+  active = false,
+  badge = false,
+  onPress,
+}: {
+  icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  badge?: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`${styles.action} ${active ? styles.actionActive : ''}`}
+      onClick={onPress}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+      data-label={label}
+    >
+      <Icon size={18} strokeWidth={1.5} aria-hidden="true" />
+      {badge && <span className={styles.badge} aria-hidden="true" />}
+    </button>
+  );
+}

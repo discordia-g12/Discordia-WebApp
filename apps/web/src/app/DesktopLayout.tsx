@@ -14,6 +14,8 @@ import { useCurrentUser, useCurrentUserStore } from '../features/profile/current
 import { logoutWithToast } from '../features/profile/profileActions';
 import { ServerSettings } from '../features/settings/ServerSettings';
 import { UserSettings } from '../features/settings/UserSettings';
+import { isNewUi } from '../ui/flag';
+import { AppShell } from './AppShell';
 import styles from './DesktopLayout.module.css';
 
 /** Escritorio: vistas a pantalla completa (perfil, ajustes) o la grilla rail / canales / contenido. */
@@ -63,6 +65,9 @@ export function DesktopLayout() {
       />
     );
   }
+
+  // Rediseño: grilla nueva (rail, barra lateral con marca de agua y barra de usuario)
+  if (isNewUi()) return <AppShell />;
 
   const isHome = selectedServerId === 'home';
 

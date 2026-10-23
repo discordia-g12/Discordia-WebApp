@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AuthView } from '../AuthView';
 import { DawnIntro } from '../DawnIntro';
 import { useSession } from '../../../platform/auth/session';
@@ -67,12 +67,31 @@ describe('AuthScreen (rediseño)', () => {
     expect(rules).toContain('/ al menos un número: pendiente');
   });
 
-  it('mientras verifica la sesión muestra VERIFICANDO SESIÓN con la barra de progreso', () => {
+  it('mientras arranca sin sesión guardada muestra el login (sin cartel de verificación) y no deja enviarlo', () => {
     useSession.setState({ status: 'bootstrapping' });
     render(<AuthView />);
 
-    expect(screen.getByRole('heading', { name: /verificando sesión/i })).toBeTruthy();
-    expect(screen.getByRole('progressbar', { name: 'Verificando sesión' })).toBeTruthy();
+    expect(screen.queryByText(/verificando/i)).toBeNull();
+    expect(screen.getByLabelText(/correo electrónico/)).toBeTruthy();
+    expect((screen.getByTestId('btn-submit-login') as HTMLButtonElement).disabled).toBe(true);
+
+    // Cuando la sesión resuelve que no hay usuario, el mismo formulario queda habilitado
+    act(() => useSession.setState({ status: 'unauthenticated' }));
+    expect((screen.getByTestId('btn-submit-login') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('mientras arranca con una sesión guardada no muestra el login', () => {
+    sessionStorage.setItem(
+      'discordia_auth_session',
+      JSON.stringify({ token: 'tok', user: {}, expiresAt: Date.now() + 60_000 })
+    );
+    useSession.setState({ status: 'bootstrapping' });
+    render(<AuthView />);
+
+    expect(screen.getByRole('status').textContent).toBe('Recuperando tu sesión.');
+    expect(screen.queryByLabelText(/correo electrónico/)).toBeNull();
+    expect(screen.queryByText(/verificando/i)).toBeNull();
+    sessionStorage.removeItem('discordia_auth_session');
   });
 });
 

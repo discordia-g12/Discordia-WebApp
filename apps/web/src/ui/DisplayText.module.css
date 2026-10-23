@@ -26,25 +26,43 @@
   color: var(--color-text-muted);
 }
 
-/* Marca de agua: la palabra queda cortada por el borde de abajo */
+/*
+ * Marca de agua: la palabra entera, con el ancho de la columna (DisplayText ajusta --watermark-size) y
+ * apoyada sobre lo que tenga debajo: la caja se recorta a la altura de las mayúsculas y la línea de
+ * base, así no queda espacio entre las letras y la barra de usuario.
+ */
 .watermark {
   position: relative;
-  overflow: hidden;
-  height: calc(var(--font-watermark-size) * 0.62);
+  /* clip y no hidden: solo recorta a los costados (el barrido); los acentos pueden asomar arriba */
+  overflow-x: clip;
+  padding: var(--space-2) var(--space-4) 0;
+  font-size: var(--font-watermark-size);
   pointer-events: none;
   user-select: none;
 }
 
 .watermarkText {
-  position: absolute;
-  left: 0;
-  top: 0;
+  display: block;
   white-space: nowrap;
-  font-size: var(--font-watermark-size);
-  line-height: var(--font-watermark-line-height);
+  font-size: var(--watermark-size, 1em);
+  line-height: 1;
   letter-spacing: var(--font-watermark-letter-spacing);
   font-weight: var(--font-watermark-weight);
   text-transform: var(--font-watermark-transform);
+  text-box: trim-both cap alphabetic;
+}
+
+/* Nombre largo: renglones por palabra, con lugar para las tildes de las mayúsculas (Á, É) */
+.watermark[data-wrap] .watermarkText {
+  white-space: normal;
+  line-height: 1.06;
+}
+
+/* Sin text-box (Firefox): el interlineado corto deja las letras casi apoyadas */
+@supports not (text-box: trim-both cap alphabetic) {
+  .watermarkText {
+    line-height: var(--font-watermark-line-height);
+  }
 }
 
 .ink {

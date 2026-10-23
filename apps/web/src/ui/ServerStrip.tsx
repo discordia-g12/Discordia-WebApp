@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Server } from '../types';
-import { useMotionPreset } from './motion';
+import { transitions } from './motion';
 import styles from './ServerStrip.module.css';
 
 interface ServerStripProps {
@@ -17,16 +17,23 @@ interface ServerStripProps {
  * la etiqueta negra con el nombre y la actividad.
  */
 export function ServerStrip({ server, active = false, unread, onPress }: ServerStripProps) {
-  const [open, setOpen] = useState(false);
-  const fade = useMotionPreset('fade');
+  // Posición de la etiqueta (fixed): el rail scrollea y una etiqueta absoluta quedaría recortada
+  const [open, setOpen] = useState<{ top: number; left: number } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const reduce = useReducedMotion();
+  const show = () => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (rect) setOpen({ top: rect.top, left: rect.right });
+  };
   const image = server.banner || server.iconUrl || server.icon;
   const activity = typeof unread === 'string' ? unread : unread ? 'Actividad nueva' : null;
 
   return (
     <div
+      ref={rootRef}
       className={`${styles.root} ${active ? styles.active : ''}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={() => show()}
+      onMouseLeave={() => setOpen(null)}
     >
       <button
         type="button"
@@ -34,15 +41,24 @@ export function ServerStrip({ server, active = false, unread, onPress }: ServerS
         aria-label={`Servidor ${server.name}`}
         aria-current={active ? 'true' : undefined}
         onClick={onPress}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+        onFocus={() => show()}
+        onBlur={() => setOpen(null)}
       >
         {image ? <img src={image} alt="" className={styles.image} /> : <span className={styles.placeholder}>{server.name.slice(0, 2)}</span>}
         {unread && <span className={styles.unread} aria-hidden="true" />}
       </button>
       <AnimatePresence>
         {open && (
-          <motion.div className={styles.label} role="tooltip" {...fade}>
+          // Se despliega desde la franja: entra corriéndose hacia la derecha
+          <motion.div
+            className={styles.label}
+            role="tooltip"
+            style={{ top: open.top, left: open.left }}
+            initial={reduce ? { opacity: 0 } : { opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, transition: transitions.exit }}
+            transition={reduce ? transitions.reduced : transitions.fast}
+          >
             <span className={styles.name}>: {server.name}</span>
             {activity && <span className={styles.activity}>{activity}</span>}
           </motion.div>

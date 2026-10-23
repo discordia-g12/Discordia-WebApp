@@ -1,38 +1,122 @@
-/* Estilos de ServerRail: los valores fijos que antes estaban en línea. Los que dependen del estado
-   siguen en el componente (style). */
+/* Columna del rail: logo arriba, franjas, y las acciones al pie */
+.rail {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: var(--layout-rail-width);
+  height: 100%;
+  border-right: var(--line-hairline) solid var(--color-line-strong);
+  user-select: none;
+}
 
-.listaServidores {
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--space-8);
+  color: var(--color-text);
+}
+
+/* Las franjas salen del borde izquierdo; la etiqueta negra se despliega por encima de la barra lateral */
+.strips {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-5) 0;
+  list-style: none;
+  overflow-y: auto;
+  overflow-x: visible;
+  scrollbar-width: none;
+}
+
+.strips::-webkit-scrollbar {
+  display: none;
+}
+
+.loading {
+  padding: 0 var(--space-2);
+}
+
+.actions {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
+  padding-bottom: var(--space-2);
 }
 
-.servidoresMensajesDirectosDiv {
-  position: fixed;
-  left: 84px;
-  transform: translateY(-50%);
-  background-color: var(--bg-floating, #111214);
-  color: var(--text-white, #ffffff);
-  padding: 7px 12px;
-  border-radius: var(--radius-sm, 4px);
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: var(--shadow-floating, 0 8px 24px rgba(0,0,0,0.5));
-  pointer-events: none;
-  z-index: 9999;
-  animation: fadeIn 120ms ease;
+/* Íconos de línea fina, cada uno con una línea corta debajo (PDF, pág. 6) */
+.action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-7);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
-.flechaIndicadoraIzquierda {
+.action:last-child {
+  border-bottom: 0;
+}
+
+.action:hover,
+.actionActive {
+  color: var(--color-text);
+}
+
+/* Inicio activo: una barra a la izquierda, como el corrimiento de la franja activa */
+.actionActive::before {
+  content: '';
   position: absolute;
-  left: -5px;
+  left: calc(-1 * var(--space-4) - 2px);
   top: 50%;
+  width: var(--line-accent);
+  height: var(--space-5);
   transform: translateY(-50%);
-  width: 0px;
-  height: 0px;
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-right: 5px solid var(--bg-floating, #111214);
+  background: var(--color-inverse-background);
+}
+
+.badge {
+  position: absolute;
+  top: var(--space-3);
+  right: 2px;
+  width: var(--space-1);
+  height: var(--space-1);
+  background: var(--color-inverse-background);
+}
+
+/* Etiqueta negra al pasar el mouse o con foco (la de las franjas, en CSS: no hay contenido dinámico) */
+.action::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + var(--space-4));
+  top: 50%;
+  z-index: 10;
+  padding: var(--space-1) var(--space-3);
+  white-space: nowrap;
+  font-size: var(--font-label-size);
+  font-weight: 700;
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  opacity: 0;
+  transform: translate(calc(-1 * var(--space-2)), -50%);
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+  pointer-events: none;
+}
+
+.action:hover::after,
+.action:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
 }

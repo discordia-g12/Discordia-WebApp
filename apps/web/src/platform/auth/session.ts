@@ -12,6 +12,7 @@ import {
   useSession,
 } from '@discordia/core';
 import { auth0Provider, WebAuthAdapter } from './auth0';
+export { hasStoredSession } from './auth0';
 
 /**
  * Sesión del cliente web: la máquina de estados es la de @discordia/core; acá se elige el adaptador

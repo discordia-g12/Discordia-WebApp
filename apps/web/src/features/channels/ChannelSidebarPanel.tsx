@@ -24,8 +24,11 @@ const reorderErrorMessage = (err: unknown) =>
     'No se pudo guardar el nuevo orden.'
   );
 
-/** Barra lateral del servidor seleccionado: canales, voz, menú del servidor y barra de usuario. */
-export function ChannelSidebarPanel() {
+/**
+ * Barra lateral del servidor seleccionado: canales, voz, menú del servidor y barra de usuario (sin ella
+ * con showUserPanel={false}: en el rediseño la pone el layout).
+ */
+export function ChannelSidebarPanel({ showUserPanel = true }: { showUserPanel?: boolean }) {
   const { currentServer, isLoadingServers, allServerChannels } = useCurrentServer();
   const currentUser = useCurrentUser();
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
@@ -73,6 +76,7 @@ export function ChannelSidebarPanel() {
 
   return (
     <ChannelSidebar
+      showUserPanel={showUserPanel}
       server={currentServer}
       isLoading={isLoadingServers}
       activeChannelId={selectedChannelId}

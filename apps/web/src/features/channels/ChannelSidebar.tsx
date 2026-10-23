@@ -44,6 +44,8 @@ export interface VoiceParticipant {
  * Propiedades del componente ChannelSidebar.
  */
 export interface ChannelSidebarProps {
+  /** Con el rediseño la barra de usuario es del layout (UserBar), no de la barra lateral. */
+  showUserPanel?: boolean;
   /** Servidor activo cuyos canales y opciones se despliegan. */
   server: Server;
   /** Identificador del canal actualmente seleccionado en la vista activa. */
@@ -140,6 +142,7 @@ function renderChannelIcon(channel: Channel): React.ReactElement {
  * participantes de voz en vivo y el panel de usuario anclado en la base.
  */
 export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
+  showUserPanel = true,
   server,
   activeChannelId,
   onSelectChannel,
@@ -811,7 +814,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
       </div>
 
       {/* Panel inferior del usuario integrado */}
-      <UserPanel
+      {showUserPanel && <UserPanel
         currentUser={currentUser}
         isMuted={isMuted}
         isDeafened={isDeafened}
@@ -828,7 +831,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         onBuyPoints={onBuyPoints}
         onSubscribePremium={onSubscribePremium}
         onLogout={onLogout}
-      />
+      />}
 
       {participantMenu && onToggleLocalMute && (
         <VoiceParticipantMenu
