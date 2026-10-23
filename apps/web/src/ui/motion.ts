@@ -7,7 +7,7 @@ import { distances, durations, easings } from '@discordia/tokens';
  * Con prefers-reduced-motion todas se vuelven un fundido de 150 ms.
  */
 
-export type MotionPreset = 'fade' | 'rise' | 'sweep' | 'curtain';
+export type MotionPreset = 'fade' | 'rise' | 'toast' | 'sweep' | 'curtain';
 
 const seconds = (ms: number) => ms / 1000;
 
@@ -26,12 +26,21 @@ const presets: Record<MotionPreset, { variants: Variants; transition: Transition
     variants: { hidden: { opacity: 0 }, visible: { opacity: 1 }, exit: { opacity: 0 } },
     transition: transitions.fast,
   },
-  /** Mensajes nuevos, toasts: entran subiendo unos píxeles. */
+  /** Mensajes nuevos: entran subiendo unos píxeles. */
   rise: {
     variants: {
       hidden: { opacity: 0, y: distances.rise },
       visible: { opacity: 1, y: 0 },
       exit: { opacity: 0, transition: transitions.exit },
+    },
+    transition: transitions.base,
+  },
+  /** Avisos: entran desde abajo y bajan al irse. */
+  toast: {
+    variants: {
+      hidden: { opacity: 0, y: distances.toast },
+      visible: { opacity: 1, y: 0 },
+      exit: { opacity: 0, y: distances.toast, transition: transitions.exit },
     },
     transition: transitions.base,
   },

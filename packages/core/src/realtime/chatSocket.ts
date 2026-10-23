@@ -5,7 +5,11 @@ import type { MessageBackendPayload } from '../types';
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
 
-export type ChatSocketStatus = 'connecting' | 'open' | 'closed';
+/**
+ * connecting: primer intento. reconnecting: estuvo abierta, se cortó y está volviendo (la interfaz lo
+ * avisa). closed: cerrada a pedido, o sin haber conectado nunca, esperando el próximo intento.
+ */
+export type ChatSocketStatus = 'connecting' | 'open' | 'reconnecting' | 'closed';
 
 export interface ChatSocketHandlers {
   onMessage: (message: MessageBackendPayload) => void;
@@ -60,14 +64,17 @@ export function openChatSocket(
     reconnectTimer = setTimeout(connect, delay);
   };
 
+  // Después de haber estado abierta, todo lo que no sea "abierta" es una reconexión en curso
+  const setPending = (status: 'connecting' | 'closed') => setStatus(hasConnectedBefore ? 'reconnecting' : status);
+
   const connect = async () => {
-    setStatus('connecting');
+    setPending('connecting');
     let token: string;
     try {
       token = await getClientConfig().getToken();
     } catch (err) {
       console.error('[WS] Auth error', err);
-      setStatus('closed');
+      setPending('closed');
       scheduleReconnect();
       return;
     }
@@ -108,7 +115,7 @@ export function openChatSocket(
     ws.onclose = () => {
       // Un socket reemplazado (reconnect / close) no vuelve a programar nada
       if (socket !== ws) return;
-      setStatus('closed');
+      setPending('closed');
       scheduleReconnect();
     };
   };

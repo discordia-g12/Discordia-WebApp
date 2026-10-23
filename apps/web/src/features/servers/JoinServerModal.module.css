@@ -1,78 +1,62 @@
-/* Estilos de JoinServerModal: los valores fijos que antes estaban en línea. Los que dependen del estado
-   siguen en el componente (style). */
-
-.div {
-  position: relative;
+/* Vista previa: la franja del servidor (como en el rail) y sus datos, entre líneas finas */
+.preview {
+  display: grid;
+  grid-template-columns: var(--layout-rail-width) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+  padding: var(--space-4) 0;
+  border-top: var(--line-hairline) solid var(--color-line-strong);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+  animation: enter var(--motion-duration-base) var(--motion-ease-enter);
 }
 
-.span {
-  display: block;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--text-muted);
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-rise));
+  }
 }
 
-.div2 {
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-md);
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.previaServidor {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-
-.div3 {
+.strip {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  height: var(--space-7);
+  overflow: hidden;
+  font-size: var(--font-label-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--color-line);
+  border-bottom: 3px solid var(--color-inverse-background);
 }
 
-.img {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
+.strip img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
-.div4 {
-  flex: 1;
-  min-width: 0px;
-}
-
-.div5 {
+.info {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
-.span2 {
+.info p {
+  margin: 0;
+}
+
+.name {
+  font-size: var(--font-heading-size);
   font-weight: 700;
-  color: var(--header-primary);
-  font-size: 15px;
 }
 
-.div6 {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 2px;
+.description {
+  font-size: var(--font-body-small-size);
 }
 
-.div7 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 6px;
-  font-size: 11px;
-}
-
-.span3 {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-muted);
+.meta {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
 }

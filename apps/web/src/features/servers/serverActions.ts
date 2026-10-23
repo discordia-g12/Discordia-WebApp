@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCreateServerMutation } from '@discordia/core';
+import { getInvitePreview, joinServerViaInvite, useCreateServerMutation } from '@discordia/core';
 import type { Server } from '../../types';
 import { showToast, useUIStore } from '../../app/uiStore';
 
@@ -20,6 +21,78 @@ export function useCreateServer() {
       showToast('Error al crear el servidor', 'danger');
     }
   };
+}
+
+/** Código de una invitación a partir de lo que se pegó: el enlace entero o solo el código. */
+export function inviteCodeFrom(invite: string): string {
+  const trimmed = invite.trim().replace(/\/+$/, '');
+  return trimmed.split('/').pop() || trimmed;
+}
+
+/** Saca /invite/<código> de la barra de direcciones (después de usar o descartar la invitación). */
+export function clearInviteFromUrl() {
+  if (window.location.pathname.startsWith('/invite/')) {
+    window.history.replaceState({}, document.title, '/');
+  }
+}
+
+/**
+ * Se une a un servidor con una invitación y actualiza la lista de servidores. Si falla, rechaza con el
+ * mensaje para mostrar.
+ */
+export function useJoinServer() {
+  const queryClient = useQueryClient();
+
+  return async (invite: string) => {
+    try {
+      await joinServerViaInvite(inviteCodeFrom(invite));
+    } catch {
+      throw new Error('La invitación no es válida o ya venció.');
+    }
+    await queryClient.invalidateQueries({ queryKey: ['servers'] });
+    clearInviteFromUrl();
+    showToast('Te uniste al servidor', 'success');
+  };
+}
+
+export interface InvitePreview {
+  name: string;
+  description?: string;
+  iconUrl?: string;
+  memberCount?: number;
+}
+
+/** Vista previa del servidor de una invitación, mientras se escribe (espera medio segundo sin cambios). */
+export function useInvitePreview(invite: string): InvitePreview | null {
+  const [preview, setPreview] = useState<InvitePreview | null>(null);
+
+  useEffect(() => {
+    const code = inviteCodeFrom(invite);
+    if (code.length < 3) {
+      setPreview(null);
+      return;
+    }
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      getInvitePreview(code)
+        .then((data) => {
+          if (cancelled) return;
+          setPreview({
+            name: data.server_name,
+            description: data.server_description || undefined,
+            iconUrl: data.server_icon || undefined,
+            memberCount: data.member_count,
+          });
+        })
+        .catch(() => !cancelled && setPreview(null));
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [invite]);
+
+  return preview;
 }
 
 /** Aplica en el caché la configuración guardada desde los ajustes del servidor. */

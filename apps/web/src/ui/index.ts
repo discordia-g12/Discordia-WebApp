@@ -13,4 +13,8 @@ export { Toast } from './Toast';
 export { EmptyState } from './EmptyState';
 export { Skeleton } from './Skeleton';
 export { HairlineGrid } from './HairlineGrid';
+export { Choice } from './Choice';
+export { Modal, ModalActions, ModalForm } from './Modal';
+export { ConfirmDialog } from './ConfirmDialog';
+export { ConnectionBanner } from './ConnectionBanner';
 export { useMotionPreset, transitions, type MotionPreset } from './motion';

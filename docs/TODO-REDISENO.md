@@ -564,7 +564,52 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 10: modales, toasts y conexión
 
-- [ ] Modales, confirmaciones, toasts, banner de reconexión, esqueletos de carga (sección 3).
+- Mismo patrón que antes: los modales anteriores pasaron a `legacy/` (`LegacyCreateServerModal`, ...) y
+  `GlobalModals` monta unos u otros según el flag, con los mismos handlers. La lógica que comparten está
+  en `servers/serverActions` (`useJoinServer`, `useInvitePreview`) y `channels/channelErrors`.
+- [x] Catálogo (`ui/`): `Modal` (panel a todo el ancho que baja como cortina, ~60% del alto, con el título
+      en display en la columna de rail + barra lateral y el contenido a la derecha; ×, Escape y tocar afuera
+      lo cierran; el foco queda adentro y vuelve al cerrar), `ModalForm` y `ModalActions` (`_cancelar` y
+      el bloque al pie), `ConfirmDialog`, `Choice` (pasó de los ajustes al catálogo; si la fila no entra, se
+      parte en una grilla limpia) y `ConnectionBanner`. Preset de movimiento `toast` (entra desde abajo).
+- [x] Modales del rediseño: crear servidor (solo el nombre; el ícono, en "próximamente": Server-Roles lo
+      recibe y lo descarta), unirse (vista previa como franja; si la invitación no sirve, el error queda en el
+      campo y el modal sigue abierto), invitar (vencimiento y usos con `Choice`), crear / editar canal (tipo y
+      categoría con `Choice`; eliminar confirma adentro del mismo modal, sin `window.confirm`), crear
+      categoría y perfil de otro usuario.
+- [x] Confirmaciones (`¿ELIMINAR CANAL?`, `¿ABANDONAR SERVIDOR?`, ...): texto chico al pie, `_cancelar` y
+      el bloque, rojo solo en las destructivas; eliminar un servidor pide escribir su nombre. El botón queda
+      cargando mientras se confirma.
+- [x] Avisos (`app/ToastHost`): tira negra del ancho de la columna central, apoyada sobre la fila de
+      escritura, que entra desde abajo y se va a los 4 s (`durations.toast`; antes 3 s fijos). Cada aviso
+      tiene su id: el timer de uno anterior ya no cierra al que lo reemplazó. Los errores llevan el borde rojo
+      y, donde sirve, `_reintentar` (mensaje que no se envió, entrar a un canal de voz; con una acción duran
+      el doble).
+- [x] Conexión: línea de 2 px arriba de toda la app mientras reconecta y `reconectando/` en la barra de
+      usuario. Junta tres fuentes (`app/useConnectionStatus`): la red del navegador, el chat del canal (core
+      distingue ahora `reconnecting` de `connecting`: un corte después de haber estado abierto) y la llamada.
+- [x] Menú de la barra de usuario (`profile/UserMenu`, reemplaza al mini perfil y al selector de estado
+      anteriores, que pasaron a `legacy/`): presencia (solo para la sesión, con la aclaración), estado
+      personalizado y atajos a editar perfil, ajustes y cerrar sesión.
+- [x] Esqueletos de carga: las vistas nuevas ya los usaban (rail, canales, chat, ajustes); los spinners que
+      quedan son de pestañas del diseño anterior.
+- [x] Tests: catálogo (`ui/__tests__/Modal.test.tsx`), modales de servidores y canales, menú y estado de la
+      barra de usuario, avisos del store, estado `reconnecting` del socket (core) y la prueba de humo (crear
+      servidor con Escape, sin red, avisos).
+- Se sacó lo que simulaba guardarse: en el perfil de otro usuario, la nota privada, bloquear, reportar y
+  "servidores en común" (siempre vacío); el mensaje directo queda en "próximamente". En el menú de usuario,
+  puntos y premium.
+- Corregido de paso (también en el diseño anterior, que es el que ve producción):
+  - Invitar mandaba 30 min, 1 h, 6 h y 12 h como "nunca vence" (solo mapeaba 1 y 7 días).
+  - Invitar creaba una invitación nueva en cada cambio de opción. Ahora se genera al abrir y, si se cambian
+    las opciones, se ofrece `_generar otro enlace` (las invitaciones todavía no se pueden listar ni revocar
+    desde la app).
+  - En mobile web, unirse a un servidor mostraba "Te has unido" sin llamar al backend.
+  - El estado personalizado de la barra de usuario solo cambiaba en memoria: ahora se guarda en el perfil
+    (el backend ya lo aceptaba).
+- No se hicieron `GlobalSearch` ni `NotificationCenter`: no están montados (deuda 2.7 y 6.1). La llamada
+  entrante sigue siendo la simulación de `App.tsx` (deuda 7.2); solo se pasó al sistema.
+- Mobile web (`MobileLayout`) sigue con los modales del diseño anterior hasta el paso 11.
 
 ### Paso 11: mobile web (`MobileShell`)
 

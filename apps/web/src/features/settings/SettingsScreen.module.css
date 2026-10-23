@@ -239,38 +239,6 @@
   flex-shrink: 0;
 }
 
-/* Opciones: palabras en una fila; la elegida en bloque negro */
-.choice {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0;
-  border: var(--line-hairline) solid var(--color-line-strong);
-  width: fit-content;
-}
-
-.choice button {
-  padding: var(--space-2) var(--space-4);
-  background: none;
-  border: 0;
-  border-left: var(--line-hairline) solid var(--color-line-strong);
-  font-family: inherit;
-  font-size: var(--font-body-small-size);
-  color: var(--color-text);
-  cursor: pointer;
-  transition:
-    background-color var(--motion-duration-fast) var(--motion-ease-standard),
-    color var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
-.choice button:first-child {
-  border-left: 0;
-}
-
-.choice .choiceActive {
-  color: var(--color-inverse-text);
-  background: var(--color-inverse-background);
-}
-
 /* Interruptor cuadrado */
 .switch {
   position: relative;

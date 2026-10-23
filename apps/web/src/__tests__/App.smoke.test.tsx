@@ -251,7 +251,14 @@ describe.each([
     renderApp();
     fireEvent.click(await screen.findByLabelText('Añadir un servidor'));
 
-    expect(await screen.findByText('Crea tu servidor')).toBeTruthy();
+    if (newUi) {
+      // Baja como cortina por encima de la grilla y se va con Escape
+      expect(await screen.findByRole('dialog', { name: 'Crear servidor' })).toBeTruthy();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Crear servidor' })).toBeNull());
+    } else {
+      expect(await screen.findByText('Crea tu servidor')).toBeTruthy();
+    }
   });
 
   it('abre el perfil propio desde la barra de usuario', async () => {
@@ -281,6 +288,33 @@ describe.each([
     await waitFor(() => expect(watermark('Torton')).toBe(true));
     // Una sola barra de usuario: la del layout, no la de la barra lateral anterior
     expect(screen.getAllByTitle('Ver perfil y estado')).toHaveLength(1);
+  });
+
+  it.runIf(newUi)('sin red: la línea de reconexión arriba y "reconectando/" en la barra de usuario', async () => {
+    renderApp();
+    await screen.findByTitle('Ver perfil y estado');
+    const setOnline = (online: boolean) => {
+      Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+      act(() => {
+        window.dispatchEvent(new Event(online ? 'online' : 'offline'));
+      });
+    };
+
+    setOnline(false);
+    expect(await screen.findByText('reconectando/')).toBeTruthy();
+    expect(screen.getByText('Reconectando')).toBeTruthy();
+
+    setOnline(true);
+    await waitFor(() => expect(screen.queryByText('reconectando/')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Reconectando')).toBeNull());
+  });
+
+  it.runIf(newUi)('los avisos son la tira nueva, con barra final', async () => {
+    renderApp();
+    await screen.findByTitle('Ver perfil y estado');
+    act(() => useUIStore.getState().showToast('Servidor creado', 'success'));
+
+    expect((await screen.findByText('Servidor creado/')).closest('[role="status"]')).toBeTruthy();
   });
 
   it('mobile: recorre canales, chat, voz y las hojas de servidor, miembros y perfil', async () => {

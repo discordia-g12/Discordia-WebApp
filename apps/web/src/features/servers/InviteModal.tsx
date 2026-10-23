@@ -1,246 +1,138 @@
-import React, { useState, useEffect,  } from 'react';
-import {
-  X, Check, Copy
-} from 'lucide-react';
-import { User, Server } from '../../types';
+import { useEffect, useRef, useState } from 'react';
 import { createInvite } from '@discordia/core';
-import { ModalOverlay } from '../../ui/legacy/ModalOverlay';
+import type { Server } from '../../types';
+import { ActionLink, BlockButton, Choice, Modal, ModalActions } from '../../ui';
 import styles from './InviteModal.module.css';
 
 export interface InviteModalProps {
-  server?: Server;
-  isOpen?: boolean;
+  server: Server;
   onClose: () => void;
 }
 
+// Segundos hasta que vence ('0': nunca) y usos máximos ('0': sin límite). El backend pide al menos 60 s.
 const EXPIRATION_OPTIONS = [
-  { label: '30 minutos', value: '30m' },
-  { label: '1 hora', value: '1h' },
-  { label: '6 horas', value: '6h' },
-  { label: '12 horas', value: '12h' },
-  { label: '1 día', value: '1d' },
-  { label: '7 días', value: '7d' },
-  { label: 'Nunca', value: 'never' },
+  { value: '1800', label: '30 min' },
+  { value: '3600', label: '1 h' },
+  { value: '21600', label: '6 h' },
+  { value: '43200', label: '12 h' },
+  { value: '86400', label: '1 día' },
+  { value: '604800', label: '7 días' },
+  { value: '0', label: 'nunca' },
 ];
 
 const MAX_USES_OPTIONS = [
-  { label: 'Sin límite', value: '0' },
-  { label: '1 uso', value: '1' },
-  { label: '5 usos', value: '5' },
-  { label: '10 usos', value: '10' },
-  { label: '25 usos', value: '25' },
-  { label: '50 usos', value: '50' },
-  { label: '100 usos', value: '100' },
+  { value: '0', label: 'sin límite' },
+  { value: '1', label: '1' },
+  { value: '5', label: '5' },
+  { value: '10', label: '10' },
+  { value: '25', label: '25' },
+  { value: '50', label: '50' },
+  { value: '100', label: '100' },
 ];
 
+type LinkState = { status: 'loading' } | { status: 'ready'; url: string } | { status: 'error' };
+
 /**
- * Diálogo para compartir enlace de invitación al servidor con configuración granular.
+ * Invitar (rediseño): al abrirse genera un enlace con las opciones por defecto (7 días, sin límite).
+ * Cambiar el vencimiento o los usos no crea otra invitación sola: marca el enlace como viejo y ofrece
+ * generar uno nuevo, así no quedan invitaciones de más en el servidor (todavía no se pueden listar).
  */
-export const InviteModal: React.FC<InviteModalProps> = ({
-  server,
-  isOpen = true,
-  onClose,
-}) => {
-  const [copied, setCopied] = useState(false);
-  const [expiration, setExpiration] = useState('7d');
+export function InviteModal({ server, onClose }: InviteModalProps) {
+  const [expiration, setExpiration] = useState('604800');
   const [maxUses, setMaxUses] = useState('0');
-  const [invitedFriends, setInvitedFriends] = useState<Record<string, boolean>>({});
-  const [inviteLink, setInviteLink] = useState('');
-  const [, setIsLoading] = useState(false);
+  const [link, setLink] = useState<LinkState>({ status: 'loading' });
+  // Opciones con las que se generó el enlace que se muestra
+  const [generatedWith, setGeneratedWith] = useState({ expiration, maxUses });
+  const [copied, setCopied] = useState<'ok' | 'manual' | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
-
-  const handleGenerateInvite = async () => {
-    setIsLoading(true);
+  const generate = async () => {
+    setLink({ status: 'loading' });
+    setCopied(null);
     try {
-      const expiresInSeconds = expiration === '7d' ? 604800 : expiration === '1d' ? 86400 : 0;
-      const res = await createInvite(server?.id || '', {
-        maxUses: parseInt(maxUses, 10),
-        expiresInSeconds
+      const { code } = await createInvite(server.id, {
+        maxUses: Number(maxUses),
+        expiresInSeconds: Number(expiration),
       });
-      setInviteLink(`${window.location.origin}/invite/${res.code}`);
-    } catch (e) {
-      console.error(e);
-      setInviteLink('Error al crear invitación');
-    } finally {
-      setIsLoading(false);
+      setLink({ status: 'ready', url: `${window.location.origin}/invite/${code}` });
+      setGeneratedWith({ expiration, maxUses });
+    } catch {
+      setLink({ status: 'error' });
     }
   };
-
 
   useEffect(() => {
-    if (isOpen) {
-      handleGenerateInvite();
-    }
-  }, [isOpen, expiration, maxUses]);
+    generate();
+    // Solo al abrir: después se genera a pedido
+  }, []);
 
-  const handleCopy = async () => {
+  const stale = link.status === 'ready' && (generatedWith.expiration !== expiration || generatedWith.maxUses !== maxUses);
+
+  const copy = async () => {
+    if (link.status !== 'ready') return;
     try {
-      await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      await navigator.clipboard.writeText(link.url);
+      setCopied('ok');
     } catch {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      // Sin permiso para el portapapeles: se selecciona el enlace para copiarlo a mano
+      inputRef.current?.select();
+      setCopied('manual');
     }
   };
 
-  const handleSendDirectInvite = (friendId: string) => {
-    setInvitedFriends((prev) => ({ ...prev, [friendId]: true }));
-  };
+  const expirationLabel = EXPIRATION_OPTIONS.find((o) => o.value === generatedWith.expiration)?.label;
 
   return (
-    <ModalOverlay onClose={onClose} maxWidth={480}>
-      <div className={styles.div}>
-        <button
-          onClick={onClose}
-          className="btn-icon"
-          aria-label="Cerrar modal"
-          style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}
-        >
-          <X size={20} />
-        </button>
-
-        <div className="modal-header">
-          <h2 className="modal-title" style={{ fontSize: 20 }}>
-            Invitar amigos a {server?.name}
-          </h2>
-          <p className="modal-subtitle">
-            Canal predeterminado de bienvenida: <strong className={styles.general}>#general</strong>
-          </p>
+    <Modal title="Invitar" description={`a ${server.name}`} onClose={onClose}>
+      <div className={styles.link}>
+        <label htmlFor="invite-link" className={styles.label}>
+          Enlace
+        </label>
+        <div className={`${styles.field} ${stale ? styles.stale : ''}`}>
+          <input
+            id="invite-link"
+            ref={inputRef}
+            readOnly
+            value={link.status === 'ready' ? link.url : link.status === 'loading' ? 'generando…' : ''}
+            aria-describedby="invite-link-status"
+            onFocus={(e) => e.currentTarget.select()}
+          />
+          <ActionLink onPress={copy} disabled={link.status !== 'ready'}>
+            copiar
+          </ActionLink>
         </div>
-
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Enlace generado con botón de copiar */}
-          <div>
-            <label className="input-label" htmlFor="generated-invite-input">
-              O ENVÍA UN ENLACE DE INVITACIÓN AL SERVIDOR
-            </label>
-            <div className={styles.enlaceGeneradoBotonCopiarDiv}>
-              <input
-                id="generated-invite-input"
-                className="discord-input"
-                type="text"
-                readOnly
-                value={inviteLink}
-                style={{ backgroundColor: 'var(--bg-tertiary)', cursor: 'text' }}
-              />
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="btn"
-                style={{
-                  backgroundColor: copied ? 'var(--status-online)' : 'var(--brand)',
-                  color: 'white',
-                  minWidth: 100,
-                  transition: 'all 0.2s',
-                }}
-              >
-                {copied ? (
-                  <>
-                    <Check size={16} /> Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy size={16} /> Copiar
-                  </>
-                )}
-              </button>
-            </div>
-            <span className={styles.enlaceGeneradoBotonCopiarSpan}>
-              {expiration === 'never'
-                ? 'Tu enlace de invitación no caducará nunca.'
-                : `Tu enlace caduca en ${EXPIRATION_OPTIONS.find((o) => o.value === expiration)?.label}.`}
-            </span>
-          </div>
-
-          {/* Selectores de expiración y límites */}
-          <div className={styles.selectoresExpiracionLimites}>
-            <div>
-              <label className="input-label" htmlFor="expiration-select">EXPIRAR DESPUÉS DE</label>
-              <select
-                id="expiration-select"
-                className="discord-input"
-                value={expiration}
-                onChange={(e) => setExpiration(e.target.value)}
-                style={{ cursor: 'pointer' }}
-              >
-                {EXPIRATION_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="input-label" htmlFor="max-uses-select">NÚMERO MÁXIMO DE USOS</label>
-              <select
-                id="max-uses-select"
-                className="discord-input"
-                value={maxUses}
-                onChange={(e) => setMaxUses(e.target.value)}
-                style={{ cursor: 'pointer' }}
-              >
-                {MAX_USES_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Lista rápida de amigos para invitar directamente */}
-          <div>
-            <div className="input-label">AMIGOS CONECTADOS RECIENTEMENTE</div>
-            <div className={styles.listaRapidaAmigosInvitarDiv}>
-              {Object.values(({} as Record<string, User>)).slice(1, 5).map((user) => (
-                <div
-                  key={user.id}
-                  className={styles.listaRapidaAmigosInvitarDivDiv}
-                >
-                  <div className={styles.listaRapidaAmigosInvitarDivDivDiv}>
-                    <img
-                      src={user.avatarUrl || user.avatar}
-                      alt={user.displayName}
-                      className={styles.listaRapidaAmigosInvitarDivDivDivImg}
-                    />
-                    <div>
-                      <div className={styles.listaRapidaAmigosInvitarDivDivDivDiv}>
-                        {user.displayName}
-                      </div>
-                      <div className={styles.listaRapidaAmigosInvitarDivDivDivDiv2}>
-                        @{user.username}
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSendDirectInvite(user.id)}
-                    className="btn"
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: 12,
-                      backgroundColor: invitedFriends[user.id] ? 'var(--bg-modifier-selected)' : 'var(--brand)',
-                      color: invitedFriends[user.id] ? 'var(--text-positive)' : 'white',
-                    }}
-                    disabled={invitedFriends[user.id]}
-                  >
-                    {invitedFriends[user.id] ? 'Enviado' : 'Invitar'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="modal-footer">
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Listo
-          </button>
-        </div>
+        <p id="invite-link-status" className={styles.status} role="status">
+          {link.status === 'error'
+            ? '/ No se pudo generar la invitación.'
+            : copied === 'ok'
+              ? 'copiado/'
+              : copied === 'manual'
+                ? '/ No se pudo copiar: el enlace quedó seleccionado para copiarlo a mano.'
+                : stale
+                  ? '/ Cambiaste las opciones: este enlace es el anterior.'
+                  : link.status === 'ready'
+                    ? generatedWith.expiration === '0'
+                      ? '/ No vence.'
+                      : `/ Vence en ${expirationLabel}.`
+                    : ''}
+        </p>
       </div>
-    </ModalOverlay>
+
+      <div className={styles.option}>
+        <p className={styles.label}>Vence en</p>
+        <Choice label="Vence en" options={EXPIRATION_OPTIONS} value={expiration} onChange={setExpiration} />
+      </div>
+      <div className={styles.option}>
+        <p className={styles.label}>Usos</p>
+        <Choice label="Usos máximos" options={MAX_USES_OPTIONS} value={maxUses} onChange={setMaxUses} />
+      </div>
+
+      <ModalActions>
+        {(stale || link.status === 'error') && (
+          <ActionLink onPress={generate}>{link.status === 'error' ? 'reintentar' : 'generar otro enlace'}</ActionLink>
+        )}
+        <BlockButton onPress={onClose}>Listo</BlockButton>
+      </ModalActions>
+    </Modal>
   );
-};
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check, X, Smile } from 'lucide-react';
-import { Status } from '../../types';
-import styles from './StatusPicker.module.css';
+import { Status } from '../../../types';
+import styles from './LegacyStatusPicker.module.css';
 
 /**
  * Propiedades del componente emergente StatusPicker.
@@ -60,7 +60,7 @@ const SUGGESTED_EMOJIS = ['💻', '🎮', '🎧', '☕', '🚀', '📚', '✨', 
  * Soporta selección de estado estándar, edición de texto con contador (máx 64 car.),
  * sugerencias de emoji, click exterior y atajo Escape.
  */
-export const StatusPicker: React.FC<StatusPickerProps> = ({
+export const LegacyStatusPicker: React.FC<StatusPickerProps> = ({
   currentStatus,
   currentCustomStatus = '',
   onSelectStatus,
@@ -286,4 +286,4 @@ export const StatusPicker: React.FC<StatusPickerProps> = ({
   );
 };
 
-export default StatusPicker;
+export default LegacyStatusPicker;

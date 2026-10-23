@@ -1,247 +1,273 @@
-import React from 'react';
+import { AnimatePresence } from 'motion/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CreateServerModal } from '../features/servers/CreateServerModal';
-import { JoinServerModal } from '../features/servers/JoinServerModal';
-import { InviteModal } from '../features/servers/InviteModal';
-import { UserProfileModal } from '../features/profile/UserProfileModal';
-import { IncomingCallModal } from '../features/voice/IncomingCallModal';
-import { ConfirmDialog } from '../ui/legacy/ConfirmDialog';
-import { CreateChannelModal, EditChannelModal, CreateCategoryModal } from '../features/channels/ChannelModals';
-import type { Server } from '../types';
 import {
-  leaveServer,
-  joinServerViaInvite,
   deleteServer,
-  EditChannelRequest,
+  leaveServer,
   useCreateCategoryMutation,
   useCreateChannelMutation,
   useDeleteChannelMutation,
   useEditChannelMutation,
+  type EditChannelRequest,
 } from '@discordia/core';
-import { useUIStore } from './uiStore';
-import { useUsers } from './UsersProvider';
+import type { Server } from '../types';
+import { ConfirmDialog } from '../ui';
+import { isNewUi } from '../ui/flag';
+import { ConfirmDialog as LegacyConfirmDialog } from '../ui/legacy/ConfirmDialog';
+import { CreateServerModal } from '../features/servers/CreateServerModal';
+import { JoinServerModal } from '../features/servers/JoinServerModal';
+import { InviteModal } from '../features/servers/InviteModal';
+import { LegacyCreateServerModal } from '../features/servers/legacy/LegacyCreateServerModal';
+import { LegacyJoinServerModal } from '../features/servers/legacy/LegacyJoinServerModal';
+import { LegacyInviteModal } from '../features/servers/legacy/LegacyInviteModal';
+import { CreateCategoryModal, CreateChannelModal, EditChannelModal } from '../features/channels/ChannelModals';
+import {
+  LegacyCreateCategoryModal,
+  LegacyCreateChannelModal,
+  LegacyEditChannelModal,
+} from '../features/channels/legacy/LegacyChannelModals';
+import { UserProfileModal } from '../features/profile/UserProfileModal';
+import { LegacyUserProfileModal } from '../features/profile/legacy/LegacyUserProfileModal';
+import { IncomingCallModal } from '../features/voice/IncomingCallModal';
+import { LegacyIncomingCallModal } from '../features/voice/legacy/LegacyIncomingCallModal';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
-import { useCreateServer } from '../features/servers/serverActions';
+import { clearInviteFromUrl, useCreateServer, useJoinServer } from '../features/servers/serverActions';
 import { useCurrentUser } from '../features/profile/currentUserStore';
 import { useVoice } from '../features/voice/VoiceProvider';
+import { useUIStore } from './uiStore';
+import { useUsers } from './UsersProvider';
 
-/** Modales de la app de escritorio: cuál está abierto lo decide useUIStore. */
-export const GlobalModals: React.FC = () => {
+/**
+ * Modales de la app de escritorio: cuál está abierto lo decide useUIStore. Lo que hacen es igual en los
+ * dos diseños; con el rediseño se montan los del catálogo nuevo (que entran y salen como cortina).
+ */
+export function GlobalModals() {
   const queryClient = useQueryClient();
   const ui = useUIStore();
   const { currentServer } = useCurrentServer();
   const currentUser = useCurrentUser();
   const { usersMap } = useUsers();
   const voice = useVoice();
-  const handleCreateServer = useCreateServer();
+  const createServer = useCreateServer();
+  const joinServer = useJoinServer();
   const createChannelMutation = useCreateChannelMutation();
   const editChannelMutation = useEditChannelMutation();
   const deleteChannelMutation = useDeleteChannelMutation();
   const createCategoryMutation = useCreateCategoryMutation();
 
-  // Lo que necesitan los modales, del store y de los hooks
-  const deps = {
-    activeModal: ui.activeModal,
-    setActiveModal: ui.setActiveModal,
-    confirmAction: ui.confirm.action,
-    setConfirmAction: ui.setConfirmAction,
-    confirmTargetName: ui.confirm.targetName,
-    confirmTargetDetail: ui.confirm.action === 'switch-voice-channel' ? ui.confirm.targetDetail : undefined,
-    onConfirmSwitchVoiceChannel: () => {
+  const close = () => ui.setActiveModal(null);
+
+  const closeJoin = () => {
+    close();
+    clearInviteFromUrl();
+  };
+
+  const closeProfile = () => {
+    close();
+    ui.setSelectedProfileUserId(null);
+  };
+
+  const closeConfirm = () => {
+    close();
+    ui.setConfirmAction(null);
+  };
+
+  /** Saca el servidor de la lista y vuelve al inicio (después de eliminarlo o abandonarlo). */
+  const dropCurrentServer = () => {
+    queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== currentServer!.id));
+    ui.setSelectedServerId('home');
+    ui.setAppView('home');
+  };
+
+  const confirm = async () => {
+    const { action, targetName } = ui.confirm;
+    if (action === 'delete-server' && currentServer) {
+      try {
+        await deleteServer(currentServer.id);
+      } catch {
+        ui.showToast('No se pudo eliminar el servidor', 'danger');
+        return;
+      }
+      dropCurrentServer();
+      ui.showToast(`Eliminaste "${targetName}"`, 'info');
+    } else if (action === 'leave-server' && currentServer) {
+      try {
+        await leaveServer(currentServer.id);
+      } catch {
+        ui.showToast(`No se pudo abandonar "${targetName}"`, 'danger');
+        return;
+      }
+      dropCurrentServer();
+      ui.showToast(`Abandonaste "${targetName}"`, 'info');
+    } else if (action === 'switch-voice-channel') {
       if (ui.pendingVoiceChannelId) voice.join(ui.pendingVoiceChannelId, { confirmed: true });
       ui.setPendingVoiceChannelId(null);
-    },
-    currentServer,
-    currentUser,
-    usersMap,
-    selectedProfileUserId: ui.selectedProfileUserId,
-    setSelectedProfileUserId: ui.setSelectedProfileUserId,
-    setSelectedServerId: ui.setSelectedServerId,
-    setSelectedChannelId: ui.setSelectedChannelId,
-    setAppView: ui.setAppView,
-    setInVoiceChannelId: (id: string | null) => (id ? voice.join(id) : voice.disconnect()),
-    showToast: ui.showToast,
-    handleCreateServer,
-    createChannelMutation,
-    editChannelMutation,
-    deleteChannelMutation,
-    createCategoryMutation,
-    channelModalCategoryId: ui.channelModalCategoryId,
-    targetChannelForAction: ui.targetChannelForAction,
-    incomingCaller: ui.incomingCaller,
-    setIncomingCaller: ui.setIncomingCaller,
+    }
+    closeConfirm();
   };
+
+  const createChannel = async (name: string, type: 'text' | 'voice', parentId?: string) => {
+    await createChannelMutation.mutateAsync({ serverId: currentServer!.id, payload: { name, type, parentId } });
+  };
+
+  const editChannel = async (channelId: string, payload: EditChannelRequest) => {
+    await editChannelMutation.mutateAsync({ serverId: currentServer!.id, channelId, payload });
+  };
+
+  const deleteChannel = async (channelId: string) => {
+    await deleteChannelMutation.mutateAsync({ serverId: currentServer!.id, channelId });
+    if (ui.selectedChannelId === channelId) ui.setSelectedChannelId(currentServer?.channels?.[0]?.id ?? null);
+  };
+
+  const createCategory = async (name: string) => {
+    await createCategoryMutation.mutateAsync({ serverId: currentServer!.id, payload: { name } });
+  };
+
+  const acceptCall = () => {
+    const caller = ui.incomingCaller!;
+    ui.setIncomingCaller(null);
+    voice.join('dm-call');
+    ui.setAppView('voice');
+    ui.showToast(`Llamada con ${caller.displayName || caller.name} iniciada`, 'success');
+  };
+
+  const declineCall = () => {
+    ui.setIncomingCaller(null);
+    ui.showToast('Llamada rechazada', 'info');
+  };
+
+  const profileUser = ui.selectedProfileUserId ? usersMap[ui.selectedProfileUserId] : undefined;
+  const modal = ui.activeModal;
+
+  if (isNewUi()) {
+    return (
+      <AnimatePresence>
+        {modal === 'create-server' && (
+          <CreateServerModal
+            key="create-server"
+            currentUser={currentUser}
+            onClose={close}
+            onJoinExisting={() => ui.setActiveModal('join-server')}
+            onCreateServer={({ name }) => createServer(name)}
+          />
+        )}
+        {modal === 'join-server' && (
+          <JoinServerModal
+            key="join-server"
+            onClose={closeJoin}
+            onJoinServer={async (invite) => {
+              await joinServer(invite);
+              close();
+            }}
+          />
+        )}
+        {modal === 'invite' && currentServer && <InviteModal key="invite" server={currentServer} onClose={close} />}
+        {modal === 'user-profile' && profileUser && (
+          <UserProfileModal
+            key="user-profile"
+            user={profileUser}
+            currentUser={currentUser}
+            onClose={closeProfile}
+            onEditProfile={() => {
+              closeProfile();
+              ui.setAppView('own-profile');
+            }}
+          />
+        )}
+        {modal === 'confirm-action' && ui.confirm.action && (
+          <ConfirmDialog
+            key="confirm"
+            action={ui.confirm.action}
+            targetName={ui.confirm.targetName}
+            targetDetail={ui.confirm.targetDetail}
+            onConfirm={confirm}
+            onCancel={closeConfirm}
+          />
+        )}
+        {modal === 'create-channel' && currentServer && (
+          <CreateChannelModal key="create-channel" categoryId={ui.channelModalCategoryId} onClose={close} onCreate={createChannel} />
+        )}
+        {modal === 'edit-channel' && ui.targetChannelForAction && (
+          <EditChannelModal
+            key="edit-channel"
+            channel={ui.targetChannelForAction}
+            categories={currentServer?.categories}
+            onClose={close}
+            onEdit={editChannel}
+            onDelete={deleteChannel}
+          />
+        )}
+        {modal === 'create-category' && currentServer && (
+          <CreateCategoryModal key="create-category" onClose={close} onCreate={createCategory} />
+        )}
+        {ui.incomingCaller && (
+          <IncomingCallModal key="incoming-call" caller={ui.incomingCaller} onAccept={acceptCall} onDecline={declineCall} />
+        )}
+      </AnimatePresence>
+    );
+  }
 
   return (
     <>
-      {deps.activeModal === 'create-server' && (
-        <CreateServerModal
-          onClose={() => deps.setActiveModal(null)}
-          onJoinExisting={() => deps.setActiveModal('join-server')}
-          onCreateServer={(data) => deps.handleCreateServer(data.name, data.icon)}
+      {modal === 'create-server' && (
+        <LegacyCreateServerModal
+          onClose={close}
+          onJoinExisting={() => ui.setActiveModal('join-server')}
+          onCreateServer={(data) => createServer(data.name, data.icon)}
         />
       )}
-
-      {deps.activeModal === 'join-server' && (
-        <JoinServerModal
-          onClose={() => {
-            deps.setActiveModal(null);
-            if (window.location.pathname.startsWith('/invite/')) {
-              window.history.replaceState({}, document.title, '/');
-            }
-          }}
-          onJoinServer={(inviteCode) => {
-            const rawCode = inviteCode.split('/').pop() || inviteCode;
-            joinServerViaInvite(rawCode).then(() => {
-              queryClient.invalidateQueries({ queryKey: ['servers'] });
-              deps.setActiveModal(null);
-              deps.showToast(`Te has unido con la invitación`, 'success');
-              if (window.location.pathname.startsWith('/invite/')) {
-                window.history.replaceState({}, document.title, '/');
-              }
-            }).catch(() => {
-              deps.showToast(`El código es inválido o expiró`, 'danger');
-              if (window.location.pathname.startsWith('/invite/')) {
-                window.history.replaceState({}, document.title, '/');
-              }
-            });
-          }}
+      {modal === 'join-server' && (
+        <LegacyJoinServerModal
+          onClose={closeJoin}
+          onJoinServer={(invite) =>
+            joinServer(invite).catch((err: Error) => {
+              clearInviteFromUrl();
+              ui.showToast(err.message, 'danger');
+            })
+          }
         />
       )}
-
-      {deps.activeModal === 'invite' && deps.currentServer && (
-        <InviteModal
-          server={deps.currentServer}
-          onClose={() => deps.setActiveModal(null)}
-        />
-      )}
-
-      {deps.activeModal === 'user-profile' && deps.selectedProfileUserId && deps.usersMap[deps.selectedProfileUserId] && (
-        <UserProfileModal
-          user={deps.usersMap[deps.selectedProfileUserId]}
-          currentUser={deps.currentUser}
-          onClose={() => {
-            deps.setActiveModal(null);
-            deps.setSelectedProfileUserId(null);
-          }}
+      {modal === 'invite' && currentServer && <LegacyInviteModal server={currentServer} onClose={close} />}
+      {modal === 'user-profile' && profileUser && (
+        <LegacyUserProfileModal
+          user={profileUser}
+          currentUser={currentUser}
+          onClose={closeProfile}
           onSendDM={() => {
-            deps.setActiveModal(null);
-            deps.setSelectedServerId('home');
-            deps.setAppView('home');
+            close();
+            ui.setSelectedServerId('home');
+            ui.setAppView('home');
           }}
           onEditProfile={() => {
-            deps.setActiveModal(null);
-            deps.setAppView('own-profile');
+            close();
+            ui.setAppView('own-profile');
           }}
         />
       )}
-
-      {deps.activeModal === 'confirm-action' && deps.confirmAction && (
-        <ConfirmDialog
-          action={deps.confirmAction}
-          targetName={deps.confirmTargetName}
-          targetDetail={deps.confirmTargetDetail}
-          onConfirm={async () => {
-            if (deps.confirmAction === 'delete-server' && deps.currentServer) {
-              try {
-                await deleteServer(deps.currentServer.id);
-              } catch (e) {
-                deps.showToast("Error al eliminar servidor", "danger");
-                return;
-              }
-              queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== deps.currentServer!.id));
-              deps.setSelectedServerId('home');
-              deps.setAppView('home');
-              deps.showToast(`Servidor "${deps.confirmTargetName}" eliminado`, 'danger');
-            } else if (deps.confirmAction === 'leave-server' && deps.currentServer) {
-              leaveServer(deps.currentServer.id).then(() => {
-                queryClient.setQueryData<Server[]>(['servers'], (prev = []) => prev.filter((s) => s.id !== deps.currentServer!.id));
-                deps.setSelectedServerId('home');
-                deps.setAppView('home');
-                deps.showToast(`Has abandonado "${deps.confirmTargetName}"`, 'info');
-              }).catch(() => {
-                deps.showToast(`Error al abandonar "${deps.confirmTargetName}"`, 'danger');
-              });
-            } else if (deps.confirmAction === 'switch-voice-channel') {
-              deps.onConfirmSwitchVoiceChannel?.();
-            } else {
-              deps.showToast('Acción confirmada', 'success');
-            }
-            deps.setActiveModal(null);
-            deps.setConfirmAction(null);
-          }}
-          onCancel={() => {
-            deps.setActiveModal(null);
-            deps.setConfirmAction(null);
-          }}
+      {modal === 'confirm-action' && ui.confirm.action && (
+        <LegacyConfirmDialog
+          action={ui.confirm.action}
+          targetName={ui.confirm.targetName}
+          targetDetail={ui.confirm.action === 'switch-voice-channel' ? ui.confirm.targetDetail : undefined}
+          onConfirm={confirm}
+          onCancel={closeConfirm}
         />
       )}
-
-      {deps.incomingCaller && (
-        <IncomingCallModal
-          caller={deps.incomingCaller}
-          channelName="Llamada directa"
-          onAccept={() => {
-            deps.setIncomingCaller(null);
-            deps.setInVoiceChannelId('dm-call');
-            deps.setAppView('voice');
-            deps.showToast(`Llamada con ${deps.incomingCaller!.displayName || deps.incomingCaller!.name} iniciada`, 'success');
-          }}
-          onDecline={() => {
-            deps.setIncomingCaller(null);
-            deps.showToast('Llamada rechazada', 'info');
-          }}
+      {ui.incomingCaller && (
+        <LegacyIncomingCallModal caller={ui.incomingCaller} channelName="Llamada directa" onAccept={acceptCall} onDecline={declineCall} />
+      )}
+      {modal === 'create-channel' && currentServer && (
+        <LegacyCreateChannelModal categoryId={ui.channelModalCategoryId || undefined} onClose={close} onCreate={createChannel} />
+      )}
+      {modal === 'edit-channel' && ui.targetChannelForAction && (
+        <LegacyEditChannelModal
+          channel={ui.targetChannelForAction}
+          categories={currentServer?.categories}
+          onClose={close}
+          onEdit={editChannel}
+          onDelete={deleteChannel}
         />
       )}
-
-      {deps.activeModal === 'create-channel' && deps.currentServer && (
-        <CreateChannelModal
-          categoryId={deps.channelModalCategoryId || undefined}
-          onClose={() => deps.setActiveModal(null)}
-          onCreate={async (name, type, catId) => {
-            await deps.createChannelMutation.mutateAsync({
-              serverId: deps.currentServer!.id,
-              payload: { name, type, parentId: catId }
-            });
-          }}
-        />
-      )}
-
-      {deps.activeModal === 'edit-channel' && deps.targetChannelForAction && (
-        <EditChannelModal
-          channel={deps.targetChannelForAction}
-          categories={deps.currentServer?.categories}
-          onClose={() => deps.setActiveModal(null)}
-          onEdit={async (id: string, changes: EditChannelRequest) => {
-            await deps.editChannelMutation.mutateAsync({
-              serverId: deps.currentServer!.id,
-              channelId: id,
-              payload: changes
-            });
-          }}
-          onDelete={async (id: string) => {
-            await deps.deleteChannelMutation.mutateAsync({
-              serverId: deps.currentServer!.id,
-              channelId: id
-            });
-            if (deps.targetChannelForAction && deps.targetChannelForAction.id === id) {
-              deps.setSelectedChannelId(deps.currentServer && deps.currentServer.channels && deps.currentServer.channels.length > 0 ? deps.currentServer.channels[0].id : null);
-            }
-          }}
-        />
-      )}
-
-      {deps.activeModal === 'create-category' && deps.currentServer && (
-        <CreateCategoryModal
-          onClose={() => deps.setActiveModal(null)}
-          onCreate={async (name: string) => {
-            await deps.createCategoryMutation.mutateAsync({
-              serverId: deps.currentServer!.id,
-              payload: { name }
-            });
-          }}
-        />
-      )}
+      {modal === 'create-category' && currentServer && <LegacyCreateCategoryModal onClose={close} onCreate={createCategory} />}
     </>
   );
-};
+}

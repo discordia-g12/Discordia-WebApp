@@ -1,8 +1,14 @@
 import { useState, type ReactNode } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   ActionLink,
   BlockButton,
+  Choice,
+  ConfirmDialog,
+  ConnectionBanner,
+  Modal,
+  ModalActions,
+  ModalForm,
   DisplayText,
   EmptyState,
   HairlineGrid,
@@ -86,6 +92,15 @@ export function Catalog() {
           <EmptyState title="por ahora todo está tranquilo" hint="cuando un amigo empiece una actividad aparecerá aquí." />
           <Skeleton lines={4} />
         </Section>
+        <Section title="Choice">
+          <ChoiceDemo />
+        </Section>
+        <Section title="Modal / ConfirmDialog">
+          <ModalDemo />
+        </Section>
+        <Section title="ConnectionBanner">
+          <BannerDemo />
+        </Section>
         <Section title="Movimiento">
           <MotionDemo />
         </Section>
@@ -160,13 +175,65 @@ function TabsDemo() {
   );
 }
 
+function ChoiceDemo() {
+  const [value, setValue] = useState('text');
+  return (
+    <Choice
+      label="Tipo de canal"
+      value={value}
+      onChange={setValue}
+      options={[
+        { value: 'text', label: 'Texto' },
+        { value: 'voice', label: 'Voz' },
+      ]}
+    />
+  );
+}
+
+function ModalDemo() {
+  const [open, setOpen] = useState<'form' | 'confirm' | null>(null);
+  const close = () => setOpen(null);
+  return (
+    <div>
+      <ActionLink onPress={() => setOpen('form')}>abrir modal</ActionLink>{' '}
+      <ActionLink onPress={() => setOpen('confirm')}>abrir confirmación</ActionLink>
+      <AnimatePresence>
+        {open === 'form' && (
+          <Modal key="form" title="Crear canal" description="en información" onClose={close}>
+            <ModalForm onSubmit={close}>
+              <UnderlineInput label="Nombre del canal" required placeholder="nuevo-canal" />
+              <ModalActions>
+                <ActionLink onPress={close}>cancelar</ActionLink>
+                <BlockButton type="submit">Crear</BlockButton>
+              </ModalActions>
+            </ModalForm>
+          </Modal>
+        )}
+        {open === 'confirm' && (
+          <ConfirmDialog key="confirm" action="delete-channel" targetName="general" onConfirm={close} onCancel={close} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function BannerDemo() {
+  const [active, setActive] = useState(false);
+  return (
+    <div>
+      <ActionLink onPress={() => setActive(!active)}>{active ? 'conectar' : 'cortar la conexión'}</ActionLink>
+      <ConnectionBanner active={active} />
+    </div>
+  );
+}
+
 function MotionDemo() {
   const [key, setKey] = useState(0);
   return (
     <div>
       <ActionLink onPress={() => setKey(key + 1)}>repetir</ActionLink>
       <div className={styles.motionRow} key={key}>
-        {(['fade', 'rise', 'sweep', 'curtain'] as MotionPreset[]).map((preset) => (
+        {(['fade', 'rise', 'toast', 'sweep', 'curtain'] as MotionPreset[]).map((preset) => (
           <MotionSample key={preset} preset={preset} />
         ))}
       </div>

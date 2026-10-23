@@ -10,8 +10,8 @@ import {
 } from 'lucide-react';
 import { User, Status } from '../../types';
 import { Avatar } from '../../ui/legacy/Avatar';
-import { UserMiniProfile } from './UserMiniProfile';
-import { StatusPicker } from './StatusPicker';
+import { LegacyUserMiniProfile as UserMiniProfile } from './legacy/LegacyUserMiniProfile';
+import { LegacyStatusPicker as StatusPicker } from './legacy/LegacyStatusPicker';
 import styles from './UserPanel.module.css';
 
 /**

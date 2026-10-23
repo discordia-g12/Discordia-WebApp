@@ -17,9 +17,9 @@ interface ToastProps {
  * quien lo muestra (AnimatePresence alrededor para la salida).
  */
 export function Toast({ message, tone = 'default', action }: ToastProps) {
-  const rise = useMotionPreset('rise');
+  const enter = useMotionPreset('toast');
   return (
-    <motion.div role={tone === 'error' ? 'alert' : 'status'} className={`${styles.toast} ${tone === 'error' ? styles.error : ''}`} {...rise}>
+    <motion.div role={tone === 'error' ? 'alert' : 'status'} className={`${styles.toast} ${tone === 'error' ? styles.error : ''}`} {...enter}>
       <span>{message}/</span>
       {action && (
         <ActionLink onPress={action.onPress} className={styles.action}>

@@ -1,9 +1,9 @@
 import { useState } from 'react';
+import { AnimatePresence } from 'motion/react';
 import { Headphones, HeadphoneOff, Mic, MicOff, PhoneOff, Settings, type LucideIcon } from 'lucide-react';
 import type { Status, User } from '../../types';
 import { SquareAvatar } from '../../ui';
-import { UserMiniProfile } from './UserMiniProfile';
-import { StatusPicker } from './StatusPicker';
+import { UserMenu } from './UserMenu';
 import styles from './UserBar.module.css';
 
 export interface UserBarProps {
@@ -16,6 +16,8 @@ export interface UserBarProps {
   isMuted: boolean;
   isDeafened: boolean;
   inVoiceChannel?: boolean;
+  /** Se cortó la conexión y la app está volviendo: el estado dice "reconectando/". */
+  reconnecting?: boolean;
   onToggleMute: () => void;
   onToggleDeafen: () => void;
   onOpenSettings: () => void;
@@ -23,8 +25,6 @@ export interface UserBarProps {
   onChangeStatus?: (status: Status) => void;
   onSaveCustomStatus?: (customStatus: string) => void;
   onEditProfile?: () => void;
-  onBuyPoints?: () => void;
-  onSubscribePremium?: () => void;
   onLogout?: () => void;
 }
 
@@ -36,16 +36,20 @@ const STATUS_LABEL: Record<Status, string> = {
   offline: 'Invisible',
 };
 
-/** Estado bajo el nombre, con barra final: "Invisible/", "En canal de voz/" o el estado personalizado. */
-export function userBarStatus(user: Pick<User, 'status' | 'customStatus'>, inVoiceChannel: boolean): string {
+/**
+ * Estado bajo el nombre, con barra final: "reconectando/" mientras vuelve la conexión, "En canal de voz/",
+ * el estado personalizado o la presencia ("Invisible/").
+ */
+export function userBarStatus(user: Pick<User, 'status' | 'customStatus'>, inVoiceChannel: boolean, reconnecting = false): string {
+  if (reconnecting) return 'reconectando/';
   if (inVoiceChannel) return 'En canal de voz/';
   return `${user.customStatus || STATUS_LABEL[user.status] || STATUS_LABEL.offline}/`;
 }
 
 /**
  * Barra de usuario del rediseño, al pie de la barra lateral (PDF, págs. 6 y 7): avatar cuadrado, nombre y
- * estado; a la derecha micrófono, audio y ajustes separados por líneas finas. El nombre abre el mini
- * perfil (estado, editar perfil, cerrar sesión).
+ * estado; a la derecha micrófono, audio y ajustes separados por líneas finas. El nombre abre el menú
+ * de usuario (estado, estado personalizado, editar perfil, ajustes, cerrar sesión).
  */
 export function UserBar({
   currentUser,
@@ -53,6 +57,7 @@ export function UserBar({
   isMuted,
   isDeafened,
   inVoiceChannel = false,
+  reconnecting = false,
   onToggleMute,
   onToggleDeafen,
   onOpenSettings,
@@ -60,28 +65,27 @@ export function UserBar({
   onChangeStatus,
   onSaveCustomStatus,
   onEditProfile,
-  onBuyPoints,
-  onSubscribePremium,
   onLogout,
 }: UserBarProps) {
-  const [showMiniProfile, setShowMiniProfile] = useState(false);
-  const [showStatusPicker, setShowStatusPicker] = useState(false);
-  // Los popovers del diseño anterior se anclan arriba de la barra, a la derecha del rail
-  const anchor = { bottom: 64, left: 76 };
+  const [showMenu, setShowMenu] = useState(false);
 
   return (
     <footer className={`${styles.bar} ${styles[tone]}`}>
       <button
         type="button"
         className={styles.identity}
-        onClick={() => setShowMiniProfile((v) => !v)}
-        aria-expanded={showMiniProfile}
+        onClick={() => setShowMenu((v) => !v)}
+        aria-expanded={showMenu}
+        aria-haspopup="dialog"
         title="Ver perfil y estado"
+        data-user-menu-toggle
       >
         <SquareAvatar user={currentUser} size={28} />
         <span className={styles.text}>
           <span className={styles.name}>{currentUser.displayName}</span>
-          <span className={styles.status}>{userBarStatus(currentUser, inVoiceChannel)}</span>
+          <span className={`${styles.status} ${reconnecting ? styles.reconnecting : ''}`}>
+            {userBarStatus(currentUser, inVoiceChannel, reconnecting)}
+          </span>
         </span>
       </button>
 
@@ -104,39 +108,19 @@ export function UserBar({
         <Control icon={Settings} label="Ajustes de usuario" onPress={onOpenSettings} />
       </div>
 
-      <UserMiniProfile
-        user={currentUser}
-        isOpen={showMiniProfile}
-        onClose={() => setShowMiniProfile(false)}
-        onEditProfile={onEditProfile}
-        onOpenSettings={onOpenSettings}
-        onLogout={onLogout}
-        onBuyPoints={onBuyPoints}
-        onSubscribePremium={onSubscribePremium}
-        onChangeStatus={onChangeStatus}
-        onOpenStatusPicker={() => {
-          setShowMiniProfile(false);
-          setShowStatusPicker(true);
-        }}
-        anchorPosition={anchor}
-      />
-
-      {showStatusPicker && (
-        <StatusPicker
-          currentStatus={currentUser.status}
-          currentCustomStatus={currentUser.customStatus}
-          onSelectStatus={(st) => {
-            onChangeStatus?.(st);
-            setShowStatusPicker(false);
-          }}
-          onSaveCustomStatus={(txt) => {
-            onSaveCustomStatus?.(txt);
-            setShowStatusPicker(false);
-          }}
-          onClose={() => setShowStatusPicker(false)}
-          position={anchor}
-        />
-      )}
+      <AnimatePresence>
+        {showMenu && (
+          <UserMenu
+            user={currentUser}
+            onClose={() => setShowMenu(false)}
+            onChangeStatus={onChangeStatus}
+            onSaveCustomStatus={onSaveCustomStatus}
+            onEditProfile={onEditProfile}
+            onOpenSettings={onOpenSettings}
+            onLogout={onLogout}
+          />
+        )}
+      </AnimatePresence>
     </footer>
   );
 }

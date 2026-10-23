@@ -1,195 +1,30 @@
-/* Estilos de ChannelModals: los valores fijos que antes estaban en línea. Los que dependen del estado
-   siguen en el componente (style). */
-
-.formErrorRoot {
-  color: var(--danger);
-  font-size: 14px;
-  margin-top: -8px;
-  margin-bottom: 16px;
-}
-
-.createChannelModalDiv {
-  background-color: var(--bg-primary);
-  width: 440px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.createChannelModalDivDiv {
-  padding: 24px;
-}
-
-.createChannelModalDivDivDiv {
+.field {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
-.crearCanal {
-  margin: 0px;
-  color: var(--header-primary);
-  font-size: 20px;
+/* Como la etiqueta de UnderlineInput */
+.label {
+  margin: 0;
+  font-size: var(--font-label-size);
+  line-height: var(--font-label-line-height);
+  font-weight: var(--font-label-weight);
 }
 
-.createChannelModalDivDivDivButton {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
+.hint {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
 }
 
-.createChannelModalDivDivDiv2 {
-  margin-bottom: 20px;
-}
-
-.tipoCanal {
-  display: block;
-  color: var(--text-muted);
-  font-size: 12px;
+.error {
+  margin: 0;
+  font-size: var(--font-body-small-size);
   font-weight: 700;
-  margin-bottom: 8px;
-  text-transform: uppercase;
 }
 
-.createChannelModalDivDivDiv2Div {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-bottom: 8px;
-}
-
-.texto {
-  color: var(--text-normal);
-  font-weight: 500;
-}
-
-.createChannelModalDivDivDiv2DivDiv {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.createChannelModalDivDivDiv2DivInput {
-  margin-left: auto;
-}
-
-.createChannelModalDivDivDiv2Div2 {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.createChannelModalDivDivDiv3 {
-  margin-bottom: 24px;
-}
-
-.createChannelModalDivDivDiv3Div {
-  position: relative;
-}
-
-.createChannelModalDivDivDiv3DivSpan {
-  position: absolute;
-  left: 12px;
-  top: 10px;
-  color: var(--text-muted);
-}
-
-.nuevoCanal {
-  width: 100%;
-  padding: 10px 12px 10px 36px;
-  border-radius: 4px;
-  border: none;
-  background-color: var(--bg-tertiary);
-  color: var(--text-normal);
-  font-size: 16px;
-  box-sizing: border-box;
-}
-
-.createChannelModalDivDiv2 {
-  padding: 16px;
-  background-color: var(--bg-secondary);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.cancelar {
-  background: none;
-  border: none;
-  color: var(--text-normal);
-  cursor: pointer;
-  padding: 10px 16px;
-  font-weight: 500;
-}
-
-.crearCanal2 {
-  background-color: var(--brand);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 10px 24px;
-  font-weight: 500;
-}
-
-.queSeHablaEste {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 4px;
-  border: none;
-  resize: vertical;
-  background-color: var(--bg-tertiary);
-  color: var(--text-normal);
-  font-size: 14px;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
-.createChannelModalDivDivDiv2Select {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 4px;
-  border: none;
-  background-color: var(--bg-tertiary);
-  color: var(--text-normal);
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-.createChannelModalDivDiv3 {
-  padding: 16px;
-  background-color: var(--bg-secondary);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.eliminarCanal {
-  background: none;
-  border: none;
-  color: var(--danger);
-  cursor: pointer;
-  padding: 10px 16px;
-  font-weight: 500;
-}
-
-.createChannelModalDivDiv3Div {
-  display: flex;
-  gap: 12px;
-}
-
-.nuevaCategoria {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 4px;
-  border: none;
-  background-color: var(--bg-tertiary);
-  color: var(--text-normal);
-  font-size: 16px;
-  box-sizing: border-box;
+/* Eliminar va a la izquierda, separado de cancelar y guardar */
+.deleteLink {
+  margin-right: auto;
 }

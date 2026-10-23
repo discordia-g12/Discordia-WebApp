@@ -4,13 +4,17 @@ import { useUsers } from './UsersProvider';
 import { MobileShell } from './MobileShell';
 import { ConnectionBanner } from '../ui/legacy/ConnectionBanner';
 import { ToastNotification } from '../ui/legacy/Toast';
-import { CreateServerModal } from '../features/servers/CreateServerModal';
-import { JoinServerModal } from '../features/servers/JoinServerModal';
+import { LegacyCreateServerModal as CreateServerModal } from '../features/servers/legacy/LegacyCreateServerModal';
+import { LegacyJoinServerModal as JoinServerModal } from '../features/servers/legacy/LegacyJoinServerModal';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
-import { useCreateServer } from '../features/servers/serverActions';
-import { UserProfileModal } from '../features/profile/UserProfileModal';
+import { clearInviteFromUrl, useCreateServer, useJoinServer } from '../features/servers/serverActions';
+import { LegacyUserProfileModal as UserProfileModal } from '../features/profile/legacy/LegacyUserProfileModal';
 import { useCurrentUser } from '../features/profile/currentUserStore';
-import { CreateChannelModal, EditChannelModal, CreateCategoryModal } from '../features/channels/ChannelModals';
+import {
+  LegacyCreateCategoryModal as CreateCategoryModal,
+  LegacyCreateChannelModal as CreateChannelModal,
+  LegacyEditChannelModal as EditChannelModal,
+} from '../features/channels/legacy/LegacyChannelModals';
 
 /** Pantallas menores a 768 px: el shell mobile y sus modales. */
 export function MobileLayout() {
@@ -19,6 +23,7 @@ export function MobileLayout() {
   const currentUser = useCurrentUser();
   const { usersMap } = useUsers();
   const handleCreateServer = useCreateServer();
+  const joinServer = useJoinServer();
   const createChannelMutation = useCreateChannelMutation();
   const editChannelMutation = useEditChannelMutation();
   const deleteChannelMutation = useDeleteChannelMutation();
@@ -44,11 +49,16 @@ export function MobileLayout() {
       )}
       {activeModal === 'join-server' && (
         <JoinServerModal
-          onClose={() => setActiveModal(null)}
-          onJoinServer={(code) => {
+          onClose={() => {
             setActiveModal(null);
-            ui.showToast(`Te has unido al servidor (${code})`, 'success');
+            clearInviteFromUrl();
           }}
+          onJoinServer={(invite) =>
+            joinServer(invite).catch((err: Error) => {
+              clearInviteFromUrl();
+              ui.showToast(err.message, 'danger');
+            })
+          }
         />
       )}
       {activeModal === 'user-profile' && selectedProfileUserId && usersMap[selectedProfileUserId] && (

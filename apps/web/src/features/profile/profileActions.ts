@@ -23,12 +23,14 @@ export function logoutWithToast() {
 export function useUserPanelActions() {
   const setAppView = useUIStore((s) => s.setAppView);
   const setStatus = useCurrentUserStore((s) => s.setStatus);
-  const setCustomStatus = useCurrentUserStore((s) => s.setCustomStatus);
+  const saveProfile = useCurrentUserStore((s) => s.saveProfile);
 
   return {
     onOpenSettings: () => setAppView('user-settings'),
+    // La presencia todavía no se guarda en el backend; el estado personalizado sí (va en el perfil)
     onChangeStatus: setStatus,
-    onSaveCustomStatus: setCustomStatus,
+    onSaveCustomStatus: (customStatus: string) =>
+      saveProfile({ ...useCurrentUserStore.getState().currentUser, customStatus }),
     onEditProfile: () => setAppView('own-profile'),
     onBuyPoints: () => setAppView('user-settings'),
     onSubscribePremium: () => setAppView('user-settings'),

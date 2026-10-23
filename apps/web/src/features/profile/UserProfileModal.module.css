@@ -1,261 +1,82 @@
-/* Estilos de UserProfileModal: los valores fijos que antes estaban en línea. Los que dependen del estado
-   siguen en el componente (style). */
-
-.div {
+/* Banner como franja y el avatar cuadrado encima, como la vista previa de Mi perfil */
+.card {
   position: relative;
-  overflow: hidden;
+  padding-bottom: var(--space-3);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
 }
 
-.bannerCabecera {
-  height: 120px;
-  width: 100%;
+.banner {
+  height: var(--space-8);
+  background-color: var(--color-line);
   background-size: cover;
   background-position: center;
-  position: relative;
+  border-bottom: 3px solid var(--color-inverse-background);
 }
 
-.contenedorAvatarBadges {
-  padding: 0 20px;
-  position: relative;
+.avatar {
+  margin-top: calc(-1 * var(--space-7));
+  padding-left: var(--space-4);
 }
 
-.contenedorAvatarBadgesDiv {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-top: -42px;
-  margin-bottom: 12px;
+.status {
+  margin: var(--space-2) 0 0 var(--space-4);
+  font-size: var(--font-body-small-size);
 }
 
-.avatarAnilloPresencia {
-  position: relative;
-}
-
-.avatarAnilloPresenciaDiv {
-  width: 80px;
-  height: 80px;
-  border-radius: var(--radius-full);
-  border: 6px solid var(--bg-primary);
-  background-color: var(--bg-secondary);
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-}
-
-.avatarAnilloPresenciaDivImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.anilloPuntoPresencia {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  border: 3px solid var(--bg-primary);
-}
-
-.badgesUsuario {
-  display: flex;
-  gap: 6px;
-  background-color: var(--bg-secondary);
-  padding: 4px 8px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.suscriptorNitro {
-  color: var(--legacy-boost-pink-light);
-  display: flex;
-  align-items: center;
-}
-
-.serverBooster {
-  color: var(--legacy-boost-pink);
-  display: flex;
-  align-items: center;
-}
-
-.staffOficialDiscordia {
-  color: var(--brand);
-  display: flex;
-  align-items: center;
-}
-
-.contenedorAvatarBadgesDiv2 {
-  background-color: rgba(218, 55, 60, 0.15);
-  border: 1px solid var(--danger);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-danger);
-}
-
-.contenedorAvatarBadgesDiv2Div {
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.nombreUsernameBio {
-  margin-bottom: 14px;
-}
-
-.nombreUsernameBioH3 {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--header-primary);
-}
-
-.nombreUsernameBioDiv {
-  font-size: 13px;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.nombreUsernameBioDiv2 {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--interactive-hover);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.accionesPrincipales {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.pestanasNavegacion {
-  display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  margin-bottom: 14px;
-}
-
-.sobreMi {
-  padding: 8px 16px;
-  background: none;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.pestanasNavegacionButton {
-  padding: 8px 16px;
-  background: none;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pestanasNavegacionButtonSpan {
-  background-color: var(--bg-tertiary);
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 11px;
-}
-
-.contenidoPestanaActiva {
-  padding-bottom: 20px;
-}
-
-.contenidoPestanaActivaDiv {
+.section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-1);
 }
 
-.bioP {
-  font-size: 13px;
-  color: var(--text-normal);
-  line-height: 1.5;
-  white-space: pre-wrap;
+.section p {
+  margin: 0;
 }
 
-.fechaRegistroSpan {
-  font-size: 13px;
-  color: var(--text-muted);
+.label {
+  margin: 0;
+  font-size: var(--font-label-size);
+  font-weight: 700;
+  letter-spacing: var(--font-label-letter-spacing);
+  text-transform: uppercase;
 }
 
-.contenidoPestanaActivaDivDiv {
+.empty {
+  font-size: var(--font-body-small-size);
+  color: var(--color-text-muted);
+}
+
+/* El color del rol en un cuadrado chico, nunca como color de texto */
+.roles {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-body-small-size);
 }
 
-.contenidoPestanaActivaDivDivDiv {
+.roles li {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  color: var(--header-primary);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: var(--space-2);
 }
 
-.contenidoPestanaActivaDivDivDivSpan {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full);
+.roleColor {
+  width: 10px;
+  height: 10px;
 }
 
-.contenidoPestanaActivaDiv2 {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 200px;
-  overflow-y: auto;
+.soon {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
 }
 
-.contenidoPestanaActivaDiv2Div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-md);
-}
-
-.contenidoPestanaActivaDiv2DivDiv {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.contenidoPestanaActivaDiv2DivDivImg {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  object-fit: cover;
-}
-
-.contenidoPestanaActivaDiv2DivDivDiv {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--header-primary);
-}
-
-.contenidoPestanaActivaDiv2DivDivDiv2 {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.contenidoPestanaActivaDiv2Div2 {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 20px 0;
-  font-size: 13px;
+.soonTag {
+  padding: 0 var(--space-1);
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+  border: var(--line-hairline) solid var(--color-line-strong);
 }

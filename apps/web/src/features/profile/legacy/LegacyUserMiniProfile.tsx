@@ -9,9 +9,9 @@ import {
   Check,
   Gem,
 } from 'lucide-react';
-import { User, Status } from '../../types';
-import { Avatar } from '../../ui/legacy/Avatar';
-import styles from './UserMiniProfile.module.css';
+import { User, Status } from '../../../types';
+import { Avatar } from '../../../ui/legacy/Avatar';
+import styles from './LegacyUserMiniProfile.module.css';
 
 /**
  * Propiedades del componente emergente UserMiniProfile.
@@ -54,7 +54,7 @@ const STATUS_QUICK_OPTIONS: Array<{ id: Status; label: string; color: string }> 
  * Muestra banner, avatar con anillo, custom status, saldo de puntos, tarjeta Premium,
  * selector de presencia rápido y atajos de configuración/logout.
  */
-export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
+export const LegacyUserMiniProfile: React.FC<UserMiniProfileProps> = ({
   user,
   isOpen,
   onClose,
@@ -435,4 +435,4 @@ export const UserMiniProfile: React.FC<UserMiniProfileProps> = ({
   );
 };
 
-export default UserMiniProfile;
+export default LegacyUserMiniProfile;

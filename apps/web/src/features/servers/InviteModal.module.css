@@ -1,70 +1,52 @@
-/* Estilos de InviteModal: los valores fijos que antes estaban en línea. Los que dependen del estado
-   siguen en el componente (style). */
-
-.div {
-  position: relative;
+/* Como la etiqueta de UnderlineInput */
+.label {
+  margin: 0;
+  font-size: var(--font-label-size);
+  line-height: var(--font-label-line-height);
+  font-weight: var(--font-label-weight);
 }
 
-.general {
-  color: var(--header-primary);
-}
-
-.enlaceGeneradoBotonCopiarDiv {
-  display: flex;
-  gap: 8px;
-}
-
-.enlaceGeneradoBotonCopiarSpan {
-  display: block;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.selectoresExpiracionLimites {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.listaRapidaAmigosInvitarDiv {
+.link,
+.option {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 140px;
-  overflow-y: auto;
-  padding-right: 4px;
+  gap: var(--space-2);
 }
 
-.listaRapidaAmigosInvitarDivDiv {
+/* El enlace entre dos líneas, como un campo subrayado, con _copiar a la derecha */
+.field {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
-  background-color: var(--bg-secondary);
+  align-items: baseline;
+  gap: var(--space-4);
+  border-top: var(--line-hairline) solid var(--color-line-strong);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
-.listaRapidaAmigosInvitarDivDivDiv {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.field input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) 0;
+  font-family: inherit;
+  font-size: var(--font-body-size);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  outline: none;
 }
 
-.listaRapidaAmigosInvitarDivDivDivImg {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-full);
-  object-fit: cover;
+.field:focus-within {
+  border-bottom-width: var(--line-focus);
 }
 
-.listaRapidaAmigosInvitarDivDivDivDiv {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--header-primary);
+/* Enlace generado con otras opciones: atenuado hasta generar uno nuevo */
+.stale {
+  opacity: 0.5;
 }
 
-.listaRapidaAmigosInvitarDivDivDivDiv2 {
-  font-size: 11px;
-  color: var(--text-muted);
+.status {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
 }

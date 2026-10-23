@@ -34,11 +34,14 @@ export function useMessageActions() {
   const sendMessage = async (content: string, attachment?: MessageAttachment, replyToId?: string) => {
     if (!isHome) {
       if (!selectedChannelId) return;
-      try {
-        await sendMessageWs(content);
-      } catch (err) {
-        showToast('Error al enviar el mensaje por WebSocket', 'danger');
-      }
+      const send = async () => {
+        try {
+          await sendMessageWs(content);
+        } catch (err) {
+          showToast('No se pudo enviar el mensaje', 'danger', { label: 'reintentar', onPress: send });
+        }
+      };
+      await send();
       return;
     }
 

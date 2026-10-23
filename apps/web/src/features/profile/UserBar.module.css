@@ -107,3 +107,20 @@
 .ink :focus-visible {
   outline-color: var(--color-inverse-text);
 }
+
+/* Mientras vuelve la conexión, el estado late (con movimiento reducido queda quieto) */
+.reconnecting {
+  animation: pulse 1.2s var(--motion-ease-standard) infinite alternate;
+}
+
+@keyframes pulse {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reconnecting {
+    animation: none;
+  }
+}

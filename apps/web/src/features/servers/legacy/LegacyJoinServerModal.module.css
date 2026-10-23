@@ -1,0 +1,78 @@
+/* Estilos de JoinServerModal: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.div {
+  position: relative;
+}
+
+.span {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.div2 {
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.previaServidor {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.div3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.img {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+
+.div4 {
+  flex: 1;
+  min-width: 0px;
+}
+
+.div5 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.span2 {
+  font-weight: 700;
+  color: var(--header-primary);
+  font-size: 15px;
+}
+
+.div6 {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.div7 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.span3 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+}

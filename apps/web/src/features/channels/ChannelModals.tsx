@@ -1,16 +1,43 @@
-import React, { useState } from 'react';
-import { ModalOverlay } from '../../ui/legacy/ModalOverlay';
-import { Hash, Volume2, X } from 'lucide-react';
-import { Channel, Category } from '../../types';
-import { errorMessageFor, isLocalCategoryId, EditChannelRequest } from '@discordia/core';
+import { useState } from 'react';
+import { isLocalCategoryId, type EditChannelRequest } from '@discordia/core';
+import type { Category, Channel } from '../../types';
+import { ActionLink, BlockButton, Choice, Modal, ModalActions, ModalForm, UnderlineInput } from '../../ui';
+import { createCategoryError, createChannelError, deleteChannelError, editChannelError } from './channelErrors';
 import styles from './ChannelModals.module.css';
 
-const FormError: React.FC<{ message: string | null }> = ({ message }) =>
-  message ? (
-    <div role="alert" className={styles.formErrorRoot}>
-      {message}
-    </div>
+const CHANNEL_TYPES = [
+  { value: 'text' as const, label: 'Texto' },
+  { value: 'voice' as const, label: 'Voz' },
+];
+
+/** Error que no es de un campo (permisos, servidor): sobre las acciones, con barra inicial. */
+function FormError({ message }: { message: string | null }) {
+  return message ? (
+    <p role="alert" className={styles.error}>
+      / {message}
+    </p>
   ) : null;
+}
+
+/** Envío de un formulario de modal: estado de carga y el error del backend, ya traducido. */
+function useSubmit(toMessage: (err: unknown) => string) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      console.error(err);
+      setError(toMessage(err));
+      setBusy(false);
+    }
+  };
+
+  return { busy, error, run };
+}
 
 interface CreateChannelModalProps {
   onClose: () => void;
@@ -18,115 +45,50 @@ interface CreateChannelModalProps {
   categoryId?: string;
 }
 
-export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
-  onClose,
-  onCreate,
-  categoryId,
-}) => {
+/** Crear canal (rediseño): tipo como palabras (texto / voz) y el nombre. */
+export function CreateChannelModal({ onClose, onCreate, categoryId }: CreateChannelModalProps) {
   const [name, setName] = useState('');
   const [type, setType] = useState<'text' | 'voice'>('text');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, run } = useSubmit(createChannelError);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await onCreate(name, type, categoryId);
+  const submit = () => {
+    if (!name.trim() || busy) return;
+    run(async () => {
+      await onCreate(name.trim(), type, categoryId);
       onClose();
-    } catch (err) {
-      console.error(err);
-      setError(
-        errorMessageFor(
-          err,
-          {
-            400: 'Ya existe un canal con ese nombre en esta categoría.',
-            403: 'No tenés permisos para crear canales en este servidor.',
-            404: 'La categoría ya no existe.',
-          },
-          'No se pudo crear el canal.'
-        )
-      );
-      setIsSubmitting(false);
-    }
+    });
   };
 
   return (
-    <ModalOverlay onClose={onClose}>
-      <div className={styles.createChannelModalDiv} onClick={e => e.stopPropagation()}>
-        <div className={styles.createChannelModalDivDiv}>
-          <div className={styles.createChannelModalDivDivDiv}>
-            <h2 className={styles.crearCanal}>Crear canal</h2>
-            <button onClick={onClose} className={styles.createChannelModalDivDivDivButton}>
-              <X size={20} />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit}>
-            <div className={styles.createChannelModalDivDivDiv2}>
-              <label className={styles.tipoCanal}>Tipo de canal</label>
-              
-              <div
-                onClick={() => setType('text')}
-                className={styles.createChannelModalDivDivDiv2Div} style={{ backgroundColor: type === 'text' ? 'var(--bg-modifier-selected)' : 'var(--bg-secondary)' }}
-              >
-                <Hash size={24} color="var(--text-muted)" />
-                <div>
-                  <div className={styles.texto}>Texto</div>
-                  <div className={styles.createChannelModalDivDivDiv2DivDiv}>Envía mensajes, imágenes, GIFs, emojis y más</div>
-                </div>
-                <input type="radio" checked={type === 'text'} readOnly className={styles.createChannelModalDivDivDiv2DivInput} />
-              </div>
-              
-              <div
-                onClick={() => setType('voice')}
-                className={styles.createChannelModalDivDivDiv2Div2} style={{ backgroundColor: type === 'voice' ? 'var(--bg-modifier-selected)' : 'var(--bg-secondary)' }}
-              >
-                <Volume2 size={24} color="var(--text-muted)" />
-                <div>
-                  <div className={styles.texto}>Voz</div>
-                  <div className={styles.createChannelModalDivDivDiv2DivDiv}>Reúnanse con voz y video</div>
-                </div>
-                <input type="radio" checked={type === 'voice'} readOnly className={styles.createChannelModalDivDivDiv2DivInput} />
-              </div>
-            </div>
-
-            <div className={styles.createChannelModalDivDivDiv3}>
-              <label className={styles.tipoCanal}>Nombre del canal</label>
-              <div className={styles.createChannelModalDivDivDiv3Div}>
-                <span className={styles.createChannelModalDivDivDiv3DivSpan}>
-                  {type === 'text' ? <Hash size={18} /> : <Volume2 size={18} />}
-                </span>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="nuevo-canal"
-                  className={styles.nuevoCanal}
-                  autoFocus
-                />
-              </div>
-            </div>
-            <FormError message={error} />
-          </form>
+    <Modal title="Crear canal" onClose={onClose}>
+      <ModalForm onSubmit={submit}>
+        <div className={styles.field}>
+          <p className={styles.label}>Tipo</p>
+          <Choice label="Tipo de canal" options={CHANNEL_TYPES} value={type} onChange={setType} />
+          <p className={styles.hint}>
+            / {type === 'text' ? 'Mensajes, imágenes y archivos.' : 'Llamadas de voz con los que estén conectados.'}
+          </p>
         </div>
-        
-        <div className={styles.createChannelModalDivDiv2}>
-          <button onClick={onClose} className={styles.cancelar}>Cancelar</button>
-          <button 
-            onClick={handleSubmit} 
-            disabled={!name.trim() || isSubmitting}
-            className={styles.crearCanal2} style={{ cursor: (!name.trim() || isSubmitting) ? 'not-allowed' : 'pointer', opacity: (!name.trim() || isSubmitting) ? 0.5 : 1 }}
-          >
-            Crear canal
-          </button>
-        </div>
-      </div>
-    </ModalOverlay>
+        <UnderlineInput
+          label="Nombre del canal"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="nuevo-canal"
+          maxLength={100}
+          autoFocus
+        />
+        <FormError message={error} />
+        <ModalActions>
+          <ActionLink onPress={onClose}>cancelar</ActionLink>
+          <BlockButton type="submit" disabled={!name.trim()} loading={busy}>
+            Crear
+          </BlockButton>
+        </ModalActions>
+      </ModalForm>
+    </Modal>
   );
-};
+}
 
 interface EditChannelModalProps {
   channel: Channel;
@@ -136,222 +98,127 @@ interface EditChannelModalProps {
   onDelete: (channelId: string) => Promise<void>;
 }
 
-export const EditChannelModal: React.FC<EditChannelModalProps> = ({
-  channel,
-  categories,
-  onClose,
-  onEdit,
-  onDelete,
-}) => {
+/**
+ * Editar canal (rediseño): nombre, tema y categoría. Eliminar pide confirmación adentro del mismo modal
+ * (el título pasa a ¿ELIMINAR CANAL?), sin el confirm del navegador.
+ */
+export function EditChannelModal({ channel, categories, onClose, onEdit, onDelete }: EditChannelModalProps) {
   const [name, setName] = useState(channel.name);
   const [topic, setTopic] = useState(channel.topic || '');
-  const [categoryId, setCategoryId] = useState<string | null>(channel.categoryId || null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await onEdit(channel.id, { name: name.trim(), topic: topic.trim(), categoryId });
-      onClose();
-    } catch (err) {
-      console.error(err);
-      setError(
-        errorMessageFor(
-          err,
-          {
-            400: 'Ya existe un canal con ese nombre en la categoría elegida.',
-            403: 'No tenés permisos para editar o mover canales en este servidor.',
-            404: 'La categoría elegida ya no existe.',
-          },
-          'No se pudieron guardar los cambios.'
-        )
-      );
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este canal?')) return;
-    setError(null);
-    try {
-      await onDelete(channel.id);
-      onClose();
-    } catch (err) {
-      console.error(err);
-      setError(
-        errorMessageFor(
-          err,
-          { 403: 'No tenés permisos para eliminar canales en este servidor.' },
-          'No se pudo eliminar el canal.'
-        )
-      );
-    }
-  };
+  const [categoryId, setCategoryId] = useState(channel.categoryId || '');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const save = useSubmit(editChannelError);
+  const remove = useSubmit(deleteChannelError);
 
   // Solo categorías reales: la sección general es local y equivale a "sin categoría"
-  const selectableCategories = (categories || []).filter((c) => !isLocalCategoryId(c.id));
+  const categoryOptions = [
+    { value: '', label: 'sin categoría' },
+    ...(categories || []).filter((c) => !isLocalCategoryId(c.id)).map((c) => ({ value: c.id, label: c.name })),
+  ];
+
+  const submit = () => {
+    if (!name.trim() || save.busy) return;
+    save.run(async () => {
+      await onEdit(channel.id, { name: name.trim(), topic: topic.trim(), categoryId: categoryId || null });
+      onClose();
+    });
+  };
+
+  if (confirmingDelete) {
+    return (
+      <Modal title="¿Eliminar canal?" role="alertdialog" onClose={onClose}>
+        <p>Se borra •{channel.name} con todos sus mensajes. No se puede deshacer.</p>
+        <FormError message={remove.error} />
+        <ModalActions>
+          {/* El foco pasa a volver (no a eliminar: un Enter de más no tiene que borrar el canal) */}
+          <ActionLink onPress={() => setConfirmingDelete(false)} autoFocus>
+            volver
+          </ActionLink>
+          <BlockButton
+            tone="danger"
+            loading={remove.busy}
+            onPress={() =>
+              remove.run(async () => {
+                await onDelete(channel.id);
+                onClose();
+              })
+            }
+          >
+            Eliminar
+          </BlockButton>
+        </ModalActions>
+      </Modal>
+    );
+  }
 
   return (
-    <ModalOverlay onClose={onClose}>
-      <div className={styles.createChannelModalDiv} onClick={e => e.stopPropagation()}>
-        <div className={styles.createChannelModalDivDiv}>
-          <div className={styles.createChannelModalDivDivDiv}>
-            <h2 className={styles.crearCanal}>Editar canal</h2>
-            <button onClick={onClose} className={styles.createChannelModalDivDivDivButton}>
-              <X size={20} />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit}>
-            <div className={styles.createChannelModalDivDivDiv2}>
-              <label className={styles.tipoCanal}>Nombre del canal</label>
-              <div className={styles.createChannelModalDivDivDiv3Div}>
-                <span className={styles.createChannelModalDivDivDiv3DivSpan}>
-                  {channel.type === 'text' ? <Hash size={18} /> : <Volume2 size={18} />}
-                </span>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className={styles.nuevoCanal}
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            <div className={styles.createChannelModalDivDivDiv2}>
-              <label className={styles.tipoCanal}>Tema del canal (opcional)</label>
-              <textarea
-                value={topic}
-                onChange={e => setTopic(e.target.value)}
-                placeholder="¿De qué se habla en este canal?"
-                maxLength={1024}
-                rows={3}
-                className={styles.queSeHablaEste}
-              />
-            </div>
-
-            <div className={styles.createChannelModalDivDivDiv2}>
-              <label className={styles.tipoCanal}>Categoría</label>
-              <select
-                value={categoryId || ''}
-                onChange={e => setCategoryId(e.target.value ? e.target.value : null)}
-                className={styles.createChannelModalDivDivDiv2Select}
-              >
-                <option value="">(Sin categoría / Sección general)</option>
-                {selectableCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            </div>
-            <FormError message={error} />
-          </form>
+    <Modal title="Editar canal" description={`•${channel.name}`} onClose={onClose}>
+      <ModalForm onSubmit={submit}>
+        <UnderlineInput label="Nombre del canal" required value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus />
+        <UnderlineInput
+          label="Tema"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          placeholder="¿De qué se habla en este canal?"
+          maxLength={1024}
+        />
+        <div className={styles.field}>
+          <p className={styles.label}>Categoría</p>
+          <Choice label="Categoría" options={categoryOptions} value={categoryId} onChange={setCategoryId} />
         </div>
-        
-        <div className={styles.createChannelModalDivDiv3}>
-          <button 
-            onClick={handleDelete}
-            className={styles.eliminarCanal}
-          >
-            Eliminar canal
-          </button>
-          <div className={styles.createChannelModalDivDiv3Div}>
-          <button onClick={onClose} className={styles.cancelar}>Cancelar</button>
-          <button 
-            onClick={handleSubmit} 
-            disabled={!name.trim() || isSubmitting}
-            className={styles.crearCanal2} style={{ cursor: (!name.trim() || isSubmitting) ? 'not-allowed' : 'pointer', opacity: (!name.trim() || isSubmitting) ? 0.5 : 1 }}
-          >
-            Guardar cambios
-          </button>
-          </div>
-        </div>
-      </div>
-    </ModalOverlay>
+        <FormError message={save.error} />
+        <ModalActions>
+          <ActionLink onPress={() => setConfirmingDelete(true)} className={styles.deleteLink}>
+            eliminar canal
+          </ActionLink>
+          <ActionLink onPress={onClose}>cancelar</ActionLink>
+          <BlockButton type="submit" disabled={!name.trim()} loading={save.busy}>
+            Guardar
+          </BlockButton>
+        </ModalActions>
+      </ModalForm>
+    </Modal>
   );
-};
+}
 
 interface CreateCategoryModalProps {
   onClose: () => void;
   onCreate: (name: string) => Promise<void>;
 }
 
-export const CreateCategoryModal: React.FC<CreateCategoryModalProps> = ({
-  onClose,
-  onCreate,
-}) => {
+/** Crear categoría (rediseño): solo el nombre. */
+export function CreateCategoryModal({ onClose, onCreate }: CreateCategoryModalProps) {
   const [name, setName] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, error, run } = useSubmit(createCategoryError);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setIsSubmitting(true);
-    setError(null);
-    try {
+  const submit = () => {
+    if (!name.trim() || busy) return;
+    run(async () => {
       await onCreate(name.trim());
       onClose();
-    } catch (err) {
-      console.error(err);
-      setError(
-        errorMessageFor(
-          err,
-          {
-            400: 'Ya existe una categoría con ese nombre.',
-            403: 'No tenés permisos para crear categorías en este servidor.',
-            422: 'El nombre de la categoría no es válido.',
-          },
-          'No se pudo crear la categoría.'
-        )
-      );
-      setIsSubmitting(false);
-    }
+    });
   };
 
   return (
-    <ModalOverlay onClose={onClose}>
-      <div className={styles.createChannelModalDiv} onClick={e => e.stopPropagation()}>
-        <div className={styles.createChannelModalDivDiv}>
-          <div className={styles.createChannelModalDivDivDiv}>
-            <h2 className={styles.crearCanal}>Crear categoría</h2>
-            <button onClick={onClose} className={styles.createChannelModalDivDivDivButton}>
-              <X size={20} />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit}>
-            <div className={styles.createChannelModalDivDivDiv3}>
-              <label className={styles.tipoCanal}>Nombre de la categoría</label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="NUEVA CATEGORÍA"
-                maxLength={100}
-                className={styles.nuevaCategoria}
-                autoFocus
-              />
-            </div>
-            <FormError message={error} />
-          </form>
-        </div>
-        
-        <div className={styles.createChannelModalDivDiv2}>
-          <button onClick={onClose} className={styles.cancelar}>Cancelar</button>
-          <button 
-            onClick={handleSubmit} 
-            disabled={!name.trim() || isSubmitting}
-            className={styles.crearCanal2} style={{ cursor: (!name.trim() || isSubmitting) ? 'not-allowed' : 'pointer', opacity: (!name.trim() || isSubmitting) ? 0.5 : 1 }}
-          >
-            Crear categoría
-          </button>
-        </div>
-      </div>
-    </ModalOverlay>
+    <Modal title="Crear categoría" onClose={onClose}>
+      <ModalForm onSubmit={submit}>
+        <UnderlineInput
+          label="Nombre de la categoría"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="nueva categoría"
+          maxLength={100}
+          autoFocus
+        />
+        <FormError message={error} />
+        <ModalActions>
+          <ActionLink onPress={onClose}>cancelar</ActionLink>
+          <BlockButton type="submit" disabled={!name.trim()} loading={busy}>
+            Crear
+          </BlockButton>
+        </ModalActions>
+      </ModalForm>
+    </Modal>
   );
-};
+}

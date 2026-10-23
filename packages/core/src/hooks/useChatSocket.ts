@@ -17,6 +17,8 @@ export interface UseChatSocketOptions {
 export interface UseChatSocketResult {
   isConnected: boolean;
   isConnecting: boolean;
+  /** Estuvo conectado, se cortó y está volviendo: la interfaz muestra "reconectando". */
+  isReconnecting: boolean;
   /** Envía un mensaje; rechaza si no hay conexión (espera si está conectando). */
   sendMessage: (content: string) => Promise<void>;
   /** Reconecta ya, sin esperar el backoff. */
@@ -80,7 +82,8 @@ export function useChatSocket({
 
   return {
     isConnected: status === 'open',
-    isConnecting: status === 'connecting',
+    isConnecting: status === 'connecting' || status === 'reconnecting',
+    isReconnecting: status === 'reconnecting',
     sendMessage,
     reconnect,
   };
@@ -94,7 +97,7 @@ export function useChatSocket({
 export function useChatWebSocket(channelId: string | null, userId: string) {
   const queryClient = useQueryClient();
 
-  const { sendMessage, isConnected } = useChatSocket({
+  const { sendMessage, isConnected, isReconnecting } = useChatSocket({
     channelId,
     userId,
     onMessage: (data) => {
@@ -115,5 +118,5 @@ export function useChatWebSocket(channelId: string | null, userId: string) {
     },
   });
 
-  return { sendMessageWs: sendMessage, isConnected };
+  return { sendMessageWs: sendMessage, isConnected, isReconnecting };
 }

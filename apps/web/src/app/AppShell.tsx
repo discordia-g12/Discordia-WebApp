@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useUIStore } from './uiStore';
 import { GlobalModals } from './GlobalModals';
-import { ToastNotification } from '../ui/legacy/Toast';
-import { DisplayText } from '../ui';
+import { ConnectionBanner, DisplayText } from '../ui';
+import { ToastHost } from './ToastHost';
+import { useIsReconnecting } from './useConnectionStatus';
 import { ServerRailPanel } from '../features/servers/ServerRailPanel';
 import { MemberListPanel } from '../features/servers/MemberListPanel';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
@@ -45,13 +46,13 @@ export function AppShell() {
   const appView = useUIStore((s) => s.appView);
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
-  const toast = useUIStore((s) => s.toast);
   const { word, tone } = useShellContext();
+  const reconnecting = useIsReconnecting();
   // La barra de mensajes directos del inicio se monta acá por portal (ver HomeView)
   const [sidebarSlot, setSidebarSlot] = useState<HTMLDivElement | null>(null);
   const isHome = selectedServerId === 'home';
 
-  // Modales y avisos van fuera de la grilla: la grilla aísla su apilado (isolation) y los ajustes se montan
+  // Modales, avisos y el banner de conexión van fuera de la grilla: la grilla aísla su apilado (isolation) y los ajustes se montan
   // encima de ella, así los modales que se abren desde los ajustes (invitar, eliminar) quedan arriba de todo.
   return (
     <>
@@ -86,7 +87,8 @@ export function AppShell() {
       </div>
 
       <GlobalModals />
-      {toast && <ToastNotification message={toast.message} type={toast.type} />}
+      <ToastHost />
+      <ConnectionBanner active={reconnecting} />
     </>
   );
 }

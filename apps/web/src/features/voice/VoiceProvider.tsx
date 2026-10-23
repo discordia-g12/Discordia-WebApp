@@ -77,11 +77,12 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       // Salir de la vista de voz solo si el usuario sigue mirando este canal
       const nav = useUIStore.getState();
       if (nav.appView === 'voice' && nav.selectedChannelId === channelId) exitVoiceView();
-      const message =
-        err instanceof ApiError && err.status === 403
-          ? 'No tenés permiso para entrar a este canal de voz'
-          : 'No se pudo conectar al canal de voz';
-      showToast(message, 'danger');
+      // Sin permiso, reintentar no sirve; un error de red o del servidor, sí
+      if (err instanceof ApiError && err.status === 403) {
+        showToast('No tenés permiso para entrar a este canal de voz', 'danger');
+      } else {
+        showToast('No se pudo conectar al canal de voz', 'danger', { label: 'reintentar', onPress: () => join(channelId) });
+      }
     }
   };
 

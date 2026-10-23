@@ -1,154 +1,83 @@
-//import { Server } from "../../types";
-import React, { useState, useEffect } from 'react';
-import { getInvitePreview } from '@discordia/core';
-import { X } from 'lucide-react';
-
-import { ModalOverlay } from '../../ui/legacy/ModalOverlay';
+import { useState } from 'react';
+import { ActionLink, BlockButton, Modal, ModalActions, ModalForm, UnderlineInput } from '../../ui';
+import { useInvitePreview } from './serverActions';
 import styles from './JoinServerModal.module.css';
 
 export interface JoinServerModalProps {
-  isOpen?: boolean;
   onClose: () => void;
-  onJoinServer?: (inviteCode: string) => void;
+  /** Se une con la invitación; si falla, rechaza con el mensaje para mostrar en el campo. */
+  onJoinServer: (invite: string) => Promise<void>;
+}
+
+/** Invitación que vino en la URL (/invite/<código>), para no tener que pegarla. */
+function inviteFromUrl(): string {
+  const path = window.location.pathname;
+  return path.startsWith('/invite/') ? window.location.origin + path : '';
 }
 
 /**
- * Modal para introducir un enlace de invitación con vista previa en tiempo real.
+ * Unirse a un servidor (rediseño): el enlace o el código en un campo subrayado y, mientras se escribe,
+ * la vista previa del servidor. Si la invitación no sirve, el error queda en el campo y el modal sigue
+ * abierto.
  */
-export const JoinServerModal: React.FC<JoinServerModalProps> = ({
-  isOpen = true,
-  onClose,
-  onJoinServer,
-}) => {
-  const [inviteUrl, setInviteUrl] = useState(() => {
-    const path = window.location.pathname;
-    if (path.startsWith('/invite/')) {
-      return window.location.origin + path;
+export function JoinServerModal({ onClose, onJoinServer }: JoinServerModalProps) {
+  const [invite, setInvite] = useState(inviteFromUrl);
+  const [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const preview = useInvitePreview(invite);
+
+  const submit = async () => {
+    if (!invite.trim() || busy) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      await onJoinServer(invite);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo unir al servidor.');
+      setBusy(false);
     }
-    return '';
-  });
-  const [previewServer, setPreviewServer] = useState<any>(null);
-
-  useEffect(() => {
-    const rawCode = inviteUrl.split('/').pop();
-    if (!rawCode || rawCode.length < 3) {
-      setPreviewServer(null);
-      return;
-    }
-    
-    const timeout = setTimeout(() => {
-      getInvitePreview(rawCode)
-        .then((data) => {
-          setPreviewServer({
-            name: data.server_name,
-            description: data.server_description,
-            iconUrl: data.server_icon,
-            membersCount: data.member_count
-          });
-        })
-        .catch(() => setPreviewServer(null));
-    }, 500);
-    
-    return () => clearTimeout(timeout);
-  }, [inviteUrl]);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteUrl.trim()) return;
-    onJoinServer?.(inviteUrl.trim());
-    onClose();
   };
 
   return (
-    <ModalOverlay onClose={onClose} maxWidth={460}>
-      <div className={styles.div}>
-        <button
-          onClick={onClose}
-          className="btn-icon"
-          aria-label="Cerrar modal"
-          style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}
-        >
-          <X size={20} />
-        </button>
+    <Modal title="Unirse" description="con una invitación a un servidor" onClose={onClose}>
+      <ModalForm onSubmit={submit}>
+        <UnderlineInput
+          label="Invitación"
+          required
+          value={invite}
+          onChange={(e) => {
+            setInvite(e.target.value);
+            setError(undefined);
+          }}
+          placeholder="https://app.discordia.lol/invite/h7K9xQ2"
+          hint="Pegá el enlace entero o solo el código (h7K9xQ2)."
+          error={error}
+          autoComplete="off"
+          autoFocus
+        />
 
-        <form onSubmit={handleSubmit}>
-          <div className="modal-header" style={{ textAlign: 'center', paddingTop: 28 }}>
-            <h2 className="modal-title" style={{ fontSize: 24 }}>Únete a un servidor</h2>
-            <p className="modal-subtitle">
-              Introduce una invitación o enlace a continuación para entrar a una comunidad existente.
-            </p>
-          </div>
-
-          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <label className="input-label" htmlFor="invite-input">
-                ENLACE DE INVITACIÓN *
-              </label>
-              <input
-                id="invite-input"
-                className="discord-input"
-                type="text"
-                value={inviteUrl}
-                onChange={(e) => setInviteUrl(e.target.value)}
-                placeholder="https://discordia.gg/h7K9xQ2 o h7K9xQ2"
-              />
-              <span className={styles.span}>
-                Las invitaciones tienen un aspecto como: <code>h7K9xQ2</code> o{' '}
-                <code>https://discordia.gg/indie-devs</code>
-              </span>
+        {preview && (
+          <section className={styles.preview} aria-label="Vista previa del servidor">
+            <div className={styles.strip}>
+              {preview.iconUrl ? <img src={preview.iconUrl} alt="" /> : <span aria-hidden="true">{preview.name.slice(0, 2)}</span>}
             </div>
+            <div className={styles.info}>
+              <p className={styles.name}>{preview.name}</p>
+              {preview.description && <p className={styles.description}>{preview.description}</p>}
+              {preview.memberCount !== undefined && (
+                <p className={styles.meta}>{preview.memberCount === 1 ? '1 miembro' : `${preview.memberCount} miembros`}/</p>
+              )}
+            </div>
+          </section>
+        )}
 
-            {/* Vista previa del servidor detectado */}
-            {previewServer && (
-              <div className={styles.div2}>
-                <div className={styles.previaServidor}>
-                  VISTA PREVIA DEL SERVIDOR
-                </div>
-                <div className={styles.div3}>
-                  <img
-                    src={previewServer?.iconUrl || previewServer?.icon}
-                    alt={previewServer?.name}
-                    className={styles.img}
-                  />
-                  <div className={styles.div4}>
-                    <div className={styles.div5}>
-                      <span className={styles.span2}>
-                        {previewServer?.name}
-                      </span>
-                      <span className="badge badge-brand" style={{ fontSize: 10 }}>Comunidad</span>
-                    </div>
-                    <div className={styles.div6}>
-                      {previewServer?.description}
-                    </div>
-                    <div className={styles.div7}>
-
-                      <span className={styles.span3}>
-                        <span className="status-dot offline" style={{ width: 8, height: 8 }} />
-                        {previewServer?.membersCount || 1} Miembros totales
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="modal-footer">
-            <button type="button" className="btn btn-link" onClick={onClose}>
-              Atrás
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={!inviteUrl.trim()}
-            >
-              Unirse al Servidor
-            </button>
-          </div>
-        </form>
-      </div>
-    </ModalOverlay>
+        <ModalActions>
+          <ActionLink onPress={onClose}>cancelar</ActionLink>
+          <BlockButton type="submit" disabled={!invite.trim()} loading={busy}>
+            Unirme
+          </BlockButton>
+        </ModalActions>
+      </ModalForm>
+    </Modal>
   );
-};
+}

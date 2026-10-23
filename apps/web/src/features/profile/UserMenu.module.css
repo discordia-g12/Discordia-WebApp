@@ -1,0 +1,88 @@
+/* Sube desde la barra de usuario, del ancho de la barra lateral, separado por líneas finas */
+.menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  color: var(--color-text);
+  background: var(--gradient-background), var(--color-background);
+  background-attachment: fixed;
+  border-top: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.menu p {
+  margin: 0;
+}
+
+.identity,
+.block,
+.links {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.name {
+  font-weight: 700;
+}
+
+.meta {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  font-size: var(--font-label-size);
+  font-weight: 700;
+  letter-spacing: var(--font-label-letter-spacing);
+  text-transform: uppercase;
+}
+
+/* Campo subrayado con la acción a la derecha */
+.field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.field:focus-within {
+  border-bottom-width: var(--line-focus);
+}
+
+.field input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) 0;
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.field input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  border-bottom: 0;
+}

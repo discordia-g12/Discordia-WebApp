@@ -129,6 +129,29 @@ describe('openChatSocket', () => {
     connection.close();
   });
 
+  it('después de estar abierta, un corte se informa como reconnecting hasta que vuelve', async () => {
+    const onStatusChange = vi.fn();
+    const connection = openChatSocket('c1', { onMessage: vi.fn(), onStatusChange });
+    await vi.advanceTimersByTimeAsync(0);
+    // Sin haber conectado nunca, un corte no es una reconexión
+    FakeWebSocket.instances[0].drop();
+    expect(onStatusChange).toHaveBeenLastCalledWith('closed');
+
+    await vi.advanceTimersByTimeAsync(1000);
+    FakeWebSocket.instances[1].open();
+    expect(onStatusChange).toHaveBeenLastCalledWith('open');
+
+    FakeWebSocket.instances[1].drop();
+    expect(onStatusChange).toHaveBeenLastCalledWith('reconnecting');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onStatusChange).toHaveBeenLastCalledWith('reconnecting');
+    FakeWebSocket.instances[2].open();
+    expect(onStatusChange).toHaveBeenLastCalledWith('open');
+
+    connection.close();
+    expect(onStatusChange).toHaveBeenLastCalledWith('closed');
+  });
+
   it('send rechaza si el socket está cerrado', async () => {
     const connection = openChatSocket('c1', { onMessage: vi.fn() });
     await vi.advanceTimersByTimeAsync(0);

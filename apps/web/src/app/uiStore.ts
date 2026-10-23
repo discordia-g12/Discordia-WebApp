@@ -1,10 +1,27 @@
 import { create } from 'zustand';
+import { durations } from '@discordia/tokens';
 import type { AppView, Channel, ConfirmAction, Modal, User } from '../types';
 
 export type ToastType = 'success' | 'danger' | 'info';
 
-/** Cuánto queda visible un toast. */
-const TOAST_MS = 3000;
+/** Acción dentro del aviso ("_reintentar"). */
+export interface ToastAction {
+  label: string;
+  onPress: () => void;
+}
+
+export interface ToastState {
+  /** Cada aviso tiene su id: el timer de uno anterior no cierra al que lo reemplazó. */
+  id: number;
+  message: string;
+  type: ToastType;
+  action?: ToastAction;
+}
+
+/** Cuánto queda visible un aviso; con una acción, el doble, para que dé tiempo a usarla. */
+const TOAST_MS = durations.toast;
+
+let lastToastId = 0;
 
 interface ConfirmState {
   action: ConfirmAction;
@@ -36,7 +53,7 @@ export interface UIState {
   incomingCaller: User | null;
 
   // ── Avisos ──
-  toast: { message: string; type: ToastType } | null;
+  toast: ToastState | null;
 
   setSelectedServerId: (id: string | 'home') => void;
   setSelectedChannelId: (id: string | null) => void;
@@ -56,7 +73,8 @@ export interface UIState {
   openEditChannel: (channel: Channel) => void;
   setIncomingCaller: (user: User | null) => void;
 
-  showToast: (message: string, type?: ToastType) => void;
+  showToast: (message: string, type?: ToastType, action?: ToastAction) => void;
+  dismissToast: () => void;
 }
 
 /**
@@ -96,11 +114,14 @@ export const useUIStore = create<UIState>((set) => ({
   openEditChannel: (targetChannelForAction) => set({ targetChannelForAction, activeModal: 'edit-channel' }),
   setIncomingCaller: (incomingCaller) => set({ incomingCaller }),
 
-  showToast: (message, type = 'info') => {
-    set({ toast: { message, type } });
-    setTimeout(() => set({ toast: null }), TOAST_MS);
+  showToast: (message, type = 'info', action) => {
+    const id = ++lastToastId;
+    set({ toast: { id, message, type, action } });
+    setTimeout(() => set((s) => (s.toast?.id === id ? { toast: null } : s)), action ? TOAST_MS * 2 : TOAST_MS);
   },
+  dismissToast: () => set({ toast: null }),
 }));
 
 /** Atajo para mostrar avisos desde cualquier lado (handlers async, hooks). */
-export const showToast = (message: string, type?: ToastType) => useUIStore.getState().showToast(message, type);
+export const showToast = (message: string, type?: ToastType, action?: ToastAction) =>
+  useUIStore.getState().showToast(message, type, action);

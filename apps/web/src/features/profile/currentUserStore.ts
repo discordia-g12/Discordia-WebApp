@@ -20,14 +20,13 @@ interface CurrentUserState {
   /** Mezcla el perfil que cargó la sesión (al iniciar sesión o al recargarlo). */
   syncFromProfile: (profile: UserProfile) => void;
   setStatus: (status: Status) => void;
-  setCustomStatus: (customStatus: string) => void;
   /** Guarda el perfil en el backend y, si sale bien, lo aplica. */
   saveProfile: (updated: User) => void;
 }
 
 /**
  * Usuario propio tal como lo muestra la interfaz: el perfil de la sesión más lo que se cambia acá
- * (estado y estado personalizado todavía no se guardan en el backend).
+ * (la presencia todavía no se guarda en el backend; el estado personalizado va con el perfil).
  */
 export const useCurrentUserStore = create<CurrentUserState>((set) => ({
   currentUser: fromProfile(useSession.getState().profile),
@@ -43,7 +42,6 @@ export const useCurrentUserStore = create<CurrentUserState>((set) => ({
     })),
 
   setStatus: (status) => set((s) => ({ currentUser: { ...s.currentUser, status } })),
-  setCustomStatus: (customStatus) => set((s) => ({ currentUser: { ...s.currentUser, customStatus } })),
 
   saveProfile: (updatedUser) => {
     updateMyProfile({
