@@ -1,0 +1,56 @@
+/* Estilos de MemberList: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.div {
+  margin-bottom: 16px;
+}
+
+.avatarPuntoIndicadorPresencia {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.avatarPuntoIndicadorPresenciaImg {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.nombreInsigniasEstadoPersonalizado {
+  min-width: 0px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.nombreInsigniasEstadoPersonalizadoDiv {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nombreInsigniasEstadoPersonalizadoDivSpan {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tu {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+.nombreInsigniasEstadoPersonalizadoP {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}

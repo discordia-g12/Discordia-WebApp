@@ -453,18 +453,42 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 - [x] Estados vacíos propios de cada pestaña y de las búsquedas (`sin resultados`); desde `todos` vacío,
       `_añadir amigo`. Al cambiar de pestaña el contenido entra escalonado.
 - [x] `Tabs`: reserva el ancho de la pestaña en negrita, así las demás no se corren al cambiar.
-- [ ] Chat de DMs (sección 3): queda para el paso 7, con el chat de canal (es el mismo componente,
-      `ChatView`); por ahora se ve el del diseño anterior dentro de la grilla nueva. La marca de agua ya
-      muestra el nombre del otro usuario.
+- [x] Chat de DMs (sección 3): hecho en el paso 7 con el chat de canal (mismo `ChatView`); el encabezado
+      tiene `perfil`, `llamar`, `videollamada` y `mensajes fijados`.
 - Sin backend de amigos todavía: la lista de amigos sale vacía y las solicitudes y bloqueos son locales
   (igual que en la vista anterior).
 
 ### Paso 7: servidor y chat (`ChannelSidebar`, `ChatView`, `MemberList`)
 
-- [ ] Secciones con línea y colapso animado.
-- [ ] Mensajes: avatar cuadrado, metadato chico, texto grande, respuestas, reacciones, adjuntos.
-- [ ] Barra de escritura de una línea; enlaces del encabezado (`hilos`, `mensajes fijados`, ...).
-- [ ] No romper reconexión, recuperación de mensajes ni paginación (requisitos del enunciado).
+- Mismo patrón que antes: la lógica en hooks compartidos (`chat/useChatViewState`,
+  `channels/useChannelDragAndDrop`), las vistas anteriores en `legacy/` y los paneles eligen con el flag.
+- [x] Barra de canales (`channels/ChannelSidebar`): `Invitar al servidor +` y `menú v` (panel de línea
+      fina que baja, con todas las acciones del servidor; abandonar / eliminar separado), categorías con
+      `SectionLabel` colapsable (los canales bajan escalonados al abrir), canales `•nombre` (el activo en
+      negrita con barra negra, no leídos con el número en bloque negro, `_editar` al pasar el mouse),
+      participantes de voz con avatar cuadrado (el que habla, con un contorno que pulsa). El reorden por
+      arrastre se mantiene (línea de 2 px donde va a quedar). El nombre del servidor no va arriba: es la
+      marca de agua.
+- [x] Mensajes (`chat/ChatView`): avatar cuadrado, autor en negrita y fecha chica (`20/10/25, 13:25`,
+      24 h), texto grande; separadores por día (`hoy`, `ayer`, `21 de octubre de 2025`); agrupados por
+      autor (la hora aparece en el margen al pasar el mouse); respuestas con línea fina y cita chica;
+      reacciones en cajas de línea fina (la propia, invertida); imágenes sin borde y archivos con
+      `_descargar`; menciones subrayadas; acciones al pasar el mouse (`_reaccionar`, `_responder`,
+      `_editar`, `_más`). Solo los mensajes nuevos entran subiendo (el historial no se anima).
+- [x] Encabezado de 48 px con enlaces de texto separados por líneas (`silenciar notificaciones`,
+      `mensajes fijados (n)`, `mostrar / ocultar lista de miembros`); barra de escritura de una línea
+      con adjuntar, emojis y `ENVIAR /`; carga con esqueleto.
+- [x] Miembros (`servers/MemberList`): columna como `ACTIVO AHORA`, grupos con `SectionLabel`, avatar
+      cuadrado con presencia, el color del rol en un cuadrado chico (nunca como color de texto).
+- [x] Reconexión y recuperación: no cambian (`ChatConnectionProvider` y el caché de React Query; el chat
+      solo cambió de vista). La prueba de humo del envío por WebSocket corre con los dos diseños.
+- [ ] Paginación: la web no la tiene (`useChannelMessagesQuery` pide una sola página de 50 y no hay
+      "cargar anteriores"), ni antes ni ahora. Queda pendiente aparte: `getMessages` ya acepta `before`.
+- No se hicieron `hilos` ni el buscador del encabezado del PDF: no existen en la app (el buscador del
+  diseño anterior no hacía nada).
+- Corregido de paso: al responder a un mensaje sin el objeto `author` (lo normal desde el backend), la
+  barra decía "@usuario" en vez del nombre.
+- Para el paso 12: en oscuro, el tinte celeste de la barra lateral del servidor queda gris azulado.
 
 ### Paso 8: voz (`VoiceView`)
 

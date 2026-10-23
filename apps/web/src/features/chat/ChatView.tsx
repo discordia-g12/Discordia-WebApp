@@ -1,1149 +1,603 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import {
-  Hash,
-  Volume2,
-  Bell,
-  BellOff,
-  Pin,
-  Users,
-  Search,
-  Send,
-  Smile,
-  Paperclip,
-  X,
-  CornerUpLeft,
-  Pencil,
-  Trash2,
-  MoreHorizontal,
-  FileText,
-  Copy,
-  Flag,
-  Check,
-  Plus,
-  Phone,
-  Video,
-} from 'lucide-react';
-import { Channel, DirectMessage, Message, User, MessageAttachment, Reaction } from '../../types';
-
-import { Avatar } from '../../ui/legacy/Avatar';
+import { Fragment, useRef, type ReactNode } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
+import { Paperclip, Smile } from 'lucide-react';
+import { distances } from '@discordia/tokens';
+import type { Message, User } from '../../types';
+import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
+import type { ChatViewProps } from './legacy/LegacyChatView';
+import { POPULAR_EMOJIS, QUICK_EMOJIS, sanitizeText, useChatViewState, type ChatViewState } from './useChatViewState';
 import styles from './ChatView.module.css';
 
+export type { ChatViewProps };
 
-/**
- * Propiedades de configuración para el componente ChatView.
- */
-export interface ChatViewProps {
-  /** Canal activo si la vista corresponde a un servidor. */
-  channel?: Channel | null;
-  /** Conversación directa activa si la vista corresponde a un DM. */
-  directMessage?: DirectMessage | null;
-  /** Lista opcional de mensajes. Si no se provee, usa los datos mock. */
-  messages?: Message[];
-  /** ID del usuario actualmente autenticado. */
-  currentUserId?: string;
-  /** Directorio de usuarios para resolver autores y menciones. */
-  users?: Record<string, User>;
-  /** Indica si los mensajes se están cargando desde el servidor. */
-  isLoading?: boolean;
-  /** Callback al despachar un nuevo mensaje de texto o adjunto. */
-  onSendMessage?: (content: string, attachment?: MessageAttachment, replyToId?: string) => void;
-  /** Callback al alternar una reacción emoji. */
-  onToggleReaction?: (messageId: string, emoji: string) => void;
-  /** Callback al eliminar un mensaje. */
-  onDeleteMessage?: (messageId: string) => void;
-  /** Callback al confirmar la edición de un mensaje existente. */
-  onEditMessage?: (messageId: string, newContent: string) => void;
-  /** Callback al fijar o desfijar un mensaje. */
-  onPinMessage?: (messageId: string) => void;
-  /** Callback para abrir el perfil del usuario clicado. */
-  onOpenUserProfile?: (userId: string) => void;
-  /** Callback para mostrar u ocultar la barra lateral de miembros. */
-  onToggleMemberList?: () => void;
-  /** Estado de visibilidad de la barra lateral de miembros. */
-  isMemberListOpen?: boolean;
-  /** Callback para iniciar llamada de voz directa. */
-  onStartVoiceCall?: () => void;
-  /** Callback para iniciar videollamada directa. */
-  onStartVideoCall?: () => void;
+const UNKNOWN_USER = { username: 'desconocido', displayName: 'Desconocido', status: 'offline' } as const;
+
+const timeFormat = new Intl.DateTimeFormat('es-AR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+const dayFormat = new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+const hourFormat = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+
+const validDate = (iso: string) => {
+  const date = new Date(iso);
+  return isNaN(date.getTime()) ? null : date;
+};
+
+/** "20/10/25, 13:25" (PDF, pág. 7). */
+function formatTimestamp(iso: string): string {
+  const date = validDate(iso);
+  return date ? timeFormat.format(date) : '';
 }
 
-/** Emojis disponibles para reacciones rápidas y selector. */
-const QUICK_EMOJIS = ['❤️', '👍', '😂', '🚀', '🔥', '🎉', '👏', '👀'];
-const POPULAR_EMOJIS = [
-  '😀', '😂', '😍', '😎', '🥳', '🤔', '🙌', '👍',
-  '❤️', '🔥', '✨', '🚀', '💯', '🛡️', '⚡', '☕'
-];
-
-/**
- * Limpia caracteres nulos \x00 para evitar fallos de persistencia en PostgreSQL.
- */
-function sanitizeText(raw: string): string {
-  return raw.replace(/\x00/g, '');
+/** Separador de día: "hoy", "ayer" o "21 de octubre de 2025". */
+function formatDay(date: Date): string {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return 'hoy';
+  if (date.toDateString() === yesterday.toDateString()) return 'ayer';
+  return dayFormat.format(date);
 }
 
 /**
- * Formatea una marca de tiempo ISO a representación legible según cercanía temporal.
+ * Ids de los mensajes que ya estaban al abrir la conversación: esos no se animan. Los que llegan
+ * después (enviados o recibidos por el WebSocket) entran subiendo.
  */
-function formatMessageTime(isoDate: string): string {
-  const date = new Date(isoDate);
-  if (isNaN(date.getTime())) return '';
-  const now = new Date();
-  const isSameDay =
-    date.getDate() === now.getDate() &&
-    date.getMonth() === now.getMonth() &&
-    date.getFullYear() === now.getFullYear();
-
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const timeStr = `${hours}:${minutes}`;
-
-  if (isSameDay) {
-    return `Today at ${timeStr}`;
+function useHistoryIds(conversationKey: string, messages: Message[], isLoading: boolean) {
+  const state = useRef<{ key: string | null; ready: boolean; ids: Set<string> }>({ key: null, ready: false, ids: new Set() });
+  if (state.current.key !== conversationKey) state.current = { key: conversationKey, ready: false, ids: new Set() };
+  if (!state.current.ready && !isLoading) {
+    messages.forEach((m) => state.current.ids.add(m.id));
+    state.current.ready = true;
   }
-  return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} at ${timeStr}`;
+  return state.current.ids;
 }
 
 /**
- * Obtiene solo la hora formateada para mensajes agrupados en modo compacto.
+ * Chat del rediseño (PDF, págs. 7 y 9), para canales y mensajes directos. Encabezado con el nombre y
+ * enlaces de texto; mensajes con avatar cuadrado, metadato chico y texto grande, separados por día;
+ * respuestas con una línea fina; reacciones y adjuntos sin bordes redondeados; barra de escritura de una
+ * línea. La lógica es la de useChatViewState (compartida con legacy/LegacyChatView).
  */
-function formatCompactTime(isoDate: string): string {
-  const date = new Date(isoDate);
-  if (isNaN(date.getTime())) return '';
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
-}
-
-/**
- * Componente principal de conversación en canales y mensajes directos.
- */
-export const ChatView: React.FC<ChatViewProps> = ({
-  channel,
-  directMessage,
-  messages: externalMessages,
-  isLoading = false,
-  currentUserId,
-  users = {},
-  onSendMessage,
-  onToggleReaction,
-  onDeleteMessage,
-  onEditMessage,
-  onPinMessage,
-  onOpenUserProfile,
-  onToggleMemberList,
-  isMemberListOpen = true,
-  onStartVoiceCall,
-  onStartVideoCall,
-}) => {
-  // Inicialización de mensajes locales
-  const initialList = useMemo(() => {
-    if (externalMessages) return externalMessages;
-    if (channel) return [];
-    return [];
-  }, [externalMessages, channel]);
-
-  const [localMessages, setLocalMessages] = useState<Message[]>(initialList);
-
-  useEffect(() => {
-    setLocalMessages(initialList);
-  }, [initialList]);
-
-  // Estado del composer y acciones
-  const [inputText, setInputText] = useState('');
-  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
-  const [attachment, setAttachment] = useState<MessageAttachment | null>(null);
-
-  // Menús flotantes e interactivos
-  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
-  const [isPinnedPanelOpen, setIsPinnedPanelOpen] = useState(false);
-  const [isNotificationsMuted, setIsNotificationsMuted] = useState(false);
-  const [activeContextMenuMessageId, setActiveContextMenuMessageId] = useState<string | null>(null);
-  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
-  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [mentionCursorIndex, setMentionCursorIndex] = useState<number>(-1);
-
-  // Referencias para scroll y clicks externos
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const composerInputRef = useRef<HTMLInputElement | null>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [localMessages.length]);
-
-  // Título e información de cabecera
-  const chatTitle = channel ? channel.name : directMessage?.recipient?.displayName || 'Chat';
-  const chatTopic = channel?.topic || directMessage?.recipient?.customStatus || 'No topic set.';
-  const isDirectMessage = Boolean(directMessage);
-
-  // Filtrado de usuarios para autocompletado de menciones con @
-  const mentionCandidates = useMemo(() => {
-    if (mentionQuery === null) return [];
-    const query = mentionQuery.toLowerCase();
-    return Object.values(users)
-      .filter((u) => u.username.toLowerCase().includes(query) || u.displayName.toLowerCase().includes(query))
-      .slice(0, 5);
-  }, [mentionQuery, users]);
-
-  // Manejo de entrada de texto con detección de '@'
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setInputText(val);
-
-    const cursorPos = e.target.selectionStart || 0;
-    const textBeforeCursor = val.slice(0, cursorPos);
-    const atIndex = textBeforeCursor.lastIndexOf('@');
-
-    if (atIndex !== -1 && !textBeforeCursor.slice(atIndex).includes(' ')) {
-      const query = textBeforeCursor.slice(atIndex + 1);
-      setMentionQuery(query);
-      setMentionCursorIndex(atIndex);
-    } else {
-      setMentionQuery(null);
-      setMentionCursorIndex(-1);
-    }
-  };
-
-  const handleSelectMention = (candidate: User) => {
-    if (mentionCursorIndex === -1) return;
-    const before = inputText.slice(0, mentionCursorIndex);
-    const after = inputText.slice(mentionCursorIndex + (mentionQuery?.length || 0) + 1);
-    const completed = `${before}@${candidate.username} ${after}`;
-    setInputText(completed);
-    setMentionQuery(null);
-    setMentionCursorIndex(-1);
-    composerInputRef.current?.focus();
-  };
-
-  // Envío de mensaje
-  const handleSend = () => {
-    const sanitized = sanitizeText(inputText.trim());
-    if (!sanitized && !attachment) return;
-
-    if (onSendMessage) {
-      onSendMessage(sanitized, attachment || undefined, replyingTo?.id);
-    } else {
-      const authorUser = users[currentUserId || ''] || {
-        id: currentUserId,
-        username: 'currentUser',
-        displayName: 'Current User',
-        status: 'online',
-      };
-
-      const newMsg: Message = {
-        id: `msg-${Date.now()}`,
-        channelId: channel?.id || directMessage?.id || 'ch-custom',
-        authorId: currentUserId || '',
-        author: authorUser,
-        content: sanitized,
-        timestamp: new Date().toISOString(),
-        type: 'normal',
-        reactions: [],
-        attachments: attachment ? [attachment] : undefined,
-        replyToId: replyingTo?.id || null,
-        replyTo: replyingTo || null,
-      };
-
-      setLocalMessages((prev) => [...prev, newMsg]);
-    }
-
-    setInputText('');
-    setAttachment(null);
-    setReplyingTo(null);
-    setIsEmojiPickerOpen(false);
-    setMentionQuery(null);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    } else if (e.key === 'Escape') {
-      setReplyingTo(null);
-      setMentionQuery(null);
-    }
-  };
-
-  // Reacciones a mensajes
-  const handleToggleReaction = (messageId: string, emoji: string) => {
-    if (onToggleReaction) {
-      onToggleReaction(messageId, emoji);
-      return;
-    }
-
-    setLocalMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id !== messageId) return msg;
-        const currentReactions: Reaction[] = msg.reactions ? [...msg.reactions] : [];
-        const existingIdx = currentReactions.findIndex((r) => r.emoji === emoji);
-
-        if (existingIdx >= 0) {
-          const r = currentReactions[existingIdx];
-          const hasReacted = r.hasReacted || r.users.includes(currentUserId || '');
-          if (hasReacted) {
-            const updatedUsers = r.users.filter((uid) => uid !== (currentUserId || ''));
-            if (updatedUsers.length === 0) {
-              currentReactions.splice(existingIdx, 1);
-            } else {
-              currentReactions[existingIdx] = {
-                ...r,
-                count: r.count - 1,
-                users: updatedUsers,
-                hasReacted: false,
-              };
-            }
-          } else {
-            currentReactions[existingIdx] = {
-              ...r,
-              count: r.count + 1,
-              users: [...r.users, currentUserId || ''],
-              hasReacted: true,
-            };
-          }
-        } else {
-          currentReactions.push({
-            emoji,
-            count: 1,
-            users: [currentUserId || ''],
-            hasReacted: true,
-          });
-        }
-
-        return { ...msg, reactions: currentReactions };
-      })
-    );
-    setReactionPickerMessageId(null);
-  };
-
-  // Edición de mensaje
-  const handleStartEdit = (msg: Message) => {
-    setEditingMessageId(msg.id);
-    setEditContent(msg.content);
-    setActiveContextMenuMessageId(null);
-  };
-
-  const handleSaveEdit = (messageId: string) => {
-    const sanitized = sanitizeText(editContent.trim());
-    if (!sanitized) return;
-
-    if (onEditMessage) {
-      onEditMessage(messageId, sanitized);
-    } else {
-      setLocalMessages((prev) =>
-        prev.map((m) =>
-          m.id === messageId
-            ? { ...m, content: sanitized, editedTimestamp: new Date().toISOString() }
-            : m
-        )
-      );
-    }
-    setEditingMessageId(null);
-    setEditContent('');
-  };
-
-  // Eliminación de mensaje
-  const handleDeleteMessage = (messageId: string) => {
-    if (onDeleteMessage) {
-      onDeleteMessage(messageId);
-    } else {
-      setLocalMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, type: 'deleted', content: '' } : m))
-      );
-    }
-    setActiveContextMenuMessageId(null);
-  };
-
-  // Fijado de mensaje
-  const handleTogglePin = (msg: Message) => {
-    if (onPinMessage) {
-      onPinMessage(msg.id);
-    } else {
-      setLocalMessages((prev) =>
-        prev.map((m) => (m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m))
-      );
-    }
-    setActiveContextMenuMessageId(null);
-  };
-
-  // Copiar texto
-  const handleCopyText = (content: string, id: string) => {
-    navigator.clipboard.writeText(content);
-    setCopiedMessageId(id);
-    setTimeout(() => setCopiedMessageId(null), 2000);
-    setActiveContextMenuMessageId(null);
-  };
-
-  // Simular adjuntar archivo
-  const handleAttachMock = () => {
-    const mockAtt: MessageAttachment = {
-      id: `att-${Date.now()}`,
-      name: 'discordia-preview.png',
-      url: '',
-      size: '1.2 MB',
-      type: 'image/png',
-    };
-    setAttachment(mockAtt);
-  };
-
-  // Renderizado con formato: menciones, negritas y enlaces
-  const renderFormattedContent = (content: string) => {
-    const sanitized = sanitizeText(content);
-    const parts = sanitized.split(/(\*\*[^*]+\*\*|@[\w\d_-]+|https?:\/\/[^\s]+)/g);
-
-    return parts.map((part, index) => {
-      if (!part) return null;
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={index} className={styles.formattedContentStrong}>{part.slice(2, -2)}</strong>;
-      }
-      if (part.startsWith('@')) {
-        const username = part.slice(1);
-        const candidate = Object.values(users).find(
-          (u) => u.username.toLowerCase() === username.toLowerCase()
-        );
-        return (
-          <span
-            key={index}
-            className="mention-pill"
-            onClick={() => candidate && onOpenUserProfile?.(candidate.id)}
-          >
-            {part}
-          </span>
-        );
-      }
-      if (part.startsWith('http://') || part.startsWith('https://')) {
-        return (
-          <a
-            key={index}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.formattedContentA}
-          >
-            {part}
-          </a>
-        );
-      }
-      return <span key={index}>{part}</span>;
-    });
-  };
-
-  // Mensajes fijados
-  const pinnedMessages = useMemo(() => localMessages.filter((m) => m.isPinned), [localMessages]);
+export function ChatView(props: ChatViewProps) {
+  const {
+    channel,
+    directMessage,
+    messages,
+    isLoading = false,
+    currentUserId,
+    users = {},
+    onOpenUserProfile,
+    onToggleMemberList,
+    isMemberListOpen = true,
+    onStartVoiceCall,
+    onStartVideoCall,
+  } = props;
+  const chat = useChatViewState({ ...props, messages });
+  const history = useHistoryIds(channel?.id ?? directMessage?.id ?? 'chat', chat.localMessages, isLoading);
+  const currentUsername = users[currentUserId ?? '']?.username;
 
   return (
-    <div className="chat-container">
-      {/* ==========================================================================
-          1. CABECERA DEL CANAL / DM
-          ========================================================================== */}
-      <header className="chat-header">
-        <div className={styles.div}>
-          {isDirectMessage ? (
-            <div className={styles.div2}>
-              <Avatar user={directMessage?.recipient || { id: "unknown", username: chatTitle, displayName: chatTitle } as any} size={28} />
-              <span
-                className={`status-dot ${directMessage?.recipient?.status || 'offline'}`}
-                style={{ position: 'absolute', bottom: -1, right: -1, width: 8, height: 8 }}
-              />
-            </div>
-          ) : channel?.type === 'voice' ? (
-            <Volume2 size={24} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+    <div className={styles.chat}>
+      <header className={styles.header}>
+        <div className={styles.titleGroup}>
+          <h1 className={styles.title}>{chat.isDirectMessage ? chat.chatTitle : `•${chat.chatTitle}`}</h1>
+          {chat.chatTopic !== 'No topic set.' && <p className={styles.topic}>{chat.chatTopic}</p>}
+        </div>
+        <nav className={styles.links} aria-label="Acciones del chat">
+          {chat.isDirectMessage ? (
+            <>
+              {directMessage?.recipientId && (
+                <HeaderLink onPress={() => onOpenUserProfile?.(directMessage.recipientId)}>perfil</HeaderLink>
+              )}
+              <HeaderLink onPress={onStartVoiceCall}>llamar</HeaderLink>
+              <HeaderLink onPress={onStartVideoCall}>videollamada</HeaderLink>
+            </>
           ) : (
-            <Hash size={24} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <HeaderLink pressed={chat.isNotificationsMuted} onPress={() => chat.setIsNotificationsMuted((v) => !v)}>
+              {chat.isNotificationsMuted ? 'activar notificaciones' : 'silenciar notificaciones'}
+            </HeaderLink>
           )}
+          <HeaderLink pressed={chat.isPinnedPanelOpen} onPress={() => chat.setIsPinnedPanelOpen((v) => !v)}>
+            {`mensajes fijados${chat.pinnedMessages.length ? ` (${chat.pinnedMessages.length})` : ''}`}
+          </HeaderLink>
+          {!chat.isDirectMessage && onToggleMemberList && (
+            <HeaderLink pressed={isMemberListOpen} onPress={onToggleMemberList}>
+              {isMemberListOpen ? 'ocultar lista de miembros' : 'mostrar lista de miembros'}
+            </HeaderLink>
+          )}
+        </nav>
+      </header>
 
-          <h2 className={styles.h2}>
-            {chatTitle}
-          </h2>
+      {chat.isPinnedPanelOpen && <PinnedPanel chat={chat} users={users} />}
 
-          <div className={styles.div3} />
-
-          <p className={styles.p}>
-            {chatTopic}
+      <div className={styles.scroll} role="log" aria-label={`Mensajes de ${chat.chatTitle}`}>
+        <div className={styles.welcome}>
+          <p className={styles.welcomeTitle}>{chat.isDirectMessage ? chat.chatTitle : `•${chat.chatTitle}`}</p>
+          <p className={styles.welcomeText}>
+            /{' '}
+            {chat.isDirectMessage
+              ? `este es el comienzo de tu conversación con ${chat.chatTitle}.`
+              : `este es el comienzo del canal •${chat.chatTitle}.`}
           </p>
         </div>
 
-        {/* Acciones de la Cabecera */}
-        <div className={styles.accionesCabecera}>
-          {isDirectMessage && (
-            <>
-              <button
-                className="btn-icon"
-                title="Llamada de voz"
-                onClick={onStartVoiceCall}
-              >
-                <Phone size={20} />
-              </button>
-              <button
-                className="btn-icon"
-                title="Videollamada"
-                onClick={onStartVideoCall}
-              >
-                <Video size={20} />
-              </button>
-            </>
-          )}
-
-          <button
-            className="btn-icon"
-            title={isNotificationsMuted ? 'Activar notificaciones' : 'Silenciar notificaciones'}
-            onClick={() => setIsNotificationsMuted((v) => !v)}
-            style={{ color: isNotificationsMuted ? 'var(--danger)' : undefined }}
-          >
-            {isNotificationsMuted ? <BellOff size={20} /> : <Bell size={20} />}
-          </button>
-
-          <button
-            className="btn-icon"
-            title="Mensajes fijados"
-            onClick={() => setIsPinnedPanelOpen((v) => !v)}
-            style={{
-              backgroundColor: isPinnedPanelOpen ? 'var(--bg-modifier-selected)' : undefined,
-              color: pinnedMessages.length > 0 ? 'var(--status-idle)' : undefined,
-            }}
-          >
-            <Pin size={20} />
-          </button>
-
-          {!isDirectMessage && (
-            <button
-              className="btn-icon"
-              title="Lista de miembros"
-              onClick={onToggleMemberList}
-              style={{
-                backgroundColor: isMemberListOpen ? 'var(--bg-modifier-selected)' : undefined,
-                color: isMemberListOpen ? 'var(--interactive-active)' : undefined,
-              }}
-            >
-              <Users size={20} />
-            </button>
-          )}
-
-          <div className={styles.accionesCabeceraDiv}>
-            <input
-              type="text"
-              placeholder="Search"
-              className={styles.search}
-            />
-            <Search size={14} style={{ color: 'var(--text-muted)' }} />
+        {isLoading ? (
+          <div className={styles.loading}>
+            <Skeleton lines={6} label="Cargando mensajes" />
           </div>
-        </div>
-      </header>
+        ) : (
+          <ol className={styles.messages}>
+            {chat.localMessages.map((msg, index) => {
+              const prev = index > 0 ? chat.localMessages[index - 1] : null;
+              const date = validDate(msg.timestamp);
+              const prevDate = prev ? validDate(prev.timestamp) : null;
+              const newDay = date && (!prevDate || prevDate.toDateString() !== date.toDateString());
+              const consecutive =
+                !newDay &&
+                prev !== null &&
+                prev.authorId === msg.authorId &&
+                prev.type !== 'system' &&
+                msg.type !== 'system' &&
+                Math.abs(new Date(msg.timestamp).getTime() - new Date(prev.timestamp).getTime()) < 5 * 60 * 1000;
 
-      {/* ==========================================================================
-          MODAL / DROPDOWN DE MENSAJES FIJADOS
-          ========================================================================== */}
-      {isPinnedPanelOpen && (
-        <div className={styles.div4}>
-          <div className={styles.div5}>
-            <div className={styles.div6}>
-              <Pin size={16} style={{ color: 'var(--status-idle)' }} />
-              <span className={styles.span}>
-                Pinned Messages ({pinnedMessages.length})
-              </span>
-            </div>
-            <button
-              className="btn-icon"
-              style={{ width: 24, height: 24 }}
-              onClick={() => setIsPinnedPanelOpen(false)}
-            >
-              <X size={16} />
-            </button>
-          </div>
-          <div className={styles.div7}>
-            {pinnedMessages.length === 0 ? (
-              <p className={styles.p2}>
-                No pinned messages in this channel yet.
-              </p>
-            ) : (
-              pinnedMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={styles.div8}
+              return (
+                <Fragment key={msg.id}>
+                  {newDay && date && (
+                    <li className={styles.day} aria-label={formatDay(date)}>
+                      {formatDay(date)}
+                    </li>
+                  )}
+                  <MessageRow
+                    msg={msg}
+                    chat={chat}
+                    users={users}
+                    currentUserId={currentUserId}
+                    currentUsername={currentUsername}
+                    consecutive={consecutive}
+                    isNew={!history.has(msg.id)}
+                    onOpenUserProfile={onOpenUserProfile}
+                  />
+                </Fragment>
+              );
+            })}
+          </ol>
+        )}
+        <div ref={chat.messagesEndRef} />
+      </div>
+
+      <Composer chat={chat} users={users} />
+    </div>
+  );
+}
+
+function HeaderLink({ children, pressed, onPress }: { children: string; pressed?: boolean; onPress?: () => void }) {
+  return (
+    <button type="button" className={styles.headerLink} onClick={onPress} aria-pressed={pressed}>
+      {children}
+    </button>
+  );
+}
+
+// ==========================================
+// Mensajes
+// ==========================================
+
+function MessageRow({
+  msg,
+  chat,
+  users,
+  currentUserId,
+  currentUsername,
+  consecutive,
+  isNew,
+  onOpenUserProfile,
+}: {
+  msg: Message;
+  chat: ChatViewState;
+  users: Record<string, User>;
+  currentUserId?: string;
+  currentUsername?: string;
+  consecutive: boolean;
+  isNew: boolean;
+  onOpenUserProfile?: (userId: string) => void;
+}) {
+  const reduce = useReducedMotion();
+  const enter = {
+    initial: isNew ? (reduce ? { opacity: 0 } : { opacity: 0, y: distances.rise }) : false,
+    animate: { opacity: 1, y: 0 },
+    transition: reduce ? transitions.reduced : transitions.base,
+  } as const;
+
+  if (msg.type === 'deleted') {
+    return (
+      <motion.li className={`${styles.message} ${styles.compact}`} {...enter}>
+        <span className={styles.gutter} />
+        <p className={styles.deleted}>/ este mensaje fue eliminado</p>
+      </motion.li>
+    );
+  }
+
+  if (msg.type === 'system') {
+    return (
+      <motion.li className={`${styles.message} ${styles.compact}`} {...enter}>
+        <span className={styles.gutter} />
+        <p className={styles.system}>
+          •{msg.content} <time className={styles.time}>{formatTimestamp(msg.timestamp)}</time>
+        </p>
+      </motion.li>
+    );
+  }
+
+  const author = msg.author || users[msg.authorId] || { id: msg.authorId, ...UNKNOWN_USER };
+  const isAuthor = msg.authorId === (currentUserId || '');
+  const mentionsMe = Boolean(currentUsername && msg.content.includes(`@${currentUsername}`));
+  const isEditing = chat.editingMessageId === msg.id;
+  const isReplying = chat.replyingTo?.id === msg.id;
+  const menuOpen = chat.activeContextMenuMessageId === msg.id;
+  const pickerOpen = chat.reactionPickerMessageId === msg.id;
+  const openProfile = () => onOpenUserProfile?.(author.id);
+
+  return (
+    <motion.li
+      className={[
+        styles.message,
+        consecutive ? styles.compact : '',
+        mentionsMe ? styles.mentioned : '',
+        isReplying ? styles.replying : '',
+        menuOpen || pickerOpen ? styles.toolsOpen : '',
+      ].join(' ')}
+      {...enter}
+    >
+      <span className={styles.gutter}>
+        {consecutive ? (
+          <time className={styles.gutterTime}>{validDate(msg.timestamp) ? hourFormat.format(new Date(msg.timestamp)) : ''}</time>
+        ) : (
+          <button type="button" className={styles.avatarButton} onClick={openProfile} aria-label={`Ver perfil de ${author.displayName}`}>
+            <SquareAvatar user={author} size="md" />
+          </button>
+        )}
+      </span>
+
+      <div className={styles.body}>
+        {msg.replyTo && (
+          <p className={styles.reply}>
+            <span className={styles.replyLine} aria-hidden="true" />
+            <span className={styles.replyText}>
+              @{authorName(msg.replyTo, users)} {msg.replyTo.content}
+            </span>
+          </p>
+        )}
+
+        {!consecutive && (
+          <p className={styles.meta}>
+            <button type="button" className={styles.author} onClick={openProfile}>
+              {author.displayName}
+            </button>{' '}
+            <time className={styles.time} dateTime={msg.timestamp}>
+              {formatTimestamp(msg.timestamp)}
+            </time>
+            {msg.isPinned && <span className={styles.time}> · fijado</span>}
+          </p>
+        )}
+
+        {isEditing ? (
+          <EditBox chat={chat} messageId={msg.id} />
+        ) : (
+          <p className={styles.content}>
+            <FormattedContent content={msg.content} users={users} onOpenUserProfile={onOpenUserProfile} />
+            {msg.editedTimestamp && <span className={styles.edited}> (editado)</span>}
+          </p>
+        )}
+
+        {msg.attachments?.map((att) => {
+          const isImage = att.type?.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(att.url);
+          if (isImage && att.url) {
+            return (
+              <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className={styles.image}>
+                <img src={att.url} alt={att.name} loading="lazy" />
+              </a>
+            );
+          }
+          return (
+            <p key={att.id} className={styles.file}>
+              <span className={styles.fileName}>{att.name}</span>
+              <span className={styles.time}>{att.size ? String(att.size) : 'tamaño desconocido'}</span>
+              {att.url && (
+                <a href={att.url} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
+                  _descargar
+                </a>
+              )}
+            </p>
+          );
+        })}
+
+        {msg.reactions && msg.reactions.length > 0 && (
+          <div className={styles.reactions}>
+            {msg.reactions.map((r) => {
+              const active = r.hasReacted || r.users.includes(currentUserId || '');
+              return (
+                <button
+                  key={r.emoji}
+                  type="button"
+                  className={`${styles.reaction} ${active ? styles.reactionActive : ''}`}
+                  onClick={() => chat.handleToggleReaction(msg.id, r.emoji)}
+                  aria-pressed={active}
+                  aria-label={`${r.emoji} ${r.count}`}
                 >
-                  <div className={styles.div9}>
-                    <span className={styles.span2}>
-                      {msg.author?.displayName || 'User'}
-                    </span>
-                    <span className={styles.span3}>
-                      {formatMessageTime(msg.timestamp)}
-                    </span>
-                  </div>
-                  <p className={styles.p3}>{msg.content}</p>
-                </div>
-              ))
-            )}
+                  <span aria-hidden="true">{r.emoji}</span> {r.count}
+                </button>
+              );
+            })}
           </div>
+        )}
+      </div>
+
+      {/* Acciones al pasar el mouse o con foco dentro del mensaje */}
+      {!isEditing && (
+        <div className={styles.tools}>
+          {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              className={styles.toolEmoji}
+              onClick={() => chat.handleToggleReaction(msg.id, emoji)}
+              aria-label={`Reaccionar con ${emoji}`}
+            >
+              {emoji}
+            </button>
+          ))}
+          <ActionLink onPress={() => chat.setReactionPickerMessageId(pickerOpen ? null : msg.id)} aria-expanded={pickerOpen}>
+            reaccionar
+          </ActionLink>
+          <ActionLink onPress={() => chat.setReplyingTo(msg)}>responder</ActionLink>
+          {isAuthor && <ActionLink onPress={() => chat.handleStartEdit(msg)}>editar</ActionLink>}
+          <ActionLink onPress={() => chat.setActiveContextMenuMessageId(menuOpen ? null : msg.id)} aria-expanded={menuOpen}>
+            más
+          </ActionLink>
         </div>
       )}
 
-      {/* ==========================================================================
-          2. HILO DE MENSAJES
-          ========================================================================== */}
-      <div className={styles.div10}>
-        {/* Mensaje de Bienvenida del Canal */}
-        <div className={styles.mensajeBienvenidaCanal}>
-          <div className={styles.mensajeBienvenidaCanalDiv}>
-            {isDirectMessage ? (
-              <span className={styles.mensajeBienvenidaCanalDivSpan}>👋</span>
-            ) : (
-              <Hash size={44} style={{ color: 'var(--header-primary)' }} />
-            )}
-          </div>
-          <h1 className={styles.mensajeBienvenidaCanalH1}>
-            Welcome to {isDirectMessage ? chatTitle : `#${chatTitle}`}!
-          </h1>
-          <p className={styles.mensajeBienvenidaCanalP}>
-            {isDirectMessage
-              ? `This is the start of your direct message history with ${chatTitle}.`
-              : `This is the start of the #${chatTitle} channel.`}
-          </p>
-        </div>
+      {pickerOpen && (
+        <Popover className={styles.messagePopover} label="Reacciones" onClose={() => chat.setReactionPickerMessageId(null)}>
+          <EmojiGrid onPick={(emoji) => chat.handleToggleReaction(msg.id, emoji)} />
+        </Popover>
+      )}
 
-        <div className="message-divider">
-          <span>Today</span>
-        </div>
+      {menuOpen && (
+        <Popover className={styles.messagePopover} label="Más acciones" onClose={() => chat.setActiveContextMenuMessageId(null)}>
+          <ul className={styles.menu}>
+            <li>
+              <button type="button" onClick={() => chat.handleCopyText(msg.content, msg.id)}>
+                {chat.copiedMessageId === msg.id ? 'copiado/' : 'copiar texto'}
+              </button>
+            </li>
+            <li>
+              <button type="button" onClick={() => chat.handleTogglePin(msg)}>
+                {msg.isPinned ? 'desfijar mensaje' : 'fijar mensaje'}
+              </button>
+            </li>
+            <li>
+              <button type="button" onClick={() => chat.handleDeleteMessage(msg.id)}>
+                eliminar mensaje
+              </button>
+            </li>
+          </ul>
+        </Popover>
+      )}
+    </motion.li>
+  );
+}
 
-        {/* Loading Skeleton */}
-        {isLoading ? (
-          <div className={styles.div11}>
-            <style>{`
-              @keyframes pulse {
-                0% { opacity: 0.4; }
-                50% { opacity: 0.8; }
-                100% { opacity: 0.4; }
-              }
-              .skeleton {
-                background-color: var(--bg-modifier-selected);
-                animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-              }
-            `}</style>
-            {[70, 45, 85, 55].map((width, idx) => (
-              <div key={idx} className="message-row" style={{ marginTop: 16 }}>
-                <div className="skeleton" style={{ width: 40, height: 40, borderRadius: '50%', marginRight: 16, flexShrink: 0 }} />
-                <div className="message-content-wrapper" style={{ width: '100%', pointerEvents: 'none' }}>
-                  <div className="message-header" style={{ marginBottom: 8, marginTop: 4 }}>
-                    <div className="skeleton" style={{ width: 120, height: 16, borderRadius: 4 }} />
-                  </div>
-                  <div className="skeleton" style={{ width: `${width}%`, height: 16, borderRadius: 4, marginTop: 6 }} />
-                  {idx % 2 !== 0 && (
-                    <div className="skeleton" style={{ width: `${width - 15}%`, height: 16, borderRadius: 4, marginTop: 6 }} />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <>
-            {/* Lista de Mensajes */}
-            {localMessages.map((msg, index) => {
-          const prevMsg = index > 0 ? localMessages[index - 1] : null;
-          const isSameAuthor = prevMsg && prevMsg.authorId === msg.authorId;
-          const timeDiff = prevMsg
-            ? Math.abs(new Date(msg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime())
-            : Infinity;
-          // Agrupación visual: mismo autor en menos de 5 minutos
-          const isConsecutive = isSameAuthor && timeDiff < 5 * 60 * 1000 && msg.type !== 'system';
-
-          // Mensaje eliminado
-          if (msg.type === 'deleted') {
-            return (
-              <div key={msg.id} className="message-row" style={{ opacity: 0.6, fontStyle: 'italic' }}>
-                <div className={styles.div12} />
-                <div className="message-content-wrapper">
-                  <span className={styles.thisMessageWasDeleted}>
-                    [This message was deleted]
-                  </span>
-                </div>
-              </div>
-            );
-          }
-
-          // Mensaje del sistema (ej. bienvenida o unión)
-          if (msg.type === 'system') {
-            return (
-              <div key={msg.id} className="message-row system">
-                <span className={styles.span4}>✨</span>
-                <span>{msg.content}</span>
-                <span className="message-timestamp" style={{ marginLeft: 8 }}>
-                  {formatCompactTime(msg.timestamp)}
-                </span>
-              </div>
-            );
-          }
-
-          const isAuthor = msg.authorId === (currentUserId || '');
-          const authorUser = msg.author || users[msg.authorId] || { id: msg.authorId, username: 'Desconocido', displayName: 'Desconocido', avatar: '', status: 'offline' };
-          const isReplying = replyingTo?.id === msg.id;
-
-          return (
-            <div
-              key={msg.id}
-              className={`message-row ${msg.content.includes('@' + (users[currentUserId || '']?.username || '')) ? 'mentioned' : ''}`}
-              style={{
-                marginTop: isConsecutive ? 0 : 12,
-                backgroundColor: isReplying ? 'rgba(88, 101, 242, 0.08)' : undefined,
-              }}
-            >
-              {/* Barra flotante de acciones en hover */}
-              <div className="message-actions">
-                {/* Reacciones rápidas */}
-                {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
-                  <button
-                    key={emoji}
-                    className="message-action-btn"
-                    title={`Reaccionar ${emoji}`}
-                    onClick={() => handleToggleReaction(msg.id, emoji)}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-
-                {/* Más reacciones */}
-                <button
-                  className="message-action-btn"
-                  title="Añadir reacción"
-                  onClick={() =>
-                    setReactionPickerMessageId(reactionPickerMessageId === msg.id ? null : msg.id)
-                  }
-                >
-                  <Smile size={16} />
-                </button>
-
-                {/* Responder */}
-                <button
-                  className="message-action-btn"
-                  title="Responder"
-                  onClick={() => setReplyingTo(msg)}
-                >
-                  <CornerUpLeft size={16} />
-                </button>
-
-                {/* Editar (si es autor) */}
-                {isAuthor && (
-                  <button
-                    className="message-action-btn"
-                    title="Editar mensaje"
-                    onClick={() => handleStartEdit(msg)}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                )}
-
-                {/* Más opciones context menu */}
-                <button
-                  className="message-action-btn"
-                  title="Más opciones"
-                  onClick={() =>
-                    setActiveContextMenuMessageId(
-                      activeContextMenuMessageId === msg.id ? null : msg.id
-                    )
-                  }
-                >
-                  <MoreHorizontal size={16} />
-                </button>
-              </div>
-
-              {/* Popover de selector de reacciones */}
-              {reactionPickerMessageId === msg.id && (
-                <div
-                  className="context-menu"
-                  style={{
-                    position: 'absolute',
-                    top: -48,
-                    right: 60,
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    maxWidth: 240,
-                    gap: 6,
-                    padding: 8,
-                    zIndex: 120,
-                  }}
-                >
-                  {POPULAR_EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      className="emoji-picker-btn"
-                      onClick={() => handleToggleReaction(msg.id, emoji)}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Context menu desplegable */}
-              {activeContextMenuMessageId === msg.id && (
-                <div
-                  className="context-menu"
-                  style={{ top: 20, right: 16 }}
-                  onMouseLeave={() => setActiveContextMenuMessageId(null)}
-                >
-                  <div
-                    className="context-menu-item"
-                    onClick={() => handleCopyText(msg.content, msg.id)}
-                  >
-                    <span>Copiar texto</span>
-                    {copiedMessageId === msg.id ? <Check size={14} /> : <Copy size={14} />}
-                  </div>
-                  <div className="context-menu-item" onClick={() => handleTogglePin(msg)}>
-                    <span>{msg.isPinned ? 'Desfijar mensaje' : 'Fijar mensaje'}</span>
-                    <Pin size={14} />
-                  </div>
-                  <div
-                    className="context-menu-item danger"
-                    onClick={() => handleDeleteMessage(msg.id)}
-                  >
-                    <span>Eliminar mensaje</span>
-                    <Trash2 size={14} />
-                  </div>
-                  <div className="context-menu-separator" />
-                  <div
-                    className="context-menu-item"
-                    onClick={() => setActiveContextMenuMessageId(null)}
-                  >
-                    <span>Reportar mensaje</span>
-                    <Flag size={14} />
-                  </div>
-                </div>
-              )}
-
-              {/* Avatar o Timestamp Compacto */}
-              {isConsecutive ? (
-                <div className={styles.div13}>
-                  {formatCompactTime(msg.timestamp)}
-                </div>
-              ) : (
-                <Avatar user={authorUser || { id: "unknown", username: "Desconocido" } as any} size={40} onClick={() => authorUser && onOpenUserProfile && onOpenUserProfile(authorUser.id)} />
-              )}
-
-              {/* Contenido del Mensaje */}
-              <div className="message-content-wrapper">
-                {/* Referencia de Respuesta previa si existe */}
-                {msg.replyTo && (
-                  <div className={styles.contenidoMensajeDiv}>
-                    <CornerUpLeft size={12} />
-                    <span className={styles.contenidoMensajeDivSpan}>
-                      @{msg.replyTo.author?.displayName || 'User'}
-                    </span>
-                    <span className={styles.contenidoMensajeDivSpan2}>
-                      {msg.replyTo.content}
-                    </span>
-                  </div>
-                )}
-
-                {/* Cabecera del Mensaje (solo en no consecutivos) */}
-                {!isConsecutive && (
-                  <div className="message-header">
-                    <span
-                      className="message-author"
-                      onClick={() => authorUser && onOpenUserProfile?.(authorUser.id)}
-                    >
-                      {authorUser?.displayName || 'User'}
-                    </span>
-
-                    {authorUser?.isStaff && (
-                      <span className="badge badge-brand" style={{ fontSize: 9, padding: '1px 4px' }}>
-                        STAFF
-                      </span>
-                    )}
-
-                    {authorUser?.isPremium && (
-                      <span className="badge badge-boost" style={{ fontSize: 9, padding: '1px 4px' }}>
-                        NITRO
-                      </span>
-                    )}
-
-                    <span className="message-timestamp">{formatMessageTime(msg.timestamp)}</span>
-
-                    {msg.isPinned && (
-                      <span
-                        title="Mensaje fijado"
-                        className={styles.mensajeFijado}
-                      >
-                        <Pin size={12} />
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Editor Inline si está en modo edición */}
-                {editingMessageId === msg.id ? (
-                  <div className={styles.contenidoMensajeDiv2}>
-                    <input
-                      type="text"
-                      className="discord-input"
-                      value={editContent}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditContent(e.target.value)}
-                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                        if (e.key === 'Enter') handleSaveEdit(msg.id);
-                        if (e.key === 'Escape') setEditingMessageId(null);
-                      }}
-                      autoFocus
-                    />
-                    <div className={styles.contenidoMensajeDiv2Div}>
-                      escape para{' '}
-                      <button
-                        className="btn-link"
-                        style={{ fontSize: 11, color: 'var(--text-link)' }}
-                        onClick={() => setEditingMessageId(null)}
-                      >
-                        cancelar
-                      </button>{' '}
-                      • enter para{' '}
-                      <button
-                        className="btn-link"
-                        style={{ fontSize: 11, color: 'var(--text-link)' }}
-                        onClick={() => handleSaveEdit(msg.id)}
-                      >
-                        guardar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="message-content">
-                    {renderFormattedContent(msg.content)}
-                    {msg.editedTimestamp && (
-                      <span className={styles.edited}>
-                        (edited)
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Adjuntos: Previsualización de imágenes y archivos */}
-                {msg.attachments &&
-                  msg.attachments.map((att) => {
-                    const isImg =
-                      att.type?.startsWith('image/') ||
-                      att.url.match(/\.(jpg|jpeg|png|webp|gif)$/i);
-                    if (isImg) {
-                      return (
-                        <div key={att.id} className="message-attachment">
-                          <img
-                            src={att.url}
-                            alt={att.name}
-                            loading="lazy"
-                            className={styles.contenidoMensajeImg}
-                            onClick={() => window.open(att.url, '_blank')}
-                          />
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={att.id} className="file-attachment-card">
-                        <div className={styles.contenidoMensajeDiv3}>
-                          <FileText size={20} />
-                        </div>
-                        <div className={styles.contenidoMensajeDiv4}>
-                          <a
-                            href={att.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.contenidoMensajeDiv4A}
-                          >
-                            {att.name}
-                          </a>
-                          <span className={styles.contenidoMensajeDiv4Span}>
-                            {att.size || 'Unknown size'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                {/* Reacciones Emoji Interactivas */}
-                {msg.reactions && msg.reactions.length > 0 && (
-                  <div className="message-reactions">
-                    {msg.reactions.map((r, rIdx) => {
-                      const active = r.hasReacted || r.users.includes(currentUserId || '');
-                      return (
-                        <button
-                          key={rIdx}
-                          className={`message-reaction ${active ? 'active' : ''}`}
-                          onClick={() => handleToggleReaction(msg.id, r.emoji)}
-                          title={`${r.users.length} personas reaccionaron`}
-                        >
-                          <span>{r.emoji}</span>
-                          <span className={styles.contenidoMensajeSpan}>{r.count}</span>
-                        </button>
-                      );
-                    })}
-                    <button
-                      className="message-reaction"
-                      onClick={() =>
-                        setReactionPickerMessageId(
-                          reactionPickerMessageId === msg.id ? null : msg.id
-                        )
-                      }
-                      title="Añadir reacción"
-                    >
-                      <Plus size={12} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+/** Menciones (@usuario), negritas (**texto**) y enlaces. */
+function FormattedContent({
+  content,
+  users,
+  onOpenUserProfile,
+}: {
+  content: string;
+  users: Record<string, User>;
+  onOpenUserProfile?: (userId: string) => void;
+}) {
+  const parts = sanitizeText(content).split(/(\*\*[^*]+\*\*|@[\w\d_-]+|https?:\/\/[^\s]+)/g);
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (!part) return null;
+        if (part.startsWith('**') && part.endsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>;
+        if (part.startsWith('@')) {
+          const candidate = Object.values(users).find((u) => u.username.toLowerCase() === part.slice(1).toLowerCase());
+          return candidate ? (
+            <button key={index} type="button" className={styles.mention} onClick={() => onOpenUserProfile?.(candidate.id)}>
+              {part}
+            </button>
+          ) : (
+            <span key={index} className={styles.mention}>
+              {part}
+            </span>
           );
-        })}
-        </>
-        )}
+        }
+        if (/^https?:\/\//.test(part)) {
+          return (
+            <a key={index} href={part} target="_blank" rel="noopener noreferrer" className={styles.link}>
+              {part}
+            </a>
+          );
+        }
+        return <Fragment key={index}>{part}</Fragment>;
+      })}
+    </>
+  );
+}
 
-        <div ref={messagesEndRef} />
-      </div>
+function EditBox({ chat, messageId }: { chat: ChatViewState; messageId: string }) {
+  return (
+    <div className={styles.edit}>
+      <input
+        className={styles.editInput}
+        aria-label="Editar mensaje"
+        value={chat.editContent}
+        onChange={(e) => chat.setEditContent(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') chat.handleSaveEdit(messageId);
+          if (e.key === 'Escape') chat.setEditingMessageId(null);
+        }}
+        autoFocus
+      />
+      <p className={styles.editHint}>
+        escape para <ActionLink onPress={() => chat.setEditingMessageId(null)}>cancelar</ActionLink> · enter para{' '}
+        <ActionLink onPress={() => chat.handleSaveEdit(messageId)}>guardar</ActionLink>
+      </p>
+    </div>
+  );
+}
 
-      {/* ==========================================================================
-          3. COMPOSER INFERIOR
-          ========================================================================== */}
-      <div className={styles.div14}>
-        {/* Indicador de Respuesta "Replying to..." */}
-        {replyingTo && (
-          <div className={styles.div15}>
-            <div className={styles.div6}>
-              <span>Replying to</span>
-              <strong className={styles.strong}>
-                @{replyingTo.author?.displayName || 'User'}
-              </strong>
-            </div>
+function PinnedPanel({ chat, users }: { chat: ChatViewState; users: Record<string, User> }) {
+  return (
+    <Popover className={styles.pinned} label="Mensajes fijados" onClose={() => chat.setIsPinnedPanelOpen(false)}>
+      <p className={styles.popoverTitle}>Mensajes fijados /</p>
+      {chat.pinnedMessages.length === 0 ? (
+        <p className={styles.popoverEmpty}>/ todavía no hay mensajes fijados en esta conversación.</p>
+      ) : (
+        <ul className={styles.pinnedList}>
+          {chat.pinnedMessages.map((msg) => (
+            <li key={msg.id}>
+              <p className={styles.meta}>
+                <strong>{(msg.author || users[msg.authorId])?.displayName || 'Usuario'}</strong>{' '}
+                <span className={styles.time}>{formatTimestamp(msg.timestamp)}</span>
+              </p>
+              <p className={styles.pinnedText}>{msg.content}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Popover>
+  );
+}
+
+// ==========================================
+// Barra de escritura
+// ==========================================
+
+/** Nombre del autor: el del mensaje o, si no viene (el backend manda solo authorId), el del directorio. */
+const authorName = (msg: Message, users: Record<string, User>) =>
+  (msg.author || users[msg.authorId])?.displayName || 'usuario';
+
+function Composer({ chat, users }: { chat: ChatViewState; users: Record<string, User> }) {
+  const placeholder = chat.isDirectMessage ? `Enviar mensaje a @${chat.chatTitle}` : `Enviar mensaje a ${chat.chatTitle}`;
+  const canSend = Boolean(chat.inputText.trim() || chat.attachment);
+
+  return (
+    <div className={styles.composer}>
+      {chat.replyingTo && (
+        <p className={styles.composerNote}>
+          respondiendo a <strong>@{authorName(chat.replyingTo, users)}</strong>{' '}
+          <ActionLink onPress={() => chat.setReplyingTo(null)}>cancelar</ActionLink>
+        </p>
+      )}
+      {chat.attachment && (
+        <p className={styles.composerNote}>
+          adjunto: <strong>{chat.attachment.name}</strong> {chat.attachment.size ? `(${chat.attachment.size})` : ''}{' '}
+          <ActionLink onPress={() => chat.setAttachment(null)}>quitar</ActionLink>
+        </p>
+      )}
+
+      {chat.mentionCandidates.length > 0 && (
+        <div className={styles.composerPopover} role="listbox" aria-label={`Miembros que coinciden con @${chat.mentionQuery}`}>
+          <p className={styles.popoverTitle}>Miembros @{chat.mentionQuery} /</p>
+          {chat.mentionCandidates.map((candidate) => (
             <button
-              onClick={() => setReplyingTo(null)}
-              className={styles.button}
+              key={candidate.id}
+              type="button"
+              role="option"
+              aria-selected={false}
+              className={styles.mentionOption}
+              onClick={() => chat.handleSelectMention(candidate)}
             >
-              <X size={14} />
+              <SquareAvatar user={candidate} size="sm" />
+              <strong>{candidate.displayName}</strong>
+              <span className={styles.time}>@{candidate.username}</span>
             </button>
-          </div>
-        )}
+          ))}
+        </div>
+      )}
 
-        {/* Previsualización de archivo a adjuntar */}
-        {attachment && (
-          <div className={styles.div16}>
-            <div className={styles.accionesCabecera}>
-              <FileText size={16} style={{ color: 'var(--brand)' }} />
-              <span className={styles.accionesCabeceraSpan}>{attachment.name}</span>
-              <span className={styles.accionesCabeceraSpan2}>({attachment.size})</span>
-            </div>
-            <button
-              onClick={() => setAttachment(null)}
-              className={styles.button2}
-            >
-              <X size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* Popover de Autocompletado de Menciones (@) */}
-        {mentionCandidates.length > 0 && (
-          <div className={styles.div17}>
-            <div className={styles.div18}>
-              MEMBERS MATCHING @{mentionQuery}
-            </div>
-            {mentionCandidates.map((candidate) => (
-              <div
-                key={candidate.id}
-                className="mention-candidate-item"
-                onClick={() => handleSelectMention(candidate)}
-              >
-                <Avatar user={candidate} size={24} />
-                <span className={styles.span}>
-                  {candidate.displayName}
-                </span>
-                <span className={styles.accionesCabeceraSpan2}>
-                  @{candidate.username}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Popover de Emojis */}
-        {isEmojiPickerOpen && (
-          <div className={styles.div19}>
-            <div className={styles.emojis}>
-              EMOJIS
-            </div>
-            <div className={styles.div20}>
-              {POPULAR_EMOJIS.map((em) => (
-                <button
-                  key={em}
-                  className="emoji-picker-btn"
-                  onClick={() => {
-                    setInputText((prev) => prev + em);
-                    setIsEmojiPickerOpen(false);
-                    composerInputRef.current?.focus();
-                  }}
-                >
-                  {em}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Input Bar */}
-        <div
-          className={styles.inputBar} style={{ borderRadius: replyingTo || attachment ? '0 0 8px 8px' : 'var(--radius-md)' }}
-        >
-          {/* Botón Adjuntar */}
-          <button
-            className="btn-icon"
-            title="Adjuntar archivo"
-            onClick={handleAttachMock}
-            style={{ flexShrink: 0 }}
-          >
-            <Paperclip size={20} />
-          </button>
-
-          {/* Campo de Texto Principal */}
-          <input
-            ref={composerInputRef}
-            type="text"
-            className="discord-input"
-            placeholder={isDirectMessage ? `Message @${chatTitle}` : `Message #${chatTitle}`}
-            value={inputText}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            style={{
-              backgroundColor: 'transparent',
-              border: 'none',
-              boxShadow: 'none',
-              padding: '10px 8px',
+      {chat.isEmojiPickerOpen && (
+        <Popover className={styles.composerPopover} label="Emojis" onClose={() => chat.setIsEmojiPickerOpen(false)}>
+          <EmojiGrid
+            onPick={(emoji) => {
+              chat.setInputText((prev) => prev + emoji);
+              chat.setIsEmojiPickerOpen(false);
+              chat.composerInputRef.current?.focus();
             }}
           />
+        </Popover>
+      )}
 
-          {/* Botón Selector de Emojis */}
-          <button
-            className="btn-icon"
-            title="Abrir selector de emojis"
-            onClick={() => setIsEmojiPickerOpen((v) => !v)}
-            style={{
-              flexShrink: 0,
-              color: isEmojiPickerOpen ? 'var(--status-idle)' : undefined,
-            }}
-          >
-            <Smile size={20} />
-          </button>
-
-          {/* Botón Enviar */}
-          <button
-            className="btn-icon"
-            title="Enviar mensaje"
-            onClick={handleSend}
-            disabled={!inputText.trim() && !attachment}
-            style={{
-              flexShrink: 0,
-              color: inputText.trim() || attachment ? 'var(--brand)' : 'var(--interactive-muted)',
-              cursor: inputText.trim() || attachment ? 'pointer' : 'not-allowed',
-            }}
-          >
-            <Send size={20} />
-          </button>
-        </div>
+      <div className={styles.composerRow}>
+        <button type="button" className={styles.composerIcon} onClick={chat.handleAttachMock} aria-label="Adjuntar archivo" title="Adjuntar archivo">
+          <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
+        </button>
+        <input
+          ref={chat.composerInputRef}
+          className={styles.composerInput}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          value={chat.inputText}
+          onChange={chat.handleInputChange}
+          onKeyDown={chat.handleKeyDown}
+        />
+        <button
+          type="button"
+          className={styles.composerIcon}
+          onClick={() => chat.setIsEmojiPickerOpen((v) => !v)}
+          aria-label="Emojis"
+          aria-expanded={chat.isEmojiPickerOpen}
+          title="Emojis"
+        >
+          <Smile size={16} strokeWidth={1.5} aria-hidden="true" />
+        </button>
+        <button type="button" className={styles.send} onClick={chat.handleSend} disabled={!canSend}>
+          enviar /
+        </button>
       </div>
     </div>
   );
-};
+}
+
+// ==========================================
+// Piezas compartidas
+// ==========================================
+
+function EmojiGrid({ onPick }: { onPick: (emoji: string) => void }) {
+  return (
+    <div className={styles.emojiGrid}>
+      {POPULAR_EMOJIS.map((emoji) => (
+        <button key={emoji} type="button" className={styles.emoji} onClick={() => onPick(emoji)} aria-label={emoji}>
+          {emoji}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Panel flotante de línea fina; se cierra con Escape. */
+function Popover({ children, className, label, onClose }: { children: ReactNode; className: string; label: string; onClose: () => void }) {
+  return (
+    <div
+      className={`${styles.popover} ${className}`}
+      role="dialog"
+      aria-label={label}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      {children}
+    </div>
+  );
+}

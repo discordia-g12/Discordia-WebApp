@@ -15,7 +15,7 @@ import {
 import { DirectMessage } from '../../../types';
 import { Avatar } from '../../../ui/legacy/Avatar';
 
-import { ChatView } from '../../chat/ChatView';
+import { LegacyChatView as ChatView } from '../../chat/legacy/LegacyChatView';
 import { useHomeState } from '../useHomeState';
 import styles from './LegacyHomeView.module.css';
 

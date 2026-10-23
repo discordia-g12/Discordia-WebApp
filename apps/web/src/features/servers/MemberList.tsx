@@ -1,178 +1,88 @@
-import React, { useMemo } from 'react';
-import { Sparkles, Shield, ShieldCheck } from 'lucide-react';
-import { User, Role } from '../../types';
+import { useMemo } from 'react';
+import type { User } from '../../types';
+import { SectionLabel, SquareAvatar } from '../../ui';
+import type { MemberListProps } from './legacy/LegacyMemberList';
 import styles from './MemberList.module.css';
 
+export type { MemberListProps };
+
+const isOffline = (user: User) => user.status === 'offline' || user.status === 'invisible';
+
+const STATUS_LABEL: Record<User['status'], string> = {
+  online: 'Conectado',
+  idle: 'Ausente',
+  dnd: 'No molestar',
+  offline: 'Desconectado',
+  invisible: 'Desconectado',
+};
 
 /**
- * Propiedades del componente MemberList.
+ * Miembros del servidor (columna derecha del chat), con la estructura de ACTIVO AHORA del inicio: la
+ * fila de título alineada con el encabezado y los grupos como títulos cruzados por la línea. El color
+ * del rol va en un cuadrado chico junto al nombre (el texto queda en el color del texto, por contraste).
  */
-export interface MemberListProps {
-  /** Lista de miembros del servidor. Si no se provee, usa USERS de mock. */
-  members?: User[];
-  /** Roles del servidor para determinar colores e insignias. */
-  roles?: Role[];
-  /** Callback al hacer clic sobre un miembro para abrir su perfil. */
-  onSelectMember?: (member: User) => void;
-  /** ID del usuario en sesión activa. */
-  currentUserId?: string;
-}
+export function MemberList({ members = [], roles = [], onSelectMember, currentUserId = '' }: MemberListProps) {
+  const rolesById = useMemo(() => new Map(roles.map((r) => [r.id, r])), [roles]);
 
-/**
- * Obtiene el color de rol principal asignado a un usuario.
- */
-function getMemberRoleColor(user: User, rolesMap: Map<string, Role>): string {
-  if (!user.roleIds || user.roleIds.length === 0) return 'var(--text-normal)';
-
-  for (const roleId of user.roleIds) {
-    const role = rolesMap.get(roleId);
-    if (role && role.color) {
-      return role.color;
-    }
-  }
-
-  return 'var(--text-normal)';
-}
-
-/**
- * Barra lateral derecha que muestra los miembros del servidor agrupados por jerarquía.
- */
-export const MemberList: React.FC<MemberListProps> = ({
-  members = [],
-  roles = [],
-  onSelectMember,
-  currentUserId = '',
-}) => {
-  const rolesMap = useMemo(() => {
-    const map = new Map<string, Role>();
-    roles.forEach((r) => map.set(r.id, r));
-    return map;
-  }, [roles]);
-
-  // Agrupación por jerarquía: Admin, Moderator, Members (online) y Offline
   const groups = useMemo(() => {
     const admins: User[] = [];
     const moderators: User[] = [];
-    const onlineMembers: User[] = [];
-    const offlineMembers: User[] = [];
-
+    const online: User[] = [];
+    const offline: User[] = [];
     members.forEach((user) => {
-      const isOffline = user.status === 'offline' || user.status === 'invisible';
-      const hasAdminRole = user.roleIds?.includes('r-admin') || user.isStaff;
-      const hasModRole = user.roleIds?.includes('r-mod');
-
-      if (isOffline) {
-        offlineMembers.push(user);
-      } else if (hasAdminRole) {
-        admins.push(user);
-      } else if (hasModRole) {
-        moderators.push(user);
-      } else {
-        onlineMembers.push(user);
-      }
+      if (isOffline(user)) offline.push(user);
+      else if (user.roleIds?.includes('r-admin') || user.isStaff) admins.push(user);
+      else if (user.roleIds?.includes('r-mod')) moderators.push(user);
+      else online.push(user);
     });
-
     return [
-      { key: 'admins', title: 'Admin', list: admins },
-      { key: 'moderators', title: 'Moderator', list: moderators },
-      { key: 'online', title: 'Members', list: onlineMembers },
-      { key: 'offline', title: 'Offline', list: offlineMembers },
-    ];
+      { key: 'admins', title: 'Administración', list: admins },
+      { key: 'moderators', title: 'Moderación', list: moderators },
+      { key: 'online', title: 'Conectados', list: online },
+      { key: 'offline', title: 'Desconectados', list: offline },
+    ].filter((g) => g.list.length > 0);
   }, [members]);
 
   return (
-    <aside className="member-list scrollbar-thin">
-      {groups.map((group) => {
-        if (group.list.length === 0) return null;
-
-        return (
-          <div key={group.key} className={styles.div}>
-            {/* Cabecera del Grupo Jerárquico */}
-            <div className="member-group-header">
-              {group.title} — {group.list.length}
-            </div>
-
-            {/* Lista de Miembros en la Categoría */}
-            {group.list.map((user) => {
-              const roleColor = getMemberRoleColor(user, rolesMap);
-              const isCurrentUser = user.id === currentUserId;
-
-              return (
-                <div
-                  key={user.id}
-                  className="member-item"
-                  onClick={() => onSelectMember?.(user)}
-                  title={`Ver perfil de ${user.displayName}`}
-                >
-                  {/* Avatar con punto indicador de presencia */}
-                  <div className={styles.avatarPuntoIndicadorPresencia}>
-                    <img
-                      src={
-                        user.avatar || ''
-                      }
-                      alt={user.displayName}
-                      className={styles.avatarPuntoIndicadorPresenciaImg}
-                    />
-                    <span
-                      className={`status-dot ${user.status || 'offline'}`}
-                      style={{
-                        position: 'absolute',
-                        bottom: -2,
-                        right: -2,
-                        width: 10,
-                        height: 10,
-                      }}
-                    />
-                  </div>
-
-                  {/* Nombre, insignias y estado personalizado */}
-                  <div className={styles.nombreInsigniasEstadoPersonalizado}>
-                    <div className={styles.nombreInsigniasEstadoPersonalizadoDiv}>
-                      <span
-                        className={styles.nombreInsigniasEstadoPersonalizadoDivSpan} style={{ color: roleColor }}
-                      >
-                        {user.displayName}
-                        {isCurrentUser && (
-                          <span className={styles.tu}>
-                            (tú)
-                          </span>
-                        )}
+    <aside className={styles.aside} aria-labelledby="miembros-titulo">
+      <div className={styles.row}>
+        <h2 id="miembros-titulo" className={styles.title}>
+          Miembros — {members.length}
+        </h2>
+      </div>
+      <div className={styles.body}>
+        {groups.map((group) => (
+          <section key={group.key} className={styles.group}>
+            <SectionLabel>{`${group.title} — ${group.list.length}`}</SectionLabel>
+            <ul className={styles.list}>
+              {group.list.map((user) => {
+                const roleColor = user.roleIds?.map((id) => rolesById.get(id)?.color).find(Boolean);
+                return (
+                  <li key={user.id}>
+                    <button
+                      type="button"
+                      className={`${styles.member} ${isOffline(user) ? styles.offline : ''}`}
+                      onClick={() => onSelectMember?.(user)}
+                      aria-label={`Ver perfil de ${user.displayName}`}
+                    >
+                      <SquareAvatar user={user} size={28} status={user.status} />
+                      <span className={styles.text}>
+                        <span className={styles.name}>
+                          {roleColor && <span className={styles.role} style={{ background: roleColor }} aria-hidden="true" />}
+                          {user.displayName}
+                          {user.id === currentUserId && <span className={styles.meta}> (vos)</span>}
+                        </span>
+                        <span className={styles.meta}>{user.customStatus || STATUS_LABEL[user.status]}/</span>
                       </span>
-
-                      {/* Insignia de Staff / Admin */}
-                      {user.isStaff && (
-                        <span title="Staff de la plataforma">
-                          <ShieldCheck size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
-                        </span>
-                      )}
-
-                      {user.roleIds?.includes('r-admin') && !user.isStaff && (
-                        <span title="Administrador del servidor">
-                          <Shield size={14} style={{ color: 'var(--danger)', flexShrink: 0 }} />
-                        </span>
-                      )}
-
-                      {/* Estrella / Insignia de Discordia Premium */}
-                      {user.isPremium && (
-                        <span title="Discordia Premium / Nitro">
-                          <Sparkles size={13} style={{ color: 'var(--text-warning)', flexShrink: 0 }} />
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Estado personalizado */}
-                    {user.customStatus && (
-                      <p className={styles.nombreInsigniasEstadoPersonalizadoP}>
-                        {user.customStatus}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      })}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
     </aside>
   );
-};
+}
+

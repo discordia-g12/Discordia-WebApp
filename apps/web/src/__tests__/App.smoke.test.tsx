@@ -175,7 +175,7 @@ describe.each([
     });
     act(() => chatSocket.open());
 
-    const input = screen.getByPlaceholderText('Message #general');
+    const input = screen.getByPlaceholderText(newUi ? 'Enviar mensaje a general' : 'Message #general');
     fireEvent.change(input, { target: { value: 'hola desde el test' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -213,7 +213,11 @@ describe.each([
     renderApp();
     await openServer();
 
-    fireEvent.click(screen.getByRole('heading', { name: /Torton/ }));
+    fireEvent.click(
+      newUi
+        ? screen.getByRole('button', { name: 'Menú del servidor Torton' })
+        : screen.getByRole('heading', { name: /Torton/ })
+    );
     fireEvent.click(await screen.findByText('Ajustes del servidor'));
 
     for (const tab of ['Roles', 'Emoji', 'Server Boost', 'Channels', 'Moderation', 'Audit Log', 'Members', 'Bans', 'Notifications', 'Overview']) {

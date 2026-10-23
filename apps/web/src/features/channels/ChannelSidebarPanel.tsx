@@ -11,7 +11,9 @@ import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile, useUserPanelActions } from '../profile/profileActions';
 import { useVoice } from '../voice/VoiceProvider';
 import { useVoiceParticipants } from '../voice/useVoiceParticipants';
+import { isNewUi } from '../../ui/flag';
 import { ChannelSidebar } from './ChannelSidebar';
+import { LegacyChannelSidebar } from './legacy/LegacyChannelSidebar';
 
 // Reorden por arrastre (optimista: si el backend lo rechaza, el hook vuelve al orden anterior)
 const reorderErrorMessage = (err: unknown) =>
@@ -74,8 +76,10 @@ export function ChannelSidebarPanel({ showUserPanel = true }: { showUserPanel?: 
     );
   };
 
+  const Sidebar = isNewUi() ? ChannelSidebar : LegacyChannelSidebar;
+
   return (
-    <ChannelSidebar
+    <Sidebar
       showUserPanel={showUserPanel}
       server={currentServer}
       isLoading={isLoadingServers}

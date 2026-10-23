@@ -1,0 +1,127 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import { ChatView } from '../ChatView';
+import type { Channel, DirectMessage, Message, User } from '../../../types';
+
+const users: Record<string, User> = {
+  me: { id: 'me', username: 'mar', displayName: 'Mar', status: 'online' } as User,
+  u2: { id: 'u2', username: 'lbars', displayName: 'lbars', status: 'online' } as User,
+};
+
+const channel = { id: 'c1', name: 'general', type: 'text' } as Channel;
+
+const msg = (id: string, authorId: string, content: string, timestamp: string, extra: Partial<Message> = {}) =>
+  ({ id, authorId, content, timestamp, channelId: 'c1', ...extra }) as Message;
+
+const MESSAGES = [
+  msg('m1', 'u2', 'm!skip', '2025-10-20T13:25:00'),
+  msg('m2', 'me', 'chat no llego', '2025-10-21T00:54:00', {
+    reactions: [{ emoji: '❤️', count: 2, users: ['u2', 'me'], hasReacted: true }],
+  }),
+  msg('m3', 'u2', 'Muchos éxitos!', '2025-10-21T16:54:00', {
+    replyTo: msg('m2', 'me', 'q rindo temprano tecno', '2025-10-21T00:54:00', { author: users.me }),
+  }),
+];
+
+describe('ChatView (rediseño)', () => {
+  beforeEach(() => {
+    // jsdom no implementa scroll: el chat baja al último mensaje con scrollIntoView
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('muestra los mensajes con autor, fecha y separadores por día', () => {
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" />);
+
+    expect(screen.getByRole('heading', { name: '•general' })).toBeTruthy();
+    expect(screen.getByText('20 de octubre de 2025')).toBeTruthy();
+    expect(screen.getByText('21 de octubre de 2025')).toBeTruthy();
+    expect(screen.getByText('20/10/25, 13:25')).toBeTruthy();
+    expect(screen.getByText('m!skip')).toBeTruthy();
+  });
+
+  it('muestra la respuesta con la cita y las reacciones, y alterna la reacción propia', () => {
+    const onToggleReaction = vi.fn();
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onToggleReaction={onToggleReaction} />);
+
+    expect(screen.getByText('@Mar q rindo temprano tecno')).toBeTruthy();
+    const reaction = screen.getByRole('button', { name: '❤️ 2' });
+    expect(reaction.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(reaction);
+    expect(onToggleReaction).toHaveBeenCalledWith('m2', '❤️');
+  });
+
+  it('envía con Enter y responde a un mensaje con su id', () => {
+    const onSendMessage = vi.fn();
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onSendMessage={onSendMessage} />);
+
+    const first = screen.getByText('m!skip').closest('li')!;
+    fireEvent.click(within(first).getByRole('button', { name: '_responder' }));
+    expect(screen.getByText(/respondiendo a/).textContent).toContain('@lbars');
+
+    const input = screen.getByPlaceholderText('Enviar mensaje a general');
+    fireEvent.change(input, { target: { value: 'dale' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onSendMessage).toHaveBeenCalledWith('dale', undefined, 'm1');
+    expect(screen.queryByText(/respondiendo a/)).toBeNull();
+  });
+
+  it('el botón de enviar se habilita solo con texto', () => {
+    render(<ChatView channel={channel} messages={[]} users={users} currentUserId="me" />);
+
+    const send = screen.getByRole('button', { name: 'enviar /' }) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    fireEvent.change(screen.getByPlaceholderText('Enviar mensaje a general'), { target: { value: 'hola' } });
+    expect(send.disabled).toBe(false);
+  });
+
+  it('el autor edita su mensaje (Enter guarda)', () => {
+    const onEditMessage = vi.fn();
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onEditMessage={onEditMessage} />);
+
+    const mine = screen.getByText('chat no llego').closest('li')!;
+    // Solo el autor puede editar
+    expect(within(screen.getByText('m!skip').closest('li')!).queryByRole('button', { name: '_editar' })).toBeNull();
+    fireEvent.click(within(mine).getByRole('button', { name: '_editar' }));
+
+    const input = screen.getByLabelText('Editar mensaje');
+    fireEvent.change(input, { target: { value: 'chat no llego (editado)' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onEditMessage).toHaveBeenCalledWith('m2', 'chat no llego (editado)');
+  });
+
+  it('los enlaces del encabezado alternan la lista de miembros y los fijados', () => {
+    const onToggleMemberList = vi.fn();
+    render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" isMemberListOpen onToggleMemberList={onToggleMemberList} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'ocultar lista de miembros' }));
+    expect(onToggleMemberList).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'mensajes fijados' }));
+    expect(screen.getByRole('dialog', { name: 'Mensajes fijados' }).textContent).toContain('todavía no hay mensajes fijados');
+  });
+
+  it('en un DM el encabezado tiene _perfil, _llamar y videollamada, sin lista de miembros', () => {
+    const onOpenUserProfile = vi.fn();
+    const onStartVoiceCall = vi.fn();
+    const dm = { id: 'd1', recipientId: 'u2', recipient: users.u2 } as DirectMessage;
+    render(
+      <ChatView directMessage={dm} messages={[]} users={users} currentUserId="me" onOpenUserProfile={onOpenUserProfile} onStartVoiceCall={onStartVoiceCall} onToggleMemberList={vi.fn()} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'perfil' }));
+    fireEvent.click(screen.getByRole('button', { name: 'llamar' }));
+    expect(onOpenUserProfile).toHaveBeenCalledWith('u2');
+    expect(onStartVoiceCall).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /lista de miembros/ })).toBeNull();
+    expect(screen.getByPlaceholderText('Enviar mensaje a @lbars')).toBeTruthy();
+  });
+
+  it('mientras carga muestra el esqueleto, no un spinner', () => {
+    render(<ChatView channel={channel} messages={[]} users={users} currentUserId="me" isLoading />);
+
+    expect(screen.getByRole('status', { name: 'Cargando mensajes' })).toBeTruthy();
+  });
+});

@@ -1,0 +1,165 @@
+/* Estilos de ChannelSidebar: los valores fijos que antes estaban en línea. Los que dependen del estado
+   siguen en el componente (style). */
+
+.cabeceraServidor {
+  position: relative;
+}
+
+.cabeceraServidorDiv {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0px;
+}
+
+.cabeceraServidorDivH2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--header-primary, #f2f3f5);
+  margin: 0px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.opcionBoostSpan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--legacy-boost-pink);
+}
+
+.invitarPersonasSpan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verVentajasEstadoBoost {
+  margin: 8px 8px 0 8px;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, rgba(244, 127, 255, 0.15) 0%, rgba(255, 115, 250, 0.05) 100%);
+  border: 1px solid rgba(244, 127, 255, 0.3);
+  border-radius: var(--radius-sm, 4px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.verVentajasEstadoBoostDiv {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.verVentajasEstadoBoostDivSpan {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--legacy-boost-pink);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.verVentajasEstadoBoostSpan {
+  font-size: 11px;
+  color: var(--text-muted, #949ba4);
+}
+
+.listaCategoriasCanalesScrollDiv {
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.listaCategoriasCanalesScrollDivDiv {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0.5;
+}
+
+.listaCategoriasCanalesScrollDivDivDiv {
+  height: 12px;
+  width: 40%;
+  background-color: var(--bg-modifier-hover, rgba(78, 80, 88, 0.3));
+  border-radius: 4px;
+}
+
+.listaCategoriasCanalesScrollDivDivDiv2 {
+  height: 24px;
+  width: 80%;
+  background-color: var(--bg-modifier-hover, rgba(78, 80, 88, 0.3));
+  border-radius: 4px;
+}
+
+.listaCategoriasCanalesScrollDivDivDiv3 {
+  height: 24px;
+  width: 70%;
+  background-color: var(--bg-modifier-hover, rgba(78, 80, 88, 0.3));
+  border-radius: 4px;
+}
+
+.listaCategoriasCanalesScrollDiv2 {
+  margin-bottom: 8px;
+}
+
+.crearCanalEstaCategoria {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.listaCategoriasCanalesScrollDiv2Div {
+  display: flex;
+  flex-direction: column;
+}
+
+.badgesNoLeidoLimite {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.listaCategoriasCanalesScrollDiv2DivDiv {
+  padding-left: 32px;
+  padding-right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  margin-bottom: 4px;
+}
+
+.listaCategoriasCanalesScrollDiv2DivDivDiv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 6px;
+  border-radius: var(--radius-xs, 3px);
+}
+
+.cabeceraServidorDivSpan {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.indicadoresAudioParticipante {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted, #949ba4);
+}
+
+.microfonoSilenciado {
+  display: flex;
+}
