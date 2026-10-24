@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
@@ -46,7 +46,8 @@
           "microphonePermission": "Discordia usa el micrófono para que puedas hablar en los canales de voz.",
           "cameraPermission": "Discordia usa la cámara para las videollamadas."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }
