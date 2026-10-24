@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { View } from 'react-native'
 import { updateMyProfile, type Status } from '@discordia/core'
-import { makeStyles, useThemePreference, type ThemePreference } from '../../theme'
+import { makeStyles } from '../../theme'
 import { ActionLink, Choice, SquareAvatar, Text, UnderlineInput } from '../../ui'
 import { useAuth, useUI } from '../../providers/AppProviders'
 import type { User } from '../../types'
@@ -12,12 +12,6 @@ const PRESENCE_OPTIONS: { value: Status; label: string }[] = [
   { value: 'idle', label: 'Ausente' },
   { value: 'dnd', label: 'No molestar' },
   { value: 'invisible', label: 'Invisible' },
-]
-
-const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: 'light', label: 'Claro' },
-  { value: 'dark', label: 'Oscuro' },
-  { value: 'system', label: 'Sistema' },
 ]
 
 const PRESENCE_LABEL: Record<Status, string> = {
@@ -45,13 +39,12 @@ interface ProfileTabProps {
 
 /**
  * Perfil (el menú de la barra de usuario del escritorio): quién sos, presencia (solo para esta sesión,
- * como en la web), estado personalizado (se guarda en el perfil), el tema y los atajos.
+ * como en la web), estado personalizado (se guarda en el perfil) y los atajos.
  */
 export function ProfileTab({ user, inCall, onEditProfile, onOpenSettings, onLogout }: ProfileTabProps) {
   const styles = useStyles()
   const { userProfile, updateUserProfile } = useAuth()
   const { showToast } = useUI()
-  const theme = useThemePreference()
   const [customStatus, setCustomStatus] = useState(user.customStatus ?? '')
   const [saving, setSaving] = useState(false)
   const presence = user.status === 'offline' ? 'invisible' : user.status
@@ -81,7 +74,7 @@ export function ProfileTab({ user, inCall, onEditProfile, onOpenSettings, onLogo
         <SquareAvatar user={user} size={64} status={user.status} />
         <View style={styles.identityText}>
           <Text variant="heading" numberOfLines={1}>
-            {user.name}
+            {user.displayName}
           </Text>
           <Text variant="meta" tone="muted">
             @{user.username}
@@ -128,12 +121,6 @@ export function ProfileTab({ user, inCall, onEditProfile, onOpenSettings, onLogo
             </ActionLink>
           ) : null}
         </View>
-      </View>
-
-      {/* En la web está en Ajustes → Experiencia; mobile todavía no tiene ajustes */}
-      <View style={styles.block}>
-        <Text variant="label">Tema /</Text>
-        <Choice label="Tema" options={THEME_OPTIONS} value={theme.preference} onChange={theme.setPreference} />
       </View>
 
       <View style={[styles.block, styles.links]}>

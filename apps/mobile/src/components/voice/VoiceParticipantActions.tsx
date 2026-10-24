@@ -6,7 +6,6 @@ import { ActionLink, Modal, ModalForm, SquareAvatar, Text } from '../../ui'
 export interface VoiceParticipantTarget {
   id: string
   name: string
-  color: string
 }
 
 interface VoiceParticipantActionsProps {

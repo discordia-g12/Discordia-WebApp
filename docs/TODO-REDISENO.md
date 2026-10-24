@@ -715,12 +715,34 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
       web), crear / editar / eliminar canal, crear categoría, editar perfil (avisos de la app en vez de
       `Alert`) y silenciar a alguien de la llamada.
 - [x] Catálogo de desarrollo: Expo web con `?catalogo` (`views/Catalog`), en los dos temas.
-- [ ] Miembros, roles y baneos (`members/`, `roles/`, unas 1550 líneas): siguen con el diseño anterior. En
-      la web son pestañas de los ajustes del servidor (paso 9b): pasarlos a una pantalla de ajustes.
-- [ ] Ajustes de usuario: mobile no tiene pantalla (el tema está en Perfil por ahora).
-- [ ] Modelos de interfaz y datos de prueba de mobile (`types.ts`, `data/mock.ts`) unificados con core
-      (pendiente del paso 1.2). El `DataProvider` todavía arranca con los datos de prueba hasta que responde
-      el backend.
+- [x] Ajustes del servidor (`components/settings/server/`) sobre el marco `settings/SettingsScreen` (la
+      versión de pantalla chica de la web: identidad y ×, menú de palabras gigantes en una fila que se
+      desliza hasta la activa, celdas una por fila, cortina): RESUMEN (identidad en "próximamente" y
+      números), ROLES (crear con color, lista, editar nombre y color, por defecto y eliminar con
+      confirmación, miembros del rol, permisos con interruptores y la barra negra de cambios sin guardar),
+      MIEMBROS (roles con × y `_rol +`, silenciar, expulsar y banear con motivo, `_cargar más`) y BANEOS
+      (revocar con confirmación en la fila); INVITAR y ELIMINAR (pide escribir el nombre) o ABANDONAR en el
+      menú. Se abren desde el menú del servidor (ajustes, miembros, roles). Reemplazan a `RolesModal`,
+      `MembersModal`, `BansList` y `RolePermissionsEditor`, que se borraron con los hooks del bitmask.
+- [x] Lógica de roles, miembros y baneos en core (`core/admin/`): `useRolesAdmin` (las confirmaciones las
+      pone quien lo usa: la web, `window.confirm`; mobile, su modal), `useServerMembersAdmin` (la página
+      siguiente con `loadMore`; la web le suma su `IntersectionObserver`) y `useServerBansAdmin`, más
+      `PERMISSION_CATEGORIES`, `PRESET_ROLE_COLORS` y `hasBackendBit` (los permisos sin bit en el backend se
+      muestran sin poder activarse). La web los usa desde ahí. Corregido de paso: en la web el permiso
+      "Ver registro de auditoría" tenía el id `VIEW_[]` (era `VIEW_AUDIT_LOG`).
+- [x] Ajustes de usuario (`components/settings/user/`): CUENTA (nombre de usuario y correo, con
+      `_mostrar`; contraseña y dos factores en "próximamente") y EXPERIENCIA (el tema, que salió de Perfil);
+      CERRAR SESIÓN en el menú. Se abren con `_ajustes` en Perfil. Como en iOS un modal no se presenta
+      encima de otro que no lo contiene, las acciones de los ajustes que abren un modal los cierran antes.
+- [x] Modelos unificados con core: `Server`, `Channel`, `Category`, `User` y `Message` son los de core
+      (mobile solo suma el estado del envío optimista). Se borraron `data/mock.ts` y lo que vivía de él en el
+      `DataProvider` (DMs, avisos, auditoría, editar / borrar / reaccionar mensajes locales) y del
+      `UIProvider` (modales, confirmaciones y voz simulados): la app arranca vacía, con esqueleto hasta que
+      responde el backend, y si falla no quedan servidores inventados.
+- [x] Corregido en core (también afectaba a la web): Chat-Engine manda solo `createdAt`, y la interfaz usa
+      `timestamp`. Con el backend real el historial quedaba sin fecha ni separadores (los backends falsos de
+      los tests sí mandaban `timestamp`). `normalizeMessage` completa los dos en el historial, el envío por
+      REST y lo que llega por el WebSocket, con tests.
 - [ ] Probar en Android (APK con EAS) e iOS: lo de arriba se verificó en Expo web (Chrome, 390 px, claro y
       oscuro, contra un backend falso); no hay simuladores en esta máquina. Revisar sobre todo el teclado
       con la barra de escritura, la cortina de los modales y las fuentes en Android.

@@ -26,20 +26,11 @@ export function useUserProfiles(userIds: string[]): Record<string, PublicProfile
 
 export interface UserDisplay {
   name: string
-  color: string
   avatar: string | null
 }
 
-// Color estable para el avatar de usuarios que la app no tiene cargados
-const AVATAR_COLORS = ['#7c5cfc', '#3db57a', '#f5a623', '#5865f2', '#ed4245', '#ff73fa']
-function colorFor(userId: string): string {
-  let hash = 0
-  for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) | 0
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
-}
-
 /**
- * Nombre, color y avatar para mostrar a cualquier usuario: primero los que la app ya tiene cargados
+ * Nombre y avatar para mostrar a cualquier usuario: primero los que la app ya tiene cargados
  * (incluido el propio, que se mantiene al día al editar el perfil); el resto se pide al backend.
  */
 export function useUserDisplay(userIds: string[]): (userId: string) => UserDisplay {
@@ -48,8 +39,7 @@ export function useUserDisplay(userIds: string[]): (userId: string) => UserDispl
 
   return useCallback(
     (userId: string) => ({
-      name: users[userId]?.name ?? profiles[userId]?.name ?? 'Usuario',
-      color: users[userId]?.color ?? colorFor(userId),
+      name: users[userId]?.displayName ?? profiles[userId]?.name ?? 'Usuario',
       avatar: users[userId]?.avatar ?? profiles[userId]?.avatar ?? null,
     }),
     [users, profiles],

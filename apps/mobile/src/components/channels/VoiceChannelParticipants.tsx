@@ -7,7 +7,6 @@ import { SquareAvatar, Text, useNativeDriver, useReducedMotion } from '../../ui'
 export interface VoiceChannelParticipant {
   id: string
   name: string
-  color: string
   avatar?: string | null
   /** Solo se conoce en el canal en el que está el propio usuario (datos de LiveKit). */
   isSpeaking?: boolean

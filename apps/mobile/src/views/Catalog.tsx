@@ -30,9 +30,9 @@ export function isCatalogRequested(): boolean {
 }
 
 const PARTICIPANTS = [
-  { id: 'a', name: 'Pilar', color: '#000', isLocal: true, isSpeaking: true, isMuted: false },
-  { id: 'b', name: 'Lbars', color: '#000', isLocal: false, isSpeaking: false, isMuted: true },
-  { id: 'c', name: 'Iñaki Ibarrolaza', color: '#000', isLocal: false, isSpeaking: false, isMuted: false, isLocallyMuted: true },
+  { id: 'a', name: 'Pilar', isLocal: true, isSpeaking: true, isMuted: false },
+  { id: 'b', name: 'Lbars', isLocal: false, isSpeaking: false, isMuted: true },
+  { id: 'c', name: 'Iñaki Ibarrolaza', isLocal: false, isSpeaking: false, isMuted: false, isLocallyMuted: true },
 ]
 
 export function Catalog() {

@@ -6,65 +6,31 @@ import React, {
   useMemo,
   useState,
 } from 'react'
-import {
-  USERS,
-  SERVERS,
-  MESSAGES,
-  DIRECT_MESSAGES,
-  DM_MESSAGES,
-  NOTIFICATIONS,
-  AUDIT_LOG,
-  CURRENT_USER_ID,
-} from '../data/mock'
-import type {
-  User,
-  Server,
-  Category,
-  Channel,
-  ServerBackendResponse,
-  Message,
-  MessageBackendPayload,
-  DirectMessage,
-  Notification,
-  AuditEntry,
-} from '../types'
+import type { User, Server, Category, Channel, Message, MessageBackendPayload } from '../types'
 import { useAuth } from './AuthProvider'
 import {
-  api,
+  getMessages,
   getServers,
+  sendMessage as apiSendMessage,
   createServer as apiCreateServer,
   createChannel as apiCreateChannel,
   editChannel as apiEditChannel,
   deleteChannel as apiDeleteChannel,
   leaveServer as apiLeaveServer,
+  deleteServer as apiDeleteServer,
   createCategory as apiCreateCategory,
   reorderChannels as apiReorderChannels,
   reorderCategories as apiReorderCategories,
 } from '@discordia/core'
-import type { Server as SharedServer } from '@discordia/core'
-
-// El Server de la API compartida (web) deja opcionales campos que la UI mobile espera siempre presentes
-function toMobileServer(server: SharedServer): Server {
-  return {
-    ...server,
-    icon: server.icon ?? null,
-    iconUrl: server.iconUrl ?? null,
-    color: server.color ?? '#7c5cfc',
-    roles: [],
-    members: [server.ownerId],
-    memberCount: server.memberCount ?? 1,
-  }
-}
 
 interface DataContextValue {
   currentUserId: string
+  /** Usuarios conocidos (por ahora, el propio); el resto se pide con useUserDisplay. */
   users: Record<string, User>
   servers: Server[]
+  /** Ya respondió el backend (o falló): distingue "cargando" de "no tenés servidores". */
+  serversLoaded: boolean
   messages: Record<string, Message[]>
-  directMessages: DirectMessage[]
-  dmMessages: Record<string, Message[]>
-  notifications: Notification[]
-  auditLog: AuditEntry[]
 
   // Servidores y canales en vivo
   refreshServers: () => Promise<void>
@@ -84,17 +50,14 @@ interface DataContextValue {
   reorderChannels: (serverId: string, categories: Category[]) => Promise<void>
   reorderCategories: (serverId: string, categories: Category[]) => Promise<void>
   leaveServer: (serverId: string) => Promise<void>
+  /** Elimina el servidor (solo quien lo creó). */
+  deleteServer: (serverId: string) => Promise<void>
 
   // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string) => void
   addOptimisticMessage: (channelId: string, content: string) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
   failOptimisticMessage: (channelId: string) => void
-  editMessage: (channelId: string, messageId: string, content: string) => void
-  deleteMessage: (channelId: string, messageId: string) => void
-  toggleReaction: (channelId: string, messageId: string, emoji: string) => void
-  markNotificationRead: (id: string) => void
-  markAllNotificationsRead: () => void
   fetchChannelMessages: (channelId: string) => Promise<void>
 }
 
@@ -103,30 +66,24 @@ const DataContext = createContext<DataContextValue | null>(null)
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { token, userProfile } = useAuth()
 
-  // Determinar ID de usuario actual según autenticación real o fallback
-  const activeUserId = userProfile?.id || CURRENT_USER_ID
+  const activeUserId = userProfile?.id ?? ''
 
-  const [users, setUsers] = useState<Record<string, User>>(USERS)
-  const [servers, setServers] = useState<Server[]>(SERVERS)
-  const [messages, setMessages] = useState<Record<string, Message[]>>(MESSAGES)
-  const [directMessages] = useState<DirectMessage[]>(DIRECT_MESSAGES)
-  const [dmMessages, setDmMessages] = useState<Record<string, Message[]>>(DM_MESSAGES)
-  const [notifications, setNotifications] = useState<Notification[]>(NOTIFICATIONS)
-  const [auditLog] = useState<AuditEntry[]>(AUDIT_LOG)
+  const [users, setUsers] = useState<Record<string, User>>({})
+  const [servers, setServers] = useState<Server[]>([])
+  const [serversLoaded, setServersLoaded] = useState(false)
+  const [messages, setMessages] = useState<Record<string, Message[]>>({})
 
   // Sincronizar el perfil del usuario autenticado en el diccionario de usuarios
   useEffect(() => {
     if (!userProfile) return
     const profileUser: User = {
       id: userProfile.id,
-      name: userProfile.display_name || userProfile.username,
       username: userProfile.username,
-      avatar: userProfile.avatar_url || null,
-      color: '#7c5cfc',
-      status: (userProfile.activity_status as any) || 'online',
+      displayName: userProfile.display_name || userProfile.username,
+      avatar: userProfile.avatar_url || undefined,
+      status: (userProfile.activity_status as User['status']) || 'online',
       customStatus: userProfile.custom_status,
       bio: userProfile.bio,
-      joinedAt: new Date().toISOString(),
     }
     setUsers(prev => ({
       ...prev,
@@ -139,11 +96,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!token) return
     try {
       const serverList = await getServers()
-      if (Array.isArray(serverList)) {
-        setServers(serverList.map(toMobileServer))
-      }
+      if (Array.isArray(serverList)) setServers(serverList)
     } catch {
-      // Si falla la red o el endpoint no responde, conserva los existentes
+      // Si falla la red o el endpoint no responde, conserva los que ya había
+    } finally {
+      setServersLoaded(true)
     }
   }, [token])
 
@@ -152,7 +109,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [refreshServers])
 
   const createServer = useCallback(async (name: string, icon?: any): Promise<Server> => {
-    const newServer = toMobileServer(await apiCreateServer({ name, icon }))
+    const newServer = await apiCreateServer({ name, icon })
     setServers(prev => [...prev, newServer])
     return newServer
   }, [])
@@ -310,34 +267,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [],
   )
 
-  const isDm = useCallback((channelId: string) => channelId.startsWith('dm-'), [])
+  const deleteServer = useCallback(
+    async (serverId: string): Promise<void> => {
+      await apiDeleteServer(serverId)
+      setServers(prev => prev.filter(srv => srv.id !== serverId))
+    },
+    [],
+  )
 
-  // Consulta de mensajes de canal en Chat-Engine-Service
+  // Mensajes de un canal (Chat-Engine-Service). Si falla, quedan los que ya había
   const fetchChannelMessages = useCallback(
     async (channelId: string) => {
-      if (!token || isDm(channelId)) return
+      if (!token) return
       try {
-        const response = await api.get<{ messages: any[] } | any[]>(
-          `/api/v1/chat/channels/${channelId}/messages?limit=50`,
-        )
-        const rawList = Array.isArray(response) ? response : response?.messages || []
-        const formatted: Message[] = rawList.map(m => ({
-          id: m.id || m._id || `msg-${Date.now()}`,
-          channelId: m.channelId || m.channel_id || channelId,
-          userId: m.authorId || m.author_id || m.userId || m.user_id || activeUserId,
-          authorId: m.authorId || m.author_id || m.userId || activeUserId,
-          content: m.content || '',
-          createdAt: m.createdAt || m.created_at || m.timestamp || new Date().toISOString(),
-          timestamp: m.createdAt || m.created_at || m.timestamp || new Date().toISOString(),
-          type: m.type || 'normal',
-          status: 'sent' as const,
-        }))
-        setMessages(prev => ({ ...prev, [channelId]: formatted }))
+        const list = await getMessages(channelId)
+        setMessages(prev => ({ ...prev, [channelId]: list.map(m => ({ ...m, status: 'sent' as const })) }))
       } catch {
-        // En caso de error, se preservan los mensajes locales en memoria
+        // sin red: se conservan los mensajes en memoria
       }
     },
-    [token, activeUserId, isDm],
+    [token],
   )
 
   const addOptimisticMessage = useCallback(
@@ -347,7 +296,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const newMessage: Message = {
         id: tempId,
         channelId,
-        userId: activeUserId,
         authorId: activeUserId,
         content,
         timestamp: now,
@@ -395,7 +343,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               ...updated[pendingIndex],
               id: payload.id,
               authorId: payload.authorId,
-              userId: payload.authorId,
               content: payload.content,
               createdAt: payload.createdAt,
               timestamp: payload.createdAt,
@@ -409,7 +356,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const newMsg: Message = {
           id: payload.id,
           channelId: payload.channelId || channelId,
-          userId: payload.authorId,
           authorId: payload.authorId,
           content: payload.content,
           createdAt: payload.createdAt,
@@ -437,113 +383,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  // Envío por REST (el normal es por el WebSocket del canal): se muestra al instante y queda enviado o fallido
   const sendMessage = useCallback(
     (channelId: string, content: string) => {
-      const clientMessageId = `local-${Date.now()}`
-      const newMessage: Message = {
-        id: clientMessageId,
-        channelId,
-        userId: activeUserId,
-        authorId: activeUserId,
-        content,
-        timestamp: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        type: 'normal',
-      }
-
-      // 1. Actualización optimista inmediata en la UI
-      const setter = isDm(channelId) ? setDmMessages : setMessages
-      setter(prev => ({
-        ...prev,
-        [channelId]: [...(prev[channelId] ?? []), newMessage],
-      }))
-
-      // 2. Envío asíncrono al backend si existe token activo y no es DM mock
-      if (token && !isDm(channelId)) {
-        api.post(`/api/v1/chat/channels/${channelId}/messages`, {
-            content,
-            clientMessageId,
-        }).catch(() => {
-          // El mensaje ya quedó de forma optimista en la interfaz
-        })
-      }
+      const tempId = addOptimisticMessage(channelId, content)
+      apiSendMessage(channelId, content, tempId)
+        .then(sent => confirmOptimisticMessage(channelId, { ...sent, createdAt: sent.createdAt ?? sent.timestamp }))
+        .catch(() => failOptimisticMessage(channelId))
     },
-    [activeUserId, isDm, token],
+    [addOptimisticMessage, confirmOptimisticMessage, failOptimisticMessage],
   )
-
-  const editMessage = useCallback(
-    (channelId: string, messageId: string, content: string) => {
-      const setter = isDm(channelId) ? setDmMessages : setMessages
-      setter(prev => ({
-        ...prev,
-        [channelId]: (prev[channelId] ?? []).map(m =>
-          m.id === messageId ? { ...m, content, edited: true } : m,
-        ),
-      }))
-    },
-    [isDm],
-  )
-
-  const deleteMessage = useCallback(
-    (channelId: string, messageId: string) => {
-      const setter = isDm(channelId) ? setDmMessages : setMessages
-      setter(prev => ({
-        ...prev,
-        [channelId]: (prev[channelId] ?? []).map(m =>
-          m.id === messageId
-            ? { ...m, type: 'deleted', content: '[This message was deleted]' }
-            : m,
-        ),
-      }))
-    },
-    [isDm],
-  )
-
-  const toggleReaction = useCallback(
-    (channelId: string, messageId: string, emoji: string) => {
-      const setter = isDm(channelId) ? setDmMessages : setMessages
-      setter(prev => ({
-        ...prev,
-        [channelId]: (prev[channelId] ?? []).map(m => {
-          if (m.id !== messageId) return m
-          const reactions = m.reactions ?? []
-          const existing = reactions.find(r => r.emoji === emoji)
-          if (!existing) {
-            return { ...m, reactions: [...reactions, { emoji, count: 1, reacted: true }] }
-          }
-          const updated = existing.reacted
-            ? { ...existing, count: existing.count - 1, reacted: false }
-            : { ...existing, count: existing.count + 1, reacted: true }
-          return {
-            ...m,
-            reactions: reactions
-              .map(r => (r.emoji === emoji ? updated : r))
-              .filter(r => r.count > 0),
-          }
-        }),
-      }))
-    },
-    [isDm],
-  )
-
-  const markNotificationRead = useCallback((id: string) => {
-    setNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)))
-  }, [])
-
-  const markAllNotificationsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-  }, [])
 
   const value = useMemo<DataContextValue>(
     () => ({
       currentUserId: activeUserId,
       users,
       servers,
+      serversLoaded,
       messages,
-      directMessages,
-      dmMessages,
-      notifications,
-      auditLog,
       refreshServers,
       createServer,
       createChannel,
@@ -553,26 +410,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       reorderChannels,
       reorderCategories,
       leaveServer,
+      deleteServer,
       sendMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,
-      editMessage,
-      deleteMessage,
-      toggleReaction,
-      markNotificationRead,
-      markAllNotificationsRead,
       fetchChannelMessages,
     }),
     [
       activeUserId,
       users,
       servers,
+      serversLoaded,
       messages,
-      directMessages,
-      dmMessages,
-      notifications,
-      auditLog,
       refreshServers,
       createServer,
       createChannel,
@@ -582,15 +432,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       reorderChannels,
       reorderCategories,
       leaveServer,
+      deleteServer,
       sendMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,
-      editMessage,
-      deleteMessage,
-      toggleReaction,
-      markNotificationRead,
-      markAllNotificationsRead,
       fetchChannelMessages,
     ],
   )

@@ -9,7 +9,6 @@ import { CallState } from '../shell/CallBar'
 export interface VoiceScreenParticipant {
   id: string
   name: string
-  color: string
   avatar?: string | null
   isLocal: boolean
   isSpeaking: boolean

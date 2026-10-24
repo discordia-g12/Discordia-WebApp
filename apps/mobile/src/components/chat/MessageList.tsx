@@ -38,7 +38,7 @@ export default function MessageList({ messages, describeUser }: MessageListProps
     const out: Row[] = []
     messages.forEach((message, i) => {
       const prev = i > 0 ? messages[i - 1] : null
-      const line = (m: Message) => ({ authorId: m.userId, timestamp: m.timestamp, type: m.type })
+      const line = (m: Message) => ({ authorId: m.authorId, timestamp: m.timestamp, type: m.type })
       const { newDay, grouped } = placeMessage(prev && line(prev), line(message))
       if (newDay) out.push({ kind: 'day', key: `day-${newDay.toDateString()}`, label: formatDayLabel(newDay) })
       out.push({ kind: 'message', key: message.id, message, grouped })
@@ -73,7 +73,7 @@ export default function MessageList({ messages, describeUser }: MessageListProps
         ) : (
           <MessageItem
             message={item.message}
-            author={describeUser(item.message.userId)}
+            author={describeUser(item.message.authorId)}
             grouped={item.grouped}
             animate={new Date(item.message.timestamp).getTime() > openedAt.current - NEW_WINDOW_MS}
           />

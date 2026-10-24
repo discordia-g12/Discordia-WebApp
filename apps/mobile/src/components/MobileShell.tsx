@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { makeStyles } from '../theme'
 import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink } from '../ui'
-import type { Channel, Message } from '../types'
+import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
 import ChatHeader from './chat/ChatHeader'
@@ -17,8 +17,8 @@ import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
 import EditProfileModal from './profile/EditProfileModal'
 import Toast from './shared/Toast'
-import RolesModal from './roles/RolesModal'
-import MembersModal from './members/MembersModal'
+import { ServerSettingsScreen, type ServerSettingsSection } from './settings/server/ServerSettingsScreen'
+import { UserSettingsScreen } from './settings/user/UserSettingsScreen'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
 import { BottomTabs, type ShellTab } from './shell/BottomTabs'
@@ -70,11 +70,13 @@ export default function MobileShell() {
   const {
     users,
     servers,
+    serversLoaded,
     messages,
     currentUserId,
     sendMessage,
     fetchChannelMessages,
     leaveServer,
+    deleteServer,
     reorderChannels,
     reorderCategories,
     addOptimisticMessage,
@@ -104,8 +106,9 @@ export default function MobileShell() {
   // Un reorden por vez: cada pedido manda el orden completo y no deben pisarse
   const reorderInFlight = useRef(false)
   const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
-  const [rolesModalOpen, setRolesModalOpen] = useState(false)
-  const [membersModalOpen, setMembersModalOpen] = useState(false)
+  // Ajustes del servidor abiertos, en qué sección (null: cerrados)
+  const [serverSettings, setServerSettings] = useState<ServerSettingsSection | null>(null)
+  const [deleteServerConfirmOpen, setDeleteServerConfirmOpen] = useState(false)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
   const [leaveServerConfirmOpen, setLeaveServerConfirmOpen] = useState(false)
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
@@ -113,6 +116,7 @@ export default function MobileShell() {
   const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
   const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
   const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [userSettingsOpen, setUserSettingsOpen] = useState(false)
   // Canal de voz al que se quiere pasar estando conectado a otro (pide confirmación)
   const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
   // Participante sobre el que se mantuvo presionado (menú para silenciarlo solo para vos)
@@ -122,15 +126,8 @@ export default function MobileShell() {
   const allChannels: Channel[] = server ? server.categories.flatMap(c => c.channels) : []
   const channel = allChannels.find(c => c.id === selectedChannelId) ?? null
   const channelMessages: Message[] = channel ? messages[channel.id] ?? [] : []
-  const me = users[currentUserId] ?? {
-    id: currentUserId,
-    name: 'Usuario',
-    username: 'usuario',
-    avatar: null,
-    color: '#000000',
-    status: 'online' as const,
-    joinedAt: '',
-  }
+  // El propio usuario (llega con el perfil de la sesión)
+  const me: User = users[currentUserId] ?? { id: currentUserId, username: 'usuario', displayName: 'Usuario', status: 'online' }
 
   // Canal de voz activo (puede ser de otro servidor que el seleccionado)
   const voiceLocation = useMemo(() => {
@@ -153,11 +150,11 @@ export default function MobileShell() {
   )
   const voicePresence = useVoicePresence(serverVoiceChannelIds)
 
-  // IDs (LiveKit, presencia o autores de mensajes) -> nombre y color; los que la app no conoce se piden al backend
+  // IDs (LiveKit, presencia o autores de mensajes) -> nombre y avatar; los que la app no conoce se piden al backend
   const describeUser = useUserDisplay([
     ...voice.participants.map(p => p.id),
     ...Object.values(voicePresence).flat(),
-    ...channelMessages.map(m => m.userId),
+    ...channelMessages.map(m => m.authorId),
   ])
 
   const voiceParticipants: VoiceScreenParticipant[] = voice.participants.map(p => ({
@@ -193,7 +190,7 @@ export default function MobileShell() {
   }, [channelMessages])
 
   const activeSocketChannelId =
-    channel && channel.type !== 'voice' && !channel.id.startsWith('dm-') ? channel.id : null
+    channel && channel.type !== 'voice' ? channel.id : null
 
   const socket = useChatSocket({
     channelId: activeSocketChannelId,
@@ -430,8 +427,9 @@ export default function MobileShell() {
   const serverMenuItems = server
     ? [
         { label: 'Invitar personas', onSelect: () => setInviteModalOpen(true) },
-        { label: 'Miembros', onSelect: () => setMembersModalOpen(true) },
-        { label: 'Roles', onSelect: () => setRolesModalOpen(true) },
+        { label: 'Ajustes del servidor', onSelect: () => setServerSettings('overview') },
+        { label: 'Miembros', onSelect: () => setServerSettings('members') },
+        { label: 'Roles', onSelect: () => setServerSettings('roles') },
         { label: 'Crear canal', onSelect: () => handleAddChannel(null) },
         { label: 'Crear categoría', onSelect: () => setCreateCategoryModalOpen(true) },
         {
@@ -439,12 +437,24 @@ export default function MobileShell() {
           onSelect: () => setReorderMode(on => !on),
           detail: reorderMode ? 'activo' : undefined,
         },
-        ...(!isServerAdmin ? [{ label: 'Abandonar servidor', onSelect: () => setLeaveServerConfirmOpen(true), separated: true }] : []),
+        isServerAdmin
+          ? { label: 'Eliminar servidor', onSelect: () => setDeleteServerConfirmOpen(true), separated: true }
+          : { label: 'Abandonar servidor', onSelect: () => setLeaveServerConfirmOpen(true), separated: true },
       ]
     : []
 
   /* ---------- Servidores: canales, o un canal abierto ---------- */
   const serversContent = () => {
+    if (!serversLoaded && servers.length === 0) {
+      return (
+        <Screen title="Servidores">
+          <Padded>
+            <Skeleton lines={5} label="Cargando servidores" />
+          </Padded>
+        </Screen>
+      )
+    }
+
     if (servers.length === 0) {
       return (
         <Screen title="Servidores">
@@ -482,7 +492,7 @@ export default function MobileShell() {
             connectionState={voice.connectionState}
             participants={voiceParticipants}
             onInvite={() => setInviteModalOpen(true)}
-            onLongPressParticipant={p => setVoiceActionTarget({ id: p.id, name: p.name, color: p.color })}
+            onLongPressParticipant={p => setVoiceActionTarget({ id: p.id, name: p.name })}
           />
         </Pane>
       )
@@ -517,7 +527,7 @@ export default function MobileShell() {
               onLongPressChannel={handleOpenEditChannel}
               voiceParticipants={sidebarVoiceParticipants}
               currentUserId={currentUserId}
-              onLongPressVoiceParticipant={p => setVoiceActionTarget({ id: p.id, name: p.name, color: p.color })}
+              onLongPressVoiceParticipant={p => setVoiceActionTarget({ id: p.id, name: p.name })}
               reorderMode={reorderMode}
               onShiftChannel={handleShiftChannel}
               onShiftCategory={handleShiftCategory}
@@ -578,6 +588,7 @@ export default function MobileShell() {
               user={me}
               inCall={!!voice.channelId}
               onEditProfile={() => setEditProfileOpen(true)}
+              onOpenSettings={() => setUserSettingsOpen(true)}
               onLogout={() => setLogoutConfirmOpen(true)}
             />
           )}
@@ -620,13 +631,40 @@ export default function MobileShell() {
       {server && (
         <CreateCategoryModal visible={createCategoryModalOpen} serverId={server.id} onClose={() => setCreateCategoryModalOpen(false)} />
       )}
-      <RolesModal visible={rolesModalOpen} serverId={server?.id ?? null} onClose={() => setRolesModalOpen(false)} />
-      <MembersModal
-        visible={membersModalOpen}
-        serverId={server?.id ?? null}
-        ownerId={server?.ownerId ?? null}
-        currentUserId={currentUserId}
-        onClose={() => setMembersModalOpen(false)}
+      {server && (
+        <ServerSettingsScreen
+          visible={serverSettings !== null}
+          initialSection={serverSettings ?? 'overview'}
+          server={server}
+          currentUserId={currentUserId}
+          onClose={() => setServerSettings(null)}
+          // En iOS un modal no se presenta encima de otro que no lo contiene: los ajustes se cierran antes
+          onInvite={() => {
+            setServerSettings(null)
+            setInviteModalOpen(true)
+          }}
+          onDeleteServer={() => {
+            setServerSettings(null)
+            setDeleteServerConfirmOpen(true)
+          }}
+          onLeaveServer={() => {
+            setServerSettings(null)
+            setLeaveServerConfirmOpen(true)
+          }}
+        />
+      )}
+      <UserSettingsScreen
+        visible={userSettingsOpen}
+        onClose={() => setUserSettingsOpen(false)}
+        // Los ajustes se cierran antes de abrir otro modal (iOS no presenta uno encima de otro que no lo contiene)
+        onEditProfile={() => {
+          setUserSettingsOpen(false)
+          setEditProfileOpen(true)
+        }}
+        onLogout={() => {
+          setUserSettingsOpen(false)
+          setLogoutConfirmOpen(true)
+        }}
       />
       <EditProfileModal visible={editProfileOpen} onClose={() => setEditProfileOpen(false)} />
       <InviteModal visible={inviteModalOpen} server={server || undefined} onClose={() => setInviteModalOpen(false)} />
@@ -646,12 +684,39 @@ export default function MobileShell() {
           setLeaveServerConfirmOpen(false)
           try {
             await leaveServer(server.id)
+            setServerSettings(null)
             showToast('Abandonaste el servidor', 'success')
             const remaining = servers.filter(s => s.id !== server.id)
             selectServer(remaining.length > 0 ? remaining[0].id : null)
             selectChannel(null)
           } catch {
             showToast('Error al abandonar el servidor', 'error')
+          }
+        }}
+      />
+      <ConfirmModal
+        visible={deleteServerConfirmOpen}
+        title="¿Eliminar servidor?"
+        message={`Se borra ${server?.name ?? 'el servidor'} con todos sus canales, mensajes y roles. No se puede deshacer.`}
+        confirmLabel="Eliminar"
+        tone="danger"
+        requireText={server?.name}
+        onCancel={() => setDeleteServerConfirmOpen(false)}
+        onConfirm={async () => {
+          if (!server) return
+          try {
+            await deleteServer(server.id)
+            setDeleteServerConfirmOpen(false)
+            setServerSettings(null)
+            showToast(`Servidor ${server.name} eliminado`, 'success')
+            const remaining = servers.filter(s => s.id !== server.id)
+            selectServer(remaining.length > 0 ? remaining[0].id : null)
+            selectChannel(null)
+          } catch (err) {
+            showToast(
+              errorMessageFor(err, { 403: 'Solo quien creó el servidor puede eliminarlo.' }, 'No se pudo eliminar el servidor.'),
+              'error',
+            )
           }
         }}
       />

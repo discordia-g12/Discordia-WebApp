@@ -1,14 +1,5 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { durations } from '@discordia/tokens'
-import type { Modal, ConfirmAction } from '../types'
 
 interface Toast {
   /** Cada aviso tiene el suyo: uno nuevo vuelve a entrar aunque repita el texto. */
@@ -23,35 +14,6 @@ interface UIContextValue {
   selectServer: (id: string | null) => void
   selectChannel: (id: string | null) => void
 
-  memberListOpen: boolean
-  toggleMemberList: () => void
-
-  activeModal: Modal
-  openModal: (modal: Modal) => void
-  closeModal: () => void
-
-  confirmAction: ConfirmAction
-  confirmTarget?: string
-  askConfirm: (action: ConfirmAction, target?: string) => void
-  clearConfirm: () => void
-
-  profileUserId: string | null
-  openProfile: (userId: string) => void
-  closeProfile: () => void
-
-  // Voz — solo flags visuales, no hay audio/video real.
-  inVoiceChannelId: string | null
-  micMuted: boolean
-  deafened: boolean
-  cameraOn: boolean
-  screenSharing: boolean
-  joinVoice: (channelId: string) => void
-  leaveVoice: () => void
-  toggleMic: () => void
-  toggleDeafen: () => void
-  toggleCamera: () => void
-  toggleScreenShare: () => void
-
   toast: Toast | null
   showToast: (message: string, type?: Toast['type']) => void
   dismissToast: () => void
@@ -59,20 +21,10 @@ interface UIContextValue {
 
 const UIContext = createContext<UIContextValue | null>(null)
 
+/** Estado de la interfaz que comparten varias pantallas: servidor y canal elegidos, y el aviso en pantalla. */
 export function UIProvider({ children }: { children: React.ReactNode }) {
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null)
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null)
-  const [memberListOpen, setMemberListOpen] = useState(false)
-  const [activeModal, setActiveModal] = useState<Modal>(null)
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null)
-  const [confirmTarget, setConfirmTarget] = useState<string | undefined>(undefined)
-  const [profileUserId, setProfileUserId] = useState<string | null>(null)
-
-  const [inVoiceChannelId, setInVoiceChannelId] = useState<string | null>(null)
-  const [micMuted, setMicMuted] = useState(false)
-  const [deafened, setDeafened] = useState(false)
-  const [cameraOn, setCameraOn] = useState(false)
-  const [screenSharing, setScreenSharing] = useState(false)
 
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -87,22 +39,18 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // 4 s en pantalla (durations.toast), como en la web
-  const showToast = useCallback((message: string, type: Toast['type'] = 'info', durationMs: number = durations.toast) => {
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current)
-    }
+  const showToast = useCallback((message: string, type: Toast['type'] = 'info') => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
     setToast({ id: ++toastIdRef.current, message, type })
     toastTimeoutRef.current = setTimeout(() => {
       setToast(null)
       toastTimeoutRef.current = null
-    }, durationMs)
+    }, durations.toast)
   }, [])
 
   useEffect(() => {
     return () => {
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current)
-      }
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current)
     }
   }, [])
 
@@ -112,66 +60,11 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
       selectedChannelId,
       selectServer: setSelectedServerId,
       selectChannel: setSelectedChannelId,
-
-      memberListOpen,
-      toggleMemberList: () => setMemberListOpen(v => !v),
-
-      activeModal,
-      openModal: setActiveModal,
-      closeModal: () => setActiveModal(null),
-
-      confirmAction,
-      confirmTarget,
-      askConfirm: (action, target) => {
-        setConfirmAction(action)
-        setConfirmTarget(target)
-      },
-      clearConfirm: () => {
-        setConfirmAction(null)
-        setConfirmTarget(undefined)
-      },
-
-      profileUserId,
-      openProfile: setProfileUserId,
-      closeProfile: () => setProfileUserId(null),
-
-      inVoiceChannelId,
-      micMuted,
-      deafened,
-      cameraOn,
-      screenSharing,
-      joinVoice: id => setInVoiceChannelId(id),
-      leaveVoice: () => {
-        setInVoiceChannelId(null)
-        setCameraOn(false)
-        setScreenSharing(false)
-      },
-      toggleMic: () => setMicMuted(v => !v),
-      toggleDeafen: () => setDeafened(v => !v),
-      toggleCamera: () => setCameraOn(v => !v),
-      toggleScreenShare: () => setScreenSharing(v => !v),
-
       toast,
       showToast,
       dismissToast,
     }),
-    [
-      selectedServerId,
-      selectedChannelId,
-      memberListOpen,
-      activeModal,
-      confirmAction,
-      confirmTarget,
-      profileUserId,
-      inVoiceChannelId,
-      micMuted,
-      deafened,
-      cameraOn,
-      screenSharing,
-      toast,
-      showToast,
-      dismissToast,
-    ],
+    [selectedServerId, selectedChannelId, toast, showToast, dismissToast],
   )
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>
