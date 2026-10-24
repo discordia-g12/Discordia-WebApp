@@ -1,6 +1,15 @@
 import { api } from './client';
 import { Message } from '../types';
 
+/**
+ * Chat-Engine manda solo createdAt (historial, envío y WebSocket); la interfaz ordena, agrupa y muestra la
+ * fecha con timestamp. Se completa acá para que web y mobile reciban siempre las dos.
+ */
+export function normalizeMessage(message: Message): Message {
+  const time = message.timestamp ?? message.createdAt ?? '';
+  return { ...message, timestamp: time, createdAt: message.createdAt ?? time };
+}
+
 export interface GetMessagesOptions {
   before?: string;
   limit?: number;
@@ -17,10 +26,8 @@ export async function getMessages(
   const response = await api.get<{ messages: Message[] } | Message[]>(`/api/v1/chat/channels/${channelId}/messages`, {
     query: { before, limit },
   });
-  if (Array.isArray(response)) {
-    return response;
-  }
-  return response?.messages || [];
+  const list = Array.isArray(response) ? response : response?.messages || [];
+  return list.map(normalizeMessage);
 }
 
 /**
@@ -32,9 +39,10 @@ export async function sendMessage(
   clientMessageId?: string
 ): Promise<Message> {
   const idempotencyKey = clientMessageId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `msg-${Date.now()}`);
-  return await api.post<Message>(
+  const sent = await api.post<Message>(
     `/api/v1/chat/channels/${channelId}/messages`,
     { content, clientMessageId: idempotencyKey },
     { idempotencyKey }
   );
+  return normalizeMessage(sent);
 }

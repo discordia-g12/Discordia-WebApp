@@ -26,6 +26,11 @@ export * from './hooks/useApi';
 export * from './hooks/useUserProfiles';
 export * from './hooks/useChatSocket';
 
+// Ajustes del servidor: roles, miembros y baneos (estado y reglas compartidos)
+export * from './admin/permissions';
+export * from './admin/roles';
+export * from './admin/members';
+
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';
 export * from './realtime/chatSocket';

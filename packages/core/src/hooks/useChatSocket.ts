@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { openChatSocket, type ChatSocketConnection, type ChatSocketStatus } from '../realtime/chatSocket';
 import type { Message, MessageBackendPayload } from '../types';
+import { normalizeMessage } from '../api/messages';
 
 export interface UseChatSocketOptions {
   /** Canal al que conectarse; null para no conectar (p. ej. DMs, que todavía no van por el backend). */
@@ -104,7 +105,7 @@ export function useChatWebSocket(channelId: string | null, userId: string) {
       queryClient.setQueriesData(
         { queryKey: ['messages', channelId] },
         (old: Message[] | undefined) => {
-          const message = data as unknown as Message;
+          const message = normalizeMessage(data as unknown as Message);
           if (!old) return [message];
           // Evitar duplicados
           if (old.some((m) => m.id === message.id)) return old;

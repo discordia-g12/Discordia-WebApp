@@ -1,15 +1,6 @@
 import React, { useState } from 'react';
-import { Server, Role, Channel, User, ChannelType } from '../../../types';
-import {
-  useRolesQuery,
-  useCreateRoleMutation,
-  useDeleteRoleMutation,
-  useUpdateRolePermissionsMutation,
-  useUpdateRoleInfoMutation,
-  useSetDefaultRoleMutation,
-  useRoleMembersQuery,
-  useUserProfiles,
-} from '@discordia/core';
+import { Server, Channel, User, ChannelType } from '../../../types';
+import { useRolesAdmin } from '@discordia/core';
 import { TabType } from './shared';
 import type { ServerSettingsProps } from '../ServerSettings';
 
@@ -35,22 +26,9 @@ export function useServerSettingsState(props: ServerSettingsProps) {
   const [serverDescription, setServerDescription] = useState(serverState.description || '');
   const [serverIcon, setServerIcon] = useState(serverState.iconUrl || serverState.icon || '');
 
-  // Roles Tab States (datos reales de Server-Roles-Core-Service)
-  const rolesQuery = useRolesQuery(serverState.id);
-  const createRoleMutation = useCreateRoleMutation(serverState.id);
-  const deleteRoleMutation = useDeleteRoleMutation(serverState.id);
-  const updatePermissionsMutation = useUpdateRolePermissionsMutation(serverState.id);
-  const updateInfoMutation = useUpdateRoleInfoMutation(serverState.id);
-  const setDefaultRoleMutation = useSetDefaultRoleMutation(serverState.id);
-  const isSavingRole = updatePermissionsMutation.isPending || updateInfoMutation.isPending;
-  const roles: Role[] = rolesQuery.data ?? [];
-  const [activeRoleId, setActiveRoleId] = useState<string>('');
-  const [newRoleName, setNewRoleName] = useState('');
-  const [newRoleColor, setNewRoleColor] = useState<string | null>(null);
-  const [roleError, setRoleError] = useState<string | null>(null);
-  const [permissionDrafts, setPermissionDrafts] = useState<Record<string, string[]>>({});
-  const [infoDrafts, setInfoDrafts] = useState<Record<string, { name?: string; color?: string }>>({});
-  const [roleEditError, setRoleEditError] = useState<string | null>(null);
+  // Roles: estado y reglas de core (los mismos que mobile); acá se confirma con el diálogo del navegador
+  const rolesAdmin = useRolesAdmin(serverState.id, { confirm: (message) => window.confirm(message) });
+  const { roles } = rolesAdmin;
 
   // Members Tab States
   const [members] = useState<User[]>(serverState.members || []);
@@ -86,28 +64,6 @@ export function useServerSettingsState(props: ServerSettingsProps) {
   const [userPoints, setUserPoints] = useState<number>(user.points ?? 840);
   const [userBoostedCount, setUserBoostedCount] = useState<number>(1);
   const [boostFeedback, setBoostFeedback] = useState<string | null>(null);
-
-  // Active Role Object
-  const activeRole = roles.find((r) => r.id === activeRoleId) || roles[0];
-  // La lista de miembros se pide solo al desplegarla: un rol puede tener miles de miembros
-  const [membersExpandedRoleId, setMembersExpandedRoleId] = useState<string | null>(null);
-  const isMembersExpanded = !!activeRole && membersExpandedRoleId === activeRole.id;
-  const roleMembersQuery = useRoleMembersQuery(serverState.id, isMembersExpanded ? activeRole.id : null);
-  const roleMemberProfiles = useUserProfiles(roleMembersQuery.data?.map((member) => member.userId) ?? []);
-  const activeDraft = activeRole ? permissionDrafts[activeRole.id] : undefined;
-  const activePermissions = activeDraft ?? activeRole?.permissions ?? [];
-  const hasUnsavedPermissions =
-    !!activeRole &&
-    !!activeDraft &&
-    (activeDraft.length !== (activeRole.permissions ?? []).length ||
-      activeDraft.some((p) => !(activeRole.permissions ?? []).includes(p)));
-  const activeInfoDraft = activeRole ? infoDrafts[activeRole.id] : undefined;
-  const activeName = activeInfoDraft?.name ?? activeRole?.name ?? '';
-  const activeColor = activeInfoDraft?.color ?? activeRole?.color ?? '#99aab5';
-  const nameChanged = !!activeRole && activeName.trim() !== activeRole.name;
-  const colorChanged = !!activeRole && activeColor !== activeRole.color;
-  const hasUnsavedRole = hasUnsavedPermissions || nameChanged || colorChanged;
-  const isRoleNameInvalid = nameChanged && activeName.trim().length === 0;
 
   // Icon upload handler
   const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,98 +103,6 @@ export function useServerSettingsState(props: ServerSettingsProps) {
       onUpdateServer?.(updated);
       setTimeout(() => setSaveSuccess(false), 2500);
     }, 600);
-  };
-
-  // Create new role
-  const handleCreateRole = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = newRoleName.trim();
-    if (!name) return;
-    setRoleError(null);
-    try {
-      const created = await createRoleMutation.mutateAsync({ name, color: newRoleColor ?? undefined });
-      setNewRoleName('');
-      setNewRoleColor(null);
-      setActiveRoleId(created.id);
-    } catch (err) {
-      setRoleError(err instanceof Error ? err.message : 'No se pudo crear el rol.');
-    }
-  };
-
-  // Toggle a permission: solo modifica el borrador, se guarda con el botón "Guardar cambios"
-  const handleTogglePermission = (role: Role, permissionId: string) => {
-    const current = permissionDrafts[role.id] ?? role.permissions ?? [];
-    const next = current.includes(permissionId)
-      ? current.filter((p) => p !== permissionId)
-      : [...current, permissionId];
-    setRoleEditError(null);
-    setPermissionDrafts((drafts) => ({ ...drafts, [role.id]: next }));
-  };
-
-  const handleChangeRoleInfo = (role: Role, changes: { name?: string; color?: string }) => {
-    setRoleEditError(null);
-    setInfoDrafts((drafts) => ({ ...drafts, [role.id]: { ...drafts[role.id], ...changes } }));
-  };
-
-  const discardRoleDrafts = (roleId: string) => {
-    setRoleEditError(null);
-    setPermissionDrafts(({ [roleId]: _discarded, ...rest }) => rest);
-    setInfoDrafts(({ [roleId]: _discarded, ...rest }) => rest);
-  };
-
-  // Guarda nombre/color y permisos; cada parte limpia su borrador apenas se guarda, así un fallo no pierde lo pendiente
-  const handleSaveRole = async (role: Role) => {
-    setRoleEditError(null);
-    try {
-      if (nameChanged || colorChanged) {
-        await updateInfoMutation.mutateAsync({
-          roleId: role.id,
-          payload: {
-            ...(nameChanged && { name: activeName }),
-            ...(colorChanged && { color: activeColor }),
-          },
-        });
-        setInfoDrafts(({ [role.id]: _saved, ...rest }) => rest);
-      }
-      const permissionsDraft = permissionDrafts[role.id];
-      if (hasUnsavedPermissions && permissionsDraft) {
-        await updatePermissionsMutation.mutateAsync({ roleId: role.id, permissions: permissionsDraft });
-        setPermissionDrafts(({ [role.id]: _saved, ...rest }) => rest);
-      }
-    } catch (err) {
-      setRoleEditError(err instanceof Error ? err.message : 'No se pudieron guardar los cambios del rol.');
-    }
-  };
-
-  // Set default role
-  const handleSetDefaultRole = async (role: Role) => {
-    if (role.isDefault) return;
-    const confirmed = window.confirm(
-      `¿Querés que "${role.name}" sea el rol por defecto? Los nuevos miembros lo recibirán automáticamente y el rol por defecto actual dejará de serlo.`
-    );
-    if (!confirmed) return;
-    setRoleError(null);
-    try {
-      await setDefaultRoleMutation.mutateAsync(role.id);
-    } catch (err) {
-      setRoleError(err instanceof Error ? err.message : 'No se pudo definir el rol por defecto.');
-    }
-  };
-
-  // Delete role
-  const handleDeleteRole = async (role: Role) => {
-    if (role.isDefault) return;
-    const confirmed = window.confirm(
-      `Estás seguro que queres borrar el rol "${role.name}"? Los miembros que lo tengan perderán sus permisos.`
-    );
-    if (!confirmed) return;
-    setRoleError(null);
-    try {
-      await deleteRoleMutation.mutateAsync(role.id);
-      setActiveRoleId('');
-    } catch (err) {
-      setRoleError(err instanceof Error ? err.message : 'No se pudo eliminar el rol.');
-    }
   };
 
   // Create channel handler
@@ -359,6 +223,7 @@ export function useServerSettingsState(props: ServerSettingsProps) {
   };
 
   return {
+    ...rolesAdmin,
 
     initialServer,
     initialUser,
@@ -382,28 +247,6 @@ export function useServerSettingsState(props: ServerSettingsProps) {
     setServerDescription,
     serverIcon,
     setServerIcon,
-    rolesQuery,
-    createRoleMutation,
-    deleteRoleMutation,
-    updatePermissionsMutation,
-    updateInfoMutation,
-    setDefaultRoleMutation,
-    isSavingRole,
-    roles,
-    activeRoleId,
-    setActiveRoleId,
-    newRoleName,
-    setNewRoleName,
-    newRoleColor,
-    setNewRoleColor,
-    roleError,
-    setRoleError,
-    permissionDrafts,
-    setPermissionDrafts,
-    infoDrafts,
-    setInfoDrafts,
-    roleEditError,
-    setRoleEditError,
     members,
     categories,
     setCategories,
@@ -441,31 +284,8 @@ export function useServerSettingsState(props: ServerSettingsProps) {
     setUserBoostedCount,
     boostFeedback,
     setBoostFeedback,
-    activeRole,
-    membersExpandedRoleId,
-    setMembersExpandedRoleId,
-    isMembersExpanded,
-    roleMembersQuery,
-    roleMemberProfiles,
-    activeDraft,
-    activePermissions,
-    hasUnsavedPermissions,
-    activeInfoDraft,
-    activeName,
-    activeColor,
-    nameChanged,
-    colorChanged,
-    hasUnsavedRole,
-    isRoleNameInvalid,
     handleIconUpload,
     handleSaveOverview,
-    handleCreateRole,
-    handleTogglePermission,
-    handleChangeRoleInfo,
-    discardRoleDrafts,
-    handleSaveRole,
-    handleSetDefaultRole,
-    handleDeleteRole,
     handleCreateChannel,
     handleDeleteChannel,
     handleEmojiUpload,
