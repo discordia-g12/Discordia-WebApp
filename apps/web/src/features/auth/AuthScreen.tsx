@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode 
 import { motion } from 'motion/react';
 import { useSession, authService, hasStoredSession, type SessionStatus } from '../../platform/auth/session';
 import { BlockButton, DisplayText, UnderlineInput, useMotionPreset } from '../../ui';
-import { PASSWORD_RESET_SENT_MESSAGE, sanitizeUsername, type AuthField, type AuthForms } from './useAuthForms';
+import { PASSWORD_RESET_SENT_MESSAGE, sanitizeUsername, type AuthField, type AuthForms } from '@discordia/core';
 import styles from './AuthScreen.module.css';
 
 /**

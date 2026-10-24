@@ -20,7 +20,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { useSession, authService } from '../../../platform/auth/session';
-import { PASSWORD_RESET_SENT_MESSAGE, sanitizeUsername, type AuthForms } from '../useAuthForms';
+import { PASSWORD_RESET_SENT_MESSAGE, sanitizeUsername, type AuthForms } from '@discordia/core';
 import styles from './LegacyAuthView.module.css';
 
 /**

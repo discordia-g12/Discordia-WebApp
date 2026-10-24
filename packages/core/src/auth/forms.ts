@@ -1,12 +1,29 @@
-import { useState, type FormEvent } from 'react';
-import { useSession, authService } from '../../platform/auth/session';
-import { AccountSuspendedError, ApiError, requestPasswordReset, upsertMyProfile } from '@discordia/core';
+import { useState } from 'react';
+import { ApiError } from '../api/errors';
+import { requestPasswordReset } from '../api/passwordReset';
+import { upsertMyProfile } from '../api/users';
+import { AccountSuspendedError } from './errors';
+import { backToLogin, loginWithCredentials, logout, retryBootstrap, signupWithCredentials, useSession } from './session';
 
 /**
  * Estado y reglas de los formularios de acceso (login, registro, recupero de contraseña y elección de
- * nombre de usuario). Lo usan las dos vistas: la del rediseño (AuthScreen) y la anterior
- * (legacy/LegacyAuthView), así las validaciones y los mensajes son los mismos en las dos.
+ * nombre de usuario). Lo usan la web (AuthScreen y la vista anterior) y mobile, así las validaciones y
+ * los mensajes son los mismos en todas.
  */
+
+/** Acciones de la sesión que usan los formularios. La web pasa su authService (los tests lo espían). */
+export interface AuthFormActions {
+  loginWithCredentials: typeof loginWithCredentials;
+  signupWithCredentials: typeof signupWithCredentials;
+  logout: typeof logout;
+  backToLogin: typeof backToLogin;
+  retryBootstrap: typeof retryBootstrap;
+}
+
+const sessionActions: AuthFormActions = { loginWithCredentials, signupWithCredentials, logout, backToLogin, retryBootstrap };
+
+/** Lo que llega a los handlers: el evento del <form> en la web; nada en mobile. */
+type FormSubmit = { preventDefault(): void } | undefined;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,32}$/;
@@ -40,7 +57,7 @@ function describePasswordResetError(err: unknown): string {
   return 'No pudimos procesar el pedido. Intentá de nuevo en unos minutos.';
 }
 
-export function useAuthForms() {
+export function useAuthForms(authService: AuthFormActions = sessionActions) {
   const { pendingEmail } = useSession();
 
   // Tab activo: 'login', 'register' o 'forgot' (recupero de contraseña)
@@ -106,8 +123,8 @@ export function useAuthForms() {
     setFormError(null);
   };
 
-  const handleForgotSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleForgotSubmit = async (e?: FormSubmit) => {
+    e?.preventDefault();
     setFormError(null);
 
     const email = forgotEmail.trim();
@@ -127,8 +144,8 @@ export function useAuthForms() {
     }
   };
 
-  const handleLoginSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleLoginSubmit = async (e?: FormSubmit) => {
+    e?.preventDefault();
     setFormError(null);
 
     const email = loginEmail.trim();
@@ -160,8 +177,8 @@ export function useAuthForms() {
     }
   };
 
-  const handleRegisterSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleRegisterSubmit = async (e?: FormSubmit) => {
+    e?.preventDefault();
     setFormError(null);
 
     const username = regUsername.trim().toLowerCase();
@@ -228,8 +245,8 @@ export function useAuthForms() {
     }
   };
 
-  const handleConflictSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleConflictSubmit = async (e?: FormSubmit) => {
+    e?.preventDefault();
     setConflictError(null);
 
     const cleanUser = conflictUsername.trim().toLowerCase();

@@ -2,6 +2,7 @@ import { Fragment, useRef, type ReactNode } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Paperclip, Smile } from 'lucide-react';
 import { distances } from '@discordia/tokens';
+import { formatDayLabel, formatMessageHour, formatMessageTime, placeMessage } from '@discordia/core';
 import type { Message, User } from '../../types';
 import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
 import type { ChatViewProps } from './legacy/LegacyChatView';
@@ -11,38 +12,6 @@ import styles from './ChatView.module.css';
 export type { ChatViewProps };
 
 const UNKNOWN_USER = { username: 'desconocido', displayName: 'Desconocido', status: 'offline' } as const;
-
-const timeFormat = new Intl.DateTimeFormat('es-AR', {
-  day: '2-digit',
-  month: '2-digit',
-  year: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
-const dayFormat = new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
-const hourFormat = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-
-const validDate = (iso: string) => {
-  const date = new Date(iso);
-  return isNaN(date.getTime()) ? null : date;
-};
-
-/** "20/10/25, 13:25" (PDF, pág. 7). */
-function formatTimestamp(iso: string): string {
-  const date = validDate(iso);
-  return date ? timeFormat.format(date) : '';
-}
-
-/** Separador de día: "hoy", "ayer" o "21 de octubre de 2025". */
-function formatDay(date: Date): string {
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  if (date.toDateString() === today.toDateString()) return 'hoy';
-  if (date.toDateString() === yesterday.toDateString()) return 'ayer';
-  return dayFormat.format(date);
-}
 
 /**
  * Ids de los mensajes que ya estaban al abrir la conversación: esos no se animan. Los que llegan
@@ -135,22 +104,13 @@ export function ChatView(props: ChatViewProps) {
           <ol className={styles.messages}>
             {chat.localMessages.map((msg, index) => {
               const prev = index > 0 ? chat.localMessages[index - 1] : null;
-              const date = validDate(msg.timestamp);
-              const prevDate = prev ? validDate(prev.timestamp) : null;
-              const newDay = date && (!prevDate || prevDate.toDateString() !== date.toDateString());
-              const consecutive =
-                !newDay &&
-                prev !== null &&
-                prev.authorId === msg.authorId &&
-                prev.type !== 'system' &&
-                msg.type !== 'system' &&
-                Math.abs(new Date(msg.timestamp).getTime() - new Date(prev.timestamp).getTime()) < 5 * 60 * 1000;
+              const { newDay, grouped: consecutive } = placeMessage(prev, msg);
 
               return (
                 <Fragment key={msg.id}>
-                  {newDay && date && (
-                    <li className={styles.day} aria-label={formatDay(date)}>
-                      {formatDay(date)}
+                  {newDay && (
+                    <li className={styles.day} aria-label={formatDayLabel(newDay)}>
+                      {formatDayLabel(newDay)}
                     </li>
                   )}
                   <MessageRow
@@ -228,7 +188,7 @@ function MessageRow({
       <motion.li className={`${styles.message} ${styles.compact}`} {...enter}>
         <span className={styles.gutter} />
         <p className={styles.system}>
-          •{msg.content} <time className={styles.time}>{formatTimestamp(msg.timestamp)}</time>
+          •{msg.content} <time className={styles.time}>{formatMessageTime(msg.timestamp)}</time>
         </p>
       </motion.li>
     );
@@ -256,7 +216,7 @@ function MessageRow({
     >
       <span className={styles.gutter}>
         {consecutive ? (
-          <time className={styles.gutterTime}>{validDate(msg.timestamp) ? hourFormat.format(new Date(msg.timestamp)) : ''}</time>
+          <time className={styles.gutterTime}>{formatMessageHour(msg.timestamp)}</time>
         ) : (
           <button type="button" className={styles.avatarButton} onClick={openProfile} aria-label={`Ver perfil de ${author.displayName}`}>
             <SquareAvatar user={author} size="md" />
@@ -280,7 +240,7 @@ function MessageRow({
               {author.displayName}
             </button>{' '}
             <time className={styles.time} dateTime={msg.timestamp}>
-              {formatTimestamp(msg.timestamp)}
+              {formatMessageTime(msg.timestamp)}
             </time>
             {msg.isPinned && <span className={styles.time}> · fijado</span>}
           </p>
@@ -469,7 +429,7 @@ function PinnedPanel({ chat, users }: { chat: ChatViewState; users: Record<strin
             <li key={msg.id}>
               <p className={styles.meta}>
                 <strong>{(msg.author || users[msg.authorId])?.displayName || 'Usuario'}</strong>{' '}
-                <span className={styles.time}>{formatTimestamp(msg.timestamp)}</span>
+                <span className={styles.time}>{formatMessageTime(msg.timestamp)}</span>
               </p>
               <p className={styles.pinnedText}>{msg.content}</p>
             </li>

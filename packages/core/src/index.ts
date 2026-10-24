@@ -8,6 +8,7 @@ export * from './auth/config';
 export * from './auth/errors';
 export * from './auth/auth0';
 export * from './auth/session';
+export * from './auth/forms';
 export * from './api/client';
 export * from './api/errors';
 export * from './api/mock';
@@ -25,7 +26,8 @@ export * from './hooks/useApi';
 export * from './hooks/useUserProfiles';
 export * from './hooks/useChatSocket';
 
-// Tiempo real sin React (chat)
+// Chat: fechas y agrupado de los mensajes; tiempo real sin React
+export * from './chat/format';
 export * from './realtime/chatSocket';
 
 // Voz: la sala y la presencia son las mismas en web y mobile; cada app registra su VoicePlatform
