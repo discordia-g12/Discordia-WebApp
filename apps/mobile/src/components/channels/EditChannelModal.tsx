@@ -1,19 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
-import { Check, Hash, Trash2, Volume2, X } from 'lucide-react-native'
+import { View } from 'react-native'
 import { errorMessageFor, isLocalCategoryId } from '@discordia/core'
 import { useData, useUI } from '../../providers/AppProviders'
-import { colors, radii, spacing, typography } from '../../theme'
+import { makeStyles } from '../../theme'
+import { ActionLink, Choice, Modal, ModalActions, ModalForm, Text, UnderlineInput } from '../../ui'
 import type { Category, Channel } from '../../types'
 
 interface EditChannelModalProps {
@@ -26,15 +16,11 @@ interface EditChannelModalProps {
   onRequestDelete?: (channel: Channel) => void
 }
 
-export default function EditChannelModal({
-  visible,
-  serverId,
-  channel,
-  categories,
-  onClose,
-  onSuccess,
-  onRequestDelete,
-}: EditChannelModalProps) {
+const NO_CATEGORY = '__none__'
+
+/** Editar un canal: nombre, tema y categoría; "_eliminar canal" abre la confirmación. */
+export default function EditChannelModal({ visible, serverId, channel, categories, onClose, onSuccess, onRequestDelete }: EditChannelModalProps) {
+  const styles = useStyles()
   const { editChannel } = useData()
   const { showToast } = useUI()
   const [name, setName] = useState('')
@@ -55,31 +41,19 @@ export default function EditChannelModal({
     }
   }, [visible, channel])
 
-  const handleNameChange = (text: string) => {
-    if (channel?.type === 'text') {
-      setName(text.toLowerCase().replace(/\s+/g, '-'))
-    } else {
-      setName(text)
-    }
-  }
-
   const handleSave = async () => {
     if (!channel) return
     const trimmedName = name.trim()
-
     if (!trimmedName) {
       setError('El nombre del canal no puede estar vacío.')
       return
     }
-
     if (trimmedName.length > 100) {
       setError('El nombre no puede superar los 100 caracteres.')
       return
     }
-
     setLoading(true)
     setError(null)
-
     try {
       const categoryChanged = categoryId !== (channel.categoryId ?? null)
       const updated = await editChannel(serverId, channel.id, {
@@ -87,7 +61,7 @@ export default function EditChannelModal({
         topic: topic.trim(),
         ...(categoryChanged && { categoryId }),
       })
-      showToast?.(`Canal #${updated.name} actualizado con éxito.`, 'success')
+      showToast(`Canal •${updated.name} actualizado`, 'success')
       onSuccess?.(updated)
       onClose()
     } catch (err) {
@@ -113,283 +87,55 @@ export default function EditChannelModal({
     onClose()
   }
 
-  if (!channel) return null
-
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
-      >
-        <View style={styles.card}>
-          <View style={styles.header}>
-            <View style={styles.headerTitleRow}>
-              {channel.type === 'voice' ? (
-                <Volume2 color={colors.textMuted} size={20} />
-              ) : (
-                <Hash color={colors.textMuted} size={20} />
-              )}
-              <Text style={styles.title}>Editar canal</Text>
-            </View>
-            <Pressable onPress={handleClose} disabled={loading} style={styles.closeButton}>
-              <X color={colors.textMuted} size={20} />
-            </Pressable>
-          </View>
-
-          {!!error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Campo Nombre */}
-          <Text style={styles.label}>NOMBRE DEL CANAL</Text>
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={handleNameChange}
-              placeholder="nombre-del-canal"
-              placeholderTextColor={colors.textDim}
-              maxLength={100}
-              autoCapitalize="none"
-              editable={!loading}
+    <Modal visible={visible && !!channel} title="Editar canal" description={channel ? `•${channel.name}` : undefined} onClose={handleClose}>
+      {channel && (
+        <ModalForm>
+          <UnderlineInput
+            label="nombre del canal"
+            required
+            value={name}
+            onChangeText={text => {
+              setName(channel.type === 'text' ? text.toLowerCase().replace(/\s+/g, '-') : text)
+              if (error) setError(null)
+            }}
+            maxLength={100}
+            autoCapitalize="none"
+            error={error ?? undefined}
+            disabled={loading}
+          />
+          <UnderlineInput
+            label="tema"
+            value={topic}
+            onChangeText={setTopic}
+            placeholder="de qué se habla acá"
+            maxLength={1024}
+            disabled={loading}
+          />
+          <View style={styles.field}>
+            <Text variant="label">Categoría /</Text>
+            <Choice
+              label="Categoría"
+              options={[{ value: NO_CATEGORY, label: 'sin categoría' }, ...selectableCategories.map(c => ({ value: c.id, label: c.name }))]}
+              value={categoryId ?? NO_CATEGORY}
+              onChange={value => setCategoryId(value === NO_CATEGORY ? null : value)}
             />
           </View>
-
-          {/* Campo Tema / Topic */}
-          <Text style={styles.label}>TEMA DEL CANAL (OPCIONAL)</Text>
-          <View style={[styles.inputWrap, styles.topicInputWrap]}>
-            <TextInput
-              style={[styles.input, styles.topicInput]}
-              value={topic}
-              onChangeText={setTopic}
-              placeholder="¿De qué se habla en este canal?"
-              placeholderTextColor={colors.textDim}
-              maxLength={1024}
-              multiline
-              numberOfLines={3}
-              editable={!loading}
-            />
-          </View>
-
-          {/* Categoría (CA 2: mover el canal a otra categoría) */}
-          <Text style={styles.label}>CATEGORÍA</Text>
-          <View style={styles.categorySelector}>
-            {[{ id: null, name: 'Sin categoría (General)' }, ...selectableCategories].map(cat => {
-              const active = categoryId === cat.id
-              return (
-                <Pressable
-                  key={cat.id ?? 'none'}
-                  style={[styles.categoryOption, active && styles.categoryOptionActive]}
-                  onPress={() => setCategoryId(cat.id)}
-                  disabled={loading}
-                >
-                  <Text style={[styles.categoryOptionText, active && styles.categoryOptionTextActive]}>
-                    {cat.name}
-                  </Text>
-                  {active && <Check color={colors.accent} size={16} />}
-                </Pressable>
-              )
-            })}
-          </View>
-
-          {/* Botón rápido de eliminar canal */}
+          <ModalActions submitLabel="Guardar" onSubmit={handleSave} onCancel={handleClose} loading={loading} />
           {onRequestDelete && (
-            <Pressable
-              style={styles.deleteLinkRow}
-              onPress={() => {
-                onClose()
-                onRequestDelete(channel)
-              }}
-              disabled={loading}
-            >
-              <Trash2 color={colors.danger} size={16} />
-              <Text style={styles.deleteLinkText}>Eliminar este canal</Text>
-            </Pressable>
+            <View style={styles.danger}>
+              <ActionLink onPress={() => onRequestDelete(channel)} disabled={loading}>
+                eliminar canal
+              </ActionLink>
+            </View>
           )}
-
-          <View style={styles.actions}>
-            <Pressable
-              style={styles.cancelButton}
-              onPress={handleClose}
-              disabled={loading}
-            >
-              <Text style={styles.cancelText}>Cancelar</Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.submitButton,
-                (!name.trim() || loading) && styles.submitButtonDisabled,
-              ]}
-              onPress={handleSave}
-              disabled={!name.trim() || loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.submitText}>Guardar cambios</Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
+        </ModalForm>
+      )}
     </Modal>
   )
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  title: {
-    ...typography.pageTitle,
-    color: colors.text,
-    fontSize: 20,
-  },
-  closeButton: {
-    padding: spacing.xs,
-  },
-  errorBox: {
-    backgroundColor: 'rgba(237, 66, 69, 0.15)',
-    borderRadius: radii.sm,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  errorText: {
-    ...typography.metadata,
-    color: colors.danger,
-  },
-  label: {
-    ...typography.metadata,
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-    letterSpacing: 0.5,
-  },
-  inputWrap: {
-    backgroundColor: colors.bg,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-  },
-  input: {
-    ...typography.messageText,
-    color: colors.text,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  categorySelector: {
-    gap: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  categoryOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.sm,
-    backgroundColor: colors.bg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  categoryOptionActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.surfaceHover,
-  },
-  categoryOptionText: {
-    ...typography.channelName,
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  categoryOptionTextActive: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-  topicInputWrap: {
-    minHeight: 70,
-  },
-  topicInput: {
-    textAlignVertical: 'top',
-  },
-  deleteLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  deleteLinkText: {
-    ...typography.helperText,
-    color: colors.danger,
-    fontWeight: '600',
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  cancelButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.sm,
-  },
-  cancelText: {
-    ...typography.button,
-    color: colors.text,
-  },
-  submitButton: {
-    backgroundColor: colors.accent,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 130,
-  },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-  submitText: {
-    ...typography.button,
-    color: colors.accentFg,
-  },
-})
-
+const useStyles = makeStyles(t => ({
+  field: { gap: t.space[2] },
+  danger: { paddingTop: t.space[3], borderTopWidth: t.lines.hairline, borderTopColor: t.colors.line },
+}))

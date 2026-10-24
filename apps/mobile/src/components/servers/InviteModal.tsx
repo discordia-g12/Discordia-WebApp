@@ -1,18 +1,10 @@
-import React, { useState } from 'react'
-import {
-  ActivityIndicator,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
-import { X, Copy } from 'lucide-react-native'
+import React, { useEffect, useState } from 'react'
+import { View } from 'react-native'
 import * as Clipboard from 'expo-clipboard'
-import { useUI } from '../../providers/AppProviders'
-import { colors, radii, spacing, typography } from '../../theme'
 import { createInvite } from '@discordia/core'
+import { useUI } from '../../providers/AppProviders'
+import { makeStyles } from '../../theme'
+import { ActionLink, Choice, Modal, ModalForm, Skeleton, Text } from '../../ui'
 import type { Server } from '../../types'
 
 interface InviteModalProps {
@@ -21,102 +13,120 @@ interface InviteModalProps {
   onClose: () => void
 }
 
-export default function InviteModal({
-  visible,
-  server,
-  onClose,
-}: InviteModalProps) {
+// Las mismas opciones que la web
+const EXPIRATION_OPTIONS = [
+  { value: '1800', label: '30 min' },
+  { value: '3600', label: '1 h' },
+  { value: '21600', label: '6 h' },
+  { value: '43200', label: '12 h' },
+  { value: '86400', label: '1 día' },
+  { value: '604800', label: '7 días' },
+  { value: '0', label: 'nunca' },
+]
+
+const MAX_USES_OPTIONS = [
+  { value: '0', label: 'sin límite' },
+  { value: '1', label: '1' },
+  { value: '5', label: '5' },
+  { value: '10', label: '10' },
+  { value: '25', label: '25' },
+  { value: '50', label: '50' },
+  { value: '100', label: '100' },
+]
+
+type LinkState = { status: 'loading' } | { status: 'ready'; code: string } | { status: 'error' }
+
+/**
+ * Invitar al servidor, como en la web: el código se genera al abrir; cambiar el vencimiento o los usos
+ * ofrece generar otro (así no quedan invitaciones de más: todavía no se pueden listar ni revocar).
+ */
+export default function InviteModal({ visible, server, onClose }: InviteModalProps) {
+  const styles = useStyles()
   const { showToast } = useUI()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [expiration, setExpiration] = useState('604800')
+  const [maxUses, setMaxUses] = useState('0')
+  const [link, setLink] = useState<LinkState>({ status: 'loading' })
+  const [generatedWith, setGeneratedWith] = useState({ expiration, maxUses })
 
-  const handleGenerate = async () => {
+  const generate = async () => {
     if (!server) return
-    setLoading(true)
-    setError(null)
+    setLink({ status: 'loading' })
     try {
-      const res = await createInvite(server.id, { maxUses: 10, expiresInSeconds: 86400 })
-      setInviteCode(res.code)
-    } catch (err: any) {
-      setError(err?.message || 'Error al generar la invitación.')
-    } finally {
-      setLoading(false)
+      const { code } = await createInvite(server.id, { maxUses: Number(maxUses), expiresInSeconds: Number(expiration) })
+      setLink({ status: 'ready', code })
+      setGeneratedWith({ expiration, maxUses })
+    } catch {
+      setLink({ status: 'error' })
     }
   }
 
-  const handleCopy = async () => {
-    if (inviteCode) {
-      await Clipboard.setStringAsync(inviteCode)
-      showToast?.('Código copiado al portapapeles', 'success')
-      handleClose()
-    }
-  }
+  useEffect(() => {
+    if (visible) generate()
+    // Solo al abrir: después se genera a pedido
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible])
 
-  const handleClose = () => {
-    if (loading) return
-    setError(null)
-    setInviteCode(null)
-    onClose()
+  const stale = link.status === 'ready' && (generatedWith.expiration !== expiration || generatedWith.maxUses !== maxUses)
+  const expirationLabel = EXPIRATION_OPTIONS.find(o => o.value === generatedWith.expiration)?.label
+  const usesLabel = MAX_USES_OPTIONS.find(o => o.value === generatedWith.maxUses)?.label
+
+  const copy = async () => {
+    if (link.status !== 'ready') return
+    await Clipboard.setStringAsync(link.code)
+    showToast('Código copiado', 'success')
   }
 
   if (!server) return null
 
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={handleClose}>
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Invitar amigos</Text>
-            <Pressable onPress={handleClose} disabled={loading} style={styles.closeButton}>
-              <X color={colors.textMuted} size={20} />
-            </Pressable>
-          </View>
-
-          <Text style={styles.subtitle}>
-            Generá un código para que tus amigos se unan a {server.name}.
-          </Text>
-
-          {!!error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {!inviteCode ? (
-            <Pressable style={styles.submitButton} onPress={handleGenerate} disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.submitText}>Generar código</Text>
-              )}
-            </Pressable>
+    <Modal visible={visible} title="Invitar" description={`Compartí el código para que entren a ${server.name}.`} onClose={onClose}>
+      <ModalForm>
+        <View style={styles.code}>
+          {link.status === 'loading' ? (
+            <Skeleton lines={1} label="Generando la invitación" />
+          ) : link.status === 'error' ? (
+            <Text variant="bodySmall" bold accessibilityRole="alert">
+              / No se pudo generar la invitación.
+            </Text>
           ) : (
-            <View style={styles.codeContainer}>
-              <Text style={styles.codeText}>{inviteCode}</Text>
-              <Pressable style={styles.copyButton} onPress={handleCopy}>
-                <Copy color="#fff" size={18} />
-              </Pressable>
-            </View>
+            <Text variant="heading" selectable accessibilityLabel={`Código de invitación ${link.code}`}>
+              {link.code}
+            </Text>
           )}
         </View>
-      </View>
+        {link.status === 'ready' && (
+          <Text variant="meta" tone="muted">
+            / vence en {expirationLabel} · usos: {usesLabel}
+          </Text>
+        )}
+        <View style={styles.links}>
+          {link.status === 'ready' && !stale && <ActionLink onPress={copy}>copiar</ActionLink>}
+          {(stale || link.status === 'error') && (
+            <ActionLink onPress={generate}>{link.status === 'error' ? 'reintentar' : 'generar otro código'}</ActionLink>
+          )}
+        </View>
+        <View style={styles.field}>
+          <Text variant="label">Vence en /</Text>
+          <Choice label="Vence en" options={EXPIRATION_OPTIONS} value={expiration} onChange={setExpiration} />
+        </View>
+        <View style={styles.field}>
+          <Text variant="label">Usos máximos /</Text>
+          <Choice label="Usos máximos" options={MAX_USES_OPTIONS} value={maxUses} onChange={setMaxUses} />
+        </View>
+      </ModalForm>
     </Modal>
   )
 }
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: spacing.lg },
-  card: { width: '100%', maxWidth: 400, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.xl, borderWidth: 1, borderColor: colors.borderStrong },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-  title: { ...typography.pageTitle, color: colors.text, fontSize: 20 },
-  closeButton: { padding: spacing.xs },
-  subtitle: { ...typography.helperText, color: colors.textMuted, marginBottom: spacing.lg, lineHeight: 18 },
-  errorBox: { backgroundColor: 'rgba(237, 66, 69, 0.15)', borderRadius: radii.sm, padding: spacing.sm, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.danger },
-  errorText: { ...typography.metadata, color: colors.danger },
-  submitButton: { backgroundColor: colors.accent, paddingVertical: spacing.sm + 2, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center' },
-  submitText: { ...typography.button, color: colors.accentFg, fontWeight: '600' },
-  codeContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg, borderRadius: radii.sm, paddingLeft: spacing.md, borderWidth: 1, borderColor: colors.border },
-  codeText: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '600', letterSpacing: 1 },
-  copyButton: { backgroundColor: colors.accent, padding: spacing.md, borderTopRightRadius: radii.sm, borderBottomRightRadius: radii.sm },
-})
+const useStyles = makeStyles(t => ({
+  code: {
+    minHeight: t.space[7],
+    justifyContent: 'center',
+    paddingHorizontal: t.space[5],
+    borderTopWidth: t.lines.hairline,
+    borderBottomWidth: t.lines.hairline,
+    borderColor: t.colors.lineStrong,
+  },
+  links: { flexDirection: 'row', gap: t.space[5] },
+  field: { gap: t.space[2] },
+}))

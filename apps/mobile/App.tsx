@@ -15,10 +15,12 @@ import { ThemeProvider, useAppFonts, useTheme } from './src/theme'
 import MobileShell from './src/components/MobileShell'
 import AuthView from './src/views/AuthView'
 import { DawnIntro } from './src/views/DawnIntro'
+import { Catalog, isCatalogRequested } from './src/views/Catalog'
 
 function Root() {
   const { isAuthenticated } = useAuth()
   const theme = useTheme()
+  if (isCatalogRequested()) return <Catalog />
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {/* Íconos de la barra de estado oscuros sobre el cielo, claros de noche */}

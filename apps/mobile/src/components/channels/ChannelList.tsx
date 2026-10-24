@@ -1,6 +1,6 @@
 import React from 'react'
 import { FlatList } from 'react-native'
-import { spacing } from '../../theme'
+import { space } from '@discordia/tokens'
 import type { Category, Channel } from '../../types'
 import CategorySection from './CategorySection'
 import type { VoiceChannelParticipant } from './VoiceChannelParticipants'
@@ -42,7 +42,7 @@ export default function ChannelList({
             data={categories}
             keyExtractor={(c: Category) => c.id}
             extraData={[voiceParticipants, reorderMode]}
-            contentContainerStyle={{ paddingBottom: spacing.md }}
+            contentContainerStyle={{ paddingBottom: space[6] }}
             renderItem={({ item: category }) => (
                 <CategorySection
                     category={category}

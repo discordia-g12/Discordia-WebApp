@@ -7,9 +7,12 @@ import React, {
   useRef,
   useState,
 } from 'react'
+import { durations } from '@discordia/tokens'
 import type { Modal, ConfirmAction } from '../types'
 
 interface Toast {
+  /** Cada aviso tiene el suyo: uno nuevo vuelve a entrar aunque repita el texto. */
+  id: number
   message: string
   type: 'success' | 'error' | 'info'
 }
@@ -73,6 +76,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
 
   const [toast, setToast] = useState<Toast | null>(null)
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toastIdRef = useRef(0)
 
   const dismissToast = useCallback(() => {
     if (toastTimeoutRef.current) {
@@ -82,11 +86,12 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     setToast(null)
   }, [])
 
-  const showToast = useCallback((message: string, type: Toast['type'] = 'info', durationMs = 2500) => {
+  // 4 s en pantalla (durations.toast), como en la web
+  const showToast = useCallback((message: string, type: Toast['type'] = 'info', durationMs: number = durations.toast) => {
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current)
     }
-    setToast({ message, type })
+    setToast({ id: ++toastIdRef.current, message, type })
     toastTimeoutRef.current = setTimeout(() => {
       setToast(null)
       toastTimeoutRef.current = null

@@ -1,39 +1,33 @@
-import React, { useState } from 'react'
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native'
-import { X } from 'lucide-react-native'
-import { useData, useUI } from '../../providers/AppProviders'
+import React, { useEffect, useState } from 'react'
+import { View } from 'react-native'
 import { joinServerViaInvite } from '@discordia/core'
-import { colors, radii, spacing, typography } from '../../theme'
+import { useData, useUI } from '../../providers/AppProviders'
+import { makeStyles } from '../../theme'
+import { ActionLink, Modal, ModalActions, ModalForm, Text, UnderlineInput } from '../../ui'
 import type { Server } from '../../types'
 
 interface CreateServerModalProps {
   visible: boolean
   onClose: () => void
   onSuccess?: (server: Server) => void
+  /** join: abre directo en "unirse con una invitación". */
+  initialMode?: 'create' | 'join'
 }
 
-export default function CreateServerModal({
-  visible,
-  onClose,
-  onSuccess,
-}: CreateServerModalProps) {
-  const { createServer } = useData()
+/** Crear un servidor (solo el nombre) o unirse a uno con el código de una invitación. */
+export default function CreateServerModal({ visible, onClose, onSuccess, initialMode = 'create' }: CreateServerModalProps) {
+  const styles = useStyles()
+  const { createServer, refreshServers } = useData()
   const { selectServer, selectChannel, showToast } = useUI()
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isJoining, setIsJoining] = useState(false)
+  const [isJoining, setIsJoining] = useState(initialMode === 'join')
   const [inviteCode, setInviteCode] = useState('')
+
+  useEffect(() => {
+    if (visible) setIsJoining(initialMode === 'join')
+  }, [visible, initialMode])
 
   const handleCreate = async () => {
     const trimmed = name.trim()
@@ -41,19 +35,15 @@ export default function CreateServerModal({
       setError('El nombre del servidor no puede estar vacío.')
       return
     }
-
     setLoading(true)
     setError(null)
-
     try {
       const server = await createServer(trimmed)
       setName('')
       onClose()
       selectServer(server.id)
-      if (server.channels && server.channels.length > 0) {
-        selectChannel(server.channels[0].id)
-      }
-      showToast?.(`Servidor "${server.name}" creado con éxito.`, 'success')
+      if (server.channels && server.channels.length > 0) selectChannel(server.channels[0].id)
+      showToast(`Servidor ${server.name} creado`, 'success')
       onSuccess?.(server)
     } catch (err: any) {
       setError(err?.message || 'Error al crear el servidor. Intentá de nuevo.')
@@ -62,27 +52,23 @@ export default function CreateServerModal({
     }
   }
 
-  const { refreshServers } = useData()
-
   const handleJoin = async () => {
     const trimmed = inviteCode.trim()
     if (!trimmed) {
       setError('El código no puede estar vacío.')
       return
     }
-
     setLoading(true)
     setError(null)
-
     try {
       const res = await joinServerViaInvite(trimmed)
-      await refreshServers() // Refresh server list
+      await refreshServers()
       setInviteCode('')
-      setIsJoining(false)
       onClose()
       selectServer(res.server_id)
-      showToast?.(`Te uniste al servidor con éxito.`, 'success')
+      showToast('Te uniste al servidor', 'success')
     } catch (err: any) {
+      // El modal sigue abierto: el error queda en el campo
       setError(err?.message || 'Código inválido o expirado.')
     } finally {
       setLoading(false)
@@ -94,214 +80,88 @@ export default function CreateServerModal({
     setError(null)
     setName('')
     setInviteCode('')
-    setIsJoining(false)
     onClose()
+  }
+
+  const switchMode = (join: boolean) => {
+    setError(null)
+    setIsJoining(join)
   }
 
   return (
     <Modal
       visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={handleClose}
+      title={isJoining ? 'Unirse' : 'Crear servidor'}
+      description={
+        isJoining
+          ? 'Ingresá el código de invitación para entrar a una comunidad.'
+          : 'Tu servidor es donde se juntan tus amigos. Dale un nombre para empezar.'
+      }
+      onClose={handleClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
-      >
-        <View style={styles.card}>
-          <View style={styles.header}>
-            <Text style={styles.title}>{isJoining ? 'Unirse a un servidor' : 'Creá tu servidor'}</Text>
-            <Pressable onPress={handleClose} disabled={loading} style={styles.closeButton}>
-              <X color={colors.textMuted} size={20} />
-            </Pressable>
-          </View>
-
-          <Text style={styles.subtitle}>
-            {isJoining 
-              ? 'Ingresá el código de invitación para unirte a una comunidad existente.' 
-              : 'Tu servidor es donde tus amigos y vos pueden reunirse. Dale un nombre para empezar.'}
-          </Text>
-
-          {!!error && (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          <Text style={styles.label}>{isJoining ? 'CÓDIGO DE INVITACIÓN' : 'NOMBRE DEL SERVIDOR'}</Text>
-          <TextInput
-            style={styles.input}
-            value={isJoining ? inviteCode : name}
+      <ModalForm>
+        {isJoining ? (
+          <UnderlineInput
+            key="join"
+            label="código de invitación"
+            required
+            value={inviteCode}
             onChangeText={t => {
-              if (isJoining) setInviteCode(t)
-              else setName(t)
+              setInviteCode(t)
               if (error) setError(null)
             }}
-            placeholder={isJoining ? "Ej. xyz123" : "Ej. Servidor de Juegos"}
-            placeholderTextColor={colors.textDim}
-            maxLength={100}
+            placeholder="ej: xyz123"
+            autoCapitalize="none"
             autoFocus
-            editable={!loading}
+            error={error ?? undefined}
+            disabled={loading}
+            returnKeyType="go"
+            onSubmitEditing={handleJoin}
           />
-
-          <View style={styles.actions}>
-            <Pressable
-              style={styles.cancelButton}
-              onPress={() => {
-                if (isJoining) setIsJoining(false)
-                else handleClose()
+        ) : (
+          <>
+            <UnderlineInput
+              key="create"
+              label="nombre del servidor"
+              required
+              value={name}
+              onChangeText={t => {
+                setName(t)
+                if (error) setError(null)
               }}
+              placeholder="ej: Torton"
+              maxLength={100}
+              autoFocus
+              error={error ?? undefined}
               disabled={loading}
-            >
-              <Text style={styles.cancelText}>{isJoining ? 'Atrás' : 'Cancelar'}</Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.submitButton,
-                ((isJoining ? !inviteCode.trim() : !name.trim()) || loading) && styles.submitButtonDisabled,
-              ]}
-              onPress={isJoining ? handleJoin : handleCreate}
-              disabled={(isJoining ? !inviteCode.trim() : !name.trim()) || loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.submitText}>{isJoining ? 'Unirse' : 'Crear'}</Text>
-              )}
-            </Pressable>
-          </View>
-          
-          {!isJoining && (
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>¿Ya tenés una invitación?</Text>
-              <Pressable onPress={() => { setError(null); setIsJoining(true); }} hitSlop={8}>
-                <Text style={styles.footerLink}>Unirse a un servidor</Text>
-              </Pressable>
-            </View>
+              returnKeyType="go"
+              onSubmitEditing={handleCreate}
+            />
+            {/* Server-Roles recibe el ícono y lo descarta: no se ofrece hasta que se guarde */}
+            <Text variant="meta" tone="muted">
+              / ícono del servidor: próximamente
+            </Text>
+          </>
+        )}
+        <ModalActions
+          submitLabel={isJoining ? 'Unirse' : 'Crear'}
+          onSubmit={isJoining ? handleJoin : handleCreate}
+          onCancel={handleClose}
+          loading={loading}
+          disabled={isJoining ? !inviteCode.trim() : !name.trim()}
+        />
+        <View style={styles.switch}>
+          {isJoining ? (
+            <ActionLink onPress={() => switchMode(false)}>crear un servidor nuevo</ActionLink>
+          ) : (
+            <ActionLink onPress={() => switchMode(true)}>unirme con una invitación</ActionLink>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </ModalForm>
     </Modal>
   )
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  title: {
-    ...typography.pageTitle,
-    color: colors.text,
-    fontSize: 20,
-  },
-  closeButton: {
-    padding: spacing.xs,
-  },
-  subtitle: {
-    ...typography.helperText,
-    color: colors.textMuted,
-    marginBottom: spacing.lg,
-    lineHeight: 18,
-  },
-  errorBox: {
-    backgroundColor: 'rgba(237, 66, 69, 0.15)',
-    borderRadius: radii.sm,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  errorText: {
-    ...typography.metadata,
-    color: colors.danger,
-  },
-  label: {
-    ...typography.metadata,
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: spacing.xs,
-    letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: colors.bg,
-    color: colors.text,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.xl,
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  cancelButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  cancelText: {
-    ...typography.button,
-    color: colors.textMuted,
-  },
-  submitButton: {
-    backgroundColor: colors.accent,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 120,
-  },
-  submitButtonDisabled: {
-    opacity: 0.5,
-  },
-
-  submitText: {
-    ...typography.button,
-    color: colors.accentFg,
-    fontWeight: '600',
-  },
-  footer: {
-    marginTop: spacing.xl,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  footerText: {
-    ...typography.metadata,
-    color: colors.textMuted,
-  },
-  footerLink: {
-    ...typography.button,
-    color: colors.accent,
-    fontSize: 14,
-  },
-})
+const useStyles = makeStyles(t => ({
+  switch: { paddingTop: t.space[2], borderTopWidth: t.lines.hairline, borderTopColor: t.colors.line },
+}))

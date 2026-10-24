@@ -671,11 +671,59 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 13: app mobile nativa
 
-- [ ] Reemplazar `src/theme/` por `nativeTheme()` de `@discordia/tokens`, y cargar Schibsted Grotesk con
-      `@expo-google-fonts/schibsted-grotesk` (los nombres de familia ya están en `fontFamily.native`).
-- [ ] Implementar en React Native el catálogo de componentes (sección 6), con las mismas props que la web.
-- [ ] Mismo orden que la web: auth → estructura y navegación → chat → voz → perfil y ajustes → modales.
-- [ ] Probar en Android (APK con EAS) e iOS.
+- Sin flag: la app mobile no se publica sola (el APK se arma a mano con EAS), así que cada pantalla se
+  reemplaza en el lugar. Los componentes viejos que quedaron sin uso se borraron.
+- [x] Tema: `src/theme/ThemeProvider` arma `nativeTheme()` claro y oscuro (`useTheme`, y `makeStyles` para
+      estilos que dependen del tema, calculados una vez por tema). Sigue al sistema (`userInterfaceStyle:
+      automatic`) o a la elección guardada en AsyncStorage. Schibsted Grotesk 400, 700 y 900 con `useFonts`
+      (las subrutas por peso de `@expo-google-fonts/schibsted-grotesk`); la app no se dibuja hasta tenerla.
+      La paleta vieja (`colors.ts`, `typography.ts`, `spacing.ts`) sigue solo para miembros, roles y baneos.
+- [x] Catálogo en `src/ui/` con los nombres y props de la web: `Text` (las escalas de los tokens),
+      `Logo`, `Background` (degradés de los tokens con `react-native-svg`, deriva de 60 s), `DisplayText`
+      (letras que suben al activarse; marca de agua ajustada al ancho midiendo con una copia invisible, con
+      barrido), `SectionLabel`, `UnderlineInput`, `ActionLink`, `BlockButton`, `Tabs`, `Choice`,
+      `SquareAvatar`, `ServerStrip`, `Toast`, `EmptyState`, `Skeleton`, `ConnectionBanner` y `Modal` /
+      `ModalForm` / `ModalActions`. Movimiento con `Animated` (`ui/motion.ts`, duraciones y curvas de los
+      tokens; con "reducir movimiento" del sistema, fundidos de 150 ms).
+- [x] Degradé radial: `rx` / `ry` son de react-native-svg y el SVG de la web los ignora; se dibuja con `r` y
+      una escala vertical (`gradientTransform`), igual en las dos plataformas.
+- [x] Auth: `useAuthForms` pasó de la web a core (`core/auth/forms.ts`; recibe las acciones de la sesión,
+      la web le pasa su `authService` para que los tests lo sigan espiando). `views/AuthView` es la pantalla
+      de la web en nativo: formulario arriba, palabras gigantes al pie, entrada escalonada, errores por
+      campo y todos los estados (recuperar, verificá tu email, suspendida, error, elegir usuario: antes
+      mobile cerraba la sesión en ese caso). `AuthProvider` quedó con la sesión, el token y el logout.
+      Intro "amanecer" (`views/DawnIntro`), una sola vez por dispositivo.
+- [x] Estructura (`components/MobileShell`, piezas en `components/shell/`), como la mobile web: barra
+      inferior (Servidores, Mensajes, Avisos, Perfil), tira de franjas arriba con crear y unirse, encabezado
+      gigante por pantalla, menú del servidor (`Invitar al servidor +` y `menú v`), canal y llamada a pantalla
+      completa con `‹ Torton`, la llamada en curso sobre la barra inferior (canal, estado, micrófono, audio y
+      colgar) y la línea de reconexión. La barra inferior se oculta con el teclado abierto. Mensajes y
+      Avisos, vacíos con "próximamente" (no hay backend). Perfil: identidad, presencia (solo la sesión),
+      estado personalizado (se guarda), tema y atajos.
+- [x] Canales: `•nombre`, el activo con la barra negra, no leídos en bloque negro, editar manteniendo
+      presionado, categorías con `SectionLabel` (los canales bajan escalonados al abrir) y participantes de
+      voz con avatar cuadrado y el contorno que late en quien habla. El modo ordenar sigue con flechas.
+- [x] Chat: avatar cuadrado, autor en negrita y fecha `20/10/25, 13:25`, separadores por día y agrupado por
+      autor (las reglas pasaron a `core/chat/format.ts`, con tests, y la web las usa de ahí), `enviando/` y
+      `/ no se envió`, entrada solo de los mensajes nuevos, encabezado con el estado y `_editar`, barra de
+      escritura de una línea con `ENVIAR /`. Se sacó el botón de adjuntar: no hacía nada.
+- [x] Voz: mosaico a sangre con la etiqueta negra, borde que late en quien habla, reacomodo con
+      `LayoutAnimation`, silenciado para vos, e `Invitar a la llamada +`. Los controles están en la barra de
+      la llamada.
+- [x] Modales con la cortina: confirmaciones (textos de la web, rojo solo en las destructivas, el bloque
+      cargando), crear servidor y unirse con código, invitar (vencimiento y usos con `Choice`, como la
+      web), crear / editar / eliminar canal, crear categoría, editar perfil (avisos de la app en vez de
+      `Alert`) y silenciar a alguien de la llamada.
+- [x] Catálogo de desarrollo: Expo web con `?catalogo` (`views/Catalog`), en los dos temas.
+- [ ] Miembros, roles y baneos (`members/`, `roles/`, unas 1550 líneas): siguen con el diseño anterior. En
+      la web son pestañas de los ajustes del servidor (paso 9b): pasarlos a una pantalla de ajustes.
+- [ ] Ajustes de usuario: mobile no tiene pantalla (el tema está en Perfil por ahora).
+- [ ] Modelos de interfaz y datos de prueba de mobile (`types.ts`, `data/mock.ts`) unificados con core
+      (pendiente del paso 1.2). El `DataProvider` todavía arranca con los datos de prueba hasta que responde
+      el backend.
+- [ ] Probar en Android (APK con EAS) e iOS: lo de arriba se verificó en Expo web (Chrome, 390 px, claro y
+      oscuro, contra un backend falso); no hay simuladores en esta máquina. Revisar sobre todo el teclado
+      con la barra de escritura, la cortina de los modales y las fuentes en Android.
 
 ### Paso 14: cierre
 

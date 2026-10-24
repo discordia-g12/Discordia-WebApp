@@ -27,6 +27,7 @@ export function useUserProfiles(userIds: string[]): Record<string, PublicProfile
 export interface UserDisplay {
   name: string
   color: string
+  avatar: string | null
 }
 
 // Color estable para el avatar de usuarios que la app no tiene cargados
@@ -38,7 +39,7 @@ function colorFor(userId: string): string {
 }
 
 /**
- * Nombre y color para mostrar a cualquier usuario: primero los que la app ya tiene cargados
+ * Nombre, color y avatar para mostrar a cualquier usuario: primero los que la app ya tiene cargados
  * (incluido el propio, que se mantiene al día al editar el perfil); el resto se pide al backend.
  */
 export function useUserDisplay(userIds: string[]): (userId: string) => UserDisplay {
@@ -49,6 +50,7 @@ export function useUserDisplay(userIds: string[]): (userId: string) => UserDispl
     (userId: string) => ({
       name: users[userId]?.name ?? profiles[userId]?.name ?? 'Usuario',
       color: users[userId]?.color ?? colorFor(userId),
+      avatar: users[userId]?.avatar ?? profiles[userId]?.avatar ?? null,
     }),
     [users, profiles],
   )

@@ -1,50 +1,28 @@
 import React from 'react'
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { useUI } from '../../providers/AppProviders'
-import { colors, radii, spacing, typography } from '../../theme'
+import { makeStyles } from '../../theme'
+import { Toast as ToastStrip } from '../../ui'
 
-// Notificacion efimera
+/**
+ * Aviso de la app: la tira negra apoyada sobre lo que haya abajo (la barra de escritura, la llamada o la
+ * barra inferior), del ancho de la pantalla. Tocarla la cierra. Se monta dentro de la columna de
+ * contenido, que la posiciona al pie.
+ */
 export default function Toast() {
-    const { toast, dismissToast } = useUI()
-    if (!toast) return null
-
-    return (
-        <Pressable
-            onPress={dismissToast}
-            style={[
-                styles.container,
-                toast.type === 'error' && styles.error,
-                toast.type === 'success' && styles.success,
-            ]}
-        >
-            <Text style={styles.text}>{toast.message}</Text>
-        </Pressable>
-    )
+  const styles = useStyles()
+  const { toast, dismissToast } = useUI()
+  if (!toast) return null
+  return (
+    <View style={styles.host} pointerEvents="box-none">
+      <Pressable onPress={dismissToast} accessibilityHint="Tocá para cerrar">
+        {/* La clave hace que un aviso nuevo vuelva a entrar desde abajo */}
+        <ToastStrip key={toast.id} message={toast.message} tone={toast.type === 'error' ? 'error' : 'default'} />
+      </Pressable>
+    </View>
+  )
 }
 
-const styles = StyleSheet.create({
-    container: {
-        position: 'absolute',
-        top: 50,
-        left: spacing.md,
-        right: spacing.md,
-        backgroundColor: colors.elevated,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.md,
-        borderRadius: radii.md,
-        borderLeftWidth: 4,
-        borderLeftColor: colors.accent,
-        zIndex: 999,
-    },
-    error: {
-        borderLeftColor: colors.danger,
-    },
-    success: {
-        borderLeftColor: colors.success,
-    },
-    text: {
-        ...typography.helperText,
-        color: colors.text,
-        fontWeight: '500',
-    },
-})
+const useStyles = makeStyles(() => ({
+  host: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 999 },
+}))

@@ -1,62 +1,54 @@
 import React from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { ArrowLeft, Hash, Settings } from 'lucide-react-native'
-import { colors, spacing, typography } from '../../theme'
+import { View } from 'react-native'
+import { makeStyles } from '../../theme'
+import { ActionLink, Text } from '../../ui'
 
 interface ChatHeaderProps {
-    channelName: string
-    socketConnected?: boolean
-    onBack: () => void
-    onOpenSettings: () => void
+  channelName: string
+  /** Estado del WebSocket del canal (undefined: el canal no tiene socket). */
+  socketConnected?: boolean
+  onOpenSettings: () => void
 }
 
-// Volver, nombre canal y ajustes
-export default function ChatHeader({
-    channelName,
-    socketConnected,
-    onBack,
-    onOpenSettings,
-}: ChatHeaderProps) {
-    return (
-        <View style={styles.header}>
-            <Pressable onPress={onBack} hitSlop={12}>
-                <ArrowLeft color={colors.text} size={20} />
-            </Pressable>
-            <View style={styles.channel}>
-                <Hash color={colors.textMuted} size={16} />
-                <Text style={styles.title}>{channelName}</Text>
-                {socketConnected !== undefined && (
-                    <View
-                        style={[
-                            styles.socketDot,
-                            { backgroundColor: socketConnected ? colors.online : colors.idle },
-                        ]}
-                    />
-                )}
-            </View>
-            <Pressable onPress={onOpenSettings} hitSlop={12}>
-                <Settings color={colors.textMuted} size={18} />
-            </Pressable>
-        </View>
-    )
+/** Encabezado del chat, de 48 px: el canal en negrita, el estado de la conexión y "_editar". */
+export default function ChatHeader({ channelName, socketConnected, onOpenSettings }: ChatHeaderProps) {
+  const styles = useStyles()
+  return (
+    <View style={styles.header}>
+      <View style={styles.channel}>
+        <Text variant="bodySmall" bold numberOfLines={1}>
+          •{channelName}
+        </Text>
+        {socketConnected !== undefined && (
+          <Text variant="meta" tone="muted" accessibilityLiveRegion="polite">
+            {socketConnected ? 'conectado/' : 'conectando/'}
+          </Text>
+        )}
+      </View>
+      <View style={styles.links}>
+        <ActionLink onPress={onOpenSettings} accessibilityLabel={`Editar el canal ${channelName}`}>
+          editar
+        </ActionLink>
+      </View>
+    </View>
+  )
 }
 
-const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-    },
-    title: { ...typography.channelName, color: colors.text },
-    channel: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-    socketDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginLeft: spacing.xs,
-    },
-})
+const useStyles = makeStyles(t => ({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: t.space[7],
+    paddingLeft: t.space[4],
+    borderBottomWidth: t.lines.hairline,
+    borderBottomColor: t.colors.line,
+  },
+  channel: { flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: t.space[2] },
+  links: {
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    paddingHorizontal: t.space[4],
+    borderLeftWidth: t.lines.hairline,
+    borderLeftColor: t.colors.line,
+  },
+}))
