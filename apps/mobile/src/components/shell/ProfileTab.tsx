@@ -69,7 +69,7 @@ export function ProfileTab({ user, inCall, onEditProfile, onOpenSettings, onLogo
   }
 
   return (
-    <Screen title="Perfil">
+    <Screen title="Mi perfil">
       <View style={styles.identity}>
         <SquareAvatar user={user} size={64} status={user.status} />
         <View style={styles.identityText}>

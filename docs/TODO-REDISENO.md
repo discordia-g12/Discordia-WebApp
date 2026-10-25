@@ -218,7 +218,7 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 - [x] EAS: `apps/mobile/eas.json` y `app.json` se movieron con la app (mismo `projectId`). Se borraron el
       `app.json` / `eas.json` viejos de la raíz (otro `projectId`, paquete `discordiawebapp`, sin uso).
 - [x] Borrar `shared-api/` (vacío). El alias `@shared` queda apuntando a `apps/web/src` hasta 1.2.
-- [x] React 19.2.3 y TypeScript 6.0.3 en la web, iguales a mobile: una sola copia en el monorepo.
+- [x] React 19.3.0 y TypeScript 6.0.3 en la web, iguales a mobile: una sola copia en el monorepo.
 - [x] `tsconfig.base.json` en la raíz, que extienden la web y `packages/core`. Mobile sigue con la base de Expo.
 - [ ] ESLint: el script `lint` de la web ya estaba roto antes de esto (no hay ESLint instalado ni
       configurado). Configurarlo para todo el monorepo.

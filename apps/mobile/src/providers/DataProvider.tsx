@@ -341,6 +341,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             const updated = [...list]
             updated[pendingIndex] = {
               ...updated[pendingIndex],
+              localId: updated[pendingIndex].localId ?? updated[pendingIndex].id,
               id: payload.id,
               authorId: payload.authorId,
               content: payload.content,

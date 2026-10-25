@@ -1,16 +1,17 @@
 import React from 'react'
 import { Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Bell, Hash, MessageSquare, User as UserIcon, type LucideIcon } from 'lucide-react-native'
+import { Bell, Hash, User as UserIcon, Users, type LucideIcon } from 'lucide-react-native'
 import { makeStyles, useTheme } from '../../theme'
 import { Text } from '../../ui'
 
 export type ShellTab = 'servers' | 'messages' | 'notifications' | 'profile'
 
-// "Notificaciones" no entra en cuatro columnas de un teléfono: "Avisos", como en la mobile web
+// Los nombres de la web ("Amigos" es el inicio). "Notificaciones" no entra en un cuarto de pantalla: abajo dice
+// "Avisos" y el título de la pantalla, "Notificaciones". Lo mismo "Perfil" / "Mi perfil".
 const TABS: { id: ShellTab; label: string; icon: LucideIcon }[] = [
   { id: 'servers', label: 'Servidores', icon: Hash },
-  { id: 'messages', label: 'Mensajes', icon: MessageSquare },
+  { id: 'messages', label: 'Amigos', icon: Users },
   { id: 'notifications', label: 'Avisos', icon: Bell },
   { id: 'profile', label: 'Perfil', icon: UserIcon },
 ]
