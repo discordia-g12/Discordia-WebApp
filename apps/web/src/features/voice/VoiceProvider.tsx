@@ -1,21 +1,8 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ApiError, useVoicePresence, useVoiceRoom } from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { useCurrentServer } from '../servers/useCurrentServer';
-
-interface VoiceContextValue {
-  room: ReturnType<typeof useVoiceRoom>;
-  /** Quién está en cada canal de voz del servidor seleccionado, en vivo. */
-  presence: Record<string, string[]>;
-  /** Entra a un canal de voz. Si ya está en otro, primero pide confirmación (salvo confirmed). */
-  join: (channelId: string, options?: { confirmed?: boolean }) => Promise<void>;
-  /** Sale del canal de voz y vuelve al chat. */
-  disconnect: () => void;
-  /** true si entrar a channelId implica salir de otro canal de voz. */
-  isSwitching: (channelId: string) => boolean;
-}
-
-const VoiceContext = createContext<VoiceContextValue | null>(null);
+import { VoiceContext } from './voiceContext';
 
 /**
  * Voz de la sesión: una sola sala (LiveKit) que sigue viva al cambiar de vista, y la presencia de
@@ -95,10 +82,4 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   return (
     <VoiceContext.Provider value={{ room, presence, join, disconnect, isSwitching }}>{children}</VoiceContext.Provider>
   );
-}
-
-export function useVoice(): VoiceContextValue {
-  const ctx = useContext(VoiceContext);
-  if (!ctx) throw new Error('useVoice debe usarse dentro de <VoiceProvider>');
-  return ctx;
 }

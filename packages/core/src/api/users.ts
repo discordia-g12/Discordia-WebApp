@@ -1,7 +1,7 @@
 import { api } from './client';
 import { ApiError } from './errors';
 import { getApiMock } from './mock';
-import { User } from '../types';
+import { Status, User } from '../types';
 
 /** Perfil de Auth-User-Service: el modelo de dominio más los campos crudos del backend (snake_case). */
 export interface UserProfile extends User {
@@ -12,6 +12,32 @@ export interface UserProfile extends User {
   activity_status?: string;
   custom_status?: string;
   created_at?: string;
+}
+
+/** Respuesta cruda de Auth-User-Service (snake_case). */
+interface UserBackendResponse {
+  id?: string;
+  user_id?: string;
+  username: string;
+  email?: string;
+  display_name?: string;
+  avatar_url?: string | null;
+  avatar?: string;
+  bio?: string;
+  activity_status?: string;
+  custom_status?: string;
+  created_at?: string;
+}
+
+function toUserProfile(res: UserBackendResponse): UserProfile {
+  return {
+    ...res,
+    id: res.user_id || res.id || '',
+    displayName: res.display_name || res.username,
+    display_name: res.display_name || res.username,
+    avatar: res.avatar_url || res.avatar,
+    status: (res.activity_status === 'offline' ? 'offline' : (res.activity_status || 'online')) as Status,
+  };
 }
 
 export interface CreateProfileRequest {
@@ -36,15 +62,7 @@ export async function getMyProfile(): Promise<UserProfile> {
   const mock = getApiMock();
   if (mock) return mock.getMyProfile();
 
-  const res = await api.get<any>('/api/v1/users/me');
-  return {
-    ...res,
-    id: res.user_id || res.id,
-    displayName: res.display_name || res.username,
-    display_name: res.display_name || res.username,
-    avatar: res.avatar_url || res.avatar,
-    status: (res.activity_status === 'offline' ? 'offline' : (res.activity_status || 'online')) as any,
-  };
+  return toUserProfile(await api.get<UserBackendResponse>('/api/v1/users/me'));
 }
 
 /**
@@ -72,10 +90,10 @@ export async function upsertMyProfile(payload: CreateProfileRequest): Promise<Us
   };
 
   try {
-    const res = await api.post<any>('/api/v1/users/me', requestBody);
+    const res = await api.post<UserBackendResponse>('/api/v1/users/me', requestBody);
     return {
       ...res,
-      id: res.user_id || res.id,
+      id: res.user_id || res.id || '',
       displayName: res.display_name || res.username,
       display_name: res.display_name || res.username,
       avatar: res.avatar_url || payload.avatar_url,
@@ -120,15 +138,8 @@ export async function getUsersBulk(userIds: string[]): Promise<UserProfile[]> {
     batches.push(uniqueIds.slice(i, i + BULK_LIMIT));
   }
   const responses = await Promise.all(
-    batches.map((batch) => api.post<any[]>('/api/v1/users/bulk', { user_ids: batch }))
+    batches.map((batch) => api.post<UserBackendResponse[]>('/api/v1/users/bulk', { user_ids: batch }))
   );
 
-  return responses.flat().map((u: any) => ({
-    ...u,
-    id: u.user_id || u.id,
-    displayName: u.display_name || u.username,
-    display_name: u.display_name || u.username,
-    avatar: u.avatar_url || u.avatar,
-    status: (u.activity_status === 'offline' ? 'offline' : (u.activity_status || 'online')) as any,
-  }));
+  return responses.flat().map(toUserProfile);
 }

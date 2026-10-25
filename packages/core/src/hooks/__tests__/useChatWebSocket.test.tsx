@@ -3,6 +3,7 @@ import { useChatWebSocket } from '../useChatSocket';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { Message } from '../../types';
 
 const mockGetToken = vi.fn().mockResolvedValue('mock-token');
 
@@ -24,17 +25,17 @@ class MockWebSocket {
   readyState: number = 0;
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
-  onmessage: ((event: any) => void) | null = null;
-  onerror: ((event: any) => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
   send = vi.fn();
   close = vi.fn();
   
-  listeners: Record<string, Function[]> = {};
-  addEventListener = vi.fn((event, cb) => {
+  listeners: Record<string, (() => void)[]> = {};
+  addEventListener = vi.fn((event: string, cb: () => void) => {
     if (!this.listeners[event]) this.listeners[event] = [];
     this.listeners[event].push(cb);
   });
-  removeEventListener = vi.fn((event, cb) => {
+  removeEventListener = vi.fn((event: string, cb: () => void) => {
     if (!this.listeners[event]) return;
     this.listeners[event] = this.listeners[event].filter(l => l !== cb);
   });
@@ -51,7 +52,7 @@ class MockWebSocket {
     }
   }
 
-  _simulateMessage(data: any) {
+  _simulateMessage(data: unknown) {
     if (this.onmessage) this.onmessage({ data: JSON.stringify(data) });
   }
 
@@ -61,7 +62,17 @@ class MockWebSocket {
   }
 }
 
-global.WebSocket = MockWebSocket as any;
+global.WebSocket = MockWebSocket as unknown as typeof WebSocket;
+
+/** Clase de WebSocket falso que le pasa al test cada conexión que abre el hook. */
+function mockWebSocketClass(onCreate: (ws: MockWebSocket) => void): typeof WebSocket {
+  return class extends MockWebSocket {
+    constructor(url: string) {
+      super(url);
+      onCreate(this);
+    }
+  } as unknown as typeof WebSocket;
+}
 
 const createTestQueryClient = () => new QueryClient({
   defaultOptions: {
@@ -95,12 +106,7 @@ describe('useChatWebSocket', () => {
 
     let wsInstance: MockWebSocket;
     const OriginalWebSocket = global.WebSocket;
-    global.WebSocket = class extends MockWebSocket {
-      constructor(url: string) {
-        super(url);
-        wsInstance = this;
-      }
-    } as any;
+    global.WebSocket = mockWebSocketClass((ws) => { wsInstance = ws; });
     global.WebSocket.CONNECTING = 0;
     global.WebSocket.OPEN = 1;
 
@@ -120,7 +126,7 @@ describe('useChatWebSocket', () => {
     // Validamos en el queryCache con exact/active o recuperando el data exacto
     // setQueriesData impacta queries activas o inactivas que hagan match. 
     // Como pre-seteamos, debería estar.
-    const cached = queryClient.getQueryData<any[]>(['messages', 'channel-1']);
+    const cached = queryClient.getQueryData<Message[]>(['messages', 'channel-1']);
     expect(cached).toBeDefined();
     expect(cached).toHaveLength(1);
     expect(cached![0].content).toBe('hello');
@@ -130,7 +136,7 @@ describe('useChatWebSocket', () => {
       await new Promise(resolve => setTimeout(resolve, 20));
     });
 
-    const cached2 = queryClient.getQueryData<any[]>(['messages', 'channel-1']);
+    const cached2 = queryClient.getQueryData<Message[]>(['messages', 'channel-1']);
     expect(cached2).toHaveLength(2);
     expect(cached2![1].authorId).toBe('user-1');
     expect(cached2![1].author).toBeUndefined();
@@ -152,12 +158,7 @@ describe('useChatWebSocket', () => {
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       );
       const instances: MockWebSocket[] = [];
-      global.WebSocket = class extends MockWebSocket {
-        constructor(url: string) {
-          super(url);
-          instances.push(this);
-        }
-      } as any;
+      global.WebSocket = mockWebSocketClass((ws) => instances.push(ws));
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
       const { unmount } = renderHook(() => useChatWebSocket('channel-1', 'user-1'), { wrapper });
@@ -194,12 +195,7 @@ describe('useChatWebSocket', () => {
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       );
       const instances: MockWebSocket[] = [];
-      global.WebSocket = class extends MockWebSocket {
-        constructor(url: string) {
-          super(url);
-          instances.push(this);
-        }
-      } as any;
+      global.WebSocket = mockWebSocketClass((ws) => instances.push(ws));
 
       const { unmount } = renderHook(() => useChatWebSocket('channel-1', 'user-1'), { wrapper });
       await act(async () => {
@@ -227,12 +223,7 @@ describe('useChatWebSocket', () => {
     );
 
     let wsInstance: MockWebSocket;
-    global.WebSocket = class extends MockWebSocket {
-      constructor(url: string) {
-        super(url);
-        wsInstance = this;
-      }
-    } as any;
+    global.WebSocket = mockWebSocketClass((ws) => { wsInstance = ws; });
 
     renderHook(() => useChatWebSocket('channel-1', 'user-1'), { wrapper });
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -264,12 +255,7 @@ describe('useChatWebSocket', () => {
     );
 
     let wsInstance: MockWebSocket;
-    global.WebSocket = class extends MockWebSocket {
-      constructor(url: string) {
-        super(url);
-        wsInstance = this;
-      }
-    } as any;
+    global.WebSocket = mockWebSocketClass((ws) => { wsInstance = ws; });
     global.WebSocket.CONNECTING = 0;
     global.WebSocket.OPEN = 1;
 
@@ -296,12 +282,7 @@ describe('useChatWebSocket', () => {
     );
 
     let wsInstance: MockWebSocket;
-    global.WebSocket = class extends MockWebSocket {
-      constructor(url: string) {
-        super(url);
-        wsInstance = this;
-      }
-    } as any;
+    global.WebSocket = mockWebSocketClass((ws) => { wsInstance = ws; });
     global.WebSocket.CONNECTING = 0;
     global.WebSocket.OPEN = 1;
 

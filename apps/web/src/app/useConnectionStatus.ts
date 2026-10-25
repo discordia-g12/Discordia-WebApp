@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useChatReconnecting } from '../features/chat/ChatConnectionProvider';
-import { useVoice } from '../features/voice/VoiceProvider';
+import { useChatReconnecting } from '../features/chat/chatConnectionContext';
+import { useVoice } from '../features/voice/voiceContext';
 
 /** Si el navegador tiene red (eventos online / offline). */
 function useOnline(): boolean {

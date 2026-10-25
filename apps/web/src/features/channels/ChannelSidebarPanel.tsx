@@ -9,7 +9,7 @@ import { showToast, useUIStore } from '../../app/uiStore';
 import { useCurrentServer } from '../servers/useCurrentServer';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
-import { useVoice } from '../voice/VoiceProvider';
+import { useVoice } from '../voice/voiceContext';
 import { useVoiceParticipants } from '../voice/useVoiceParticipants';
 import { ChannelSidebar } from './ChannelSidebar';
 

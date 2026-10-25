@@ -18,7 +18,7 @@ export function useCreateServer() {
       selectServer(newServer.id, [newServer]);
       useUIStore.getState().setActiveModal(null);
       showToast('Servidor creado', 'success');
-    } catch (error) {
+    } catch {
       showToast('Error al crear el servidor', 'danger');
     }
   };

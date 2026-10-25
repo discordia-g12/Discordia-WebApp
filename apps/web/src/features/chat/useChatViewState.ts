@@ -12,6 +12,7 @@ export const POPULAR_EMOJIS = [
  * Limpia caracteres nulos \x00 para evitar fallos de persistencia en PostgreSQL.
  */
 export function sanitizeText(raw: string): string {
+  // eslint-disable-next-line no-control-regex -- el \x00 es justamente lo que se quiere sacar
   return raw.replace(/\x00/g, '');
 }
 

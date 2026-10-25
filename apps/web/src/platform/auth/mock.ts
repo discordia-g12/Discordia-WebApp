@@ -1,4 +1,4 @@
-import { retryBootstrap } from '@discordia/core';
+import { retryBootstrap, type AuthUser } from '@discordia/core';
 import type { WebAuthAdapter } from './auth0';
 
 /**
@@ -25,7 +25,7 @@ export const mockProvider: WebAuthAdapter = {
     return 'mock.jwt.token_for_local_development';
   },
 
-  async getUser(): Promise<any> {
+  async getUser(): Promise<AuthUser> {
     return {
       sub: 'mock|u0',
       email: 'alex.rivera@discordia.gg',

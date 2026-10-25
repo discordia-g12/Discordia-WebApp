@@ -32,7 +32,7 @@ class FakeRoom {
   state = 'disconnected';
   localParticipant = new FakeLocalParticipant('me');
   remoteParticipants = new Map<string, FakeParticipant>();
-  listeners: Record<string, ((...args: any[]) => void)[]> = {};
+  listeners: Record<string, ((...args: unknown[]) => void)[]> = {};
 
   connect = vi.fn(async () => {
     this.state = 'connected';
@@ -46,7 +46,7 @@ class FakeRoom {
     FakeRoom.instances.push(this);
   }
 
-  on(event: string, cb: (...args: any[]) => void) {
+  on(event: string, cb: (...args: unknown[]) => void) {
     (this.listeners[event] ||= []).push(cb);
     return this;
   }
@@ -56,7 +56,7 @@ class FakeRoom {
     return this;
   }
 
-  emit(event: string, ...args: any[]) {
+  emit(event: string, ...args: unknown[]) {
     (this.listeners[event] || []).forEach((cb) => cb(...args));
   }
 

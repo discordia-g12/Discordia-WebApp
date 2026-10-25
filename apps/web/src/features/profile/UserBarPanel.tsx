@@ -1,4 +1,4 @@
-import { useVoice } from '../voice/VoiceProvider';
+import { useVoice } from '../voice/voiceContext';
 import { useCurrentUser } from './currentUserStore';
 import { useUserPanelActions } from './profileActions';
 import { UserBar, type UserBarProps } from './UserBar';

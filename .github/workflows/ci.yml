@@ -26,6 +26,10 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      # Una sola config para todo el monorepo (eslint.config.mjs). Falla con errores, no con avisos
+      - name: Lint
+        run: npm run lint
+
       - name: Dependency audit
         continue-on-error: true
         run: npm audit --audit-level=high

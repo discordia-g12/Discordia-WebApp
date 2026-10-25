@@ -31,7 +31,7 @@ export function getWsBaseUrl(): string {
 }
 
 export interface RequestOptions {
-  body?: any;
+  body?: unknown;
   query?: Record<string, string | number | boolean | undefined | null>;
   idempotencyKey?: string;
   signal?: AbortSignal;
@@ -64,7 +64,7 @@ function generateCorrelationId(): string {
   return `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
-export async function request<T = any>(
+export async function request<T = unknown>(
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   options: RequestOptions = {}
@@ -156,14 +156,14 @@ export async function request<T = any>(
       signal: controller.signal,
       credentials: 'same-origin', 
     });
-  } catch (err: any) {
+  } catch (err) {
     if (timedOut) {
       throw new TimeoutError();
     }
-    if (err.name === 'AbortError' && signal?.aborted) {
+    if (err instanceof Error && err.name === 'AbortError' && signal?.aborted) {
       throw err;
     }
-    throw new NetworkError(err?.message || 'Error de conexión de red.');
+    throw new NetworkError((err instanceof Error && err.message) || 'Error de conexión de red.');
   } finally {
     clearTimeout(timer);
     if (signal) {
@@ -178,7 +178,7 @@ export async function request<T = any>(
       throw await parseErrorResponse(response, correlationId);
     }
 
-    let newToken = '';
+    let newToken: string;
     try {
       newToken = await refreshOnce();
     } catch {
@@ -212,11 +212,11 @@ export async function request<T = any>(
 
 export const api = {
   get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, options),
-  post: <T>(path: string, body?: any, options?: RequestOptions) =>
+  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>('POST', path, { ...options, body }),
-  put: <T>(path: string, body?: any, options?: RequestOptions) =>
+  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>('PUT', path, { ...options, body }),
-  patch: <T>(path: string, body?: any, options?: RequestOptions) =>
+  patch: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>('PATCH', path, { ...options, body }),
   delete: <T>(path: string, options?: RequestOptions) =>
     request<T>('DELETE', path, options),

@@ -281,8 +281,10 @@ export const auth0Provider: WebAuthAdapter = {
     }
   },
 
-  async onMissingSession(err: any) {
-    const errorMsg = String(err?.message || err?.error || '');
+  async onMissingSession(err: unknown) {
+    // Los errores del SDK de Auth0 traen el código en `error` (login_required, consent_required...)
+    const { message, error } = (err ?? {}) as { message?: unknown; error?: unknown };
+    const errorMsg = String(message || error || '');
     const { pathname, search } = currentPath();
 
     // En rutas de inicio (/ o /login), si no hay sesión activa por cualquier motivo,

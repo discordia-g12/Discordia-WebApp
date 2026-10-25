@@ -8,8 +8,8 @@ describe('HttpClient & Interceptors', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockGetToken = vi.fn<any>().mockResolvedValue('initial-jwt-token');
-    mockOnAuthFailure = vi.fn<any>();
+    mockGetToken = vi.fn().mockResolvedValue('initial-jwt-token');
+    mockOnAuthFailure = vi.fn();
 
     configureClient({
       baseUrl: 'http://localhost:8000',
@@ -234,10 +234,10 @@ describe('HttpClient & Interceptors', () => {
     try {
       await api.post('/test', {});
       expect.unreachable();
-    } catch (err: any) {
+    } catch (err) {
       expect(err).toBeInstanceOf(ApiError);
-      expect(err.status).toBe(422);
-      expect(err.invalidParams).toEqual([{ name: 'username', loc: ['body', 'username'], msg: 'field required' }]);
+      expect((err as ApiError).status).toBe(422);
+      expect((err as ApiError).invalidParams).toEqual([{ name: 'username', loc: ['body', 'username'], msg: 'field required' }]);
     }
   });
 });

@@ -1,7 +1,7 @@
 import { useCurrentServer } from '../servers/useCurrentServer';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
-import { useVoice } from './VoiceProvider';
+import { useVoice } from './voiceContext';
 import { useVoiceParticipants } from './useVoiceParticipants';
 import { useUIStore } from '../../app/uiStore';
 import { VoiceView } from './VoiceView';

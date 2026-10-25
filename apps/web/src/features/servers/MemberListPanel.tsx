@@ -1,4 +1,4 @@
-import { useUsers } from '../../app/UsersProvider';
+import { useUsers } from '../../app/usersContext';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
 import { MemberList } from './MemberList';

@@ -45,8 +45,8 @@ export default function CreateServerModal({ visible, onClose, onSuccess, initial
       if (server.channels && server.channels.length > 0) selectChannel(server.channels[0].id)
       showToast(`Servidor ${server.name} creado`, 'success')
       onSuccess?.(server)
-    } catch (err: any) {
-      setError(err?.message || 'Error al crear el servidor. Intentá de nuevo.')
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'Error al crear el servidor. Intentá de nuevo.')
     } finally {
       setLoading(false)
     }
@@ -67,9 +67,9 @@ export default function CreateServerModal({ visible, onClose, onSuccess, initial
       onClose()
       selectServer(res.server_id)
       showToast('Te uniste al servidor', 'success')
-    } catch (err: any) {
+    } catch (err) {
       // El modal sigue abierto: el error queda en el campo
-      setError(err?.message || 'Código inválido o expirado.')
+      setError((err instanceof Error && err.message) || 'Código inválido o expirado.')
     } finally {
       setLoading(false)
     }

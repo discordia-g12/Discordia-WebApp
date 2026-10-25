@@ -4,10 +4,8 @@ import { MicOff, Shapes } from 'lucide-react';
 import { transitions } from '../../ui';
 import type { VoiceParticipant } from '../channels/ChannelSidebar';
 import { VoiceParticipantMenu } from './VoiceParticipantMenu';
+import { CONNECTION_LABEL, isPending, type VoiceViewConnectionState } from './connectionState';
 import styles from './VoiceView.module.css';
-
-
-export type VoiceViewConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
 interface BaseVoiceViewProps {
   /** Nombre del canal de voz activo. */
@@ -43,20 +41,7 @@ export interface VoiceViewProps extends BaseVoiceViewProps {
   onInvite?: () => void;
 }
 
-/** Estado de la conexión con barra final, como el resto del microcopy. */
-export const CONNECTION_LABEL: Record<VoiceViewConnectionState, string> = {
-  connected: 'conectado/',
-  connecting: 'conectando/',
-  reconnecting: 'reconectando/',
-  disconnected: 'desconectado/',
-};
-
 /** Columnas del mosaico según cuántas fichas hay (los participantes más la de invitar). */
-/** Late solo mientras conecta o reconecta; desconectado es un estado quieto (y legible). */
-export function isPending(state: VoiceViewConnectionState): boolean {
-  return state === 'connecting' || state === 'reconnecting';
-}
-
 function columnsFor(tiles: number): number {
   if (tiles <= 1) return 1;
   if (tiles <= 4) return 2;

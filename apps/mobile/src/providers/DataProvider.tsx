@@ -34,7 +34,7 @@ interface DataContextValue {
 
   // Servidores y canales en vivo
   refreshServers: () => Promise<void>
-  createServer: (name: string, icon?: any) => Promise<Server>
+  createServer: (name: string, icon?: File) => Promise<Server>
   createChannel: (
     serverId: string,
     data: { name: string; type: 'text' | 'voice'; categoryId?: string },
@@ -108,7 +108,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshServers()
   }, [refreshServers])
 
-  const createServer = useCallback(async (name: string, icon?: any): Promise<Server> => {
+  const createServer = useCallback(async (name: string, icon?: File): Promise<Server> => {
     const newServer = await apiCreateServer({ name, icon })
     setServers(prev => [...prev, newServer])
     return newServer

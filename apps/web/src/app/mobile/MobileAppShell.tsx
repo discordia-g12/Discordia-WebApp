@@ -12,14 +12,14 @@ import { ChannelSidebarPanel } from '../../features/channels/ChannelSidebarPanel
 import { ChatPanel } from '../../features/chat/ChatPanel';
 import { VoicePanel } from '../../features/voice/VoicePanel';
 import { VoiceControlsPanel } from '../../features/voice/VoiceControls';
-import { useVoice } from '../../features/voice/VoiceProvider';
+import { useVoice } from '../../features/voice/voiceContext';
 import { MemberListPanel } from '../../features/servers/MemberListPanel';
 import { HomePanel } from '../../features/friends/HomePanel';
 import { UserBarPanel } from '../../features/profile/UserBarPanel';
 import { UserMenuContent } from '../../features/profile/UserMenu';
 import { useUserPanelActions } from '../../features/profile/profileActions';
 import { useCurrentUser } from '../../features/profile/currentUserStore';
-import { userBarStatus } from '../../features/profile/UserBar';
+import { userBarStatus } from '../../features/profile/userBarStatus';
 import styles from './MobileAppShell.module.css';
 
 export type MobileTab = 'servers' | 'messages' | 'notifications' | 'profile';

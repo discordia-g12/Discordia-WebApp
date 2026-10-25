@@ -3,7 +3,7 @@ import type { Message, MessageAttachment, Reaction } from '../../types';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { useDmStore } from '../friends/dmStore';
-import { useSendChannelMessage } from './ChatConnectionProvider';
+import { useSendChannelMessage } from './chatConnectionContext';
 
 /**
  * Acciones sobre los mensajes del canal o DM seleccionado. En un canal de servidor el envío va por
@@ -37,7 +37,7 @@ export function useMessageActions() {
       const send = async () => {
         try {
           await sendMessageWs(content);
-        } catch (err) {
+        } catch {
           showToast('No se pudo enviar el mensaje', 'danger', { label: 'reintentar', onPress: send });
         }
       };

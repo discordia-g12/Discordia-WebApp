@@ -1,6 +1,6 @@
 import type { Role, User } from '../../types';
 import { ActionLink, Modal, ModalActions, SquareAvatar } from '../../ui';
-import { userBarStatus } from './UserBar';
+import { userBarStatus } from './userBarStatus';
 import styles from './UserProfileModal.module.css';
 
 export interface UserProfileModalProps {

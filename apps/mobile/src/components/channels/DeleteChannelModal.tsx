@@ -27,8 +27,8 @@ export default function DeleteChannelModal({ visible, serverId, channel, onClose
       showToast(`Canal •${channel.name} eliminado`, 'success')
       onSuccess?.()
       onClose()
-    } catch (err: any) {
-      const msg = err?.message || 'Error al eliminar el canal.'
+    } catch (err) {
+      const msg = (err instanceof Error && err.message) || 'Error al eliminar el canal.'
       if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('permiso')) {
         setError('No tienes permisos de administración para eliminar este canal.')
       } else {

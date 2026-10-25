@@ -1,20 +1,12 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useChannelMessagesQuery, useUserProfiles } from '@discordia/core';
 import type { User } from '../types';
 import { useUIStore } from './uiStore';
 import { useCurrentUser } from '../features/profile/currentUserStore';
 import { useDmStore } from '../features/friends/dmStore';
-import { useVoice } from '../features/voice/VoiceProvider';
+import { useVoice } from '../features/voice/voiceContext';
+import { UsersContext } from './usersContext';
 import { placeholderUser, useServerMemberUsers } from '../features/servers/useCurrentServer';
-
-interface UsersContextValue {
-  /** Usuarios conocidos por id: perfiles cargados, miembros sin perfil todavía y el propio. */
-  usersMap: Record<string, User>;
-  /** El usuario, o uno provisorio si todavía no llegó su perfil. */
-  userOrFallback: (id: string) => User;
-}
-
-const UsersContext = createContext<UsersContextValue | null>(null);
 
 /**
  * Perfiles de todos los usuarios que aparecen en pantalla (miembros, DMs, autores de mensajes y
@@ -59,10 +51,4 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   );
 
   return <UsersContext.Provider value={value}>{children}</UsersContext.Provider>;
-}
-
-export function useUsers(): UsersContextValue {
-  const ctx = useContext(UsersContext);
-  if (!ctx) throw new Error('useUsers debe usarse dentro de <UsersProvider>');
-  return ctx;
 }

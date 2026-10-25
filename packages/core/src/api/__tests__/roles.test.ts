@@ -103,11 +103,11 @@ describe('API de roles', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockGetToken = vi.fn<any>().mockResolvedValue('jwt-token');
+    mockGetToken = vi.fn().mockResolvedValue('jwt-token');
     configureClient({
       baseUrl: 'http://localhost:8000',
       getToken: mockGetToken,
-      onAuthFailure: vi.fn<any>(),
+      onAuthFailure: vi.fn(),
       timeoutMs: 500,
     });
   });

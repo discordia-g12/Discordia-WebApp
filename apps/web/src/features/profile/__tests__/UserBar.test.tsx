@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
-import { UserBar, userBarStatus } from '../UserBar';
+import { UserBar } from '../UserBar';
+import { userBarStatus } from '../userBarStatus';
 import type { User } from '../../../types';
 
 const user = { id: 'me', username: 'mar', displayName: 'Mar', status: 'invisible' } as User;

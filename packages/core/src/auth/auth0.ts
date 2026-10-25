@@ -147,7 +147,7 @@ export async function databaseSignup(signupData: SignupData): Promise<void> {
     // Criterio de Aceptación Registro CA 4: Contraseña insegura
     if (data.name === 'PasswordStrengthError') {
       const minLength =
-        data.description?.rules?.find((r: any) => r.code === 'lengthAtLeast')?.format?.[0] || 8;
+        data.description?.rules?.find((r: { code: string }) => r.code === 'lengthAtLeast')?.format?.[0] || 8;
       throw new Error(
         `La contraseña debe tener al menos ${minLength} caracteres, mayúscula, minúscula y número.`
       );

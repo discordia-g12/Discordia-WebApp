@@ -20,10 +20,10 @@ export function useServerSettingsState(props: ServerSettingsProps) {
     onClose,
     onUpdateServer,
   } = props;
-  const currentServer = initialServer || null as any;
-  const user = initialUser || ({ id: '' } as any);
+  const currentServer: Server | null = initialServer || null;
+  const user = initialUser || ({ id: '' } as User);
 
-  const [serverState, setServerState] = useState<Server>({ ...currentServer });
+  const [serverState, setServerState] = useState<Server>({ ...currentServer } as Server);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);

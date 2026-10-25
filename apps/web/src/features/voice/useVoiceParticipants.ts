@@ -1,7 +1,7 @@
 import type { VoiceParticipant } from '../channels/ChannelSidebar';
-import { useUsers } from '../../app/UsersProvider';
+import { useUsers } from '../../app/usersContext';
 import { useCurrentServer } from '../servers/useCurrentServer';
-import { useVoice } from './VoiceProvider';
+import { useVoice } from './voiceContext';
 
 /**
  * Participantes de voz listos para la interfaz: los de la sala en la que estoy (con quién habla y

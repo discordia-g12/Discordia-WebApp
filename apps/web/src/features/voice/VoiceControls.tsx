@@ -1,8 +1,8 @@
 import { MonitorUp, PhoneOff, VideoOff, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../../app/uiStore';
-import { useVoice } from './VoiceProvider';
+import { useVoice } from './voiceContext';
 import { useVoiceParticipants } from './useVoiceParticipants';
-import { CONNECTION_LABEL, isPending, type VoiceViewConnectionState } from './VoiceView';
+import { CONNECTION_LABEL, isPending, type VoiceViewConnectionState } from './connectionState';
 import styles from './VoiceControls.module.css';
 
 export interface VoiceControlsProps {

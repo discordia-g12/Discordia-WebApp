@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Headphones, HeadphoneOff, Mic, MicOff, PhoneOff, Settings, type LucideIcon } from 'lucide-react';
 import type { Status, User } from '../../types';
+import { userBarStatus } from './userBarStatus';
 import { SquareAvatar } from '../../ui';
 import { UserMenu } from './UserMenu';
 import styles from './UserBar.module.css';
@@ -26,24 +27,6 @@ export interface UserBarProps {
   onSaveCustomStatus?: (customStatus: string) => void;
   onEditProfile?: () => void;
   onLogout?: () => void;
-}
-
-const STATUS_LABEL: Record<Status, string> = {
-  online: 'Conectado',
-  idle: 'Ausente',
-  dnd: 'No molestar',
-  invisible: 'Invisible',
-  offline: 'Invisible',
-};
-
-/**
- * Estado bajo el nombre, con barra final: "reconectando/" mientras vuelve la conexión, "En canal de voz/",
- * el estado personalizado o la presencia ("Invisible/").
- */
-export function userBarStatus(user: Pick<User, 'status' | 'customStatus'>, inVoiceChannel: boolean, reconnecting = false): string {
-  if (reconnecting) return 'reconectando/';
-  if (inVoiceChannel) return 'En canal de voz/';
-  return `${user.customStatus || STATUS_LABEL[user.status] || STATUS_LABEL.offline}/`;
 }
 
 /**

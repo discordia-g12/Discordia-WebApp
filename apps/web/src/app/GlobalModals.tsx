@@ -21,9 +21,9 @@ import { useCurrentServer } from '../features/servers/useCurrentServer';
 import { clearInviteFromUrl, useCreateServer, useJoinServer } from '../features/servers/serverActions';
 import { useCurrentUser } from '../features/profile/currentUserStore';
 import { logoutWithToast } from '../features/profile/profileActions';
-import { useVoice } from '../features/voice/VoiceProvider';
+import { useVoice } from '../features/voice/voiceContext';
 import { useUIStore } from './uiStore';
-import { useUsers } from './UsersProvider';
+import { useUsers } from './usersContext';
 
 /**
  * Modales de la app (escritorio y mobile web): cuál está abierto lo decide useUIStore. Entran y salen como

@@ -30,6 +30,7 @@ cp apps/web/.env.example apps/web/.env   # URL de la API y Auth0
 npm run dev                              # http://localhost:5173
 npm test                                 # tests de todos los workspaces
 npm run typecheck                        # TypeScript de web y mobile
+npm run lint                             # ESLint de todo el monorepo
 npm run build                            # deja el build en dist/ (raíz)
 ```
 
@@ -109,6 +110,10 @@ como contexto e instalan solo las dependencias de la web. Los usa el `docker-com
 ## CI
 
 `.github/workflows/ci.yml` corre en cada push y pull request a `main` y `develop`, con Node 22 (`.nvmrc`):
-typecheck de los cuatro workspaces, tests, build de la web (lo mismo que compila Cloudflare Pages), bundle de
-mobile con Metro y build de la imagen de Docker (no se publica). Falta ESLint: el script `lint` de la web
-todavía no tiene configuración.
+typecheck y lint de los cuatro workspaces, tests, build de la web (lo mismo que compila Cloudflare Pages),
+bundle de mobile con Metro y build de la imagen de Docker (no se publica).
+
+El lint usa una sola configuración para todo el monorepo (`eslint.config.mjs`) y falla solo con errores. Las
+reglas del React Compiler (`react-hooks/refs`, `set-state-in-effect`, `purity` y
+`preserve-manual-memoization`) están como avisos hasta revisar esos patrones, sobre todo en `ChatView` y
+`ServerSettingsScreen`.

@@ -1,10 +1,10 @@
 import { useChannelMessagesQuery } from '@discordia/core';
 import { useUIStore } from '../../app/uiStore';
-import { useUsers } from '../../app/UsersProvider';
+import { useUsers } from '../../app/usersContext';
 import { useCurrentServer } from '../servers/useCurrentServer';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
-import { useVoice } from '../voice/VoiceProvider';
+import { useVoice } from '../voice/voiceContext';
 import { ChatView } from './ChatView';
 import { useMessageActions } from './useMessageActions';
 

@@ -231,16 +231,6 @@ export default function MobileShell() {
     setEditChannelModalOpen(true)
   }
 
-  const handleOpenDeleteChannel = (ch: Channel) => {
-    // CA 3: Sin permisos
-    if (!isServerAdmin) {
-      showToast('No tienes permisos de administración para eliminar este canal.', 'error')
-      return
-    }
-    setTargetChannelForAction(ch)
-    setDeleteChannelModalOpen(true)
-  }
-
   const handleChannelDeleted = () => {
     if (targetChannelForAction && targetChannelForAction.id === selectedChannelId) {
       const remaining = allChannels.filter(c => c.id !== targetChannelForAction.id)

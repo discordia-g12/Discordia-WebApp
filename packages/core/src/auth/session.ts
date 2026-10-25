@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { AuthAdapter, PendingProfile, PendingProfileStore } from './adapter';
 import { configureClient } from '../api/client';
-import { ApiError, isProblemType, PROBLEM_TYPES } from '../api/errors';
+import { ApiError, errorDetail, isProblemType, PROBLEM_TYPES } from '../api/errors';
 import { getMyProfile, upsertMyProfile, UserProfile } from '../api/users';
 import { AuthDenial, classifyAuthDenial } from './errors';
 
@@ -188,7 +188,7 @@ async function runBootstrap(): Promise<void> {
 
   try {
     await adapter.getToken();
-  } catch (err: any) {
+  } catch (err) {
     const denial = classifyAuthDenial(err);
     if (denial) {
       applyAuthDenial(denial);
@@ -214,7 +214,8 @@ async function runBootstrap(): Promise<void> {
       error: {
         title: 'Error de Conexión',
         message: 'No fue posible verificar la sesión con el servidor de autenticación.',
-        detail: String(err?.message || err?.error || ''),
+        // Los errores del SDK de Auth0 traen el código en `error` (login_required, consent_required...)
+        detail: errorDetail(err) || (typeof err === 'object' && err !== null && 'error' in err ? String(err.error) : ''),
       },
     });
     return;
@@ -223,7 +224,7 @@ async function runBootstrap(): Promise<void> {
   try {
     const profile = await getMyProfile();
     useSession.getState().setStatus('authenticated', { profile, error: null });
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
       // Usuario autenticado en Auth0 sin perfil en Discordia: auto-aprovisionar con datos de registro o Auth0
       let authUser: Awaited<ReturnType<AuthAdapter['getUser']>>;
@@ -247,7 +248,7 @@ async function runBootstrap(): Promise<void> {
 
         useSession.getState().setStatus('authenticated', { profile: autoProfile, error: null });
         return;
-      } catch (autoErr: any) {
+      } catch (autoErr) {
         // Segunda barrera: el backend rechaza crear el perfil si el email no está
         // verificado (token emitido antes de activar la Action, o Action desactivada).
         if (isProblemType(autoErr, PROBLEM_TYPES.EMAIL_NOT_VERIFIED)) {
@@ -265,7 +266,7 @@ async function runBootstrap(): Promise<void> {
           error: {
             title: 'Error de Perfil',
             message: 'No se pudo crear automáticamente tu perfil de usuario.',
-            detail: autoErr?.detail || autoErr?.message,
+            detail: errorDetail(autoErr),
           },
         });
         return;
@@ -277,7 +278,7 @@ async function runBootstrap(): Promise<void> {
       error: {
         title: 'Error de Perfil',
         message: 'No se pudo cargar la información de tu perfil de Discordia.',
-        detail: err?.detail || err?.message,
+        detail: errorDetail(err),
       },
     });
   }

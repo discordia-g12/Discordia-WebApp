@@ -19,7 +19,7 @@ export function useUserSettingsState(props: UserSettingsProps) {
     onUpdateUser,
     onLogout,
   } = props;
-  const baseUser = initialUser || ({ id: '' } as any);
+  const baseUser = initialUser || ({ id: '' } as User);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);

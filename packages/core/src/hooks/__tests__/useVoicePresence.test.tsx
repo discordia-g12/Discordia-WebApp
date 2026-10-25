@@ -15,7 +15,7 @@ class MockWebSocket {
   static instances: MockWebSocket[] = [];
 
   readyState = 0;
-  sent: any[] = [];
+  sent: unknown[] = [];
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;

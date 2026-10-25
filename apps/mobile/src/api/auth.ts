@@ -64,6 +64,9 @@ export const mobileAuthAdapter: AuthAdapter = {
   },
 }
 
+/** Lo que responde PATCH /profile/avatar: el perfil actualizado, o el problem+json si falló. */
+type AvatarUploadBody = Partial<BackendProfile> & { avatar?: string; detail?: unknown; title?: string }
+
 export interface PickedImage {
   uri: string
   mimeType?: string | null
@@ -87,38 +90,36 @@ export async function uploadMyAvatar(image: PickedImage, token?: string | null):
     const blob = await (await fetch(image.uri)).blob()
     form.append('file', blob, name)
   } else {
-    form.append('file', { uri: image.uri, name, type: mime } as any)
+    // React Native acepta { uri, name, type } como archivo, aunque los tipos de FormData solo conocen Blob
+    form.append('file', { uri: image.uri, name, type: mime } as unknown as Blob)
   }
 
   // XMLHttpRequest en vez de fetch: el fetch global de Expo rechaza el { uri, name, type }
   // de React Native con "Unsupported FormDataPart implementation".
-  const { status, data } = await new Promise<{ status: number; data: any }>((resolve, reject) => {
+  const { status, data } = await new Promise<{ status: number; data: AvatarUploadBody }>((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('PATCH', `${getApiBaseUrl()}/api/v1/users/me/profile/avatar`)
     xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
     xhr.setRequestHeader('Accept', 'application/json')
     xhr.onload = () => {
-      let body: any = {}
-      try { body = JSON.parse(xhr.responseText) } catch { }
+      let body: AvatarUploadBody = {}
+      try { body = JSON.parse(xhr.responseText) } catch { /* respuesta vacía o no JSON */ }
       resolve({ status: xhr.status, data: body })
     }
     xhr.onerror = () => reject(new Error('Error de red al subir la imagen.'))
     xhr.ontimeout = () => reject(new Error('Se agotó el tiempo al subir la imagen.'))
     xhr.timeout = 30000
-    xhr.send(form as any)
+    xhr.send(form)
   })
 
   if (status < 200 || status >= 300) {
-    const err: any = new Error(
-      (typeof data?.detail === 'string' && data.detail) || data?.title || 'No se pudo subir la imagen.',
-    )
-    err.status = status
-    throw err
+    const message = (typeof data?.detail === 'string' && data.detail) || data?.title || 'No se pudo subir la imagen.'
+    throw Object.assign(new Error(message), { status })
   }
   return {
     ...data,
     id: data.user_id || data.id,
     display_name: data.display_name || data.username,
     avatar_url: data.avatar_url || data.avatar || null,
-  }
+  } as BackendProfile
 }

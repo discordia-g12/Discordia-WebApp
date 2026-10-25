@@ -93,7 +93,7 @@ export async function parseErrorResponse(
         if (Array.isArray(data.invalid_params)) {
           invalidParams = data.invalid_params;
         } else if (Array.isArray(data.errors)) {
-          invalidParams = data.errors.map((e: any) => ({
+          invalidParams = data.errors.map((e: { field?: string; name?: string; message?: string; msg?: string }) => ({
             name: e.field || e.name,
             msg: e.message || e.msg || String(e),
           }));
@@ -106,7 +106,7 @@ export async function parseErrorResponse(
           detail = data.detail;
         } else if (Array.isArray(data.detail)) {
           // 422 Validation Error
-          invalidParams = data.detail.map((err: any) => ({
+          invalidParams = data.detail.map((err: { loc?: (string | number)[]; msg?: string }) => ({
             name: Array.isArray(err.loc) ? String(err.loc[err.loc.length - 1]) : undefined,
             loc: err.loc,
             msg: err.msg || 'Parámetro inválido',
@@ -131,6 +131,15 @@ export async function parseErrorResponse(
     correlationId: correlationId || response.headers.get('x-correlation-id') || undefined,
     retryAfterSeconds: parseRetryAfter(response.headers.get('retry-after')),
   });
+}
+
+/** El `detail` de un ApiError o, si no hay, el `message` de cualquier error. */
+export function errorDetail(err: unknown): string | undefined {
+  if (err instanceof ApiError && err.detail) return err.detail;
+  if (typeof err === 'object' && err !== null && 'message' in err && typeof err.message === 'string') {
+    return err.message || undefined;
+  }
+  return undefined;
 }
 
 /** true si `err` es un ApiError con el `type` RFC 7807 indicado. */

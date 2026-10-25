@@ -17,7 +17,7 @@ export function useOwnProfileState(props: OwnProfileViewProps) {
     onBack,
     onSave,
   } = props;
-  const baseUser: User = initialUserProp || ({ id: '' } as any);
+  const baseUser: User = initialUserProp || ({ id: '' } as User);
 
   const [mode, setMode] = useState<ProfileMode>('view');
   const [savedIndicator, setSavedIndicator] = useState(false);

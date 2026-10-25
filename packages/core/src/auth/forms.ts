@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ApiError } from '../api/errors';
+import { ApiError, errorDetail } from '../api/errors';
 import { requestPasswordReset } from '../api/passwordReset';
 import { upsertMyProfile } from '../api/users';
 import { AccountSuspendedError, SignupConflictError } from './errors';
@@ -164,8 +164,8 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
         email,
         password,
       });
-    } catch (err: any) {
-      const msg = err?.message || '';
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
       if (err instanceof AccountSuspendedError || msg.includes('access_denied')) {
         setFormError('Tu cuenta se encuentra suspendida.');
       } else {
@@ -222,8 +222,8 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
         username,
         displayName: username,
       });
-    } catch (err: any) {
-      const msg = String(err?.message || '');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
       // CA 2: Email o nombre de usuario ya registrado
       if (err instanceof SignupConflictError) {
         setFormError(err.message, err.field);
@@ -264,11 +264,11 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
         display_name: conflictDisplayName.trim() || cleanUser,
       });
       await authService.retryBootstrap();
-    } catch (err: any) {
+    } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setConflictError('Ese nombre de usuario ya está ocupado por otra persona. Por favor elige otro.', 'username');
       } else {
-        setConflictError(err?.detail || err?.message || 'Error al guardar el perfil.');
+        setConflictError(errorDetail(err) || 'Error al guardar el perfil.');
       }
     } finally {
       setIsSubmittingConflict(false);

@@ -9,8 +9,8 @@ describe('requestPasswordReset (endpoint público)', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    getToken = vi.fn<any>().mockRejectedValue(new Error('login_required'));
-    onAuthFailure = vi.fn<any>();
+    getToken = vi.fn().mockRejectedValue(new Error('login_required'));
+    onAuthFailure = vi.fn();
     configureClient({ baseUrl: 'http://localhost:8000', getToken, onAuthFailure, timeoutMs: 500 });
   });
 

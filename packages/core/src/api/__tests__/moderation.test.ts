@@ -43,8 +43,8 @@ describe('moderación', () => {
     vi.restoreAllMocks();
     configureClient({
       baseUrl: 'http://localhost:8000',
-      getToken: vi.fn<any>().mockResolvedValue('jwt-token'),
-      onAuthFailure: vi.fn<any>(),
+      getToken: vi.fn().mockResolvedValue('jwt-token'),
+      onAuthFailure: vi.fn(),
       timeoutMs: 500,
     });
   });

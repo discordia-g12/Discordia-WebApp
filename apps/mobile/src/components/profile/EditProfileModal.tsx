@@ -75,8 +75,8 @@ export default function EditProfileModal({ visible, onClose }: EditProfileModalP
       })
       showToast('Perfil actualizado', 'success')
       onClose()
-    } catch (err: any) {
-      setError(err?.message || 'Error al guardar el perfil.')
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'Error al guardar el perfil.')
     } finally {
       setIsLoading(false)
     }

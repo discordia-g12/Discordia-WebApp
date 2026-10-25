@@ -187,7 +187,7 @@ export interface EditChannelRequest {
  * Edita un canal de un servidor.
  */
 export async function editChannel(serverId: string, channelId: string, payload: EditChannelRequest): Promise<Channel> {
-  const backendPayload: Record<string, any> = {};
+  const backendPayload: Record<string, string | null | undefined> = {};
   if (payload.name !== undefined) backendPayload.name = payload.name;
   if (payload.topic !== undefined) backendPayload.topic = payload.topic;
   if (payload.categoryId !== undefined) backendPayload.category_id = toBackendCategoryId(payload.categoryId);
@@ -255,8 +255,16 @@ export async function deleteServer(serverId: string): Promise<void> {
 }
 
 
-export async function getInvitePreview(code: string): Promise<any> {
-  return await api.get(`/api/v1/invites/${code}`);
+/** Respuesta de GET /api/v1/invites/{code}: el servidor al que lleva la invitación. */
+export interface InvitePreviewResponse {
+  server_name: string;
+  server_description?: string | null;
+  server_icon?: string | null;
+  member_count?: number;
+}
+
+export async function getInvitePreview(code: string): Promise<InvitePreviewResponse> {
+  return await api.get<InvitePreviewResponse>(`/api/v1/invites/${code}`);
 }
 
 /**
