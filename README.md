@@ -17,7 +17,7 @@ docs/           ADRs, planes (TODO-REDISENO.md), guía de pruebas y capturas
 
 ## Requisitos
 
-- Node 20.19+ (22 recomendado).
+- Node 22 (`.nvmrc`: Expo SDK 58 y React Native 0.88 lo piden). Con nvm: `nvm use`.
 - Las dependencias se instalan **una sola vez, desde la raíz**: `npm install`. No correr `npm install`
   adentro de `apps/*`: el monorepo tiene un único `package-lock.json` y una sola copia de React para los dos
   clientes.
@@ -105,3 +105,10 @@ soporta copias duplicadas de React en el monorepo): verificarlo con `npm ls reac
 
 `Dockerfile` (producción, nginx) y `Dockerfile.dev` (Vite con recarga) se construyen con la raíz del repo
 como contexto e instalan solo las dependencias de la web. Los usa el `docker-compose.yml` del orquestador.
+
+## CI
+
+`.github/workflows/ci.yml` corre en cada push y pull request a `main` y `develop`, con Node 22 (`.nvmrc`):
+typecheck de los cuatro workspaces, tests, build de la web (lo mismo que compila Cloudflare Pages), bundle de
+mobile con Metro y build de la imagen de Docker (no se publica). Falta ESLint: el script `lint` de la web
+todavía no tiene configuración.
