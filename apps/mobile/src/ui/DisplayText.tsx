@@ -133,8 +133,9 @@ function Watermark({ text, tone, maxSize }: { text: string; tone: 'ink' | 'sky' 
     ...base,
     fontSize: px,
     letterSpacing: textStyles.watermark.letterSpacing * px,
-    // Interlineado corto: las mayúsculas quedan apoyadas sobre lo que haya debajo
-    lineHeight: Math.round(px * (wrap ? 0.96 : 0.86)),
+    // Interlineado corto: las mayúsculas quedan apoyadas sobre lo que haya debajo. En iOS y Android, un
+    // interlineado menor al tamaño corta el borde de arriba de las letras: ahí no baja de 1.
+    lineHeight: Math.round(px * (Platform.OS === 'web' ? (wrap ? 0.96 : 0.86) : 1)),
   })
 
   return (

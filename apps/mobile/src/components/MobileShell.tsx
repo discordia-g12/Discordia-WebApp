@@ -60,7 +60,7 @@ function useKeyboardVisible(): boolean {
 
 /**
  * App mobile del rediseño (docs/TODO-REDISENO.md, sección 5), como la mobile web: barra inferior con
- * Servidores, Mensajes, Avisos y Perfil; en Servidores, la tira de franjas arriba y los canales del
+ * Servidores, Amigos, Notificaciones y Mi perfil; en Servidores, la tira de franjas arriba y los canales del
  * servidor bajo su nombre en gigante; un canal (chat o voz) se abre a pantalla completa con la vuelta
  * arriba. Durante una llamada, sus controles van sobre la barra inferior en toda la app.
  */
@@ -506,7 +506,7 @@ export default function MobileShell() {
             socketConnected={activeSocketChannelId ? socket.isConnected : undefined}
             onOpenSettings={() => handleOpenEditChannel(channel)}
           />
-          <MessageList messages={channelMessages} describeUser={describeUser} />
+          <MessageList channelName={channel.name} messages={channelMessages} describeUser={describeUser} />
           <Composer channelName={channel.name} value={draft} onChangeText={setDraft} onSend={handleSend} />
         </Pane>
       )
@@ -568,17 +568,17 @@ export default function MobileShell() {
           {tab === 'servers' && serversContent()}
 
           {tab === 'messages' && (
-            <Screen title="Mensajes">
+            <Screen title="Amigos">
               <Padded>
-                <EmptyState title="por ahora no hay mensajes directos" hint="próximamente: mensajes directos y amigos" />
+                <EmptyState title="por ahora no hay amigos" hint="próximamente: amigos y mensajes directos" />
               </Padded>
             </Screen>
           )}
 
           {tab === 'notifications' && (
-            <Screen title="Avisos">
+            <Screen title="Notificaciones">
               <Padded>
-                <EmptyState title="por ahora no hay avisos" hint="próximamente: menciones, invitaciones y solicitudes de amistad" />
+                <EmptyState title="por ahora no hay notificaciones" hint="próximamente: menciones, invitaciones y solicitudes de amistad" />
               </Padded>
             </Screen>
           )}

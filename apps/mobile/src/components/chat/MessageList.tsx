@@ -8,6 +8,7 @@ import type { UserDisplay } from '../../hooks/useUserProfiles'
 import MessageItem from './MessageItem'
 
 interface MessageListProps {
+  channelName: string
   messages: Message[]
   describeUser: (userId: string) => UserDisplay
 }
@@ -19,8 +20,12 @@ type Row =
 /** Antigüedad máxima de un mensaje que entra animado: lo que llega mientras se mira, no el historial. */
 const NEW_WINDOW_MS = 10_000
 
-/** Mensajes del canal, con los separadores por día ("hoy", "ayer") y agrupados por autor (las reglas de core). */
-export default function MessageList({ messages, describeUser }: MessageListProps) {
+/**
+ * Mensajes del canal, con los separadores por día ("hoy", "ayer") y agrupados por autor (las reglas de core).
+ * Como en la web, arrancan arriba, debajo del comienzo del canal, y bajan a medida que llegan: con pocos
+ * mensajes no quedan pegados a la barra de escritura.
+ */
+export default function MessageList({ channelName, messages, describeUser }: MessageListProps) {
   const styles = useStyles()
   const listRef = useRef<FlatList<Row>>(null)
   const openedAt = useRef(Date.now())
@@ -41,24 +46,30 @@ export default function MessageList({ messages, describeUser }: MessageListProps
       const line = (m: Message) => ({ authorId: m.authorId, timestamp: m.timestamp, type: m.type })
       const { newDay, grouped } = placeMessage(prev && line(prev), line(message))
       if (newDay) out.push({ kind: 'day', key: `day-${newDay.toDateString()}`, label: formatDayLabel(newDay) })
-      out.push({ kind: 'message', key: message.id, message, grouped })
+      out.push({ kind: 'message', key: message.localId ?? message.id, message, grouped })
     })
     return out
   }, [messages])
 
-  if (messages.length === 0) {
-    return (
-      <View style={styles.empty}>
-        <EmptyState title="todavía no hay mensajes" hint="escribí el primero" />
-      </View>
-    )
-  }
+  // El comienzo del canal, como en la web: "•general" en grande y la bajada
+  const welcome = (
+    <View style={styles.welcome}>
+      <Text variant="display" style={styles.welcomeTitle}>
+        •{channelName}
+      </Text>
+      <Text variant="meta" tone="muted">
+        / este es el comienzo del canal •{channelName}.
+      </Text>
+      {messages.length === 0 && <EmptyState title="todavía no hay mensajes" hint="escribí el primero" />}
+    </View>
+  )
 
   return (
     <FlatList
       ref={listRef}
       data={rows}
       keyExtractor={row => row.key}
+      ListHeaderComponent={welcome}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
@@ -76,6 +87,7 @@ export default function MessageList({ messages, describeUser }: MessageListProps
             author={describeUser(item.message.authorId)}
             grouped={item.grouped}
             animate={new Date(item.message.timestamp).getTime() > openedAt.current - NEW_WINDOW_MS}
+            sent={item.message.status === 'pending'}
           />
         )
       }
@@ -84,7 +96,9 @@ export default function MessageList({ messages, describeUser }: MessageListProps
 }
 
 const useStyles = makeStyles(t => ({
-  content: { paddingHorizontal: t.space[4], paddingBottom: t.space[4], flexGrow: 1, justifyContent: 'flex-end' },
-  empty: { flex: 1, justifyContent: 'flex-end', padding: t.space[5] },
+  content: { paddingHorizontal: t.space[4], paddingTop: t.space[5], paddingBottom: t.space[4] },
+  welcome: { gap: t.space[2], paddingLeft: t.layout.avatarSize.md + t.space[3], paddingBottom: t.space[3] },
+  // El display tiene interlineado < 1: en iOS cortaría el borde de arriba de las mayúsculas
+  welcomeTitle: { lineHeight: Math.round(t.text.display.fontSize * 1.1) },
   day: { paddingTop: t.space[5], paddingLeft: t.layout.avatarSize.md + t.space[3] },
 }))

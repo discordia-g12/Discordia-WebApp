@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Animated, View } from 'react-native'
 import { formatMessageTime } from '@discordia/core'
 import { makeStyles } from '../../theme'
@@ -13,16 +13,24 @@ interface MessageItemProps {
   grouped?: boolean
   /** Mensaje nuevo (no del historial): entra subiendo. */
   animate?: boolean
+  /** Lo acaba de enviar quien mira: entra desde más abajo y más despacio, como si saliera de la barra de escritura. */
+  sent?: boolean
 }
 
 /**
  * Mensaje del chat (PDF, pág. 7): avatar cuadrado, autor en negrita y la fecha chica (20/10/25, 13:25),
  * y el texto grande. Los seguidos de una misma persona van agrupados.
  */
-function MessageItem({ message, author, grouped = false, animate = false }: MessageItemProps) {
+function MessageItem({ message, author, grouped = false, animate = false, sent = false }: MessageItemProps) {
   const styles = useStyles()
   const reduce = useReducedMotion()
-  const enter = useRise({ offset: distance('rise', reduce), name: 'base', enabled: animate })
+  // Se fija al montarse: al confirmarse deja de estar pendiente y la entrada no tiene que cambiar a mitad de camino
+  const [justSent] = useState(sent)
+  const enter = useRise({
+    offset: distance(justSent ? 'toast' : 'rise', reduce),
+    name: justSent ? 'slow' : 'base',
+    enabled: animate || justSent,
+  })
 
   if (message.type === 'system') {
     return (

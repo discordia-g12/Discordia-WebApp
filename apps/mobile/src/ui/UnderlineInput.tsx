@@ -1,5 +1,5 @@
 import React, { forwardRef, useState } from 'react'
-import { Pressable, TextInput, View, type TextInputProps } from 'react-native'
+import { Pressable, TextInput, View, type TextInputInstance, type TextInputProps } from 'react-native'
 import { Eye, EyeOff } from 'lucide-react-native'
 import { makeStyles, useTheme } from '../theme'
 import { Text } from './Text'
@@ -23,7 +23,7 @@ interface UnderlineInputProps extends Omit<TextInputProps, 'secureTextEntry' | '
  * Campo de formulario del rediseño: etiqueta en negrita, el texto entre dos líneas finas y la ayuda o el
  * error abajo, con barra inicial.
  */
-export const UnderlineInput = forwardRef<TextInput, UnderlineInputProps>(function UnderlineInput(
+export const UnderlineInput = forwardRef<TextInputInstance, UnderlineInputProps>(function UnderlineInput(
   { label, required = false, hint, error, secret = false, size = 'default', disabled = false, onFocus, onBlur, ...inputProps },
   ref,
 ) {
