@@ -1,0 +1,117 @@
+/* Fila de la llamada, pegada arriba de la barra de usuario y con su mismo tono */
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--space-7);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-5);
+  border-bottom: var(--line-hairline) solid currentColor;
+  transition:
+    background-color var(--motion-duration-slow) var(--motion-ease-standard),
+    color var(--motion-duration-slow) var(--motion-ease-standard);
+  animation: rise var(--motion-duration-base) var(--motion-ease-enter);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-2));
+  }
+}
+
+.ink {
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+.sky {
+  color: var(--color-text);
+}
+
+.muted {
+  color: var(--color-text);
+  background: var(--color-decoration);
+}
+
+.where {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.where:disabled {
+  cursor: default;
+}
+
+.where:hover:not(:disabled) .channel {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.channel {
+  font-size: var(--font-meta-size);
+  font-weight: 700;
+}
+
+.meta {
+  font-size: var(--font-meta-size);
+  opacity: 0.8;
+}
+
+.pending {
+  animation: blink 1.2s var(--motion-ease-standard) infinite alternate;
+}
+
+@keyframes blink {
+  to {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pending {
+    animation: none;
+  }
+}
+
+/* Íconos de línea fina separados por líneas verticales, como los de la barra de usuario */
+.buttons {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-5);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-left: var(--line-hairline) solid currentColor;
+  color: inherit;
+  cursor: pointer;
+}
+
+.control:last-child {
+  border-right: var(--line-hairline) solid currentColor;
+}
+
+.control:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ink :focus-visible {
+  outline-color: var(--color-inverse-text);
+}

@@ -1,0 +1,33 @@
+/* Cada opción con su borde, superpuesto al de la vecina (margen de -1 px): si la fila no entra y se
+   parte en dos, sigue siendo una grilla de líneas finas sin bordes cortados */
+.choice {
+  display: flex;
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0 var(--line-hairline) var(--line-hairline) 0;
+}
+
+.choice button {
+  margin: 0 calc(-1 * var(--line-hairline)) calc(-1 * var(--line-hairline)) 0;
+  padding: var(--space-2) var(--space-4);
+  background: none;
+  border: var(--line-hairline) solid var(--color-line-strong);
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.choice .active {
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+.choice button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

@@ -1,0 +1,81 @@
+/* Bloque invertido abajo a la derecha, por encima de los avisos */
+.call {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-8);
+  z-index: 650;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 280px;
+  padding: var(--space-4);
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+.call p {
+  margin: 0;
+}
+
+.label {
+  font-size: var(--font-label-size);
+  font-weight: 700;
+  letter-spacing: var(--font-label-letter-spacing);
+  text-transform: uppercase;
+}
+
+.caller {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.name {
+  font-size: var(--font-heading-size);
+  font-weight: 700;
+}
+
+.meta {
+  font-size: var(--font-meta-size);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: var(--line-hairline) solid currentColor;
+}
+
+.decline {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--font-meta-size);
+  color: inherit;
+  cursor: pointer;
+}
+
+.decline:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* El bloque principal, invertido sobre el bloque invertido */
+.accept {
+  padding: var(--space-2) var(--space-4);
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-inverse-background);
+  background: var(--color-inverse-text);
+  border: 0;
+  cursor: pointer;
+}
+
+.call :focus-visible {
+  outline-color: var(--color-inverse-text);
+}

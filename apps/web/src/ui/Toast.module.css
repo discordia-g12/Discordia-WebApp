@@ -1,0 +1,20 @@
+.toast {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+.error {
+  border-left: var(--line-accent) solid var(--color-danger);
+}
+
+/* La acción va sobre el bloque invertido: hereda su color */
+.action {
+  color: inherit;
+}

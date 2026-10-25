@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "discordia-mobile",
+    "slug": "discordia",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.discordia_g12.discordia"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "79b9448c-4e73-4e54-8722-9b65ef752be8"
+      }
+    },
+    "owner": "discordia_g12",
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "@livekit/react-native-expo-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "microphonePermission": "Discordia usa el micrófono para que puedas hablar en los canales de voz.",
+          "cameraPermission": "Discordia usa la cámara para las videollamadas."
+        }
+      ],
+      "expo-font"
+    ]
+  }
+}

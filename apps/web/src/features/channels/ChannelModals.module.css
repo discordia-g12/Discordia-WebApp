@@ -1,0 +1,30 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Como la etiqueta de UnderlineInput */
+.label {
+  margin: 0;
+  font-size: var(--font-label-size);
+  line-height: var(--font-label-line-height);
+  font-weight: var(--font-label-weight);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+}
+
+/* Eliminar va a la izquierda, separado de cancelar y guardar */
+.deleteLink {
+  margin-right: auto;
+}

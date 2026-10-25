@@ -1,0 +1,136 @@
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.name {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+/* Vista previa: el banner es una franja, como las del rail; sin bordes redondeados */
+.card {
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.banner {
+  height: 72px;
+  background: var(--color-decoration);
+  transition: background-color var(--motion-duration-base) var(--motion-ease-standard);
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: 0 var(--space-5) var(--space-5);
+}
+
+/* El avatar sube sobre el banner */
+.cardBody > :first-child {
+  margin-top: calc(-1 * var(--space-7));
+  margin-bottom: var(--space-2);
+  outline: var(--space-1) solid var(--color-background);
+}
+
+.cardName {
+  margin: 0;
+  font-size: var(--font-heading-size);
+  font-weight: 700;
+}
+
+.cardStatus {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+}
+
+.cardLabel {
+  margin: var(--space-4) 0 0;
+  font-size: var(--font-label-size);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.cardBio {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  white-space: pre-wrap;
+}
+
+.avatarRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.fileAction {
+  font-size: var(--font-meta-size);
+  cursor: pointer;
+}
+
+.fileAction:hover,
+.fileAction:focus-within {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.fieldLabel {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-label-size);
+  font-weight: 700;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.swatch {
+  width: var(--space-5);
+  height: var(--space-5);
+  padding: 0;
+  border: var(--line-hairline) solid var(--color-line-strong);
+  cursor: pointer;
+}
+
+.swatch[aria-checked='true'] {
+  outline: var(--line-focus) solid var(--color-line-strong);
+  outline-offset: 2px;
+}
+
+.colorInput {
+  width: var(--space-6);
+  height: var(--space-5);
+  padding: 0;
+  background: none;
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

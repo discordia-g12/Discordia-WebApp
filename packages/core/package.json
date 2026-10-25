@@ -1,0 +1,39 @@
+{
+  "name": "@discordia/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.2.0",
+    "@types/react": "~19.3.0",
+    "jsdom": "^26.0.0",
+    "livekit-client": "^2.22.3",
+    "react-dom": "19.3.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "zustand": "^5.0.3"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.66.0",
+    "livekit-client": "^2.22.3",
+    "react": "*"
+  },
+  "peerDependenciesMeta": {
+    "livekit-client": {
+      "optional": "true"
+    }
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  }
+}

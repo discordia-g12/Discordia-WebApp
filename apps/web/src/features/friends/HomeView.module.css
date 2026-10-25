@@ -1,0 +1,408 @@
+/*
+ * Inicio del rediseño (PDF, pág. 6). Las tres columnas (barra lateral, amigos, activo ahora) comparten las
+ * mismas filas de 48 px, así sus líneas quedan alineadas.
+ */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+  height: var(--space-7);
+  padding: 0 var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.label {
+  margin: 0;
+  font-size: var(--font-label-size);
+  line-height: var(--font-label-line-height);
+  letter-spacing: var(--font-label-letter-spacing);
+  font-weight: var(--font-label-weight);
+  text-transform: var(--font-label-transform);
+}
+
+.iconButton {
+  display: flex;
+  margin-left: auto;
+  padding: var(--space-1);
+  background: none;
+  border: 0;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+/* ── Buscadores ── */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  outline: none;
+  appearance: none;
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* El foco se marca en la fila entera: la línea de abajo se engrosa */
+.row:has(.searchInput:focus-visible) {
+  box-shadow: inset 0 calc(-1 * var(--line-focus)) 0 var(--color-line-strong);
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+/* ── Barra lateral: mensajes directos ── */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sectionRow {
+  border-bottom: 0;
+}
+
+.dmList {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 var(--space-4);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.dm {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: var(--space-2) var(--space-5);
+  background: none;
+  border: 0;
+  font-family: inherit;
+  text-align: left;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.dmName {
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  font-weight: 700;
+}
+
+.dmMeta {
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line-height);
+}
+
+.dm:hover .dmName {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Desconectado: en gris (el gris de texto chico, que llega a AA) */
+.dmOffline {
+  color: var(--color-text-muted);
+}
+
+/* Conversación abierta: barra negra a la izquierda, como la del inicio en el rail */
+.dmActive::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  width: var(--line-accent);
+  background: var(--color-inverse-background);
+}
+
+.sidebarEmpty {
+  padding: var(--space-3) var(--space-5);
+}
+
+/* ── Contenido: amigos | activo ahora ── */
+
+.friends {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--layout-aside-width);
+  grid-template-rows: var(--space-7) minmax(0, 1fr);
+  grid-template-areas:
+    'header header'
+    'main aside';
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  color: var(--color-text);
+}
+
+.friendsHeader {
+  grid-area: header;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+
+/* AMIGOS en su celda, separada de las pestañas por una línea */
+.friendsTitle {
+  display: flex;
+  align-items: center;
+  width: 176px;
+  margin: 0;
+  padding: 0 var(--space-5);
+  border-right: var(--line-hairline) solid var(--color-line-strong);
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+  letter-spacing: var(--font-label-letter-spacing);
+  text-transform: uppercase;
+}
+
+/* Las pestañas apoyadas sobre la línea: el subrayado activo se superpone a ella */
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  padding: 0 var(--space-6) var(--space-2);
+  min-width: 0;
+}
+
+.friendsMain {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.tabContent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.activeNow {
+  grid-area: aside;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.activeNowBody {
+  padding: var(--space-2) var(--space-5);
+}
+
+/* ── Lista de amigos ── */
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friendRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
+
+.friendIdentity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  text-align: left;
+  color: inherit;
+}
+
+button.friendIdentity {
+  cursor: pointer;
+}
+
+button.friendIdentity:hover .friendName {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.friendText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.friendName {
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  font-weight: 700;
+}
+
+.friendDetail {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line-height);
+  color: var(--color-text-muted);
+}
+
+.friendActions {
+  display: flex;
+  gap: var(--space-4);
+  flex-shrink: 0;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-5);
+}
+
+/* ── Añadir amigo ── */
+
+.addFriend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-5);
+  max-width: 480px;
+  padding: var(--space-6) var(--space-5);
+}
+
+.addFriend > :global(div) {
+  align-self: stretch;
+}
+
+.addFriendTitle {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-heading-size);
+  line-height: var(--font-heading-line-height);
+  font-weight: var(--font-heading-weight);
+}
+
+.addFriendText,
+.addFriendSuccess {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  color: var(--color-text-muted);
+}
+
+.addFriendSuccess {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+/*
+ * Entrada: al cambiar de pestaña (el contenido se vuelve a montar) las filas y los bloques suben uno tras
+ * otro. Solo transform y opacity; con movimiento reducido, un fundido.
+ */
+.tabContent > *,
+.list > li,
+.addFriend > * {
+  animation: enter var(--motion-duration-base) var(--motion-ease-enter) both;
+}
+
+.list > li:nth-child(2),
+.addFriend > :nth-child(2) { animation-delay: 40ms; }
+.list > li:nth-child(3),
+.addFriend > :nth-child(3) { animation-delay: 80ms; }
+.list > li:nth-child(4),
+.addFriend > :nth-child(4) { animation-delay: 120ms; }
+.list > li:nth-child(n + 5) { animation-delay: 160ms; }
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-rise));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabContent > *,
+  .list > li,
+  .addFriend > * {
+    animation-delay: 0ms !important;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Pantalla chica (mobile web) ── */
+@media (max-width: 767px) {
+  /* Una columna: la lista de amigos; ACTIVO AHORA no entra (y no tiene backend: siempre vacía) */
+  .friends {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      'header'
+      'main';
+  }
+
+  .activeNow {
+    display: none;
+  }
+
+  .friendsMain {
+    border-right: 0;
+  }
+
+  .friendsTitle {
+    width: auto;
+  }
+
+  /* Las pestañas se deslizan de costado */
+  .tabs {
+    flex: 1;
+    padding: 0 var(--space-4) var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* En una sola fila (el contenedor se desliza); si se parten, la fila de 48 px corta las de arriba */
+  .tabs [role='tablist'] {
+    flex-wrap: nowrap;
+  }
+}

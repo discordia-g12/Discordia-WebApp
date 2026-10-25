@@ -1,0 +1,100 @@
+.nav {
+  display: block;
+  font-size: var(--font-display-size);
+  line-height: var(--font-display-line-height);
+  letter-spacing: var(--font-display-letter-spacing);
+  font-weight: var(--font-display-weight);
+  text-transform: var(--font-display-transform);
+  color: var(--color-text-display-inactive);
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.active {
+  color: var(--color-text);
+}
+
+.button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.button:not(.active):hover {
+  color: var(--color-text-muted);
+}
+
+/*
+ * Marca de agua: la palabra entera, con el ancho de la columna (DisplayText ajusta --watermark-size) y
+ * apoyada sobre lo que tenga debajo: la caja se recorta a la altura de las mayúsculas y la línea de
+ * base, así no queda espacio entre las letras y la barra de usuario.
+ */
+.watermark {
+  position: relative;
+  /* clip y no hidden: solo recorta a los costados (el barrido); los acentos pueden asomar arriba */
+  overflow-x: clip;
+  padding: var(--space-2) var(--space-4) 0;
+  font-size: var(--font-watermark-size);
+  pointer-events: none;
+  user-select: none;
+}
+
+.watermarkText {
+  display: block;
+  white-space: nowrap;
+  font-size: var(--watermark-size, 1em);
+  line-height: 1;
+  letter-spacing: var(--font-watermark-letter-spacing);
+  font-weight: var(--font-watermark-weight);
+  text-transform: var(--font-watermark-transform);
+  text-box: trim-both cap alphabetic;
+}
+
+/* Nombre largo: renglones por palabra, con lugar para las tildes de las mayúsculas (Á, É) */
+.watermark[data-wrap] .watermarkText {
+  white-space: normal;
+  line-height: 1.06;
+}
+
+/* Sin text-box (Firefox): el interlineado corto deja las letras casi apoyadas */
+@supports not (text-box: trim-both cap alphabetic) {
+  .watermarkText {
+    line-height: var(--font-watermark-line-height);
+  }
+}
+
+.ink {
+  color: var(--color-text);
+}
+
+.sky {
+  color: var(--color-sky-decoration);
+}
+
+.muted {
+  color: var(--color-decoration);
+}
+
+/* Letras de la navegación: cada una sube por separado al activarse (ver RisingLetters) */
+.word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.letter {
+  display: inline-block;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

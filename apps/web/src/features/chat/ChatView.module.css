@@ -1,0 +1,618 @@
+/* Chat del rediseño (PDF, págs. 7 y 9): encabezado de 48 px alineado con la barra lateral */
+.chat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  color: var(--color-text);
+}
+
+/* ── Encabezado ── */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  flex-shrink: 0;
+  height: var(--space-7);
+  padding: 0 var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.titleGroup {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  white-space: nowrap;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+}
+
+.topic {
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding-left: var(--space-4);
+  border-left: var(--line-hairline) solid var(--color-line-strong);
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+/* Enlaces de texto separados por líneas verticales ("hilos | mensajes fijados | ...") */
+.links {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.headerLink {
+  padding: 0 var(--space-3);
+  background: none;
+  border: 0;
+  border-left: var(--line-hairline) solid var(--color-line-strong);
+  font-family: inherit;
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line-height);
+  color: var(--color-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.headerLink:first-child {
+  border-left: 0;
+}
+
+.headerLink:hover,
+.headerLink[aria-pressed='true'] {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Lista de mensajes ── */
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-6) 0 var(--space-4);
+}
+
+.welcome {
+  padding: 0 var(--space-5) var(--space-6) calc(var(--space-1) + var(--layout-avatar-size-md) + var(--space-4));
+}
+
+.welcomeTitle {
+  margin: 0;
+  font-size: var(--font-display-size);
+  line-height: var(--font-display-line-height);
+  letter-spacing: var(--font-display-letter-spacing);
+  text-transform: uppercase;
+}
+
+.welcomeText {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.loading {
+  padding: 0 var(--space-5) 0 calc(var(--space-1) + var(--layout-avatar-size-md) + var(--space-4));
+  max-width: 640px;
+}
+
+.messages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Separador de día: texto chico en la columna del contenido (PDF, pág. 7) */
+.day {
+  padding: var(--space-6) var(--space-5) var(--space-2) calc(var(--space-1) + var(--layout-avatar-size-md) + var(--space-4));
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+/* Mensaje: avatar cuadrado en la canaleta izquierda, metadato chico y texto grande */
+.message {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--layout-avatar-size-md) minmax(0, 1fr);
+  column-gap: var(--space-4);
+  padding: var(--space-4) var(--space-5) var(--space-1) var(--space-1);
+}
+
+.compact {
+  padding-top: var(--space-1);
+}
+
+.message:hover,
+.message:focus-within,
+.toolsOpen {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+/* Te mencionan: barra negra a la izquierda */
+.mentioned {
+  box-shadow: inset var(--line-accent) 0 0 var(--color-inverse-background);
+}
+
+.replying {
+  box-shadow: inset var(--line-accent) 0 0 var(--color-text-muted);
+}
+
+.gutter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.avatarButton {
+  display: block;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.gutterTime {
+  width: 100%;
+  padding-top: 4px;
+  text-align: right;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  opacity: 0;
+}
+
+.message:hover .gutterTime,
+.message:focus-within .gutterTime {
+  opacity: 1;
+}
+
+.body {
+  min-width: 0;
+}
+
+.meta {
+  margin: 0 0 2px;
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line-height);
+}
+
+.author {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.author:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.time {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.content {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-body-size);
+  line-height: var(--font-body-line-height);
+}
+
+.edited {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.mention {
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.deleted,
+.system {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+/* Respuesta: una línea fina y la cita en texto chico, arriba del mensaje (PDF, pág. 9) */
+.reply {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 2px;
+  min-width: 0;
+}
+
+.replyLine {
+  flex-shrink: 0;
+  width: 120px;
+  height: var(--line-hairline);
+  background: var(--color-line-strong);
+}
+
+.replyText {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+/* Adjuntos: sin bordes redondeados */
+.image {
+  display: block;
+  width: fit-content;
+  margin-top: var(--space-2);
+}
+
+.image img {
+  display: block;
+  max-width: min(400px, 100%);
+  max-height: 320px;
+  object-fit: cover;
+}
+
+.file {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  width: fit-content;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--line-hairline) solid var(--color-line-strong);
+  font-size: var(--font-body-small-size);
+}
+
+.fileName {
+  font-weight: 700;
+}
+
+.fileLink {
+  font-size: var(--font-meta-size);
+  color: var(--color-text);
+}
+
+/* Reacciones: emoji y número en una caja de línea fina; la propia, invertida */
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  background: transparent;
+  border: var(--line-hairline) solid var(--color-line-strong);
+  font-family: inherit;
+  font-size: var(--font-meta-size);
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.reactionActive {
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+/* Acciones del mensaje: aparecen al pasar el mouse o con foco */
+.tools {
+  position: absolute;
+  top: calc(-1 * var(--space-3));
+  right: var(--space-5);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-background);
+  border: var(--line-hairline) solid var(--color-line-strong);
+  opacity: 0;
+  transform: translateY(var(--space-1));
+  pointer-events: none;
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.message:hover .tools,
+.message:focus-within .tools,
+.toolsOpen .tools {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.toolEmoji {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.editInput {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-family: inherit;
+  font-size: var(--font-body-size);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-top: var(--line-hairline) solid var(--color-line);
+  border-bottom: var(--line-focus) solid var(--color-line-strong);
+  outline: none;
+}
+
+.editInput:focus-visible {
+  border-top-color: var(--color-focus);
+  border-bottom-color: var(--color-focus);
+}
+
+.editHint {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+/* ── Paneles flotantes ── */
+
+.popover {
+  position: absolute;
+  z-index: 20;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-background);
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.popoverTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-label-size);
+  letter-spacing: var(--font-label-letter-spacing);
+  font-weight: var(--font-label-weight);
+  text-transform: uppercase;
+}
+
+.popoverEmpty {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.messagePopover {
+  top: calc(100% - var(--space-2));
+  right: var(--space-5);
+}
+
+.pinned {
+  top: calc(var(--space-7) - 1px);
+  right: var(--space-5);
+  width: min(380px, calc(100% - 2 * var(--space-5)));
+  max-height: 50%;
+  overflow-y: auto;
+}
+
+.pinnedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pinnedText {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+}
+
+.menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.menu button {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  text-align: left;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.menu button:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.emojiGrid {
+  display: grid;
+  grid-template-columns: repeat(8, var(--space-6));
+}
+
+.emoji {
+  width: var(--space-6);
+  height: var(--space-6);
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.emoji:hover {
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+/* ── Barra de escritura: una línea entre líneas finas (PDF, pág. 7) ── */
+
+.composer {
+  position: relative;
+  flex-shrink: 0;
+  border-top: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.composerNote {
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.composerNote strong {
+  color: var(--color-text);
+}
+
+.composerPopover {
+  bottom: calc(100% + var(--space-2));
+  left: var(--space-5);
+}
+
+.mentionOption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  text-align: left;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.composerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--space-7);
+  padding: 0 var(--space-5);
+}
+
+.composerRow:focus-within {
+  box-shadow: inset 0 var(--line-focus) 0 var(--color-line-strong);
+}
+
+.composerInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.composerInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.composerIcon {
+  display: flex;
+  padding: var(--space-1);
+  background: none;
+  border: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.composerIcon:hover,
+.composerIcon[aria-expanded='true'] {
+  color: var(--color-text);
+}
+
+.send {
+  padding: var(--space-1) var(--space-3);
+  font-family: inherit;
+  font-size: var(--font-meta-size);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  border: 0;
+  cursor: pointer;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.send:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ── Pantalla chica (mobile web) ── */
+@media (max-width: 767px) {
+  /* El encabezado se desliza de costado: el canal y sus enlaces no entran en una fila */
+  .header {
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 0 var(--space-4);
+  }
+
+  .header::-webkit-scrollbar {
+    display: none;
+  }
+
+  .titleGroup,
+  .title {
+    flex-shrink: 0;
+  }
+
+  .topic {
+    display: none;
+  }
+}

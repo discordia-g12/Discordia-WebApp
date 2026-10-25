@@ -1,0 +1,121 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.label {
+  font-size: var(--font-label-size);
+  line-height: var(--font-label-line-height);
+  font-weight: var(--font-label-weight);
+  color: var(--color-text);
+}
+
+.required {
+  margin-left: 2px;
+  vertical-align: super;
+  font-size: 0.85em;
+}
+
+/* El ojo de las contraseñas va adentro, entre las líneas, a la derecha */
+.field {
+  position: relative;
+}
+
+/* El texto va entre dos líneas finas, con sangría (PDF, págs. 3 y 4) */
+.input {
+  width: 100%;
+  padding: var(--space-1) var(--space-5);
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-top: var(--line-hairline) solid var(--color-line);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.input:focus {
+  border-color: var(--color-line-strong);
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+.invalid {
+  border-bottom-color: var(--color-line-strong);
+  border-bottom-width: var(--line-focus);
+}
+
+.message {
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line-height);
+  color: var(--color-text-muted);
+}
+
+/* Errores: en el color del texto (el rojo queda para los bloques), con la barra inicial */
+.error {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.withToggle {
+  padding-right: calc(var(--space-5) + var(--space-5));
+}
+
+.toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  display: flex;
+  padding: var(--space-1);
+  transform: translateY(-50%);
+  background: none;
+  border: 0;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.toggle:hover,
+.toggle[aria-pressed='true'] {
+  color: var(--color-text);
+}
+
+.toggle:disabled {
+  cursor: default;
+}
+
+/* Tamaño grande: formularios que ocupan la pantalla (acceso) */
+.large {
+  gap: var(--space-2);
+}
+
+.large .label {
+  font-size: var(--font-body-size);
+  line-height: var(--font-body-line-height);
+}
+
+.large .input {
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--font-heading-size);
+  line-height: var(--font-heading-line-height);
+}
+
+.large .withToggle {
+  padding-right: calc(var(--space-5) + var(--space-6));
+}
+
+.large .message {
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+}

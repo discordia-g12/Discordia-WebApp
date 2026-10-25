@@ -1,0 +1,35 @@
+/* Menú del click derecho sobre un participante: panel de línea fina, como el menú del servidor */
+.menu {
+  position: fixed;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  background: var(--color-background);
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  color: var(--color-text);
+  text-align: left;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.item + .item {
+  border-top: var(--line-hairline) solid var(--color-line);
+}
+
+.item:hover,
+.item:focus-visible {
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}

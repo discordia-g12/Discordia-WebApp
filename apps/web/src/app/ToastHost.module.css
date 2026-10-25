@@ -1,0 +1,22 @@
+/* Del ancho de la columna central (entre la barra lateral y la columna derecha) y apoyado sobre la fila
+   de 48 px del pie, así no tapa la barra de escritura. Por encima de modales y ajustes */
+.host {
+  position: fixed;
+  left: calc(var(--layout-rail-width) + var(--layout-sidebar-width));
+  right: var(--layout-aside-width);
+  bottom: var(--space-7);
+  z-index: 700;
+  pointer-events: none;
+}
+
+.host > * {
+  pointer-events: auto;
+}
+
+@media (max-width: 767px) {
+  .host {
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+}

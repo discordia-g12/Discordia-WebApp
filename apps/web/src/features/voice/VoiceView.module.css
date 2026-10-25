@@ -1,0 +1,206 @@
+/* Canal de voz del rediseño (PDF, pág. 10) */
+.voice {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  color: var(--color-text);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-shrink: 0;
+  height: var(--space-7);
+  padding: 0 var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+}
+
+.server {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.status {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+/* Conectando o reconectando: el texto late */
+.statusPending {
+  animation: blink 1.2s var(--motion-ease-standard) infinite alternate;
+}
+
+@keyframes blink {
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* Mosaico a sangre: llena el espacio; las líneas son los bordes de las fichas */
+.grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+}
+
+.tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: var(--line-hairline) solid var(--color-line-strong);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+/* Quien habla: un borde grueso que pulsa, por dentro de la ficha */
+.tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: var(--line-accent) solid var(--color-line-strong);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.speaking::after {
+  opacity: 1;
+  animation: pulse 0.9s var(--motion-ease-standard) infinite alternate;
+}
+
+@keyframes pulse {
+  to {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speaking::after,
+  .statusPending {
+    animation: none;
+  }
+}
+
+.tileButton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Sin foto: las iniciales en grande, como un texto de display */
+.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: var(--font-display-size);
+  letter-spacing: var(--font-display-letter-spacing);
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+}
+
+/* Nombre en la etiqueta negra al pie */
+.label {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--space-1) var(--space-3);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-meta-size);
+  font-weight: 700;
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  pointer-events: none;
+}
+
+.localMute {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* Última ficha: invitar y actividades, abajo a la izquierda (PDF, pág. 10) */
+.inviteTile {
+  display: flex;
+  align-items: flex-end;
+}
+
+.invite {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-6) var(--space-5);
+}
+
+.inviteAction {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.inviteAction:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inviteAction:disabled {
+  cursor: default;
+}
+
+.soon {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+/* ── Pantalla chica (mobile web) ── */
+@media (max-width: 767px) {
+  /* Como máximo dos columnas (la cantidad la pone el componente en línea) */
+  .grid[data-columns='3'],
+  .grid[data-columns='4'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
