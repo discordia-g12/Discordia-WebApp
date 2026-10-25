@@ -28,4 +28,6 @@ export type MessageStatus = 'pending' | 'sent' | 'failed'
 
 export interface Message extends CoreMessage {
   status?: MessageStatus
+  /** Id temporal con el que se mostró al enviarlo: se conserva al confirmarse para que la fila no se vuelva a montar. */
+  localId?: string
 }

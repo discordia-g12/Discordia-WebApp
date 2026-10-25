@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native'
+import { Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type TextInputInstance } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   PASSWORD_RESET_SENT_MESSAGE,
@@ -144,11 +144,11 @@ function Form({ children }: { children: React.ReactNode }) {
 
 /** Lleva el foco al campo con error para que se lea y se pueda corregir enseguida. */
 function useFocusOnError(error: string | null, field: AuthField | null) {
-  const refs = useRef<Partial<Record<AuthField, TextInput | null>>>({})
+  const refs = useRef<Partial<Record<AuthField, TextInputInstance | null>>>({})
   useEffect(() => {
     if (error && field) refs.current[field]?.focus()
   }, [error, field])
-  return (name: AuthField) => (el: TextInput | null) => {
+  return (name: AuthField) => (el: TextInputInstance | null) => {
     refs.current[name] = el
   }
 }
@@ -177,7 +177,7 @@ function LoginForm({ forms }: { forms: AuthForms }) {
   const styles = useStyles()
   const { login, isSubmitting } = forms
   const starting = useSessionStarting()
-  const passwordRef = useRef<TextInput>(null)
+  const passwordRef = useRef<TextInputInstance>(null)
   const submit = () => forms.handleLoginSubmit()
   return (
     <Form>

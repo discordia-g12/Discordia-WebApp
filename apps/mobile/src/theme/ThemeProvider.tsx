@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { StyleSheet, useColorScheme } from 'react-native'
+import { StyleSheet, useColorScheme, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native'
 import { nativeTheme, type ColorScheme, type NativeTheme } from '@discordia/tokens'
 import { readPreference, writePreference } from '../utils/storage'
 
@@ -70,7 +70,10 @@ export function useThemePreference() {
  *   const useStyles = makeStyles(t => ({ root: { color: t.colors.text } }))
  *   const styles = useStyles()
  */
-export function makeStyles<T extends StyleSheet.NamedStyles<T>>(factory: (theme: NativeTheme) => T) {
+/** Lo que antes era `StyleSheet.NamedStyles`, que los tipos de RN 0.88 ya no exportan. */
+type NamedStyles<T> = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle }
+
+export function makeStyles<T extends NamedStyles<T>>(factory: (theme: NativeTheme) => T) {
   const cache = new Map<ColorScheme, T>()
   return function useStyles(): T {
     const theme = useTheme()

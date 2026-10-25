@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Animated, Modal as RNModal, Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
+import { Animated, Modal as RNModal, Pressable, ScrollView, View, useWindowDimensions, type ScrollViewInstance } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from 'lucide-react-native'
 import { makeStyles, useTheme } from '../../theme'
@@ -43,7 +43,7 @@ export function SettingsScreen<T extends string>({ visible, title, identity, sec
   const [mounted, setMounted] = useState(visible)
   const [progress] = useState(() => new Animated.Value(0))
   // La fila del menú se desliza hasta la sección elegida (si quedó afuera, a la derecha)
-  const menuRef = useRef<ScrollView>(null)
+  const menuRef = useRef<ScrollViewInstance>(null)
   const positions = useRef<Partial<Record<T, number>>>({})
   useEffect(() => {
     const x = positions.current[active]
