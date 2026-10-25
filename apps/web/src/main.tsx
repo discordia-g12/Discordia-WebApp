@@ -11,6 +11,7 @@ configureClient({
 });
 
 import { registerQueryCacheCleaner } from './platform/auth/session';
+import { useUIStore } from './app/uiStore';
 import './platform/voice';
 import './index.css';
 
@@ -39,8 +40,12 @@ const queryClient = new QueryClient({
   },
 });
 
-// Registrar limpiador de caché para logout
-registerQueryCacheCleaner(() => queryClient.clear());
+// Al cerrar sesión: borrar el caché y lo que se estaba mirando, así la próxima cuenta en esta pestaña
+// arranca en el inicio y no en un servidor de la anterior
+registerQueryCacheCleaner(() => {
+  queryClient.clear();
+  useUIStore.setState({ selectedServerId: 'home', selectedChannelId: null, selectedDmId: null, appView: 'home' });
+});
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);
 

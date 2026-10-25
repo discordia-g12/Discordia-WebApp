@@ -52,9 +52,23 @@ export function useCurrentServer() {
  * Mantiene un canal válido elegido: si hay un servidor abierto y el canal seleccionado no es suyo (recién
  * creado o unido, el canal se borró, o el servidor no tenía canales de texto y se creó el primero), elige
  * su primer canal de texto y muestra el chat. Sin esto el chat quedaba sin canal hasta tocar uno a mano.
+ *
+ * Si el servidor elegido ya no está entre los del usuario (lo expulsaron, se borró desde otra sesión, o
+ * es de la cuenta anterior en esta pestaña), vuelve al inicio: si no, quedaba un chat vacío de "•Chat".
  */
 export function useEnsureChannelSelected() {
+  const selectedServerId = useUIStore((s) => s.selectedServerId);
+  const { data: loadedServers } = useServersQuery();
   const { currentServer, currentChannel, allServerChannels } = useCurrentServer();
+
+  useEffect(() => {
+    // Solo con la lista ya cargada: mientras llega, el servidor elegido todavía no aparece
+    if (selectedServerId === 'home' || !loadedServers || loadedServers.some((s) => s.id === selectedServerId)) return;
+    const ui = useUIStore.getState();
+    ui.setSelectedServerId('home');
+    ui.setSelectedChannelId(null);
+    ui.setAppView('home');
+  }, [selectedServerId, loadedServers]);
 
   useEffect(() => {
     if (!currentServer || currentChannel) return;
