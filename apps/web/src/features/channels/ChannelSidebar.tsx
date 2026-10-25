@@ -1,14 +1,72 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MicOff, HeadphoneOff, VolumeX } from 'lucide-react';
 import { isLocalCategoryId } from '@discordia/core';
-import type { Channel, User } from '../../types';
+import type { Channel, Server, User } from '../../types';
 import { ActionLink, SectionLabel, Skeleton, SquareAvatar } from '../../ui';
 import { VoiceParticipantMenu } from '../voice/VoiceParticipantMenu';
-import type { ChannelSidebarProps, VoiceParticipant } from './legacy/LegacyChannelSidebar';
 import { useChannelDragAndDrop, type DropTarget } from './useChannelDragAndDrop';
 import styles from './ChannelSidebar.module.css';
 
-export type { ChannelSidebarProps, VoiceParticipant };
+export interface VoiceParticipant {
+  /** Objeto de usuario conectado. */
+  user: User;
+  /** Indica si el usuario está emitiendo voz activamente. */
+  isSpeaking?: boolean;
+  /** Indica si tiene su micrófono silenciado. */
+  isMuted?: boolean;
+  /** Indica si tiene ensordecido su audio. */
+  isDeafened?: boolean;
+}
+
+export interface ChannelSidebarProps {
+  /** Servidor activo cuyos canales y opciones se despliegan. */
+  server: Server;
+  /** Identificador del canal actualmente seleccionado en la vista activa. */
+  activeChannelId: string | null;
+  /** Callback al seleccionar un canal de texto, anuncio o voz. */
+  onSelectChannel: (channelId: string) => void;
+  /** Usuario actualmente autenticado. */
+  currentUser: User;
+  /** Indica si la carga del servidor o canales está en progreso. */
+  isLoading?: boolean;
+  /** Estado de conexión a llamada de voz. */
+  isVoiceConnected: boolean;
+  /** Identificador del canal de voz activo en la llamada. */
+  activeVoiceChannelId: string | null;
+  /** Mapa de participantes conectados a canales de voz, indexados por channelId. */
+  voiceParticipants?: Record<string, VoiceParticipant[]>;
+  /** Usuarios silenciados solo para este cliente. */
+  locallyMutedUsers?: Record<string, boolean>;
+  /** Silencia o reactiva a un participante solo para este cliente (click derecho). */
+  onToggleLocalMute?: (userId: string) => void;
+  /** Abre el perfil de un participante de voz (desde el click derecho). */
+  onViewParticipantProfile?: (user: User) => void;
+  /** Acción para unirse a un canal de voz al hacer clic. */
+  onJoinVoiceChannel?: (channelId: string) => void;
+  /** Acción para crear un nuevo canal en una categoría. */
+  onCreateChannel?: (categoryId?: string) => void;
+  /** Acción para crear una nueva categoría. */
+  onCreateCategory?: () => void;
+  onEditChannel?: (channel: Channel) => void;
+  /**
+   * Reorden por arrastre: mueve un canal a una categoría, antes de `beforeChannelId`
+   * (o al final si es null). Si no se pasa, los canales no se pueden arrastrar.
+   */
+  onMoveChannel?: (channelId: string, targetCategoryId: string, beforeChannelId: string | null) => void;
+  /** Reorden por arrastre: mueve una categoría antes de `beforeCategoryId` (o al final si es null). */
+  onMoveCategory?: (categoryId: string, beforeCategoryId: string | null) => void;
+  /** Acciones del menú desplegable del servidor */
+  onOpenServerBoost?: () => void;
+  onInvitePeople?: () => void;
+  onOpenServerSettings?: () => void;
+  onOpenNotificationSettings?: () => void;
+  onOpenPrivacySettings?: () => void;
+  onOpenServerProfile?: () => void;
+  onToggleHideMutedChannels?: () => void;
+  onLeaveServer?: () => void;
+  onDeleteServer?: () => void;
+}
+
 
 /**
  * Barra de canales del rediseño (PDF, pág. 7): arriba "Invitar al servidor +" y el menú del servidor;

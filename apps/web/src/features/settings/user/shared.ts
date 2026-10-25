@@ -1,4 +1,4 @@
-// Constantes y tipos de UserSettings, compartidos por sus pestañas.
+// Constantes y tipos de los ajustes de usuario.
 
 export type SettingsTab =
   | 'profile'
@@ -8,16 +8,6 @@ export type SettingsTab =
   | 'appearance'
   | 'voice'
   | 'notifications';
-
-export const STATUS_CONFIG: Record<
-  'online' | 'idle' | 'dnd' | 'invisible',
-  { label: string; color: string }
-> = {
-  online: { label: 'Online', color: '#23a55a' },
-  idle: { label: 'Idle', color: '#f0b232' },
-  dnd: { label: 'Do Not Disturb', color: '#f23f43' },
-  invisible: { label: 'Invisible', color: '#80848e' },
-};
 
 export const BACKUP_CODES = [
   'A8F4-B92C',

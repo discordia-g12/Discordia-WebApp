@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { User as UserIcon, Volume2, VolumeX } from 'lucide-react';
 import { User } from '../../types';
+import styles from './VoiceParticipantMenu.module.css';
 
 const VIEWPORT_MARGIN = 8;
 
@@ -68,30 +69,29 @@ export const VoiceParticipantMenu: React.FC<VoiceParticipantMenuProps> = ({
   return (
     <div
       ref={menuRef}
-      className="context-menu"
+      className={styles.menu}
       role="menu"
       aria-label={`Opciones de ${user.displayName}`}
       style={{ top: position.top, left: position.left }}
       onContextMenu={(e) => e.preventDefault()}
     >
       {onViewProfile && (
-        <>
-          <div
-            className="context-menu-item"
-            role="menuitem"
-            onClick={() => {
-              onViewProfile(user);
-              onClose();
-            }}
-          >
-            <span>Ver perfil</span>
-            <UserIcon size={14} />
-          </div>
-          <div className="context-menu-separator" />
-        </>
+        <button
+          type="button"
+          className={styles.item}
+          role="menuitem"
+          onClick={() => {
+            onViewProfile(user);
+            onClose();
+          }}
+        >
+          <span>Ver perfil</span>
+          <UserIcon size={14} strokeWidth={1.5} aria-hidden="true" />
+        </button>
       )}
-      <div
-        className={`context-menu-item ${isLocallyMuted ? '' : 'danger'}`}
+      <button
+        type="button"
+        className={styles.item}
         role="menuitemcheckbox"
         aria-checked={isLocallyMuted}
         onClick={() => {
@@ -100,8 +100,8 @@ export const VoiceParticipantMenu: React.FC<VoiceParticipantMenuProps> = ({
         }}
       >
         <span>{isLocallyMuted ? 'Dejar de silenciar para mí' : 'Silenciar para mí'}</span>
-        {isLocallyMuted ? <Volume2 size={14} /> : <VolumeX size={14} />}
-      </div>
+        {isLocallyMuted ? <Volume2 size={14} strokeWidth={1.5} aria-hidden="true" /> : <VolumeX size={14} strokeWidth={1.5} aria-hidden="true" />}
+      </button>
     </div>
   );
 };

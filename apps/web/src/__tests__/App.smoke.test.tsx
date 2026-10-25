@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { configureClient, retryBootstrap, setAuthAdapter, setVoicePlatform, useSession } from '@discordia/core';
 import App from '../App';
 import { useUIStore } from '../app/uiStore';
+import { a11yViolations } from '../testing/axe';
 
 /**
  * Prueba de humo de la app completa: arranca autenticada contra un backend falso y recorre las
@@ -98,21 +99,14 @@ async function openServer() {
   await screen.findByText('hola mundo');
 }
 
-// Los mismos recorridos con el diseño anterior y con el rediseño (flag data-ui="nuevo")
-describe.each([
-  ['diseño anterior', false],
-  ['rediseño', true],
-])('App (prueba de humo, %s)', (_name, newUi) => {
+describe('App (prueba de humo)', () => {
   const originalWebSocket = globalThis.WebSocket;
   const originalWidth = window.innerWidth;
 
   beforeEach(async () => {
     // El estado de la interfaz es un store global: sin esto cada test arranca donde dejó el anterior
     useUIStore.setState(useUIStore.getInitialState(), true);
-    if (newUi) {
-      document.documentElement.dataset.ui = 'nuevo';
-      localStorage.setItem('discordia_intro_seen', '1');
-    }
+    localStorage.setItem('discordia_intro_seen', '1');
     // jsdom no implementa scroll: ChatView baja al último mensaje con scrollIntoView
     Element.prototype.scrollIntoView = vi.fn();
     FakeWebSocket.instances = [];
@@ -139,7 +133,6 @@ describe.each([
   });
 
   afterEach(() => {
-    delete document.documentElement.dataset.ui;
     localStorage.removeItem('discordia_intro_seen');
     cleanup();
     vi.restoreAllMocks();
@@ -175,7 +168,7 @@ describe.each([
     });
     act(() => chatSocket.open());
 
-    const input = screen.getByPlaceholderText(newUi ? 'Enviar mensaje a general' : 'Message #general');
+    const input = screen.getByPlaceholderText('Enviar mensaje a general');
     fireEvent.change(input, { target: { value: 'hola desde el test' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
@@ -200,21 +193,16 @@ describe.each([
   it('ajustes de usuario: recorre las pestañas y vuelve', async () => {
     renderApp();
     fireEvent.click(await screen.findByLabelText('Ajustes de usuario'));
+    // La pantalla de ajustes es un chunk aparte (lazy): se espera a que llegue
+    await screen.findByRole('dialog', { name: 'Ajustes de usuario' });
 
-    if (newUi) {
-      // Menú de palabras gigantes; cada sección muestra sus celdas
-      for (const section of ['Notificación', 'Voz', 'Factura', 'Experiencia', 'Cuenta']) {
-        fireEvent.click(screen.getByRole('button', { name: section }));
-        expect(screen.getByRole('main', { name: section })).toBeTruthy();
-      }
-      fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes de usuario' }));
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ajustes de usuario' })).toBeNull());
-    } else {
-      for (const tab of ['Security & 2FA', 'Discordia Premium', 'Billing & Points', 'Appearance', 'Voice & Audio', 'Notifications', 'My Account & Profile']) {
-        fireEvent.click(screen.getAllByText(tab)[0]);
-      }
-      fireEvent.click(screen.getByTitle('Close settings (ESC)'));
+    // Menú de palabras gigantes; cada sección muestra sus celdas
+    for (const section of ['Notificación', 'Voz', 'Factura', 'Experiencia', 'Cuenta']) {
+      fireEvent.click(screen.getByRole('button', { name: section }));
+      expect(screen.getByRole('region', { name: section })).toBeTruthy();
     }
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes de usuario' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ajustes de usuario' })).toBeNull());
     expect(await screen.findByLabelText('Servidor Torton')).toBeTruthy();
   });
 
@@ -222,28 +210,18 @@ describe.each([
     renderApp();
     await openServer();
 
-    fireEvent.click(
-      newUi
-        ? screen.getByRole('button', { name: 'Menú del servidor Torton' })
-        : screen.getByRole('heading', { name: /Torton/ })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Menú del servidor Torton' }));
     fireEvent.click(await screen.findByText('Ajustes del servidor'));
 
-    if (newUi) {
-      // El chat sigue montado debajo: se busca adentro del diálogo de ajustes
-      const settings = within(screen.getByRole('dialog', { name: 'Ajustes del servidor' }));
-      for (const section of ['Roles', 'Miembros', 'Baneos', 'Canales', 'Moderación', 'Notificación', 'Emojis', 'Mejoras', 'Resumen']) {
-        fireEvent.click(settings.getByRole('button', { name: section }));
-        expect(settings.getByRole('main', { name: section })).toBeTruthy();
-      }
-      fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes del servidor' }));
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ajustes del servidor' })).toBeNull());
-    } else {
-      for (const tab of ['Roles', 'Emoji', 'Server Boost', 'Channels', 'Moderation', 'Audit Log', 'Members', 'Bans', 'Notifications', 'Overview']) {
-        fireEvent.click(screen.getAllByText(tab)[0]);
-      }
-      fireEvent.click(screen.getByTitle('Close settings (ESC)'));
+    // El chat sigue montado debajo: se busca adentro del diálogo de ajustes
+    const settings = within(await screen.findByRole('dialog', { name: 'Ajustes del servidor' }));
+    for (const section of ['Roles', 'Miembros', 'Baneos', 'Canales', 'Moderación', 'Notificación', 'Emojis', 'Mejoras', 'Resumen']) {
+      fireEvent.click(settings.getByRole('button', { name: section }));
+      // La sección es una región con su nombre (y alguna celda adentro puede llamarse igual, como Baneos)
+      expect(settings.getAllByRole('region', { name: section }).length).toBeGreaterThan(0);
     }
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes del servidor' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ajustes del servidor' })).toBeNull());
     expect(await screen.findByText('hola mundo')).toBeTruthy();
   });
 
@@ -251,14 +229,10 @@ describe.each([
     renderApp();
     fireEvent.click(await screen.findByLabelText('Añadir un servidor'));
 
-    if (newUi) {
-      // Baja como cortina por encima de la grilla y se va con Escape
-      expect(await screen.findByRole('dialog', { name: 'Crear servidor' })).toBeTruthy();
-      fireEvent.keyDown(document, { key: 'Escape' });
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Crear servidor' })).toBeNull());
-    } else {
-      expect(await screen.findByText('Crea tu servidor')).toBeTruthy();
-    }
+    // Baja como cortina por encima de la grilla y se va con Escape
+    expect(await screen.findByRole('dialog', { name: 'Crear servidor' })).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Crear servidor' })).toBeNull());
   });
 
   it('abre el perfil propio desde la barra de usuario', async () => {
@@ -266,18 +240,13 @@ describe.each([
     fireEvent.click(await screen.findByTitle('Ver perfil y estado'));
     fireEvent.click(await screen.findByTitle('Editar perfil'));
 
-    if (newUi) {
-      // El perfil baja como cortina encima de la grilla (que sigue montada) y se cierra con la ×
-      expect(await screen.findByRole('dialog', { name: 'Mi perfil' })).toBeTruthy();
-      fireEvent.click(screen.getByRole('button', { name: 'Cerrar mi perfil' }));
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Mi perfil' })).toBeNull());
-    } else {
-      // Vista de perfil a pantalla completa: ya no está el rail
-      await waitFor(() => expect(screen.queryByLabelText('Servidor Torton')).toBeNull());
-    }
+    // El perfil baja como cortina encima de la grilla (que sigue montada) y se cierra con la ×
+    expect(await screen.findByRole('dialog', { name: 'Mi perfil' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar mi perfil' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Mi perfil' })).toBeNull());
   });
 
-  it.runIf(newUi)('la marca de agua sigue el contexto: AMIGOS en el inicio y el nombre del servidor', async () => {
+  it('la marca de agua sigue el contexto: AMIGOS en el inicio y el nombre del servidor', async () => {
     // La marca de agua es decorativa (aria-hidden): se busca adentro de ella
     const watermark = (word: string) =>
       screen.getAllByText(word).some((el) => el.closest('[aria-hidden="true"]'));
@@ -286,7 +255,7 @@ describe.each([
 
     await openServer();
     await waitFor(() => expect(watermark('Torton')).toBe(true));
-    // Una sola barra de usuario: la del layout, no la de la barra lateral anterior
+    // Una sola barra de usuario: la del layout
     expect(screen.getAllByTitle('Ver perfil y estado')).toHaveLength(1);
   });
 
@@ -301,7 +270,7 @@ describe.each([
     expect(useUIStore.getState().appView).toBe('chat');
   });
 
-  it.runIf(newUi)('cerrar sesión pide confirmación con el modal del rediseño, no con el del navegador', async () => {
+  it('cerrar sesión pide confirmación con el modal de la app, no con el del navegador', async () => {
     const browserConfirm = vi.spyOn(window, 'confirm');
     renderApp();
     fireEvent.click(await screen.findByLabelText('Ajustes de usuario'));
@@ -315,7 +284,7 @@ describe.each([
     expect(screen.getByRole('dialog', { name: 'Ajustes de usuario' })).toBeTruthy();
   });
 
-  it.runIf(newUi)('sin red: la línea de reconexión arriba y "reconectando/" en la barra de usuario', async () => {
+  it('sin red: la línea de reconexión arriba y "reconectando/" en la barra de usuario', async () => {
     renderApp();
     await screen.findByTitle('Ver perfil y estado');
     const setOnline = (online: boolean) => {
@@ -334,7 +303,7 @@ describe.each([
     await waitFor(() => expect(screen.queryByText('Reconectando')).toBeNull());
   });
 
-  it.runIf(newUi)('los avisos son la tira nueva, con barra final', async () => {
+  it('los avisos son la tira nueva, con barra final', async () => {
     renderApp();
     await screen.findByTitle('Ver perfil y estado');
     act(() => useUIStore.getState().showToast('Servidor creado', 'success'));
@@ -342,7 +311,50 @@ describe.each([
     expect((await screen.findByText('Servidor creado/')).closest('[role="status"]')).toBeTruthy();
   });
 
-  it.runIf(newUi)('mobile: servidor, chat por WebSocket, miembros y las pestañas de abajo', async () => {
+  it('accesibilidad: las pantallas principales no tienen violaciones de axe', async () => {
+    renderApp();
+    await screen.findByLabelText('Servidor Torton');
+    const found: Record<string, string[]> = {};
+    const check = async (screenName: string) => {
+      const violations = await a11yViolations();
+      if (violations.length) found[screenName] = violations;
+    };
+
+    await check('inicio');
+    await openServer();
+    await waitFor(() => expect(screen.getAllByText('Lbars').length).toBeGreaterThan(0));
+    await check('chat del servidor');
+
+    fireEvent.click(screen.getByLabelText('Ajustes de usuario'));
+    await screen.findByRole('dialog', { name: 'Ajustes de usuario' });
+    await check('ajustes de usuario');
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes de usuario' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ajustes de usuario' })).toBeNull());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menú del servidor Torton' }));
+    fireEvent.click(await screen.findByText('Ajustes del servidor'));
+    await screen.findByRole('dialog', { name: 'Ajustes del servidor' });
+    await check('ajustes del servidor');
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar ajustes del servidor' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ajustes del servidor' })).toBeNull());
+
+    fireEvent.click(screen.getByLabelText('Añadir un servidor'));
+    await screen.findByRole('dialog', { name: 'Crear servidor' });
+    await check('crear servidor');
+
+    expect(found).toEqual({});
+  });
+
+  it('accesibilidad: mobile no tiene violaciones de axe', async () => {
+    window.innerWidth = 500;
+    renderApp();
+    fireEvent.click(await screen.findByRole('button', { name: 'Canal general' }));
+    await screen.findByText('hola mundo');
+
+    expect(await a11yViolations()).toEqual([]);
+  });
+
+  it('mobile: servidor, chat por WebSocket, miembros y las pestañas de abajo', async () => {
     window.innerWidth = 500;
     renderApp();
 
@@ -383,40 +395,11 @@ describe.each([
     expect(await screen.findByRole('heading', { name: 'Torton' })).toBeTruthy();
   });
 
-  it.runIf(!newUi)('mobile: recorre canales, chat, voz y las hojas de servidor, miembros y perfil', async () => {
-    window.innerWidth = 500;
-    renderApp();
-
-    // Pantalla de canales del servidor
-    fireEvent.click(await screen.findByLabelText('Torton'));
-    fireEvent.click(await screen.findByText('general'));
-
-    // Chat a pantalla completa
-    fireEvent.click(await screen.findByLabelText('Volver a los canales'));
-
-    // Voz a pantalla completa
-    fireEvent.click(await screen.findByText('meet core'));
-    fireEvent.click(await screen.findByLabelText('Volver'));
-
-    // Hojas inferiores
-    fireEvent.click(await screen.findByLabelText('Ver miembros'));
-    expect(await screen.findByText('Miembros del Servidor (0)')).toBeTruthy();
-    fireEvent.click(screen.getAllByText('Torton').at(-1)!);
-    fireEvent.click(screen.getAllByText('Pilar')[0]);
-  });
-
   it('con pantalla chica usa el shell mobile', async () => {
     window.innerWidth = 500;
     renderApp();
 
-    if (newUi) {
-      expect(await screen.findByRole('navigation', { name: 'Secciones' })).toBeTruthy();
-      expect(screen.getAllByLabelText('Añadir un servidor').length).toBeGreaterThan(0);
-      return;
-    }
-
-    const nav = await screen.findByLabelText('Mensajes Directos');
-    expect(within(document.body).getAllByLabelText('Añadir un servidor').length).toBeGreaterThan(0);
-    expect(nav).toBeTruthy();
+    expect(await screen.findByRole('navigation', { name: 'Secciones' })).toBeTruthy();
+    expect(screen.getAllByLabelText('Añadir un servidor').length).toBeGreaterThan(0);
   });
 });

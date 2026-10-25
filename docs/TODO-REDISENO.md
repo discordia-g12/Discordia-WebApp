@@ -114,7 +114,7 @@ Se derivan del sistema:
 - Más pesados: `ServerSettings` (249 estilos en línea), `UserSettings` (171), `MobileShell` (168),
   `ChatView` (94), `OwnProfileView` (86).
 - Cloudflare Pages publica desde `main`: el rediseño vive detrás de un flag (`data-ui="nuevo"`) hasta el corte,
-  para poder mergear de a poco sin publicar una app mitad vieja y mitad nueva.
+  para poder mergear de a poco sin publicar una app mitad vieja y mitad nueva. (El flag se borró en el paso 14.)
 
 ## 5. Mobile (React Native / Expo, `apps/mobile/`)
 
@@ -749,9 +749,31 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 
 ### Paso 14: cierre
 
-- [ ] Accesibilidad: foco visible (contorno negro de 2px), navegación con teclado, contraste,
-      movimiento reducido.
-- [ ] Rendimiento: animaciones solo con `transform` y `opacity`; medir con Lighthouse.
-- [ ] Tests de los componentes base y de los flujos principales.
-- [ ] Hacer `nuevo` el diseño por defecto, borrar el flag y los tokens de Discord.
-- [ ] README de la WebApp y de mobile, ADR de diseño ("lenguaje visual propio y tokens") y capturas.
+- [x] Accesibilidad: foco visible (contorno negro de 2px), navegación con teclado, contraste,
+      movimiento reducido. axe-core (dev) corre en los tests sobre el catálogo completo
+      (`ui/__tests__/a11y.test.tsx`) y sobre inicio, chat, ajustes, crear servidor y mobile web (prueba de
+      humo); el contraste lo miden los tokens y Lighthouse sobre `/?catalogo` en los dos temas (sin fallas).
+      Corregido: el punto de presencia y "silenciado para vos" eran `span` con `aria-label` sin rol (ahora
+      `role="img"`), las iniciales de la franja de servidor no coincidían con su nombre accesible (ahora
+      `aria-hidden`), las secciones de los ajustes eran un segundo `<main>` debajo del diálogo (ahora
+      `<section>` con nombre), la tira de servidores de mobile web quedaba fuera de todo landmark (ahora
+      `<nav>`) y el campo de editar mensaje no tenía foco visible.
+- [x] Rendimiento: animaciones solo con `transform` y `opacity` (los cambios de color son de ≤ 150 ms);
+      medido con Lighthouse sobre el build, en la pantalla de acceso: rendimiento 99 (escritorio) / 91
+      (mobile), accesibilidad 100, buenas prácticas 77 (solo por la cookie de terceros del login silencioso
+      de Auth0). El chunk principal bajó de 826 kB a 178 kB: react, motion, auth0 y react-query en chunks
+      propios (`manualChunks`), y ajustes y perfil propio con `lazy` y precarga en segundo plano. livekit
+      ya se cargaba recién al entrar a voz.
+- [x] Tests de los componentes base y de los flujos principales. Los componentes base ya tenían tests
+      (`catalog.test.tsx`, `Modal.test.tsx`); se sumó `ServerStrip`. Los flujos (inicio, servidor, chat
+      por WebSocket, presencia de voz, ajustes, modales, perfil, cerrar sesión, reconexión, avisos y mobile
+      web) están en la prueba de humo. 170 tests en web, 153 en core y 21 en tokens.
+- [x] Hacer `nuevo` el diseño por defecto, borrar el flag y los tokens de Discord. Se borraron las carpetas
+      `legacy/` (57 archivos, ~11.500 líneas) y las vistas sin uso; `ui/flag.ts` pasó a `ui/theme.ts` (solo
+      el tema: `initTheme`, `?tema=`, preferencia de ajustes) y los tokens y `base.css` van en `:root` sin
+      `[data-ui]`. `index.css` quedó como reset. Quedan `#5865f2` solo como colores por defecto de datos
+      del usuario (banner, paleta de roles) y en los datos de prueba.
+- [x] README de la WebApp y de mobile, ADR de diseño ([`ADR-02-Lenguaje-Visual.md`](ADR-02-Lenguaje-Visual.md))
+      y capturas ([`capturas/`](capturas/), web en los dos temas y mobile web, con el modo mock y un backend
+      falso). La guía de pruebas quedó sin el flag. Faltan capturas de la app nativa: se toman con el APK
+      (ver el pendiente del paso 13).

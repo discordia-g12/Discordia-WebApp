@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { VoiceParticipantMenu } from '../VoiceParticipantMenu';
-import { VoiceView as NewVoiceView } from '../VoiceView';
-import { LegacyVoiceView } from '../legacy/LegacyVoiceView';
+import { VoiceView } from '../VoiceView';
 import { User } from '../../../types';
 
 const me: User = { id: 'auth0|me', username: 'me', displayName: 'Yo', status: 'online' };
@@ -50,11 +49,7 @@ describe('VoiceParticipantMenu', () => {
   });
 });
 
-// Los mismos casos con la vista del rediseño y con la anterior
-describe.each([
-  ['rediseño', NewVoiceView],
-  ['diseño anterior', LegacyVoiceView],
-])('VoiceView (%s) - click derecho sobre participantes', (_name, VoiceView) => {
+describe('VoiceView - click derecho sobre participantes', () => {
   const participants = [
     { user: me, isMuted: false },
     { user: other, isMuted: false },

@@ -1,4 +1,3 @@
-import * as LiveKit from 'livekit-client';
 import { createVoicePrefsStore, setVoicePlatform } from '@discordia/core';
 
 // Elementos <audio> de los participantes remotos: el browser no reproduce el audio de LiveKit solo
@@ -8,7 +7,8 @@ const audioElements = new Set<HTMLMediaElement>();
  * Voz en el browser: la sala es la de @discordia/core (useVoiceRoom); acá va lo propio del DOM.
  */
 setVoicePlatform({
-  livekit: () => LiveKit,
+  // Se carga recién al entrar a un canal de voz: es lo más pesado del bundle
+  livekit: () => import('livekit-client'),
 
   // Política de autoplay: el audio arranca recién con un gesto del usuario (el click de unirse)
   afterConnect: (room) => room.startAudio().catch(() => undefined),

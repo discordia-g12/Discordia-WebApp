@@ -11,6 +11,12 @@ export type MotionPreset = 'fade' | 'rise' | 'toast' | 'sweep' | 'curtain';
 
 const seconds = (ms: number) => ms / 1000;
 
+/**
+ * Opacidad de partida de las entradas: 0.01 y no 0. Chrome no cuenta como pintado (FCP / LCP) lo que
+ * aparece con una animación de opacidad desde 0; a la vista es lo mismo.
+ */
+const ENTER_OPACITY = 0.01;
+
 export const transitions = {
   fast: { duration: seconds(durations.fast), ease: easings.standard },
   base: { duration: seconds(durations.base), ease: easings.enter },
@@ -23,13 +29,13 @@ export const transitions = {
 const presets: Record<MotionPreset, { variants: Variants; transition: Transition }> = {
   /** Aparecer / desaparecer. */
   fade: {
-    variants: { hidden: { opacity: 0 }, visible: { opacity: 1 }, exit: { opacity: 0 } },
+    variants: { hidden: { opacity: ENTER_OPACITY }, visible: { opacity: 1 }, exit: { opacity: 0 } },
     transition: transitions.fast,
   },
   /** Mensajes nuevos: entran subiendo unos píxeles. */
   rise: {
     variants: {
-      hidden: { opacity: 0, y: distances.rise },
+      hidden: { opacity: ENTER_OPACITY, y: distances.rise },
       visible: { opacity: 1, y: 0 },
       exit: { opacity: 0, transition: transitions.exit },
     },
@@ -38,7 +44,7 @@ const presets: Record<MotionPreset, { variants: Variants; transition: Transition
   /** Avisos: entran desde abajo y bajan al irse. */
   toast: {
     variants: {
-      hidden: { opacity: 0, y: distances.toast },
+      hidden: { opacity: ENTER_OPACITY, y: distances.toast },
       visible: { opacity: 1, y: 0 },
       exit: { opacity: 0, y: distances.toast, transition: transitions.exit },
     },
@@ -47,7 +53,7 @@ const presets: Record<MotionPreset, { variants: Variants; transition: Transition
   /** Marca de agua al cambiar de vista: barrido horizontal (el contenedor recorta con overflow). */
   sweep: {
     variants: {
-      hidden: { opacity: 0, x: '-12%' },
+      hidden: { opacity: ENTER_OPACITY, x: '-12%' },
       visible: { opacity: 1, x: 0 },
       exit: { opacity: 0, x: '12%', transition: transitions.exit },
     },

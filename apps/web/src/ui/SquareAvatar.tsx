@@ -40,7 +40,7 @@ export function SquareAvatar({ user, size = 'md', status }: SquareAvatarProps) {
         </span>
       )}
       {status && (
-        <span className={`${styles.status} ${styles[status]}`} title={STATUS_LABEL[status]} aria-label={STATUS_LABEL[status]} />
+        <span className={`${styles.status} ${styles[status]}`} title={STATUS_LABEL[status]} role="img" aria-label={STATUS_LABEL[status]} />
       )}
     </span>
   );

@@ -1,15 +1,14 @@
 /*
- * Base del rediseño: solo con data-ui="nuevo" (ver ui/flag.ts). Sin el flag, la web sigue con index.css.
- * Los valores vienen de @discordia/tokens (tokens.css).
+ * Base de la web: el degradé, la tipografía y el foco. Los valores vienen de @discordia/tokens (tokens.css).
  */
 
-/* El degradé va en <html>; body y #root (que index.css pinta con la paleta vieja) quedan transparentes */
-:root[data-ui="nuevo"] {
+/* El degradé va en <html>; body y #root quedan transparentes */
+:root {
   background: var(--gradient-background) fixed, var(--color-background);
 }
 
-:root[data-ui="nuevo"] body,
-:root[data-ui="nuevo"] #root {
+:root body,
+:root #root {
   background: transparent;
   font-family: var(--font-family);
   font-size: var(--font-body-size);
@@ -19,13 +18,13 @@
 }
 
 /* Foco visible: contorno de 2px en el color del texto, sin redondear */
-:root[data-ui="nuevo"] :focus-visible {
+:root :focus-visible {
   outline: var(--line-focus) solid var(--color-focus);
   outline-offset: 2px;
   border-radius: var(--radius);
 }
 
-:root[data-ui="nuevo"] ::selection {
+:root ::selection {
   background: var(--color-inverse-background);
   color: var(--color-inverse-text);
 }

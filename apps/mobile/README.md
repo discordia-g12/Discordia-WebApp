@@ -4,6 +4,15 @@ App mobile de Discordia (Expo SDK 57, React Native 0.86). Vive en el monorepo de
 
 Las decisiones técnicas de la voz en mobile (development build, Expo Go, hooks propios) están en [`docs/ADR-01-Mobile-Voice.md`](../../docs/ADR-01-Mobile-Voice.md).
 
+## Diseño
+
+La app usa el mismo lenguaje visual que la web ([`docs/ADR-02-Lenguaje-Visual.md`](../../docs/ADR-02-Lenguaje-Visual.md)) y los mismos tokens:
+
+- **Tema:** `src/theme/ThemeProvider` arma `nativeTheme()` de `@discordia/tokens` en claro y oscuro. Se usa con `useTheme()`, y con `makeStyles` para los estilos que dependen del tema. Por defecto sigue al sistema; la elección de *Perfil → ajustes → Experiencia* se guarda en AsyncStorage. La app no se dibuja hasta cargar Schibsted Grotesk (400, 700 y 900, `src/theme/fonts.ts`).
+- **Componentes:** `src/ui/` tiene el mismo catálogo que la web (`apps/web/src/ui`), con los mismos nombres y props: `Text`, `Logo`, `Background`, `DisplayText`, `SectionLabel`, `UnderlineInput`, `ActionLink`, `BlockButton`, `Tabs`, `Choice`, `SquareAvatar`, `ServerStrip`, `Toast`, `EmptyState`, `Skeleton`, `ConnectionBanner` y `Modal`. Las pantallas no definen colores ni medidas propios: todo sale del tema.
+- **Movimiento:** `Animated` y `LayoutAnimation` (`src/ui/motion.ts`), con las duraciones y curvas de los tokens. Con "reducir movimiento" activado en el sistema, quedan fundidos de 150 ms.
+- **Catálogo:** `npm run web -w @discordia/mobile` (Expo web) y abrir la URL con `?catalogo`. El tema se cambia desde el selector del catálogo.
+
 ## Requisitos
 
 - Node 22 y las dependencias instaladas **desde la raíz del repo**: `npm install` (no adentro de `apps/mobile`).

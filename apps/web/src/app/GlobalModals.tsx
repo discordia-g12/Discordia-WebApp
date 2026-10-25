@@ -11,24 +11,12 @@ import {
 } from '@discordia/core';
 import type { Server } from '../types';
 import { ConfirmDialog } from '../ui';
-import { isNewUi } from '../ui/flag';
-import { ConfirmDialog as LegacyConfirmDialog } from '../ui/legacy/ConfirmDialog';
 import { CreateServerModal } from '../features/servers/CreateServerModal';
 import { JoinServerModal } from '../features/servers/JoinServerModal';
 import { InviteModal } from '../features/servers/InviteModal';
-import { LegacyCreateServerModal } from '../features/servers/legacy/LegacyCreateServerModal';
-import { LegacyJoinServerModal } from '../features/servers/legacy/LegacyJoinServerModal';
-import { LegacyInviteModal } from '../features/servers/legacy/LegacyInviteModal';
 import { CreateCategoryModal, CreateChannelModal, EditChannelModal } from '../features/channels/ChannelModals';
-import {
-  LegacyCreateCategoryModal,
-  LegacyCreateChannelModal,
-  LegacyEditChannelModal,
-} from '../features/channels/legacy/LegacyChannelModals';
 import { UserProfileModal } from '../features/profile/UserProfileModal';
-import { LegacyUserProfileModal } from '../features/profile/legacy/LegacyUserProfileModal';
 import { IncomingCallModal } from '../features/voice/IncomingCallModal';
-import { LegacyIncomingCallModal } from '../features/voice/legacy/LegacyIncomingCallModal';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
 import { clearInviteFromUrl, useCreateServer, useJoinServer } from '../features/servers/serverActions';
 import { useCurrentUser } from '../features/profile/currentUserStore';
@@ -38,8 +26,8 @@ import { useUIStore } from './uiStore';
 import { useUsers } from './UsersProvider';
 
 /**
- * Modales de la app de escritorio: cuál está abierto lo decide useUIStore. Lo que hacen es igual en los
- * dos diseños; con el rediseño se montan los del catálogo nuevo (que entran y salen como cortina).
+ * Modales de la app (escritorio y mobile web): cuál está abierto lo decide useUIStore. Entran y salen como
+ * cortina (AnimatePresence).
  */
 export function GlobalModals() {
   const queryClient = useQueryClient();
@@ -150,128 +138,56 @@ export function GlobalModals() {
   const profileUser = ui.selectedProfileUserId ? usersMap[ui.selectedProfileUserId] : undefined;
   const modal = ui.activeModal;
 
-  if (isNewUi()) {
-    return (
-      <AnimatePresence>
-        {modal === 'create-server' && (
-          <CreateServerModal
-            key="create-server"
-            currentUser={currentUser}
-            onClose={close}
-            onJoinExisting={() => ui.setActiveModal('join-server')}
-            onCreateServer={({ name }) => createServer(name)}
-          />
-        )}
-        {modal === 'join-server' && (
-          <JoinServerModal
-            key="join-server"
-            onClose={closeJoin}
-            onJoinServer={async (invite) => {
-              await joinServer(invite);
-              close();
-            }}
-          />
-        )}
-        {modal === 'invite' && currentServer && <InviteModal key="invite" server={currentServer} onClose={close} />}
-        {modal === 'user-profile' && profileUser && (
-          <UserProfileModal
-            key="user-profile"
-            user={profileUser}
-            currentUser={currentUser}
-            onClose={closeProfile}
-            onEditProfile={() => {
-              closeProfile();
-              ui.setAppView('own-profile');
-            }}
-          />
-        )}
-        {modal === 'confirm-action' && ui.confirm.action && (
-          <ConfirmDialog
-            key="confirm"
-            action={ui.confirm.action}
-            targetName={ui.confirm.targetName}
-            targetDetail={ui.confirm.targetDetail}
-            onConfirm={confirm}
-            onCancel={closeConfirm}
-          />
-        )}
-        {modal === 'create-channel' && currentServer && (
-          <CreateChannelModal key="create-channel" categoryId={ui.channelModalCategoryId} onClose={close} onCreate={createChannel} />
-        )}
-        {modal === 'edit-channel' && ui.targetChannelForAction && (
-          <EditChannelModal
-            key="edit-channel"
-            channel={ui.targetChannelForAction}
-            categories={currentServer?.categories}
-            onClose={close}
-            onEdit={editChannel}
-            onDelete={deleteChannel}
-          />
-        )}
-        {modal === 'create-category' && currentServer && (
-          <CreateCategoryModal key="create-category" onClose={close} onCreate={createCategory} />
-        )}
-        {ui.incomingCaller && (
-          <IncomingCallModal key="incoming-call" caller={ui.incomingCaller} onAccept={acceptCall} onDecline={declineCall} />
-        )}
-      </AnimatePresence>
-    );
-  }
-
   return (
-    <>
+    <AnimatePresence>
       {modal === 'create-server' && (
-        <LegacyCreateServerModal
+        <CreateServerModal
+          key="create-server"
+          currentUser={currentUser}
           onClose={close}
           onJoinExisting={() => ui.setActiveModal('join-server')}
-          onCreateServer={(data) => createServer(data.name, data.icon)}
+          onCreateServer={({ name }) => createServer(name)}
         />
       )}
       {modal === 'join-server' && (
-        <LegacyJoinServerModal
+        <JoinServerModal
+          key="join-server"
           onClose={closeJoin}
-          onJoinServer={(invite) =>
-            joinServer(invite).catch((err: Error) => {
-              clearInviteFromUrl();
-              ui.showToast(err.message, 'danger');
-            })
-          }
+          onJoinServer={async (invite) => {
+            await joinServer(invite);
+            close();
+          }}
         />
       )}
-      {modal === 'invite' && currentServer && <LegacyInviteModal server={currentServer} onClose={close} />}
+      {modal === 'invite' && currentServer && <InviteModal key="invite" server={currentServer} onClose={close} />}
       {modal === 'user-profile' && profileUser && (
-        <LegacyUserProfileModal
+        <UserProfileModal
+          key="user-profile"
           user={profileUser}
           currentUser={currentUser}
           onClose={closeProfile}
-          onSendDM={() => {
-            close();
-            ui.setSelectedServerId('home');
-            ui.setAppView('home');
-          }}
           onEditProfile={() => {
-            close();
+            closeProfile();
             ui.setAppView('own-profile');
           }}
         />
       )}
       {modal === 'confirm-action' && ui.confirm.action && (
-        <LegacyConfirmDialog
+        <ConfirmDialog
+          key="confirm"
           action={ui.confirm.action}
           targetName={ui.confirm.targetName}
-          targetDetail={ui.confirm.action === 'switch-voice-channel' ? ui.confirm.targetDetail : undefined}
+          targetDetail={ui.confirm.targetDetail}
           onConfirm={confirm}
           onCancel={closeConfirm}
         />
       )}
-      {ui.incomingCaller && (
-        <LegacyIncomingCallModal caller={ui.incomingCaller} channelName="Llamada directa" onAccept={acceptCall} onDecline={declineCall} />
-      )}
       {modal === 'create-channel' && currentServer && (
-        <LegacyCreateChannelModal categoryId={ui.channelModalCategoryId || undefined} onClose={close} onCreate={createChannel} />
+        <CreateChannelModal key="create-channel" categoryId={ui.channelModalCategoryId} onClose={close} onCreate={createChannel} />
       )}
       {modal === 'edit-channel' && ui.targetChannelForAction && (
-        <LegacyEditChannelModal
+        <EditChannelModal
+          key="edit-channel"
           channel={ui.targetChannelForAction}
           categories={currentServer?.categories}
           onClose={close}
@@ -279,7 +195,12 @@ export function GlobalModals() {
           onDelete={deleteChannel}
         />
       )}
-      {modal === 'create-category' && currentServer && <LegacyCreateCategoryModal onClose={close} onCreate={createCategory} />}
-    </>
+      {modal === 'create-category' && currentServer && (
+        <CreateCategoryModal key="create-category" onClose={close} onCreate={createCategory} />
+      )}
+      {ui.incomingCaller && (
+        <IncomingCallModal key="incoming-call" caller={ui.incomingCaller} onAccept={acceptCall} onDecline={declineCall} />
+      )}
+    </AnimatePresence>
   );
 }

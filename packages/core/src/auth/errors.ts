@@ -35,6 +35,27 @@ export class AccountSuspendedError extends Error {
   }
 }
 
+/**
+ * Auth0 rechazó el registro porque el email o el username ya existen (/dbconnections/signup).
+ * `field` dice cuál: Auth0 responde `user_exists` para el email y `username_exists` para el
+ * username. `invalid_signup` no distingue, así que queda en null y el mensaje nombra los dos.
+ */
+export class SignupConflictError extends Error {
+  readonly field: 'email' | 'username' | null;
+
+  constructor(field: 'email' | 'username' | null) {
+    super(
+      field === 'email'
+        ? 'Ya existe una cuenta con ese correo. Iniciá sesión.'
+        : field === 'username'
+          ? 'Ese nombre de usuario ya está tomado. Elegí otro.'
+          : 'El correo o nombre de usuario ya está en uso.'
+    );
+    this.name = 'SignupConflictError';
+    this.field = field;
+  }
+}
+
 export type AuthDenial = 'email_not_verified' | 'suspended';
 
 /**

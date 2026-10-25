@@ -109,8 +109,9 @@ export function SettingsScreen<T extends string>({
         </nav>
       </div>
 
-      {/* La sección nueva entra con un fundido; las celdas bajan una tras otra (CSS) */}
-      <motion.main
+      {/* La sección nueva entra con un fundido; las celdas bajan una tras otra (CSS). Es una región con
+          nombre y no <main>: la cortina es un diálogo y el <main> de la app sigue montado debajo */}
+      <motion.section
         key={active}
         className={styles.content}
         aria-label={current?.label}
@@ -119,7 +120,7 @@ export function SettingsScreen<T extends string>({
         transition={reduce ? transitions.reduced : transitions.base}
       >
         {children}
-      </motion.main>
+      </motion.section>
 
       <button type="button" className={styles.close} onClick={onClose} aria-label={`Cerrar ${title.toLowerCase()}`} title="Cerrar (Esc)">
         <X size={20} strokeWidth={1.5} aria-hidden="true" />

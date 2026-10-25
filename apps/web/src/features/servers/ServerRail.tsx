@@ -1,10 +1,25 @@
 import { Compass, Home, Plus, type LucideIcon } from 'lucide-react';
 import type { Server } from '../../types';
 import { Logo, ServerStrip, Skeleton } from '../../ui';
-import type { ServerRailProps } from './legacy/LegacyServerRail';
 import styles from './ServerRail.module.css';
 
-export type { ServerRailProps };
+export interface ServerRailProps {
+  /** Colección de servidores donde el usuario es miembro. */
+  servers: Server[];
+  /** Identificador del servidor actualmente activo o 'home' para vista principal de mensajes directos. */
+  selectedServerId: string | 'home';
+  /** Manejador invocado al seleccionar un servidor o volver a inicio. */
+  onSelectServer: (serverId: string | 'home') => void;
+  /** Acción para desplegar el modal o flujo de creación/unión de servidor. */
+  onAddServer?: () => void;
+  /** Acción para explorar y descubrir nuevos servidores públicos. */
+  onDiscoverServers?: () => void;
+  /** Contador global opcional de menciones o mensajes directos pendientes en Home. */
+  homeBadgeCount?: number;
+  /** Indica si los servidores se están cargando desde el backend. */
+  isLoading?: boolean;
+}
+
 
 /**
  * Rail del rediseño (PDF, págs. 6 a 8): el logo arriba, los servidores como franjas de imagen (al pasar

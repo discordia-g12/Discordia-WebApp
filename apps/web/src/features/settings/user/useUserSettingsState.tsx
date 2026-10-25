@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { User, Status } from '../../../types';
 import { SettingsTab, BACKUP_CODES } from './shared';
-import type { UserSettingsProps } from '../UserSettings';
+
+/** Lo que recibe la pantalla de ajustes de usuario. */
+export interface UserSettingsProps {
+  currentUser?: User;
+  onClose?: () => void;
+  onUpdateUser?: (updatedUser: User) => void;
+  onLogout?: () => void;
+}
+
 
 /** Estado y handlers de UserSettings: viven en el componente y lo comparten todas sus pestañas. */
 export function useUserSettingsState(props: UserSettingsProps) {

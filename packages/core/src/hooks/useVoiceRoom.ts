@@ -60,6 +60,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const onUnexpectedDisconnectRef = useRef(options.onUnexpectedDisconnect);
   onUnexpectedDisconnectRef.current = options.onUnexpectedDisconnect;
   const roomRef = useRef<Room | null>(null);
+  // livekit-client, guardado al unirse (la plataforma puede cargarlo recién ahí)
+  const livekitRef = useRef<LiveKitModule | null>(null);
   // Canal pedido más recientemente; permite descartar joins que quedaron viejos
   const channelIdRef = useRef<string | null>(null);
   const mutedRef = useRef(initialPrefs.muted);
@@ -186,7 +188,9 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
         const { token, url } = await joinVoiceChannel(targetChannelId);
         if (isSuperseded()) return { microphoneAvailable: true };
 
-        const lk = platform.livekit();
+        const lk = await platform.livekit();
+        livekitRef.current = lk;
+        if (isSuperseded()) return { microphoneAvailable: true };
         await platform.startAudioSession?.();
 
         room = new lk.Room();
@@ -241,7 +245,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       mutedRef.current = muted;
       setIsMuted(muted);
       const room = roomRef.current;
-      if (!room || room.state !== platform.livekit().ConnectionState.Connected) return;
+      const lk = livekitRef.current;
+      if (!room || !lk || room.state !== lk.ConnectionState.Connected) return;
       try {
         await room.localParticipant.setMicrophoneEnabled(!muted);
       } catch (err) {

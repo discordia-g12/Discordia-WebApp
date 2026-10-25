@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { User, Status } from '../../../types';
-import { Role } from '../../../types';
 import { ProfileMode } from './shared';
-import type { OwnProfileViewProps } from '../OwnProfileView';
+
+/** Lo que recibe la pantalla del perfil propio. */
+export interface OwnProfileViewProps {
+  currentUser?: User;
+  onBack?: () => void;
+  onSave?: (updatedUser: User) => void;
+}
+
 
 /** Estado y handlers de OwnProfileView: viven en el componente y lo comparten todas sus pestañas. */
 export function useOwnProfileState(props: OwnProfileViewProps) {
@@ -92,20 +98,6 @@ export function useOwnProfileState(props: OwnProfileViewProps) {
     }, 750);
   };
 
-  // Resolve user roles from []
-  const userRoles = (baseUser.roleIds || ['r-admin', 'r-core'])
-    .map((rid) => ([] as Role[]).find((r) => r.id === rid))
-    .filter((r): r is Role => Boolean(r));
-
-  const currentStatusColor =
-    status === 'online'
-      ? '#23a55a'
-      : status === 'idle'
-        ? '#f0b232'
-        : status === 'dnd'
-          ? '#f23f43'
-          : '#80848e';
-
   return {
 
     initialUserProp,
@@ -134,8 +126,6 @@ export function useOwnProfileState(props: OwnProfileViewProps) {
     handleResetAvatar,
     handleDiscard,
     handleSave,
-    userRoles,
-    currentStatusColor,
   };
 }
 

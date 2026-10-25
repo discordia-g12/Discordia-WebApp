@@ -14,16 +14,15 @@ import { registerQueryCacheCleaner } from './platform/auth/session';
 import './platform/voice';
 import './index.css';
 
-// Rediseño (paso 3 de docs/TODO-REDISENO.md): tokens, fuente y base. Todo queda detrás del flag
-// data-ui="nuevo" (ui/flag.ts); sin el flag la app se ve como siempre.
+// Sistema de diseño (docs/TODO-REDISENO.md): tokens, fuente, base y el tema elegido
 import '@discordia/tokens/tokens.css';
 import '@fontsource/schibsted-grotesk/400.css';
 import '@fontsource/schibsted-grotesk/700.css';
 import '@fontsource/schibsted-grotesk/900.css';
 import './ui/base.css';
-import { initUiFlag } from './ui/flag';
+import { initTheme } from './ui/theme';
 
-initUiFlag();
+initTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {

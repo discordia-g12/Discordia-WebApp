@@ -122,7 +122,7 @@ export function MobileAppShell() {
           ) : (
             <Screen title={currentServer?.name ?? 'Servidores'} tinted>
               {currentServer ? (
-                <ChannelSidebarPanel showUserPanel={false} onChannelOpened={() => setChannelOpen(true)} />
+                <ChannelSidebarPanel onChannelOpened={() => setChannelOpen(true)} />
               ) : (
                 <div className={styles.padded}>
                   <Skeleton lines={5} label="Cargando canales" />
@@ -189,11 +189,11 @@ function ServerTabsRow({
   onAdd: () => void;
 }) {
   return (
-    <div className={styles.strips}>
+    <nav className={styles.strips} aria-label="Servidores">
       <span className={styles.logo}>
         <Logo size={18} />
       </span>
-      <ul className={styles.stripList} aria-label="Servidores" aria-busy={isLoading || undefined}>
+      <ul className={styles.stripList} aria-busy={isLoading || undefined}>
         {servers.map((server) => (
           <li key={server.id}>
             <ServerStrip server={server} active={server.id === selectedServerId} orientation="horizontal" onPress={() => onSelect(server.id)} />
@@ -212,7 +212,7 @@ function ServerTabsRow({
       >
         <Compass size={18} strokeWidth={1.5} aria-hidden="true" />
       </button>
-    </div>
+    </nav>
   );
 }
 

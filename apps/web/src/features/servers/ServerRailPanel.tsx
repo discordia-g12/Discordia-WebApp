@@ -1,7 +1,5 @@
 import { useUIStore } from '../../app/uiStore';
-import { isNewUi } from '../../ui/flag';
 import { ServerRail } from './ServerRail';
-import { LegacyServerRail } from './legacy/LegacyServerRail';
 import { selectServer } from './serverActions';
 import { useCurrentServer } from './useCurrentServer';
 
@@ -10,10 +8,9 @@ export function ServerRailPanel() {
   const { servers, isLoadingServers } = useCurrentServer();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const setActiveModal = useUIStore((s) => s.setActiveModal);
-  const Rail = isNewUi() ? ServerRail : LegacyServerRail;
 
   return (
-    <Rail
+    <ServerRail
       servers={servers}
       selectedServerId={selectedServerId}
       onSelectServer={(serverId) => selectServer(serverId, servers)}

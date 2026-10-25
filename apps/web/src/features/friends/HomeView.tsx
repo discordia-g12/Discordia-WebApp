@@ -5,10 +5,28 @@ import type { DirectMessage, Status, User } from '../../types';
 import { ActionLink, BlockButton, EmptyState, SquareAvatar, Tabs, UnderlineInput, type TabItem } from '../../ui';
 import { ChatView } from '../chat/ChatView';
 import { useHomeState, type FriendsTab, type HomeState } from './useHomeState';
-import type { HomeViewProps as LegacyHomeViewProps } from './legacy/LegacyHomeView';
 import styles from './HomeView.module.css';
 
-export interface HomeViewProps extends Omit<LegacyHomeViewProps, 'userPanel'> {
+interface BaseHomeViewProps {
+  /** ID del usuario en sesión activa. */
+  currentUserId?: string;
+  /** Lista de mensajes directos recientes. */
+  directMessages?: DirectMessage[];
+  /** ID del mensaje directo activo. Si es null, se muestra la pestaña de Amigos. */
+  activeDirectMessageId?: string | null;
+  /** Callback al seleccionar un mensaje directo o volver a la vista de amigos (null). */
+  onSelectDirectMessage?: (dmId: string | null) => void;
+  /** Callback para abrir el perfil modal de un usuario. */
+  onOpenUserProfile?: (userId: string) => void;
+  /** Callback para iniciar llamada de audio con un usuario. */
+  onStartVoiceCall?: (userId: string) => void;
+  /** Callback para iniciar llamada de video con un usuario. */
+  onStartVideoCall?: (userId: string) => void;
+  /** Callback opcional al enviar mensaje en un DM. */
+  onSendMessage?: (dmId: string, content: string) => void;
+}
+
+export interface HomeViewProps extends BaseHomeViewProps {
   /** Columna izquierda del layout (AppShell): ahí va la lista de mensajes directos, por portal. */
   sidebarContainer?: HTMLElement | null;
 }

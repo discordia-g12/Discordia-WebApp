@@ -63,7 +63,7 @@ export function AppShell() {
 
         <aside className={`${styles.sidebar} ${styles[tone]}`} aria-label={isHome ? 'Mensajes directos' : 'Canales'}>
           <div ref={setSidebarSlot} className={styles.sidebarContent}>
-            {!isHome && <ChannelSidebarPanel showUserPanel={false} />}
+            {!isHome && <ChannelSidebarPanel />}
           </div>
           <div className={styles.sidebarFoot}>
             <DisplayText variant="watermark" tone={tone}>

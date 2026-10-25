@@ -11,20 +11,20 @@ describe('tokens.css', () => {
     await expect(buildCss()).toMatchFileSnapshot('../../tokens.css');
   });
 
-  it('todo queda detrás del flag del rediseño y el oscuro solo con data-theme', () => {
+  it('los tokens van en :root y el oscuro solo con data-theme', () => {
     const css = buildCss();
     const selectors = css.match(/^\s*[:@][^{]*\{/gm)?.map((s) => s.trim()) ?? [];
     expect(selectors).toEqual([
-      ':root[data-ui="nuevo"] {',
-      ':root[data-ui="nuevo"][data-theme="dark"] {',
+      ':root {',
+      ':root[data-theme="dark"] {',
       '@media (prefers-color-scheme: dark) {',
-      ':root[data-ui="nuevo"][data-theme="system"] {',
+      ':root[data-theme="system"] {',
       '@media (prefers-reduced-motion: reduce) {',
-      ':root[data-ui="nuevo"] {',
+      ':root {',
     ]);
   });
 
-  it('no reutiliza nombres de la paleta de Discord de index.css', () => {
+  it('los nombres llevan prefijo por categoría (no los de la paleta de Discord que tenía index.css)', () => {
     const css = buildCss();
     expect(css).not.toMatch(/--(text-muted|text-normal|bg-primary|brand)\s*:/);
     expect(css).toContain('--color-text-muted: #50565c;');

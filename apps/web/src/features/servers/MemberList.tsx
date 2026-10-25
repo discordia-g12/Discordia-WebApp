@@ -1,10 +1,19 @@
 import { useMemo } from 'react';
-import type { User } from '../../types';
+import type { Role, User } from '../../types';
 import { SectionLabel, SquareAvatar } from '../../ui';
-import type { MemberListProps } from './legacy/LegacyMemberList';
 import styles from './MemberList.module.css';
 
-export type { MemberListProps };
+export interface MemberListProps {
+  /** Lista de miembros del servidor. */
+  members?: User[];
+  /** Roles del servidor para determinar colores e insignias. */
+  roles?: Role[];
+  /** Callback al hacer clic sobre un miembro para abrir su perfil. */
+  onSelectMember?: (member: User) => void;
+  /** ID del usuario en sesión activa. */
+  currentUserId?: string;
+}
+
 
 const isOffline = (user: User) => user.status === 'offline' || user.status === 'invisible';
 

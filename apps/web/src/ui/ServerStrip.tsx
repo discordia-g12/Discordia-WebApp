@@ -51,7 +51,7 @@ export function ServerStrip({ server, active = false, unread, onPress, orientati
         onFocus={() => show()}
         onBlur={() => setOpen(null)}
       >
-        {image ? <img src={image} alt="" className={styles.image} /> : <span className={styles.placeholder}>{server.name.slice(0, 2)}</span>}
+        {image ? <img src={image} alt="" className={styles.image} /> : <span className={styles.placeholder} aria-hidden="true">{server.name.slice(0, 2)}</span>}
         {unread && <span className={styles.unread} aria-hidden="true" />}
       </button>
       <AnimatePresence>

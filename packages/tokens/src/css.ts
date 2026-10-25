@@ -7,15 +7,13 @@ import { distances, durations, easings, reducedMotion } from './motion';
 /**
  * Salida para la web: variables CSS (tokens.css, generado con `npm run build:css`).
  *
- * - Todo vive bajo :root[data-ui="nuevo"], el flag del rediseño: sin el flag la web sigue con la
- *   paleta de Discord de index.css. Los nombres llevan prefijo por categoría (--color-, --font-,
- *   --space-, --motion-) para no chocar con los de esa paleta (--text-muted, --bg-primary).
+ * - Los nombres llevan prefijo por categoría (--color-, --font-, --space-, --motion-).
  * - Modo oscuro con data-theme="dark", o data-theme="system" + preferencia del sistema. Sin
- *   data-theme queda el claro (el oscuro sale en el paso 12).
+ *   data-theme queda el claro.
  * - prefers-reduced-motion: fundidos de 150 ms, sin desplazamientos y sin intro.
  */
 
-const ROOT = ':root[data-ui="nuevo"]';
+const ROOT = ':root';
 
 const kebab = (name: string) => name.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 const pct = (fraction: number) => `${Math.round(fraction * 10000) / 100}%`;

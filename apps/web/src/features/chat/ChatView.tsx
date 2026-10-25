@@ -3,13 +3,46 @@ import { motion, useReducedMotion } from 'motion/react';
 import { Paperclip, Smile } from 'lucide-react';
 import { distances } from '@discordia/tokens';
 import { formatDayLabel, formatMessageHour, formatMessageTime, placeMessage } from '@discordia/core';
-import type { Message, User } from '../../types';
+import type { Channel, DirectMessage, Message, MessageAttachment, User } from '../../types';
 import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
-import type { ChatViewProps } from './legacy/LegacyChatView';
 import { POPULAR_EMOJIS, QUICK_EMOJIS, sanitizeText, useChatViewState, type ChatViewState } from './useChatViewState';
 import styles from './ChatView.module.css';
 
-export type { ChatViewProps };
+export interface ChatViewProps {
+  /** Canal activo si la vista corresponde a un servidor. */
+  channel?: Channel | null;
+  /** Conversación directa activa si la vista corresponde a un DM. */
+  directMessage?: DirectMessage | null;
+  /** Lista opcional de mensajes. Si no se provee, usa los datos mock. */
+  messages?: Message[];
+  /** ID del usuario actualmente autenticado. */
+  currentUserId?: string;
+  /** Directorio de usuarios para resolver autores y menciones. */
+  users?: Record<string, User>;
+  /** Indica si los mensajes se están cargando desde el servidor. */
+  isLoading?: boolean;
+  /** Callback al despachar un nuevo mensaje de texto o adjunto. */
+  onSendMessage?: (content: string, attachment?: MessageAttachment, replyToId?: string) => void;
+  /** Callback al alternar una reacción emoji. */
+  onToggleReaction?: (messageId: string, emoji: string) => void;
+  /** Callback al eliminar un mensaje. */
+  onDeleteMessage?: (messageId: string) => void;
+  /** Callback al confirmar la edición de un mensaje existente. */
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  /** Callback al fijar o desfijar un mensaje. */
+  onPinMessage?: (messageId: string) => void;
+  /** Callback para abrir el perfil del usuario clicado. */
+  onOpenUserProfile?: (userId: string) => void;
+  /** Callback para mostrar u ocultar la barra lateral de miembros. */
+  onToggleMemberList?: () => void;
+  /** Estado de visibilidad de la barra lateral de miembros. */
+  isMemberListOpen?: boolean;
+  /** Callback para iniciar llamada de voz directa. */
+  onStartVoiceCall?: () => void;
+  /** Callback para iniciar videollamada directa. */
+  onStartVideoCall?: () => void;
+}
+
 
 const UNKNOWN_USER = { username: 'desconocido', displayName: 'Desconocido', status: 'offline' } as const;
 
@@ -31,7 +64,7 @@ function useHistoryIds(conversationKey: string, messages: Message[], isLoading: 
  * Chat del rediseño (PDF, págs. 7 y 9), para canales y mensajes directos. Encabezado con el nombre y
  * enlaces de texto; mensajes con avatar cuadrado, metadato chico y texto grande, separados por día;
  * respuestas con una línea fina; reacciones y adjuntos sin bordes redondeados; barra de escritura de una
- * línea. La lógica es la de useChatViewState (compartida con legacy/LegacyChatView).
+ * línea. La lógica es la de useChatViewState.
  */
 export function ChatView(props: ChatViewProps) {
   const {

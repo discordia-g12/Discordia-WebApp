@@ -2,7 +2,15 @@ import React, { useState } from 'react';
 import { Server, Channel, User, ChannelType } from '../../../types';
 import { useRolesAdmin } from '@discordia/core';
 import { TabType } from './shared';
-import type { ServerSettingsProps } from '../ServerSettings';
+
+/** Lo que recibe la pantalla de ajustes del servidor. */
+export interface ServerSettingsProps {
+  server?: Server;
+  currentUser?: User;
+  onClose?: () => void;
+  onUpdateServer?: (updatedServer: Server) => void;
+}
+
 
 /** Estado y handlers de ServerSettings: viven en el componente y lo comparten todas sus pestañas. */
 export function useServerSettingsState(props: ServerSettingsProps) {

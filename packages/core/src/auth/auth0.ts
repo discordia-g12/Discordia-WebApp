@@ -1,6 +1,6 @@
 import type { AuthUser } from './adapter';
 import { getAuthConfig } from './config';
-import { toAuthDenialError } from './errors';
+import { SignupConflictError, toAuthDenialError } from './errors';
 
 /**
  * Authentication API de Auth0 (login con usuario y contraseña, y registro), igual en web y mobile:
@@ -132,15 +132,16 @@ export async function databaseSignup(signupData: SignupData): Promise<void> {
   const data = await res.json();
   if (!res.ok) {
     // Criterio de Aceptación Registro CA 2: Email o nombre de usuario ya registrado
+    if (data.code === 'user_exists') throw new SignupConflictError('email');
+    if (data.code === 'username_exists') throw new SignupConflictError('username');
     const descStr = typeof data.description === 'string' ? data.description.toLowerCase() : '';
     if (
       data.code === 'invalid_signup' ||
-      data.code === 'user_exists' ||
       descStr.includes('sign up') ||
       descStr.includes('already exists') ||
       descStr.includes('already registered')
     ) {
-      throw new Error('El correo o nombre de usuario ya está en uso.');
+      throw new SignupConflictError(null);
     }
 
     // Criterio de Aceptación Registro CA 4: Contraseña insegura

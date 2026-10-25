@@ -1,7 +1,7 @@
 import type { Status } from '../../../types';
 import { ActionLink, BlockButton, SquareAvatar, UnderlineInput } from '../../../ui';
 import { Choice, SettingsCell, SettingsScreen, SoonFieldset } from '../../settings/SettingsScreen';
-import type { OwnProfileViewProps } from '../OwnProfileView';
+import type { OwnProfileViewProps } from './useOwnProfileState';
 import { PRESET_BANNER_COLORS } from './shared';
 import { useOwnProfileState } from './useOwnProfileState';
 import styles from './OwnProfileScreen.module.css';

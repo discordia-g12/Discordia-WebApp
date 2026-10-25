@@ -25,7 +25,7 @@ describe('UserSettingsScreen (rediseño)', () => {
     expect(screen.getByText('•Contraseña y seguridad')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Voz' }));
-    expect(screen.getByRole('main', { name: 'Voz' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Voz' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Prueba de micrófono' })).toBeTruthy();
   });
 

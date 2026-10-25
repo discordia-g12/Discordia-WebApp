@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ApiError } from '../api/errors';
 import { requestPasswordReset } from '../api/passwordReset';
 import { upsertMyProfile } from '../api/users';
-import { AccountSuspendedError } from './errors';
+import { AccountSuspendedError, SignupConflictError } from './errors';
 import { backToLogin, loginWithCredentials, logout, retryBootstrap, signupWithCredentials, useSession } from './session';
 
 /**
@@ -225,7 +225,9 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
     } catch (err: any) {
       const msg = String(err?.message || '');
       // CA 2: Email o nombre de usuario ya registrado
-      if (
+      if (err instanceof SignupConflictError) {
+        setFormError(err.message, err.field);
+      } else if (
         msg.toLowerCase().includes('en uso') ||
         msg.toLowerCase().includes('already in use') ||
         msg.toLowerCase().includes('already exists') ||

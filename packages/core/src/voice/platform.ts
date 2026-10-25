@@ -22,8 +22,11 @@ export interface VoicePrefsStore {
 }
 
 export interface VoicePlatform {
-  /** livekit-client. Solo se llama al unirse a un canal. */
-  livekit(): LiveKitModule;
+  /**
+   * livekit-client. Solo se llama al unirse a un canal: la web lo carga recién ahí (import() dinámico, el
+   * paquete es pesado y la mayoría de las visitas no entra a una llamada).
+   */
+  livekit(): LiveKitModule | Promise<LiveKitModule>;
 
   /** false si la plataforma no puede hacer voz (Expo Go, sin WebRTC nativo). Default: true. */
   isSupported?(): boolean;

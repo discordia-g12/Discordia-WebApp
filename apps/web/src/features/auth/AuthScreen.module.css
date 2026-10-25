@@ -211,9 +211,13 @@
 .navHeading > :nth-child(1) { animation-delay: 200ms; }
 .navHeading > :nth-child(2) { animation-delay: 300ms; }
 
+/*
+ * Las entradas arrancan en 0.01 y no en 0: Chrome no cuenta como pintado (FCP / LCP) lo que aparece con
+ * una animación de opacidad desde 0, y la pantalla de acceso quedaba "en blanco" para las métricas.
+ */
 @keyframes enter {
   from {
-    opacity: 0;
+    opacity: 0.01;
     transform: translateY(var(--space-4));
   }
 }
@@ -228,7 +232,7 @@
 
 @keyframes fade {
   from {
-    opacity: 0;
+    opacity: 0.01;
   }
 }
 

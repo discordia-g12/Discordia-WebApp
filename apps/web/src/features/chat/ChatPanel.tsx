@@ -5,9 +5,7 @@ import { useCurrentServer } from '../servers/useCurrentServer';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
 import { useVoice } from '../voice/VoiceProvider';
-import { isNewUi } from '../../ui/flag';
 import { ChatView } from './ChatView';
-import { LegacyChatView } from './legacy/LegacyChatView';
 import { useMessageActions } from './useMessageActions';
 
 /** Chat del canal de texto seleccionado. */
@@ -25,10 +23,9 @@ export function ChatPanel() {
     selectedServerId !== 'home' ? selectedChannelId : null
   );
 
-  const View = isNewUi() ? ChatView : LegacyChatView;
 
   return (
-    <View
+    <ChatView
       channel={currentChannel}
       messages={realMessages || []}
       isLoading={isLoading}

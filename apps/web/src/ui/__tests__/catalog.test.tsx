@@ -212,7 +212,8 @@ describe('useMotionPreset', () => {
     const { useMotionPreset } = await import('../motion');
 
     const { result } = renderHook(() => useMotionPreset('curtain'));
-    expect(result.current.variants.hidden).toEqual({ opacity: 0 });
+    // Arranca en 0.01 y no en 0: así Chrome cuenta lo que entra como pintado (FCP / LCP)
+    expect(result.current.variants.hidden).toEqual({ opacity: 0.01 });
     expect(result.current.transition).toMatchObject({ duration: 0.15 });
   });
 

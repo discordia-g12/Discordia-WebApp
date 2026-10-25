@@ -15,7 +15,7 @@ import { ActionLink, BlockButton, EmptyState, Skeleton, SquareAvatar, UnderlineI
 import { useServerMembersAdmin } from '../../moderation/useServerMembersAdmin';
 import { useServerBansAdmin } from '../../moderation/useServerBansAdmin';
 import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen';
-import type { ServerSettingsProps } from '../ServerSettings';
+import type { ServerSettingsProps } from './useServerSettingsState';
 import { PERMISSION_CATEGORIES, PRESET_ROLE_COLORS } from './shared';
 import { useServerSettingsState, type ServerSettingsState } from './useServerSettingsState';
 import { useUIStore } from '../../../app/uiStore';

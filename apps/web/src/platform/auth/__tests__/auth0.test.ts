@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { auth0Provider, hasStoredSession } from '../auth0';
-import { AccountSuspendedError, EmailNotVerifiedError } from '@discordia/core';
+import { AccountSuspendedError, EmailNotVerifiedError, SignupConflictError } from '@discordia/core';
 
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -116,5 +116,23 @@ describe('auth0Provider.signupWithCredentials', () => {
     // El username viaja en user_metadata: la Action lo devuelve en el ID token tras verificar.
     const signupBody = JSON.parse(String(fetchSpy.mock.calls[0][1]?.body));
     expect(signupBody.user_metadata.username).toBe('cyber_knight');
+  });
+
+  it.each([
+    ['user_exists', 'email'],
+    ['username_exists', 'username'],
+    ['invalid_signup', null],
+  ] as const)('signup rechazado con %s -> SignupConflictError del campo %s, sin intentar el login', async (code, field) => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse(400, { name: 'BadRequestError', code, description: 'Auth0 error' }));
+
+    const err = await auth0Provider
+      .signupWithCredentials({ ...CREDS, username: 'cyber_knight' })
+      .catch((e) => e);
+
+    expect(err).toBeInstanceOf(SignupConflictError);
+    expect((err as SignupConflictError).field).toBe(field);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

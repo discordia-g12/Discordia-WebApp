@@ -26,12 +26,10 @@ import {
 import styles from './Catalog.module.css';
 
 /**
- * Catálogo del rediseño, solo en desarrollo: /?catalogo (se suma ?tema=oscuro para el modo noche).
- * Activa el flag por su cuenta: es una página de referencia, no parte de la app.
+ * Catálogo de componentes, solo en desarrollo: /?catalogo (se suma ?tema=oscuro para el modo noche).
+ * Es una página de referencia, no parte de la app.
  */
 export function Catalog() {
-  document.documentElement.dataset.ui = 'nuevo';
-
   return (
     <main className={styles.page}>
       <header className={styles.header}>

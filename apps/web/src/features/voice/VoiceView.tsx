@@ -3,13 +3,42 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { MicOff, Shapes } from 'lucide-react';
 import { transitions } from '../../ui';
 import type { VoiceParticipant } from '../channels/ChannelSidebar';
-import type { VoiceViewConnectionState, VoiceViewProps as LegacyVoiceViewProps } from './legacy/LegacyVoiceView';
 import { VoiceParticipantMenu } from './VoiceParticipantMenu';
 import styles from './VoiceView.module.css';
 
-export type { VoiceViewConnectionState };
 
-export interface VoiceViewProps extends LegacyVoiceViewProps {
+export type VoiceViewConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+
+interface BaseVoiceViewProps {
+  /** Nombre del canal de voz activo. */
+  channelName?: string;
+  /** Nombre de la comunidad o servidor activo. */
+  serverName?: string;
+  /** ID del usuario actualmente autenticado. */
+  currentUserId?: string;
+  /** Participantes conectados en la sala de voz, con su estado de audio. */
+  participants?: VoiceParticipant[];
+  /** Estado de la conexión con el servidor de voz. */
+  connectionState?: VoiceViewConnectionState;
+  /** Estado de micrófono silenciado del usuario local. */
+  isMuted?: boolean;
+  /** Estado de ensordecido (deafened) del usuario local. */
+  isDeafened?: boolean;
+  /** Usuarios silenciados solo para este cliente. */
+  locallyMutedUsers?: Record<string, boolean>;
+  /** Callback al alternar micrófono local. */
+  onToggleMute?: () => void;
+  /** Callback al alternar ensordecido local. */
+  onToggleDeafen?: () => void;
+  /** Callback al silenciar o reactivar a otro participante solo para este cliente. */
+  onToggleLocalMute?: (userId: string) => void;
+  /** Callback para abandonar la sala de voz. */
+  onDisconnect?: () => void;
+  /** Callback al hacer clic en un usuario participante. */
+  onSelectUser?: (user: VoiceParticipant['user']) => void;
+}
+
+export interface VoiceViewProps extends BaseVoiceViewProps {
   /** Abre la invitación al servidor ("Invitar a la llamada +"). */
   onInvite?: () => void;
 }
@@ -119,7 +148,7 @@ export function VoiceView({
                     {isMe && ' (vos)'}
                   </span>
                   {locallyMuted && (
-                    <span className={styles.localMute} aria-label="Silenciado para vos">
+                    <span className={styles.localMute} role="img" aria-label="Silenciado para vos">
                       · silenciado para vos
                     </span>
                   )}

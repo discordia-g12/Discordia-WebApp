@@ -2,20 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AuthView, PASSWORD_RESET_SENT_MESSAGE } from '../AuthView';
 import { useSession, authService } from '../../../platform/auth/session';
-import { AccountSuspendedError } from '@discordia/core';
+import { AccountSuspendedError, SignupConflictError } from '@discordia/core';
 
-// Los mismos criterios para las dos vistas: la del rediseño (flag data-ui="nuevo") y la anterior
-describe.each([
-  ['diseño anterior', false],
-  ['rediseño', true],
-])('AuthView (%s) - Criterios de Aceptación', (_name, newUi) => {
-  afterEach(() => {
-    delete document.documentElement.dataset.ui;
-  });
-
+// Criterios de aceptación del acceso (lo propio del diseño está en AuthScreen.test.tsx)
+describe('AuthView - Criterios de Aceptación', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    if (newUi) document.documentElement.dataset.ui = 'nuevo';
     useSession.setState({
       status: 'unauthenticated',
       profile: null,
@@ -101,6 +93,25 @@ describe.each([
 
       const errorMsg = await screen.findByText(/el correo o nombre de usuario ya está en uso/i);
       expect(errorMsg).toBeTruthy();
+    });
+
+    it.each([
+      ['email', /ya existe una cuenta con ese correo\. iniciá sesión/i],
+      ['username', /ese nombre de usuario ya está tomado/i],
+    ] as const)('CA 2: Auth0 indica que el %s ya existe - Muestra el mensaje de ese campo', async (field, message) => {
+      vi.spyOn(authService, 'signupWithCredentials').mockRejectedValue(new SignupConflictError(field));
+
+      render(<AuthView />);
+
+      fireEvent.click(screen.getByTestId('tab-register'));
+      fireEvent.change(screen.getByPlaceholderText(/ej: alexr/i), { target: { value: 'nuevo_usuario' } });
+      fireEvent.change(screen.getByPlaceholderText(/ejemplo@discordia.com/i), { target: { value: 'repetido@discordia.com' } });
+      fireEvent.change(screen.getAllByPlaceholderText(/mínimo 8 caracteres/i)[0], { target: { value: 'Password123!' } });
+      fireEvent.change(screen.getByPlaceholderText(/repite tu contraseña/i), { target: { value: 'Password123!' } });
+
+      fireEvent.click(screen.getByTestId('btn-submit-register'));
+
+      expect(await screen.findByText(message)).toBeTruthy();
     });
 
     it('CA 1: Registro exitoso con datos válidos - Invoca signupWithCredentials', async () => {

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { Status } from '../../../types';
 import { ActionLink, BlockButton, SquareAvatar, UnderlineInput } from '../../../ui';
-import { getThemePreference, setThemePreference, type ThemePreference } from '../../../ui/flag';
+import { getThemePreference, setThemePreference, type ThemePreference } from '../../../ui/theme';
 import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen';
-import type { UserSettingsProps } from '../UserSettings';
+import type { UserSettingsProps } from './useUserSettingsState';
 import { BACKUP_CODES } from './shared';
 import { useUserSettingsState, type UserSettingsState } from './useUserSettingsState';
 import styles from './UserSettingsScreen.module.css';

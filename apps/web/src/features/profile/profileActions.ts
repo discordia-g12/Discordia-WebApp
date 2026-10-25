@@ -1,7 +1,6 @@
 import { showToast, useUIStore } from '../../app/uiStore';
 import { authService } from '../../platform/auth/session';
 import { useCurrentUserStore } from './currentUserStore';
-import { isNewUi } from '../../ui/flag';
 
 /** Abre un perfil: el propio a pantalla completa, el de otro usuario en un modal. */
 export function openUserProfile(userId: string) {
@@ -35,7 +34,7 @@ export function useUserPanelActions() {
     onEditProfile: () => setAppView('own-profile'),
     onBuyPoints: () => setAppView('user-settings'),
     onSubscribePremium: () => setAppView('user-settings'),
-    // Con el rediseño, cerrar sesión pide confirmación (en el diseño anterior, la pedían los ajustes)
-    onLogout: () => (isNewUi() ? useUIStore.getState().openConfirm('logout', '') : logoutWithToast()),
+    // Cerrar sesión pide confirmación
+    onLogout: () => useUIStore.getState().openConfirm('logout', ''),
   };
 }

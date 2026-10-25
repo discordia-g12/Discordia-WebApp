@@ -4,15 +4,10 @@ import { AuthView } from '../AuthView';
 import { DawnIntro } from '../DawnIntro';
 import { useSession } from '../../../platform/auth/session';
 
-// Lo propio de la vista del rediseño; los criterios de aceptación compartidos están en AuthView.test.tsx
-describe('AuthScreen (rediseño)', () => {
+// Lo propio del diseño del acceso; los criterios de aceptación compartidos están en AuthView.test.tsx
+describe('AuthScreen', () => {
   beforeEach(() => {
-    document.documentElement.dataset.ui = 'nuevo';
     useSession.setState({ status: 'unauthenticated', profile: null, error: null, isMock: false, pendingEmail: null });
-  });
-
-  afterEach(() => {
-    delete document.documentElement.dataset.ui;
   });
 
   it('las palabras gigantes navegan entre login y registro y marcan la activa', () => {
@@ -97,12 +92,7 @@ describe('AuthScreen (rediseño)', () => {
 
 describe('DawnIntro', () => {
   beforeEach(() => {
-    document.documentElement.dataset.ui = 'nuevo';
     localStorage.removeItem('discordia_intro_seen');
-  });
-
-  afterEach(() => {
-    delete document.documentElement.dataset.ui;
   });
 
   it('sale en el primer ingreso y se saltea con una tecla', async () => {

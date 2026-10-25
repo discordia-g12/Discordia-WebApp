@@ -1,8 +1,3 @@
-// Tema del rediseño (tokens de @discordia/tokens)
+// Tema de la app: los tokens de @discordia/tokens (nativeTheme) y la fuente
 export * from './ThemeProvider'
 export * from './fonts'
-
-// Paleta anterior: la usan las pantallas que todavía no se rediseñaron (paso 13). Se borra al terminar.
-export * from './colors'
-export * from './typography'
-export * from './spacing'
