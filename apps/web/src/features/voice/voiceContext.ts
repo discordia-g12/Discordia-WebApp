@@ -11,6 +11,8 @@ interface VoiceContextValue {
   disconnect: () => void;
   /** true si entrar a channelId implica salir de otro canal de voz. */
   isSwitching: (channelId: string) => boolean;
+  /** Prende o apaga la cámara propia; avisa si el navegador no da acceso. */
+  toggleCamera: () => Promise<void>;
 }
 
 export const VoiceContext = createContext<VoiceContextValue | null>(null);

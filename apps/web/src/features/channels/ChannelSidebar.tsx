@@ -1,3 +1,4 @@
+import type { VideoTrack } from 'livekit-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MicOff, HeadphoneOff, VolumeX } from 'lucide-react';
 import { isLocalCategoryId } from '@discordia/core';
@@ -16,6 +17,8 @@ export interface VoiceParticipant {
   isMuted?: boolean;
   /** Indica si tiene ensordecido su audio. */
   isDeafened?: boolean;
+  /** Cámara prendida (solo en la sala en la que estoy): se muestra en su ficha. */
+  videoTrack?: VideoTrack | null;
 }
 
 export interface ChannelSidebarProps {
