@@ -10,3 +10,7 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 coverage
+**/node_modules
+apps/mobile/*
+!apps/mobile/package.json
+svg

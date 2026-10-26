@@ -1,0 +1,105 @@
+/**
+ * Errores de autenticación del lado del IdP (Auth0) y su clasificación.
+ *
+ * Contrato con la Auth0 Post Login Action: cuando la Action rechaza un login
+ * hace `api.access.deny(<código>)`. Auth0 lo devuelve como
+ *   { error: 'access_denied', error_description: '<código>' }
+ * tanto en el body de /oauth/token (grant password-realm) como en el redirect
+ * al callback (Universal Login, que auth0-spa-js expone en GenericError).
+ *
+ * `access_denied` solo no alcanza: Auth0 también lo usa para usuarios
+ * bloqueados. Por eso se decide siempre por el código de `error_description`,
+ * nunca por el texto del mensaje.
+ */
+
+export const AUTH_DENY_CODES = {
+  EMAIL_NOT_VERIFIED: 'email_not_verified',
+} as const;
+
+/** El usuario ingresó credenciales correctas pero todavía no verificó su email. */
+export class EmailNotVerifiedError extends Error {
+  readonly email?: string;
+
+  constructor(email?: string) {
+    super('Tu email todavía no está verificado.');
+    this.name = 'EmailNotVerifiedError';
+    this.email = email;
+  }
+}
+
+/** Auth0 denegó el acceso por un motivo distinto a la verificación (cuenta bloqueada/suspendida). */
+export class AccountSuspendedError extends Error {
+  constructor() {
+    super('Tu cuenta se encuentra suspendida.');
+    this.name = 'AccountSuspendedError';
+  }
+}
+
+/**
+ * Auth0 rechazó el registro porque el email o el username ya existen (/dbconnections/signup).
+ * `field` dice cuál: Auth0 responde `user_exists` para el email y `username_exists` para el
+ * username. `invalid_signup` no distingue, así que queda en null y el mensaje nombra los dos.
+ */
+export class SignupConflictError extends Error {
+  readonly field: 'email' | 'username' | null;
+
+  constructor(field: 'email' | 'username' | null) {
+    super(
+      field === 'email'
+        ? 'Ya existe una cuenta con ese correo. Iniciá sesión.'
+        : field === 'username'
+          ? 'Ese nombre de usuario ya está tomado. Elegí otro.'
+          : 'El correo o nombre de usuario ya está en uso.'
+    );
+    this.name = 'SignupConflictError';
+    this.field = field;
+  }
+}
+
+export type AuthDenial = 'email_not_verified' | 'suspended';
+
+/**
+ * Clasifica un error de autenticación. Devuelve null si no es un rechazo del
+ * IdP (credenciales inválidas, red, login_required, etc.).
+ *
+ * Acepta:
+ *  - los errores tipados de este módulo;
+ *  - objetos con { error, error_description } (GenericError de auth0-spa-js o
+ *    el body de /oauth/token);
+ *  - Error planos cuyo message contiene 'access_denied' (compatibilidad con
+ *    el formato "access_denied: <detalle>").
+ */
+export function classifyAuthDenial(err: unknown): AuthDenial | null {
+  if (err instanceof EmailNotVerifiedError) return 'email_not_verified';
+  if (err instanceof AccountSuspendedError) return 'suspended';
+
+  const e = (err ?? {}) as { error?: unknown; error_description?: unknown; message?: unknown };
+  const code = typeof e.error === 'string' ? e.error : '';
+  const description = typeof e.error_description === 'string' ? e.error_description : '';
+  const message = typeof e.message === 'string' ? e.message : '';
+
+  if (code === 'access_denied') {
+    return description === AUTH_DENY_CODES.EMAIL_NOT_VERIFIED ? 'email_not_verified' : 'suspended';
+  }
+
+  if (message.includes('access_denied')) {
+    return message.includes(AUTH_DENY_CODES.EMAIL_NOT_VERIFIED) ? 'email_not_verified' : 'suspended';
+  }
+
+  return null;
+}
+
+/**
+ * Traduce el body de error de /oauth/token a un error tipado cuando es un rechazo de la Action.
+ * Devuelve null en cualquier otro caso (credenciales inválidas, errores de Auth0), que siguen su
+ * manejo habitual.
+ */
+export function toAuthDenialError(
+  body: { error?: unknown; error_description?: unknown } | null | undefined,
+  email?: string
+): EmailNotVerifiedError | AccountSuspendedError | null {
+  if (body?.error !== 'access_denied') return null;
+  return body.error_description === AUTH_DENY_CODES.EMAIL_NOT_VERIFIED
+    ? new EmailNotVerifiedError(email)
+    : new AccountSuspendedError();
+}

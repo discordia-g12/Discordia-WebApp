@@ -1,0 +1,132 @@
+import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { getInvitePreview, joinServerViaInvite, useCreateServerMutation } from '@discordia/core';
+import type { Server } from '../../types';
+import { showToast, useUIStore } from '../../app/uiStore';
+
+/** Crea un servidor y lo selecciona. */
+export function useCreateServer() {
+  const createServerMutation = useCreateServerMutation();
+
+  return async (name: string, icon?: string | File) => {
+    try {
+      const newServer = await createServerMutation.mutateAsync({
+        name,
+        icon: icon instanceof File ? icon : undefined,
+      });
+      // Abre el servidor con su primer canal de texto (•general)
+      selectServer(newServer.id, [newServer]);
+      useUIStore.getState().setActiveModal(null);
+      showToast('Servidor creado', 'success');
+    } catch {
+      showToast('Error al crear el servidor', 'danger');
+    }
+  };
+}
+
+/** Código de una invitación a partir de lo que se pegó: el enlace entero o solo el código. */
+export function inviteCodeFrom(invite: string): string {
+  const trimmed = invite.trim().replace(/\/+$/, '');
+  return trimmed.split('/').pop() || trimmed;
+}
+
+/** Saca /invite/<código> de la barra de direcciones (después de usar o descartar la invitación). */
+export function clearInviteFromUrl() {
+  if (window.location.pathname.startsWith('/invite/')) {
+    window.history.replaceState({}, document.title, '/');
+  }
+}
+
+/**
+ * Se une a un servidor con una invitación y actualiza la lista de servidores. Si falla, rechaza con el
+ * mensaje para mostrar.
+ */
+export function useJoinServer() {
+  const queryClient = useQueryClient();
+
+  return async (invite: string) => {
+    let serverId: string;
+    try {
+      ({ server_id: serverId } = await joinServerViaInvite(inviteCodeFrom(invite)));
+    } catch {
+      throw new Error('La invitación no es válida o ya venció.');
+    }
+    await queryClient.invalidateQueries({ queryKey: ['servers'] });
+    clearInviteFromUrl();
+    // Abre el servidor al que se unió (useEnsureChannelSelected elige su primer canal de texto)
+    useUIStore.getState().setSelectedServerId(serverId);
+    useUIStore.getState().setAppView('chat');
+    showToast('Te uniste al servidor', 'success');
+  };
+}
+
+export interface InvitePreview {
+  name: string;
+  description?: string;
+  iconUrl?: string;
+  memberCount?: number;
+}
+
+/** Vista previa del servidor de una invitación, mientras se escribe (espera medio segundo sin cambios). */
+export function useInvitePreview(invite: string): InvitePreview | null {
+  const [preview, setPreview] = useState<InvitePreview | null>(null);
+
+  useEffect(() => {
+    const code = inviteCodeFrom(invite);
+    if (code.length < 3) {
+      setPreview(null);
+      return;
+    }
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      getInvitePreview(code)
+        .then((data) => {
+          if (cancelled) return;
+          setPreview({
+            name: data.server_name,
+            description: data.server_description || undefined,
+            iconUrl: data.server_icon || undefined,
+            memberCount: data.member_count,
+          });
+        })
+        .catch(() => !cancelled && setPreview(null));
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [invite]);
+
+  return preview;
+}
+
+/** Aplica en el caché la configuración guardada desde los ajustes del servidor. */
+export function useUpdateServer() {
+  const queryClient = useQueryClient();
+
+  return (updatedServer: Server) => {
+    queryClient.setQueryData<Server[]>(['servers'], (prev = []) =>
+      prev.map((s) => (s.id === updatedServer.id ? updatedServer : s))
+    );
+    showToast('Configuración del servidor guardada', 'success');
+  };
+}
+
+/** Selecciona un servidor (y su primer canal de texto) o el inicio. */
+export function selectServer(serverId: string | 'home', servers: Server[]) {
+  const ui = useUIStore.getState();
+  ui.setSelectedServerId(serverId);
+  if (serverId === 'home') {
+    ui.setAppView('home');
+    ui.setSelectedDmId(null);
+  } else {
+    const srv = servers.find((s) => s.id === serverId);
+    if (srv) {
+      const firstTextChannel = srv.categories
+        .flatMap((c) => c.channels)
+        .find((ch) => ch.type === 'text');
+      ui.setSelectedChannelId(firstTextChannel?.id || null);
+      ui.setAppView('chat');
+    }
+  }
+}

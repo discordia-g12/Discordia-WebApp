@@ -1,0 +1,83 @@
+/* Grilla de escritorio: rail | barra lateral | contenido, separados por líneas de 1 px (PDF, págs. 6 y 7) */
+.shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--layout-rail-width) var(--layout-sidebar-width) minmax(0, 1fr);
+  width: 100vw;
+  height: 100vh;
+  /* clip y no hidden: con hidden el contenedor igual se puede scrollear por código (el scrollIntoView del
+     chat lo corría, porque la capa del degradé sobresale) */
+  overflow: clip;
+  isolation: isolate;
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+/*
+ * Degradé de fondo con deriva muy lenta (60 s, solo transform). Más alto que la pantalla para que al
+ * moverse no se vea el borde; con movimiento reducido queda quieto.
+ */
+.drift {
+  position: absolute;
+  inset: -12% 0;
+  z-index: -1;
+  background: var(--gradient-background);
+  animation: drift var(--motion-duration-drift) ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, -8%, 0);
+  }
+  to {
+    transform: translate3d(0, 8%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drift {
+    animation: none;
+  }
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: var(--line-hairline) solid var(--color-line-strong);
+  transition: background-color var(--motion-duration-slow) var(--motion-ease-standard);
+}
+
+/* En un servidor la barra lateral se tiñe de celeste (PDF, pág. 7) */
+.sky {
+  background: var(--color-sky-tint);
+}
+
+/* Contenido del diseño anterior (canales, mensajes directos): ocupa el ancho de la columna */
+.sidebarContent {
+  --channel-sidebar-width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarContent > * {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Marca de agua cortada por la barra de usuario: no hay espacio entre las dos */
+.sidebarFoot {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}

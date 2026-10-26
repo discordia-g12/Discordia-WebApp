@@ -1,0 +1,76 @@
+import { lazy, Suspense, useEffect } from 'react';
+import { AnimatePresence } from 'motion/react';
+import { useUIStore } from './uiStore';
+import { useCurrentServer } from '../features/servers/useCurrentServer';
+import { useUpdateServer } from '../features/servers/serverActions';
+import { useCurrentUser, useCurrentUserStore } from '../features/profile/currentUserStore';
+
+// Las tres pantallas van en chunks aparte (no hacen falta para el primer pintado) y se precargan cuando el
+// navegador queda libre, así al abrirlas ya están. Cada una con su Suspense (con la key que mira
+// AnimatePresence), para que una que carga no esconda la que se está yendo.
+const loadUserSettings = () => import('../features/settings/user/UserSettingsScreen');
+const loadServerSettings = () => import('../features/settings/server/ServerSettingsScreen');
+const loadOwnProfile = () => import('../features/profile/own-profile/OwnProfileScreen');
+const UserSettingsScreen = lazy(() => loadUserSettings().then((m) => ({ default: m.UserSettingsScreen })));
+const ServerSettingsScreen = lazy(() => loadServerSettings().then((m) => ({ default: m.ServerSettingsScreen })));
+const OwnProfileScreen = lazy(() => loadOwnProfile().then((m) => ({ default: m.OwnProfileScreen })));
+
+function preload() {
+  void loadUserSettings();
+  void loadServerSettings();
+  void loadOwnProfile();
+}
+
+/**
+ * Ajustes de usuario, ajustes del servidor y perfil propio bajan como una cortina encima del
+ * layout (que sigue montado, así no se corta el chat ni la llamada) y suben al cerrarse. Igual en
+ * escritorio y en mobile.
+ */
+export function FullScreenViews() {
+  const appView = useUIStore((s) => s.appView);
+  const setAppView = useUIStore((s) => s.setAppView);
+  const { currentServer } = useCurrentServer();
+  const currentUser = useCurrentUser();
+  const saveProfile = useCurrentUserStore((s) => s.saveProfile);
+  const updateServer = useUpdateServer();
+  const close = () => setAppView('chat');
+
+  useEffect(() => {
+    if (typeof window.requestIdleCallback !== 'function') return void setTimeout(preload, 2000);
+    const id = window.requestIdleCallback(preload, { timeout: 5000 });
+    return () => window.cancelIdleCallback(id);
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {appView === 'user-settings' && (
+        <Suspense key="user-settings" fallback={null}>
+          <UserSettingsScreen
+            currentUser={currentUser}
+            onClose={close}
+            onUpdateUser={saveProfile}
+            onLogout={() => useUIStore.getState().openConfirm('logout', '')}
+          />
+        </Suspense>
+      )}
+      {appView === 'server-settings' && currentServer && (
+        <Suspense key="server-settings" fallback={null}>
+          <ServerSettingsScreen
+            server={currentServer}
+            currentUser={currentUser}
+            onClose={close}
+            onUpdateServer={updateServer}
+            onInvite={() => useUIStore.getState().setActiveModal('invite')}
+            onDeleteServer={() => useUIStore.getState().openConfirm('delete-server', currentServer.name)}
+            onLeaveServer={() => useUIStore.getState().openConfirm('leave-server', currentServer.name)}
+          />
+        </Suspense>
+      )}
+      {appView === 'own-profile' && (
+        <Suspense key="own-profile" fallback={null}>
+          <OwnProfileScreen currentUser={currentUser} onBack={close} onSave={saveProfile} />
+        </Suspense>
+      )}
+    </AnimatePresence>
+  );
+}

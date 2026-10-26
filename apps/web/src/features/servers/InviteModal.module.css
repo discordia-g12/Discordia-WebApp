@@ -1,0 +1,52 @@
+/* Como la etiqueta de UnderlineInput */
+.label {
+  margin: 0;
+  font-size: var(--font-label-size);
+  line-height: var(--font-label-line-height);
+  font-weight: var(--font-label-weight);
+}
+
+.link,
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* El enlace entre dos líneas, como un campo subrayado, con _copiar a la derecha */
+.field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  border-top: var(--line-hairline) solid var(--color-line-strong);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.field input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) 0;
+  font-family: inherit;
+  font-size: var(--font-body-size);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+
+.field:focus-within {
+  border-bottom-width: var(--line-focus);
+}
+
+/* Enlace generado con otras opciones: atenuado hasta generar uno nuevo */
+.stale {
+  opacity: 0.5;
+}
+
+.status {
+  min-height: 1.4em;
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}

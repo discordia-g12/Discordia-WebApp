@@ -1,0 +1,21 @@
+{
+  "name": "@discordia/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "build:css": "vitest run -u src/__tests__/outputs.test.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./tokens.css"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.1"
+  }
+}

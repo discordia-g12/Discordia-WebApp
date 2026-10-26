@@ -1,0 +1,49 @@
+/* El título arriba y la línea de la grilla debajo, de borde a borde y con aire: no toca las letras
+   (apoyada en el pie del texto, igual lo tapaba según la fuente y el tamaño) */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.line {
+  order: 1;
+  height: var(--line-hairline);
+  background: var(--color-line-strong);
+  opacity: 0.6;
+}
+
+.heading,
+.toggle {
+  position: relative;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0 0 0 var(--space-5);
+  padding: 0;
+  font-size: var(--font-label-size);
+  line-height: var(--font-label-line-height);
+  letter-spacing: var(--font-label-letter-spacing);
+  font-weight: var(--font-label-weight);
+  text-transform: var(--font-label-transform);
+  color: var(--color-text);
+}
+
+.toggle {
+  background: none;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.chevron {
+  display: inline-block;
+  font-weight: 400;
+  text-transform: none;
+  transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.closed {
+  transform: rotate(-90deg);
+}

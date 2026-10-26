@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # La misma versión que Cloudflare Pages y los Dockerfiles (Expo SDK 58 / RN 0.88 piden Node 22)
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Web, mobile, core y tokens
+      - name: Type check
+        run: npm run typecheck
+
+      # Una sola config para todo el monorepo (eslint.config.mjs). Falla con errores, no con avisos
+      - name: Lint
+        run: npm run lint
+
+      - name: Dependency audit
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+      # Web, core y tokens (mobile no tiene tests)
+      - name: Run tests
+        run: npm test
+
+      # Lo mismo que compila Cloudflare Pages al publicar main
+      - name: Build web
+        run: npm run build
+
+      # Que Metro pueda armar el bundle que cargan Expo Go y el APK
+      - name: Bundle mobile
+        working-directory: apps/mobile
+        run: npx expo export --platform android --platform ios --output-dir "$RUNNER_TEMP/expo-export"
+
+  docker:
+    # Valida el Dockerfile que usa el compose local. No se publica: en producción la web la sirve Pages.
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # evita el límite de descargas anónimas de Docker Hub (imágenes base)
+      - name: Log in to Docker Hub
+        if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

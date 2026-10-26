@@ -1,0 +1,118 @@
+/* Columna derecha del chat, del ancho de ACTIVO AHORA, separada por una línea */
+.aside {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: var(--layout-aside-width);
+  min-height: 0;
+  border-left: var(--line-hairline) solid var(--color-line-strong);
+  color: var(--color-text);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: var(--space-7);
+  padding: 0 var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-label-size);
+  letter-spacing: var(--font-label-letter-spacing);
+  font-weight: var(--font-label-weight);
+  text-transform: uppercase;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-5) 0;
+}
+
+.group + .group {
+  margin-top: var(--space-5);
+}
+
+.list {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-1) var(--space-5);
+  background: none;
+  border: 0;
+  font-family: inherit;
+  text-align: left;
+  color: var(--color-text);
+  cursor: pointer;
+  animation: enter var(--motion-duration-base) var(--motion-ease-enter) both;
+}
+
+.member:hover .name {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Desconectados: en gris */
+.offline {
+  color: var(--color-text-muted);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  font-weight: 700;
+}
+
+/* Color del rol: un cuadrado chico (el rojo y los colores elegidos nunca como texto) */
+.role {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: var(--space-1);
+  vertical-align: middle;
+}
+
+.meta {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line-height);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateX(var(--space-2));
+  }
+}
+
+/* ── Pantalla chica (mobile web) ── */
+@media (max-width: 767px) {
+  .aside {
+    width: 100%;
+    border-left: 0;
+  }
+}

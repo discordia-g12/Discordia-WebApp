@@ -35,3 +35,10 @@ Además, mobile comparte con la web la capa de API (`@shared/*` → `../src/*`, 
 * En mobile, mute/deafen no se recuerdan al reiniciar la app (la web los guarda en `localStorage`); haría falta `AsyncStorage`.
 * La app mobile no tiene tests automatizados (no hay Jest configurado); la voz en mobile se verificó manualmente con un development build en Android. iOS no se probó.
 * El APK de entrega (`preview`/producción) incluirá el código nativo de WebRTC y los permisos de micrófono.
+
+**Actualización (22/10/2026, paso 1.2 de `docs/TODO-REDISENO.md`):**
+Con el monorepo hay una sola copia de React (19) y la lógica compartida vive en `@discordia/core`, sin `import.meta.env`. Eso elimina las dos restricciones que motivaron las decisiones 5 y 6:
+
+* La decisión 5 queda reemplazada: `useVoiceRoom` y `useVoicePresence` son los de `@discordia/core`, iguales en web y mobile. Lo que cambia por plataforma (cargar LiveKit con `require`, abrir la sesión de audio, pedir el permiso de micrófono en Android, reproducir el audio en la web con `<audio>`) lo aporta un adaptador `VoicePlatform`; el de mobile está en `apps/mobile/src/utils/voice.ts`. Las decisiones 1 a 4 (development build, detección del módulo nativo, `require` en tiempo de ejecución, `expo start --go`) siguen vigentes.
+* La decisión 6 queda reemplazada: los perfiles se piden con `getUsersBulk` de core, el mismo que usa la web.
+* Ya no hay lógica de voz duplicada. Sigue pendiente recordar mute/deafen en mobile: `VoicePlatform.prefs` lo soporta, pero necesita un storage síncrono y `AsyncStorage` no lo es.

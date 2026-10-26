@@ -1,0 +1,30 @@
+/*
+ * Base de la web: el degradé, la tipografía y el foco. Los valores vienen de @discordia/tokens (tokens.css).
+ */
+
+/* El degradé va en <html>; body y #root quedan transparentes */
+:root {
+  background: var(--gradient-background) fixed, var(--color-background);
+}
+
+:root body,
+:root #root {
+  background: transparent;
+  font-family: var(--font-family);
+  font-size: var(--font-body-size);
+  line-height: var(--font-body-line-height);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Foco visible: contorno de 2px en el color del texto, sin redondear */
+:root :focus-visible {
+  outline: var(--line-focus) solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+:root ::selection {
+  background: var(--color-inverse-background);
+  color: var(--color-inverse-text);
+}

@@ -1,0 +1,122 @@
+/* Columna del rail: logo arriba, franjas, y las acciones al pie */
+.rail {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: var(--layout-rail-width);
+  height: 100%;
+  border-right: var(--line-hairline) solid var(--color-line-strong);
+  user-select: none;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--space-8);
+  color: var(--color-text);
+}
+
+/* Las franjas salen del borde izquierdo; la etiqueta negra se despliega por encima de la barra lateral */
+.strips {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-5) 0;
+  list-style: none;
+  overflow-y: auto;
+  overflow-x: visible;
+  scrollbar-width: none;
+}
+
+.strips::-webkit-scrollbar {
+  display: none;
+}
+
+.loading {
+  padding: 0 var(--space-2);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: var(--space-2);
+}
+
+/* Íconos de línea fina, cada uno con una línea corta debajo (PDF, pág. 6) */
+.action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-7);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.action:last-child {
+  border-bottom: 0;
+}
+
+.action:hover,
+.actionActive {
+  color: var(--color-text);
+}
+
+/* Inicio activo: una barra a la izquierda, como el corrimiento de la franja activa */
+.actionActive::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--space-4) - 2px);
+  top: 50%;
+  width: var(--line-accent);
+  height: var(--space-5);
+  transform: translateY(-50%);
+  background: var(--color-inverse-background);
+}
+
+.badge {
+  position: absolute;
+  top: var(--space-3);
+  right: 2px;
+  width: var(--space-1);
+  height: var(--space-1);
+  background: var(--color-inverse-background);
+}
+
+/* Etiqueta negra al pasar el mouse o con foco (la de las franjas, en CSS: no hay contenido dinámico) */
+.action::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + var(--space-4));
+  top: 50%;
+  z-index: 10;
+  padding: var(--space-1) var(--space-3);
+  white-space: nowrap;
+  font-size: var(--font-label-size);
+  font-weight: 700;
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  opacity: 0;
+  transform: translate(calc(-1 * var(--space-2)), -50%);
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+  pointer-events: none;
+}
+
+.action:hover::after,
+.action:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+}

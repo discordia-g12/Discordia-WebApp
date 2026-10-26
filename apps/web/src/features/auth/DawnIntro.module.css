@@ -1,0 +1,40 @@
+/* Encima de todo (también del login), hasta que termina o se saltea */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  overflow: hidden;
+  cursor: pointer;
+  background: #000;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+}
+
+.night {
+  background: var(--gradient-intro-night);
+}
+
+/*
+ * 1.5 veces el alto de la pantalla, sobrando hacia arriba: el degradé ocupa el tramo de abajo (del tamaño
+ * de la pantalla) y arriba sigue en negro, como su centro. Así puede arrancar más abajo (translateY) y
+ * subir sin que su borde superior entre nunca en pantalla.
+ */
+.dawn {
+  top: -50%;
+  background: var(--gradient-intro-dawn) bottom / 100% calc(100% / 1.5) no-repeat, #000;
+}
+
+.day {
+  background: var(--gradient-background-glow), var(--color-background);
+}
+
+.logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin: -28px 0 0 -30px;
+  color: var(--color-glow);
+}
