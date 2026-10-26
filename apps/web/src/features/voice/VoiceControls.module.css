@@ -115,3 +115,14 @@
 .ink :focus-visible {
   outline-color: var(--color-inverse-text);
 }
+
+/* Cámara prendida: el ícono invertido, como un interruptor encendido */
+.active {
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+.ink .active {
+  color: var(--color-inverse-background);
+  background: var(--color-inverse-text);
+}

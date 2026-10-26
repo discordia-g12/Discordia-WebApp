@@ -164,6 +164,7 @@ export default function MobileShell() {
     isSpeaking: p.isSpeaking,
     isMuted: p.isMuted,
     isLocallyMuted: !p.isLocal && !!voice.locallyMutedUsers[p.id],
+    videoTrack: p.videoTrack,
   }))
 
   // Lista de canales: presencia de todos; en el canal propio, los datos de LiveKit (quién habla, mute)
@@ -291,6 +292,14 @@ export default function MobileShell() {
     voice.leave()
     setScreen(current => (current === 'voice' ? 'channels' : current))
     showToast('Desconectado de la llamada', 'info')
+  }
+
+  const handleToggleCamera = async () => {
+    const turningOn = !voice.isCameraOn
+    const ok = await voice.toggleCamera()
+    if (!ok && turningOn) {
+      showToast('No se pudo prender la cámara: revisá los permisos de la app', 'info')
+    }
   }
 
   const toggleCategory = (id: string) =>
@@ -597,6 +606,8 @@ export default function MobileShell() {
             onToggleMute={voice.toggleMute}
             onToggleDeafen={voice.toggleDeafen}
             onDisconnect={handleDisconnectVoice}
+            isCameraOn={voice.isCameraOn}
+            onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined}
           />
         )}
         {showBars && <BottomTabs value={tab} onChange={goTo} />}

@@ -73,6 +73,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleCamera = async () => {
+    const turningOn = !room.isCameraOn;
+    const ok = await room.toggleCamera();
+    if (!ok && turningOn) {
+      showToast('No se pudo prender la cámara: revisá los permisos del navegador', 'info');
+    }
+  };
+
   const disconnect = () => {
     room.leave();
     exitVoiceView();
@@ -80,6 +88,6 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <VoiceContext.Provider value={{ room, presence, join, disconnect, isSwitching }}>{children}</VoiceContext.Provider>
+    <VoiceContext.Provider value={{ room, presence, join, disconnect, isSwitching, toggleCamera }}>{children}</VoiceContext.Provider>
   );
 }

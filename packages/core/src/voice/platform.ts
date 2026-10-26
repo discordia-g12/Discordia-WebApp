@@ -50,6 +50,8 @@ export interface VoicePlatform {
 
   /** Pedir permiso de micrófono antes de activarlo (Android). Default: concedido. */
   requestMicrophonePermission?(): Promise<boolean>;
+  /** Pedir permiso de cámara antes de prenderla (Android). Default: concedido. */
+  requestCameraPermission?(): Promise<boolean>;
 
   /** Dónde se recuerdan mute y deafen entre visitas. Sin store, arrancan en false. */
   prefs?: VoicePrefsStore;

@@ -71,12 +71,15 @@
   border-bottom: var(--line-hairline) solid var(--color-line-strong);
 }
 
-/* Quien habla: un borde grueso que pulsa, por dentro de la ficha */
+/* Quien habla: un borde verde grueso que pulsa, por dentro de la ficha. Verde y con un brillo hacia
+   adentro para que se distinga de las líneas de la grilla y se vea también sobre fotos y video. */
 .tile::after {
   content: '';
   position: absolute;
+  z-index: 1;
   inset: 0;
-  border: var(--line-accent) solid var(--color-line-strong);
+  border: var(--line-accent) solid var(--color-speaking);
+  box-shadow: inset 0 0 var(--space-4) color-mix(in srgb, var(--color-speaking) 55%, transparent);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
@@ -87,9 +90,10 @@
   animation: pulse 0.9s var(--motion-ease-standard) infinite alternate;
 }
 
+/* Pulsa sin llegar a desaparecer: a mitad de camino se tiene que seguir viendo quién habla */
 @keyframes pulse {
   to {
-    opacity: 0.35;
+    opacity: 0.6;
   }
 }
 
@@ -203,4 +207,18 @@
   .grid[data-columns='4'] {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
+}
+
+/* Cámara del participante llenando la ficha, como su foto */
+.video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--color-inverse-background);
+}
+
+/* La cámara propia, en espejo */
+.mirrored {
+  transform: scaleX(-1);
 }

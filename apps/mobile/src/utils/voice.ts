@@ -29,6 +29,17 @@ async function requestMicrophonePermission(): Promise<boolean> {
   return result === PermissionsAndroid.RESULTS.GRANTED
 }
 
+async function requestCameraPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true // en iOS lo pide el sistema al abrir la cámara
+  const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA, {
+    title: 'Cámara',
+    message: 'Discordia necesita la cámara para que los demás te vean en los canales de voz.',
+    buttonPositive: 'Permitir',
+    buttonNegative: 'Ahora no',
+  })
+  return result === PermissionsAndroid.RESULTS.GRANTED
+}
+
 /**
  * Registra la plataforma de voz de mobile en @discordia/core (la sala es la misma que en la web) y,
  * si la app tiene el módulo nativo, las APIs de WebRTC que usa LiveKit. En Expo Go LiveKit ni
@@ -46,6 +57,7 @@ export function setupVoice(): void {
     startAudioSession: () => loadLiveKitNative().AudioSession.startAudioSession(),
     stopAudioSession: () => loadLiveKitNative().AudioSession.stopAudioSession(),
     requestMicrophonePermission,
+    requestCameraPermission,
   })
 
   if (!isVoiceSupported) return
