@@ -1,5 +1,6 @@
 import { api } from './client';
-import { appendFile, UPLOAD_TIMEOUT_MS, type UploadableFile } from './images';
+import { ApiError } from './errors';
+import { appendFile, imageUploadErrorMessage, UPLOAD_TIMEOUT_MS, type UploadableFile } from './images';
 import {
   LOCAL_CATEGORY_PREFIX,
   toBackendCategoryId,
@@ -155,6 +156,32 @@ export async function createServer(payload: CreateServerRequest): Promise<Server
     timeoutMs: payload.icon ? UPLOAD_TIMEOUT_MS : undefined,
   });
   return mapServerFromBackend(rawServer);
+}
+
+/**
+ * Reemplaza el ícono de un servidor (PUT /servers/{id}/icon, campo "icon"). Hace falta ser el dueño o tener
+ * Gestionar servidor. Devuelve el servidor con la URL nueva: la anterior deja de existir.
+ */
+export async function updateServerIcon(serverId: string, icon: UploadableFile): Promise<Server> {
+  const formData = new FormData();
+  appendFile(formData, 'icon', icon, 'icon');
+  const rawServer = await api.put<ServerBackendResponse>(`/api/v1/servers/${serverId}/icon`, formData, {
+    timeoutMs: UPLOAD_TIMEOUT_MS,
+  });
+  return mapServerFromBackend(rawServer);
+}
+
+/** Quita el ícono de un servidor (vuelve a mostrar sus iniciales). Mismos permisos que updateServerIcon. */
+export async function removeServerIcon(serverId: string): Promise<Server> {
+  return mapServerFromBackend(await api.delete<ServerBackendResponse>(`/api/v1/servers/${serverId}/icon`));
+}
+
+/** Mensaje para mostrar si no se pudo cambiar o quitar el ícono de un servidor. */
+export function serverIconErrorMessage(err: unknown): string {
+  if (err instanceof ApiError && err.status === 403) {
+    return 'Necesitás el permiso Gestionar servidor para cambiar el ícono.';
+  }
+  return imageUploadErrorMessage(err);
 }
 
 /**

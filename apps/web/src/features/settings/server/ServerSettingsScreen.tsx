@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import {
   BAN_REASON_MAX_LENGTH,
+  IMAGE_UPLOAD_ACCEPT,
   MUTE_DURATIONS,
   PERMISSION_BITS,
   errorMessageFor,
@@ -24,7 +25,7 @@ import styles from './ServerSettingsScreen.module.css';
 type Section = 'overview' | 'roles' | 'members' | 'bans' | 'channels' | 'moderation' | 'notifications' | 'emojis' | 'boost';
 
 const SECTIONS: SettingsSection<Section>[] = [
-  { id: 'overview', label: 'Resumen', items: ['Identidad del servidor', 'Números'] },
+  { id: 'overview', label: 'Resumen', items: ['Ícono', 'Nombre y descripción', 'Números'] },
   { id: 'roles', label: 'Roles', items: ['Crear rol', 'Roles', 'Editar rol', 'Permisos'] },
   { id: 'members', label: 'Miembros', items: ['Asignar roles', 'Silenciar', 'Expulsar', 'Banear'] },
   { id: 'bans', label: 'Baneos', items: ['Usuarios baneados', 'Revocar'] },
@@ -95,11 +96,23 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
 }
 
 /** Subir un archivo con una acción de texto (_cambiar ícono, _subir emoji). */
-function FileAction({ label, accept, onChange }: { label: string; accept: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+function FileAction({
+  label,
+  accept,
+  onChange,
+  disabled = false,
+  describedBy,
+}: {
+  label: string;
+  accept: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
+  describedBy?: string;
+}) {
   return (
-    <label className={styles.fileAction}>
+    <label className={`${styles.fileAction} ${disabled ? styles.fileActionDisabled : ''}`}>
       _{label}
-      <input type="file" accept={accept} onChange={onChange} className={styles.srOnly} />
+      <input type="file" accept={accept} onChange={onChange} disabled={disabled} aria-describedby={describedBy} className={styles.srOnly} />
     </label>
   );
 }
@@ -112,12 +125,34 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
   const channels = s.categories.reduce((n, c) => n + c.channels.length, 0);
   return (
     <>
-      {/* Sin PATCH /servers/{id} en el backend: guardar solo cambiaba el caché y se perdía al recargar */}
-      <SettingsCell title="Identidad del servidor" soon>
+      {/* El ícono sí se guarda (PUT /servers/{id}/icon, dueño o Gestionar servidor), apenas se elige */}
+      <SettingsCell title="Ícono">
         <div className={styles.iconRow}>
           <SquareAvatar user={{ displayName: s.serverName, username: s.serverName, avatar: s.serverIcon || null }} size="lg" />
-          <FileAction label="cambiar ícono" accept="image/*" onChange={s.handleIconUpload} />
+          <FileAction
+            label={s.iconBusy ? 'subiendo…' : 'cambiar ícono'}
+            accept={IMAGE_UPLOAD_ACCEPT}
+            onChange={s.handleIconUpload}
+            disabled={s.iconBusy}
+            describedBy="server-icon-message"
+          />
+          {s.serverIcon && (
+            <ActionLink onPress={s.handleRemoveIcon} disabled={s.iconBusy}>
+              quitar ícono
+            </ActionLink>
+          )}
         </div>
+        {s.iconError ? (
+          <Feedback tone="error">/ {s.iconError}</Feedback>
+        ) : (
+          <p id="server-icon-message" className={styles.meta}>
+            / JPEG, PNG o WebP, hasta 5 MB. Se guarda al elegirlo y se recorta al centro.
+          </p>
+        )}
+      </SettingsCell>
+
+      {/* Sin PATCH /servers/{id} en el backend: guardar solo cambiaba el caché y se perdía al recargar */}
+      <SettingsCell title="Nombre y descripción" soon>
         <UnderlineInput label="nombre del servidor" value={s.serverName} maxLength={100} onChange={(e) => s.setServerName(e.target.value)} />
         <UnderlineInput
           label="descripción"

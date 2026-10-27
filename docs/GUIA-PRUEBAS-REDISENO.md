@@ -82,6 +82,7 @@ producción (Cloudflare Pages).
 | W26 | Crear servidor, unirse con invitación inválida, invitar | Modal que baja desde arriba; el error de invitación queda en el campo; invitar genera al abrir y ofrece `_generar otro enlace` al cambiar opciones |
 | W26a | Crear servidor con `_elegir ícono` (PNG, JPG o WebP); probar también un GIF y uno de más de 5 MB | Vista previa cuadrada antes de crear; el servidor nuevo aparece en el rail con su ícono recortado a 256×256. El GIF y el grande muestran el error bajo el ícono y no se mandan |
 | W26b | Mi perfil → `_cambiar avatar` → Guardar; después recargar | La vista previa cambia al elegir; al guardar, el avatar nuevo aparece en la barra de usuario y en tus mensajes, y sigue después de recargar. `_restablecer` antes de guardar vuelve al anterior |
+| W26c | Ajustes del servidor → Resumen → `_cambiar ícono`; después `_quitar ícono`. Repetir con una cuenta sin Gestionar servidor | Se guarda al elegirlo: el ícono nuevo aparece en el rail y en la cabecera de los ajustes; quitarlo vuelve a las iniciales. Sin permiso, el error bajo el ícono y nada cambia. Nombre y descripción siguen en "próximamente" |
 | W27 | Eliminar servidor | Pide escribir el nombre; el bloque rojo solo se habilita al coincidir |
 | W28 | Cualquier acción con aviso | Tira negra al pie, 4 s; los errores con borde rojo y `_reintentar` donde aplica |
 
@@ -131,6 +132,8 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 | M10 | Barra inferior: Mensajes, Avisos, Perfil | Mensajes y Avisos: vacíos con "próximamente"; la pestaña activa en bloque negro |
 | M11 | `+` de la tira | Crear servidor; `_unirme con una invitación` cambia al código |
 | M11a | Crear servidor con `_elegir ícono` (en iPhone, probar también una foto HEIC) | Vista previa cuadrada; el servidor aparece en la tira con su ícono. Una HEIC muestra "Formato no permitido" bajo el ícono y no se manda |
+| M11b | `menú v` → ajustes → Resumen → `_cambiar ícono` y `_quitar ícono` (también con una cuenta sin Gestionar servidor) | Igual que W26c: se guarda al elegirlo y la tira de arriba muestra el ícono nuevo |
+| M11c | Build de `preview` o `production` (EAS) contra el backend | Todo funciona por `https://api.discordia.lol`; el build ya no permite HTTP sin cifrar (`APP_VARIANT` en `eas.json`). Con `expo start` o el development build, el backend local por HTTP sigue andando |
 | M12 | Brújula de la tira con un código válido / inválido | Entra al servidor / el error queda en el campo y el modal sigue abierto |
 | M13 | `menú v` | Panel: invitar, ajustes, miembros, roles, crear canal y categoría, ordenar, abandonar / eliminar |
 | M14 | Ordenar canales | Flechas en canales y categorías; el orden se guarda |
