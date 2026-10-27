@@ -6,6 +6,8 @@ interface ChatConnection {
   send: SendMessage;
   /** La conexión del canal se cortó y está volviendo. */
   isReconnecting: boolean;
+  /** Puede escribir en el canal (lo informa el chat: SEND_MESSAGES y sin silenciamiento). */
+  canSend: boolean;
 }
 
 export const ChatConnectionContext = createContext<ChatConnection | null>(null);
@@ -24,4 +26,12 @@ export function useSendChannelMessage(): SendMessage {
 /** true mientras el chat del canal está reconectando después de un corte. */
 export function useChatReconnecting(): boolean {
   return useChatConnection().isReconnecting;
+}
+
+/**
+ * false si el usuario no puede escribir en el canal seleccionado (sin permiso o silenciado). Fuera del
+ * provider (DMs, tests de la vista) se puede escribir.
+ */
+export function useChatCanSend(): boolean {
+  return useContext(ChatConnectionContext)?.canSend ?? true;
 }

@@ -114,6 +114,23 @@ describe('openChatSocket', () => {
     connection.close();
   });
 
+  it('informa si puede escribir: sí al conectar y lo que diga PERMISSIONS_UPDATED después', async () => {
+    const onMessage = vi.fn();
+    const onPermissionsUpdated = vi.fn();
+    const connection = openChatSocket('c1', { onMessage, onPermissionsUpdated });
+    await vi.advanceTimersByTimeAsync(0);
+
+    FakeWebSocket.instances[0].open();
+    expect(onPermissionsUpdated).toHaveBeenLastCalledWith(true);
+
+    FakeWebSocket.instances[0].receive({ type: 'PERMISSIONS_UPDATED', canSend: false, channelId: 'c1' });
+    expect(onPermissionsUpdated).toHaveBeenLastCalledWith(false);
+    FakeWebSocket.instances[0].receive({ type: 'PERMISSIONS_UPDATED', canSend: true, channelId: 'c1' });
+    expect(onPermissionsUpdated).toHaveBeenLastCalledWith(true);
+    expect(onMessage).not.toHaveBeenCalled();
+    connection.close();
+  });
+
   it('reconnect() cambia de socket al instante y el viejo no programa otra reconexión', async () => {
     const connection = openChatSocket('c1', { onMessage: vi.fn() });
     await vi.advanceTimersByTimeAsync(0);

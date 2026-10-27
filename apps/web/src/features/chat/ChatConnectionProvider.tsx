@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useChatWebSocket } from '@discordia/core';
-import { useUIStore } from '../../app/uiStore';
+import { showToast, useUIStore } from '../../app/uiStore';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { ChatConnectionContext } from './chatConnectionContext';
 
@@ -12,12 +12,16 @@ export function ChatConnectionProvider({ children }: { children: ReactNode }) {
   const currentUser = useCurrentUser();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
-  const { sendMessageWs, isReconnecting } = useChatWebSocket(
+  const { sendMessageWs, isReconnecting, canSend } = useChatWebSocket(
     selectedServerId !== 'home' && selectedChannelId ? selectedChannelId : null,
-    currentUser.id
+    currentUser.id,
+    // El servidor rechazó el mensaje (p. ej. le sacaron el permiso justo antes de enviarlo)
+    (error) => showToast(`No se pudo enviar el mensaje: ${error}`, 'danger')
   );
 
   return (
-    <ChatConnectionContext.Provider value={{ send: sendMessageWs, isReconnecting }}>{children}</ChatConnectionContext.Provider>
+    <ChatConnectionContext.Provider value={{ send: sendMessageWs, isReconnecting, canSend }}>
+      {children}
+    </ChatConnectionContext.Provider>
   );
 }

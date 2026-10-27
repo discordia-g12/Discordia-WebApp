@@ -8,24 +8,27 @@ interface ComposerProps {
   value: string
   onChangeText: (text: string) => void
   onSend: () => void
+  /** Sin permiso para escribir (o silenciado): la barra queda deshabilitada. */
+  disabled?: boolean
 }
 
 /** Barra de escritura de una línea, entre líneas finas, con "ENVIAR /" a la derecha. */
-export default function Composer({ channelName, value, onChangeText, onSend }: ComposerProps) {
+export default function Composer({ channelName, value, onChangeText, onSend, disabled = false }: ComposerProps) {
   const styles = useStyles()
   const { colors } = useTheme()
-  const canSend = !!value.trim()
+  const canSend = !disabled && !!value.trim()
   return (
     <View style={styles.composer}>
       <TextInput
         style={styles.input}
-        placeholder={`Enviar mensaje a •${channelName}`}
+        placeholder={disabled ? 'No podés enviar mensajes en este canal' : `Enviar mensaje a •${channelName}`}
         placeholderTextColor={colors.textMuted}
         selectionColor={colors.text}
         value={value}
         onChangeText={onChangeText}
         maxLength={2500}
         multiline
+        editable={!disabled}
         accessibilityLabel={`Mensaje para ${channelName}`}
       />
       <Pressable

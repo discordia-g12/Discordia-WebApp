@@ -18,6 +18,11 @@ export interface ChatSocketHandlers {
   /** La conexión volvió después de un corte: los mensajes del corte llegan por last_message_id_seen. */
   onReconnect?: () => void;
   onStatusChange?: (status: ChatSocketStatus) => void;
+  /**
+   * Si el usuario puede escribir en el canal. Al conectar se asume que sí: el servidor solo avisa
+   * (PERMISSIONS_UPDATED) si no puede, y después cada vez que cambia (mute, roles, permisos).
+   */
+  onPermissionsUpdated?: (canSend: boolean) => void;
 }
 
 export interface ChatSocketOptions {
@@ -89,6 +94,7 @@ export function openChatSocket(
 
     ws.onopen = () => {
       attempts = 0;
+      handlers.onPermissionsUpdated?.(true);
       setStatus('open');
       if (hasConnectedBefore) handlers.onReconnect?.();
       hasConnectedBefore = true;
@@ -100,6 +106,11 @@ export function openChatSocket(
         if (data.error) {
           if (handlers.onError) handlers.onError(String(data.error));
           else console.error('[WS] Server Error:', data.error);
+          return;
+        }
+
+        if (data.type === 'PERMISSIONS_UPDATED') {
+          if (typeof data.canSend === 'boolean') handlers.onPermissionsUpdated?.(data.canSend);
           return;
         }
 

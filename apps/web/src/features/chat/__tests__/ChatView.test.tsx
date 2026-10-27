@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { ChatView } from '../ChatView';
+import { ChatConnectionContext } from '../chatConnectionContext';
 import type { Channel, DirectMessage, Message, User } from '../../../types';
 
 const users: Record<string, User> = {
@@ -73,6 +74,20 @@ describe('ChatView (rediseño)', () => {
     expect(send.disabled).toBe(true);
     fireEvent.change(screen.getByPlaceholderText('Enviar mensaje a general'), { target: { value: 'hola' } });
     expect(send.disabled).toBe(false);
+  });
+
+  it('sin permiso para escribir, la barra queda deshabilitada', () => {
+    render(
+      <ChatConnectionContext.Provider value={{ send: vi.fn(), isReconnecting: false, canSend: false }}>
+        <ChatView channel={channel} messages={[]} users={users} currentUserId="me" />
+      </ChatConnectionContext.Provider>
+    );
+
+    const isDisabled = (el: HTMLElement) => (el as HTMLInputElement | HTMLButtonElement).disabled;
+    expect(isDisabled(screen.getByPlaceholderText('No podés enviar mensajes en este canal'))).toBe(true);
+    expect(isDisabled(screen.getByRole('button', { name: 'enviar /' }))).toBe(true);
+    expect(isDisabled(screen.getByRole('button', { name: 'Adjuntar archivo' }))).toBe(true);
+    expect(isDisabled(screen.getByRole('button', { name: 'Emojis' }))).toBe(true);
   });
 
   it('el autor edita su mensaje (Enter guarda)', () => {

@@ -506,7 +506,13 @@ export default function MobileShell() {
             onOpenSettings={() => handleOpenEditChannel(channel)}
           />
           <MessageList channelName={channel.name} messages={channelMessages} describeUser={describeUser} />
-          <Composer channelName={channel.name} value={draft} onChangeText={setDraft} onSend={handleSend} />
+          <Composer
+            channelName={channel.name}
+            value={draft}
+            onChangeText={setDraft}
+            onSend={handleSend}
+            disabled={!socket.canSend}
+          />
         </Pane>
       )
     }

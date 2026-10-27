@@ -571,9 +571,18 @@
   cursor: pointer;
 }
 
-.composerIcon:hover,
+.composerIcon:hover:not(:disabled),
 .composerIcon[aria-expanded='true'] {
   color: var(--color-text);
+}
+
+.composerIcon:disabled,
+.composerInput:disabled {
+  cursor: not-allowed;
+}
+
+.composerIcon:disabled {
+  opacity: 0.35;
 }
 
 .send {

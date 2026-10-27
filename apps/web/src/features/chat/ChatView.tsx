@@ -6,6 +6,7 @@ import { formatDayLabel, formatMessageHour, formatMessageTime, placeMessage } fr
 import type { Channel, DirectMessage, Message, MessageAttachment, User } from '../../types';
 import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
 import { POPULAR_EMOJIS, QUICK_EMOJIS, sanitizeText, useChatViewState, type ChatViewState } from './useChatViewState';
+import { useChatCanSend } from './chatConnectionContext';
 import styles from './ChatView.module.css';
 
 export interface ChatViewProps {
@@ -482,8 +483,14 @@ const authorName = (msg: Message, users: Record<string, User>) =>
   (msg.author || users[msg.authorId])?.displayName || 'usuario';
 
 function Composer({ chat, users }: { chat: ChatViewState; users: Record<string, User> }) {
-  const placeholder = chat.isDirectMessage ? `Enviar mensaje a @${chat.chatTitle}` : `Enviar mensaje a ${chat.chatTitle}`;
-  const canSend = Boolean(chat.inputText.trim() || chat.attachment);
+  // Sin SEND_MESSAGES o silenciado: la barra queda deshabilitada (los DMs no pasan por el chat del servidor)
+  const canWrite = useChatCanSend() || chat.isDirectMessage;
+  const placeholder = !canWrite
+    ? 'No podés enviar mensajes en este canal'
+    : chat.isDirectMessage
+      ? `Enviar mensaje a @${chat.chatTitle}`
+      : `Enviar mensaje a ${chat.chatTitle}`;
+  const canSend = canWrite && Boolean(chat.inputText.trim() || chat.attachment);
 
   return (
     <div className={styles.composer}>
@@ -533,7 +540,14 @@ function Composer({ chat, users }: { chat: ChatViewState; users: Record<string, 
       )}
 
       <div className={styles.composerRow}>
-        <button type="button" className={styles.composerIcon} onClick={chat.handleAttachMock} aria-label="Adjuntar archivo" title="Adjuntar archivo">
+        <button
+          type="button"
+          className={styles.composerIcon}
+          onClick={chat.handleAttachMock}
+          disabled={!canWrite}
+          aria-label="Adjuntar archivo"
+          title="Adjuntar archivo"
+        >
           <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>
         <input
@@ -544,11 +558,13 @@ function Composer({ chat, users }: { chat: ChatViewState; users: Record<string, 
           value={chat.inputText}
           onChange={chat.handleInputChange}
           onKeyDown={chat.handleKeyDown}
+          disabled={!canWrite}
         />
         <button
           type="button"
           className={styles.composerIcon}
           onClick={() => chat.setIsEmojiPickerOpen((v) => !v)}
+          disabled={!canWrite}
           aria-label="Emojis"
           aria-expanded={chat.isEmojiPickerOpen}
           title="Emojis"

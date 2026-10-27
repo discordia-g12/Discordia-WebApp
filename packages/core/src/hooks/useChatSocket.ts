@@ -24,6 +24,8 @@ export interface UseChatSocketResult {
   sendMessage: (content: string) => Promise<void>;
   /** Reconecta ya, sin esperar el backoff. */
   reconnect: () => void;
+  /** Puede escribir en el canal (tiene SEND_MESSAGES y no está silenciado). Lo informa el servidor. */
+  canSend: boolean;
 }
 
 /**
@@ -39,6 +41,8 @@ export function useChatSocket({
   onReconnect,
 }: UseChatSocketOptions): UseChatSocketResult {
   const [status, setStatus] = useState<ChatSocketStatus>('closed');
+  // Lo último que informó el servidor, con el canal al que se refiere: en otro canal (o sin canal) vale true
+  const [sendPermission, setSendPermission] = useState<{ channelId: string; canSend: boolean } | null>(null);
   const connectionRef = useRef<ChatSocketConnection | null>(null);
 
   // Callbacks y último id en refs: cambiarlos no debe reconectar
@@ -59,6 +63,7 @@ export function useChatSocket({
           : undefined,
         onReconnect: () => handlersRef.current.onReconnect?.(),
         onStatusChange: setStatus,
+        onPermissionsUpdated: (canSend) => setSendPermission({ channelId, canSend }),
       },
       { getLastMessageIdSeen: () => lastMessageIdRef.current }
     );
@@ -87,6 +92,7 @@ export function useChatSocket({
     isReconnecting: status === 'reconnecting',
     sendMessage,
     reconnect,
+    canSend: sendPermission?.channelId !== channelId || sendPermission.canSend,
   };
 }
 
@@ -95,12 +101,17 @@ export function useChatSocket({
  * ['messages', channelId] (el mismo de useChannelMessagesQuery) y, después de un corte, se vuelve a
  * pedir el historial. El autor de cada mensaje se resuelve en la UI por authorId.
  */
-export function useChatWebSocket(channelId: string | null, userId: string) {
+export function useChatWebSocket(
+  channelId: string | null,
+  userId: string,
+  onError?: (message: string) => void
+) {
   const queryClient = useQueryClient();
 
-  const { sendMessage, isConnected, isReconnecting } = useChatSocket({
+  const { sendMessage, isConnected, isReconnecting, canSend } = useChatSocket({
     channelId,
     userId,
+    onError,
     onMessage: (data) => {
       queryClient.setQueriesData(
         { queryKey: ['messages', channelId] },
@@ -119,5 +130,5 @@ export function useChatWebSocket(channelId: string | null, userId: string) {
     },
   });
 
-  return { sendMessageWs: sendMessage, isConnected, isReconnecting };
+  return { sendMessageWs: sendMessage, isConnected, isReconnecting, canSend };
 }
