@@ -54,6 +54,12 @@
   text-underline-offset: 2px;
 }
 
+.fileActionDisabled {
+  color: var(--color-text-muted);
+  cursor: default;
+  pointer-events: none;
+}
+
 .iconRow {
   display: flex;
   align-items: flex-end;

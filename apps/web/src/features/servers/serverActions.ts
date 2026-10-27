@@ -5,6 +5,8 @@ import {
   getInvitePreview,
   imageUploadErrorMessage,
   joinServerViaInvite,
+  removeServerIcon,
+  updateServerIcon,
   useCreateServerMutation,
 } from '@discordia/core';
 import type { Server } from '../../types';
@@ -106,6 +108,26 @@ export function useInvitePreview(invite: string): InvitePreview | null {
   }, [invite]);
 
   return preview;
+}
+
+/**
+ * Cambia o quita el ícono de un servidor y aplica en el caché la URL que devuelve la API (la anterior deja
+ * de existir). Si falla, rechaza con el error de la API.
+ */
+export function useServerIcon() {
+  const queryClient = useQueryClient();
+
+  const apply = (updated: Server) => {
+    queryClient.setQueryData<Server[]>(['servers'], (prev = []) =>
+      prev.map((s) => (s.id === updated.id ? { ...s, iconUrl: updated.iconUrl, icon: updated.icon } : s))
+    );
+    return updated.iconUrl;
+  };
+
+  return {
+    change: async (serverId: string, icon: File) => apply(await updateServerIcon(serverId, icon)),
+    remove: async (serverId: string) => apply(await removeServerIcon(serverId)),
+  };
 }
 
 /** Aplica en el caché la configuración guardada desde los ajustes del servidor. */
