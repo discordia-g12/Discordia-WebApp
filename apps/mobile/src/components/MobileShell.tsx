@@ -17,7 +17,11 @@ import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
 import EditProfileModal from './profile/EditProfileModal'
 import Toast from './shared/Toast'
-import { ServerSettingsScreen, type ServerSettingsSection } from './settings/server/ServerSettingsScreen'
+import {
+  SERVER_SETTINGS_SECTIONS,
+  ServerSettingsScreen,
+  type ServerSettingsSection,
+} from './settings/server/ServerSettingsScreen'
 import { UserSettingsScreen } from './settings/user/UserSettingsScreen'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
@@ -39,6 +43,8 @@ import {
   useChatSocket,
   useVoicePresence,
   useVoiceRoom,
+  canInServer,
+  canSeeSettingsSection,
 } from '@discordia/core'
 
 /** Lo que se ve en Servidores: la lista de canales, o un canal abierto a pantalla completa. */
@@ -217,15 +223,16 @@ export default function MobileShell() {
     },
   })
 
-  const isServerAdmin = useMemo(() => {
-    if (!server) return false
-    return server.ownerId === currentUserId
-  }, [server, currentUserId])
+  const isServerOwner = !!server && server.ownerId === currentUserId
+  // Qué acciones se ofrecen en el servidor elegido (el backend vuelve a chequear cada una)
+  const canManageChannels = canInServer(server, currentUserId, 'MANAGE_CHANNELS')
+  const canInvite = canInServer(server, currentUserId, 'CREATE_INSTANT_INVITE')
+  const canOpenSettingsSection = (section: ServerSettingsSection) => canSeeSettingsSection(server, currentUserId, section)
 
   const handleOpenEditChannel = (ch: Channel) => {
     // CA 2: Sin permisos
-    if (!isServerAdmin) {
-      showToast('No tienes permisos de administración para editar este canal.', 'error')
+    if (!canManageChannels) {
+      showToast('No tenés permiso para editar canales en este servidor.', 'error')
       return
     }
     setTargetChannelForAction(ch)
@@ -423,20 +430,24 @@ export default function MobileShell() {
     setScreen('voice')
   }
 
+  const firstSettingsSection = SERVER_SETTINGS_SECTIONS.find(canOpenSettingsSection)
   const serverMenuItems = server
     ? [
-        { label: 'Invitar personas', onSelect: () => setInviteModalOpen(true) },
-        { label: 'Ajustes del servidor', onSelect: () => setServerSettings('overview') },
-        { label: 'Miembros', onSelect: () => setServerSettings('members') },
-        { label: 'Roles', onSelect: () => setServerSettings('roles') },
-        { label: 'Crear canal', onSelect: () => handleAddChannel(null) },
-        { label: 'Crear categoría', onSelect: () => setCreateCategoryModalOpen(true) },
+        { label: 'Invitar personas', onSelect: canInvite ? () => setInviteModalOpen(true) : undefined },
+        {
+          label: 'Ajustes del servidor',
+          onSelect: firstSettingsSection ? () => setServerSettings(firstSettingsSection) : undefined,
+        },
+        { label: 'Miembros', onSelect: canOpenSettingsSection('members') ? () => setServerSettings('members') : undefined },
+        { label: 'Roles', onSelect: canOpenSettingsSection('roles') ? () => setServerSettings('roles') : undefined },
+        { label: 'Crear canal', onSelect: canManageChannels ? () => handleAddChannel(null) : undefined },
+        { label: 'Crear categoría', onSelect: canManageChannels ? () => setCreateCategoryModalOpen(true) : undefined },
         {
           label: reorderMode ? 'Terminar de ordenar' : 'Ordenar canales',
-          onSelect: () => setReorderMode(on => !on),
+          onSelect: canManageChannels ? () => setReorderMode(on => !on) : undefined,
           detail: reorderMode ? 'activo' : undefined,
         },
-        isServerAdmin
+        isServerOwner
           ? { label: 'Eliminar servidor', onSelect: () => setDeleteServerConfirmOpen(true), separated: true }
           : { label: 'Abandonar servidor', onSelect: () => setLeaveServerConfirmOpen(true), separated: true },
       ]
@@ -490,7 +501,7 @@ export default function MobileShell() {
             serverName={voiceLocation?.server.name}
             connectionState={voice.connectionState}
             participants={voiceParticipants}
-            onInvite={() => setInviteModalOpen(true)}
+            onInvite={canInvite ? () => setInviteModalOpen(true) : undefined}
             onLongPressParticipant={p => setVoiceActionTarget({ id: p.id, name: p.name })}
           />
         </Pane>
@@ -521,13 +532,13 @@ export default function MobileShell() {
       <Screen title={server?.name ?? 'Servidores'} tinted scroll={false}>
         {server ? (
           <>
-            <ServerMenu onInvite={() => setInviteModalOpen(true)} items={serverMenuItems} />
+            <ServerMenu onInvite={canInvite ? () => setInviteModalOpen(true) : undefined} items={serverMenuItems} />
             <ChannelList
               categories={server.categories}
               collapsed={collapsed}
               selectedChannelId={selectedChannelId}
               onToggleCategory={toggleCategory}
-              onAddChannel={handleAddChannel}
+              onAddChannel={canManageChannels ? handleAddChannel : undefined}
               onSelectChannel={handleSelectChannel}
               onLongPressChannel={handleOpenEditChannel}
               voiceParticipants={sidebarVoiceParticipants}
@@ -646,10 +657,14 @@ export default function MobileShell() {
           currentUserId={currentUserId}
           onClose={() => setServerSettings(null)}
           // En iOS un modal no se presenta encima de otro que no lo contiene: los ajustes se cierran antes
-          onInvite={() => {
-            setServerSettings(null)
-            setInviteModalOpen(true)
-          }}
+          onInvite={
+            canInvite
+              ? () => {
+                  setServerSettings(null)
+                  setInviteModalOpen(true)
+                }
+              : undefined
+          }
           onDeleteServer={() => {
             setServerSettings(null)
             setDeleteServerConfirmOpen(true)

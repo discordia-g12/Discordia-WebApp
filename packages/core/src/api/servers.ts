@@ -1,4 +1,5 @@
 import { api } from './client';
+import { bitmaskToPermissions } from './roles';
 import {
   LOCAL_CATEGORY_PREFIX,
   toBackendCategoryId,
@@ -119,6 +120,7 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
     id: raw.id,
     name: raw.name,
     ownerId: raw.owner_id,
+    myPermissions: raw.my_permissions === undefined ? undefined : bitmaskToPermissions(raw.my_permissions),
     iconUrl: raw.icon_url || undefined,
     icon: raw.icon_url || undefined,
     description: raw.description || undefined,

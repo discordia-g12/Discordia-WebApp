@@ -3,13 +3,16 @@ import {
   BAN_REASON_MAX_LENGTH,
   MUTE_DURATIONS,
   PERMISSION_BITS,
+  canSeeSettingsSection,
   errorMessageFor,
+  memberActionsIn,
   isLocalCategoryId,
   useCreateCategoryMutation,
   useCreateChannelMutation,
   useDeleteCategoryMutation,
   useDeleteChannelMutation,
 } from '@discordia/core';
+import type { MemberActions } from '@discordia/core';
 import type { Category, Channel, ChannelType, Role, Server, ServerMember } from '../../../types';
 import { ActionLink, BlockButton, EmptyState, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
 import { useServerMembersAdmin } from '../../moderation/useServerMembersAdmin';
@@ -51,8 +54,12 @@ export interface ServerSettingsScreenProps extends ServerSettingsProps {
  */
 export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, ...props }: ServerSettingsScreenProps) {
   const s = useServerSettingsState(props);
-  const [section, setSection] = useState<Section>('overview');
   const isOwner = s.serverState.ownerId === s.user.id;
+  // Solo las secciones y acciones que el usuario puede usar (el backend las vuelve a chequear)
+  const server = props.server ?? s.serverState;
+  const sections = SECTIONS.filter((sec) => canSeeSettingsSection(server, s.user.id, sec.id));
+  const [section, setSection] = useState<Section>(sections[0]?.id ?? 'notifications');
+  const memberActions = memberActionsIn(server, s.user.id);
 
   const actions = [
     ...(onInvite ? [{ label: 'Invitar', onPress: onInvite }] : []),
@@ -72,7 +79,7 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
           </div>
         </div>
       }
-      sections={SECTIONS}
+      sections={sections}
       active={section}
       onSelect={setSection}
       actions={actions}
@@ -81,7 +88,12 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
       {section === 'overview' && <OverviewSection s={s} />}
       {section === 'roles' && <RolesSection s={s} />}
       {section === 'members' && (
-        <MembersSection serverId={s.serverState.id} ownerId={s.serverState.ownerId} currentUserId={s.user.id} />
+        <MembersSection
+          serverId={s.serverState.id}
+          ownerId={s.serverState.ownerId}
+          currentUserId={s.user.id}
+          permissions={memberActions}
+        />
       )}
       {section === 'bans' && <BansSection serverId={s.serverState.id} />}
       {/* El servidor de las props (no el estado local): se actualiza cuando el backend confirma */}
@@ -335,7 +347,17 @@ function RolesSection({ s }: { s: ServerSettingsState }) {
 // MIEMBROS
 // ==========================================
 
-function MembersSection({ serverId, ownerId, currentUserId }: { serverId: string; ownerId: string; currentUserId: string }) {
+function MembersSection({
+  serverId,
+  ownerId,
+  currentUserId,
+  permissions,
+}: {
+  serverId: string;
+  ownerId: string;
+  currentUserId: string;
+  permissions: MemberActions;
+}) {
   const m = useServerMembersAdmin(serverId);
   return (
     <SettingsCell title={`Miembros${m.membersQuery.data ? ` — ${m.total}` : ''}`} wide>
@@ -358,7 +380,14 @@ function MembersSection({ serverId, ownerId, currentUserId }: { serverId: string
             />
           )}
           {m.filteredMembers.map((member) => (
-            <MemberRow key={member.id} m={m} member={member} isOwner={member.userId === ownerId} isMe={member.userId === currentUserId} />
+            <MemberRow
+              key={member.id}
+              m={m}
+              member={member}
+              isOwner={member.userId === ownerId}
+              isMe={member.userId === currentUserId}
+              permissions={permissions}
+            />
           ))}
           <div ref={m.sentinelRef} />
           {m.isFetchingNextPage && <Skeleton lines={2} label="Cargando más miembros" />}
@@ -373,11 +402,13 @@ function MemberRow({
   member,
   isOwner,
   isMe,
+  permissions,
 }: {
   m: ReturnType<typeof useServerMembersAdmin>;
   member: ServerMember;
   isOwner: boolean;
   isMe: boolean;
+  permissions: MemberActions;
 }) {
   const name = m.displayName(member);
   const memberRoles = member.roleIds
@@ -399,7 +430,7 @@ function MemberRow({
             <li key={role.id} className={styles.chip}>
               <span className={styles.roleColor} style={{ background: role.color || 'transparent' }} aria-hidden="true" />
               {role.name}
-              {!role.isDefault && (
+              {!role.isDefault && permissions.manageRoles && (
                 <button type="button" onClick={() => m.handleRemove(member, role)} disabled={m.isMutating} aria-label={`Quitar el rol ${role.name}`}>
                   ×
                 </button>
@@ -408,36 +439,44 @@ function MemberRow({
           ))}
         </ul>
         <span className={styles.links}>
-          <ActionLink
-            onPress={() => {
-              m.setBanMemberId(null);
-              m.setPickerMemberId(m.pickerMemberId === member.id ? null : member.id);
-            }}
-            disabled={m.isMutating}
-            aria-expanded={m.pickerMemberId === member.id}
-          >
-            rol +
-          </ActionLink>
+          {permissions.manageRoles && (
+            <ActionLink
+              onPress={() => {
+                m.setBanMemberId(null);
+                m.setPickerMemberId(m.pickerMemberId === member.id ? null : member.id);
+              }}
+              disabled={m.isMutating}
+              aria-expanded={m.pickerMemberId === member.id}
+            >
+              rol +
+            </ActionLink>
+          )}
           {/* Dueña/o y una/o misma/o: el backend lo rechaza, así que no se ofrece */}
           {!isOwner && !isMe && (
             <>
-              <ActionLink
-                onPress={() => m.openModerationPanel(member, 'mute')}
-                disabled={m.isMutating}
-                aria-expanded={m.moderationPanel?.memberId === member.id && m.moderationPanel.kind === 'mute'}
-              >
-                silenciar
-              </ActionLink>
-              <ActionLink
-                onPress={() => m.openModerationPanel(member, 'kick')}
-                disabled={m.isMutating}
-                aria-expanded={m.moderationPanel?.memberId === member.id && m.moderationPanel.kind === 'kick'}
-              >
-                expulsar
-              </ActionLink>
-              <ActionLink onPress={() => m.openBanPanel(member)} disabled={m.isMutating} aria-expanded={m.banMemberId === member.id}>
-                banear
-              </ActionLink>
+              {permissions.mute && (
+                <ActionLink
+                  onPress={() => m.openModerationPanel(member, 'mute')}
+                  disabled={m.isMutating}
+                  aria-expanded={m.moderationPanel?.memberId === member.id && m.moderationPanel.kind === 'mute'}
+                >
+                  silenciar
+                </ActionLink>
+              )}
+              {permissions.kick && (
+                <ActionLink
+                  onPress={() => m.openModerationPanel(member, 'kick')}
+                  disabled={m.isMutating}
+                  aria-expanded={m.moderationPanel?.memberId === member.id && m.moderationPanel.kind === 'kick'}
+                >
+                  expulsar
+                </ActionLink>
+              )}
+              {permissions.ban && (
+                <ActionLink onPress={() => m.openBanPanel(member)} disabled={m.isMutating} aria-expanded={m.banMemberId === member.id}>
+                  banear
+                </ActionLink>
+              )}
             </>
           )}
         </span>

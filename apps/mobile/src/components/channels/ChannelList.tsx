@@ -10,7 +10,8 @@ interface ChannelListProps {
     collapsed: Record<string, boolean>
     selectedChannelId: string | null
     onToggleCategory: (categoryId: string) => void
-    onAddChannel: (categoryId: string) => void
+    /** Sin permiso para gestionar canales, no se pasa y no aparece el +. */
+    onAddChannel?: (categoryId: string) => void
     onSelectChannel: (channel: Channel) => void
     onLongPressChannel: (channel: Channel) => void
     voiceParticipants?: Record<string, VoiceChannelParticipant[]>

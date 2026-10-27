@@ -136,9 +136,11 @@ export function ChannelSidebar({
   return (
     <nav className={styles.sidebar} aria-label={`Canales de ${server.name}`}>
       <div className={styles.top}>
-        <button type="button" className={styles.invite} onClick={onInvitePeople}>
-          Invitar al servidor <span aria-hidden="true">+</span>
-        </button>
+        {onInvitePeople && (
+          <button type="button" className={styles.invite} onClick={onInvitePeople}>
+            Invitar al servidor <span aria-hidden="true">+</span>
+          </button>
+        )}
         <ServerMenu serverName={server.name} items={menuItems} />
       </div>
 

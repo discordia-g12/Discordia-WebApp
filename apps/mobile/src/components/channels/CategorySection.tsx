@@ -13,7 +13,8 @@ interface CategorySectionProps {
   collapsed: boolean
   selectedChannelId: string | null
   onToggle: (categoryId: string) => void
-  onAddChannel: (categoryId: string) => void
+  /** Sin permiso para gestionar canales, no se pasa y no aparece el +. */
+  onAddChannel?: (categoryId: string) => void
   onSelectChannel: (channel: Channel) => void
   onLongPressChannel: (channel: Channel) => void
   /** Participantes conectados a cada canal de voz, por channelId. */
@@ -76,7 +77,7 @@ export default function CategorySection({
   const canShiftCategory = reorderMode && !!onShiftCategory && !isLocalCategoryId(category.id)
   const trailing = canShiftCategory ? (
     <ShiftButtons label={`la categoría ${category.name}`} onShift={direction => onShiftCategory!(category.id, direction)} />
-  ) : !reorderMode ? (
+  ) : !reorderMode && onAddChannel ? (
     <Pressable
       style={styles.iconButton}
       onPress={() => onAddChannel(category.id)}

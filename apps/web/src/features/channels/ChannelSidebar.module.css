@@ -42,6 +42,8 @@
 
 .menuWrap {
   position: static;
+  /* Queda a la derecha aunque no esté "Invitar al servidor" (sin permiso para invitar) */
+  margin-left: auto;
 }
 
 .menuToggle {

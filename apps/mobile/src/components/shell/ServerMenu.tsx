@@ -13,7 +13,8 @@ interface MenuItem {
 }
 
 interface ServerMenuProps {
-  onInvite: () => void
+  /** Sin permiso para invitar, no se pasa y no aparece. */
+  onInvite?: () => void
   items: MenuItem[]
 }
 
@@ -33,9 +34,11 @@ export function ServerMenu({ onInvite, items }: ServerMenuProps) {
   return (
     <View style={styles.root}>
       <View style={styles.row}>
-        <Pressable onPress={onInvite} accessibilityRole="button" accessibilityLabel="Invitar al servidor" hitSlop={8}>
-          <Text variant="bodySmall">Invitar al servidor +</Text>
-        </Pressable>
+        {onInvite && (
+          <Pressable onPress={onInvite} accessibilityRole="button" accessibilityLabel="Invitar al servidor" hitSlop={8}>
+            <Text variant="bodySmall">Invitar al servidor +</Text>
+          </Pressable>
+        )}
         <Pressable
           onPress={() => setOpen(o => !o)}
           accessibilityRole="button"
@@ -87,7 +90,8 @@ function Panel({ items, onClose }: { items: MenuItem[]; onClose: () => void }) {
 const useStyles = makeStyles(t => ({
   root: { borderBottomWidth: t.lines.hairline, borderBottomColor: t.colors.line },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: t.space[7], paddingHorizontal: t.space[5] },
-  toggle: { flexDirection: 'row', alignItems: 'center' },
+  // A la derecha aunque no esté "Invitar al servidor"
+  toggle: { flexDirection: 'row', alignItems: 'center', marginLeft: 'auto' },
   panel: { marginHorizontal: t.space[4], marginBottom: t.space[4], borderWidth: t.lines.hairline, borderColor: t.colors.lineStrong, backgroundColor: t.colors.background },
   item: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingVertical: t.space[3], paddingHorizontal: t.space[4] },
   separated: { borderTopWidth: t.lines.hairline, borderTopColor: t.colors.lineStrong },

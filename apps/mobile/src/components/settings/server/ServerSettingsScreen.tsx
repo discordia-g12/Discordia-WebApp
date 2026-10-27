@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { View } from 'react-native'
-import { useRolesAdmin, useServerBansAdmin, useServerMembersAdmin } from '@discordia/core'
+import {
+  canSeeSettingsSection,
+  memberActionsIn,
+  useRolesAdmin,
+  useServerBansAdmin,
+  useServerMembersAdmin,
+} from '@discordia/core'
 import { makeStyles } from '../../../theme'
 import { ServerStrip, Text, UnderlineInput } from '../../../ui'
 import ConfirmModal from '../../shared/ConfirmModal'
@@ -21,6 +27,9 @@ const SECTIONS: SettingsSection<Section>[] = [
   { id: 'bans', label: 'Baneos' },
 ]
 
+/** Secciones en orden: "Ajustes del servidor" abre la primera que el usuario puede ver. */
+export const SERVER_SETTINGS_SECTIONS: ServerSettingsSection[] = SECTIONS.map(section => section.id)
+
 interface ServerSettingsScreenProps {
   visible: boolean
   /** Sección con la que abre (los atajos del menú del servidor). */
@@ -28,7 +37,8 @@ interface ServerSettingsScreenProps {
   server: Server
   currentUserId: string
   onClose: () => void
-  onInvite: () => void
+  /** Sin permiso para invitar, no se pasa y no aparece. */
+  onInvite?: () => void
   /** ELIMINAR (si es tuyo) o ABANDONAR en el menú: abren la confirmación de la app. */
   onDeleteServer?: () => void
   onLeaveServer?: () => void
@@ -61,9 +71,12 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
   const bans = useServerBansAdmin(serverId)
   const isOwner = server.ownerId === currentUserId
   const channels = server.categories.flatMap(c => c.channels)
+  // Solo las secciones y acciones que el usuario puede usar (el backend las vuelve a chequear)
+  const sections = SECTIONS.filter(sec => canSeeSettingsSection(server, currentUserId, sec.id))
+  const memberActions = memberActionsIn(server, currentUserId)
 
   const actions = [
-    { label: 'Invitar', onPress: onInvite },
+    ...(onInvite ? [{ label: 'Invitar', onPress: onInvite }] : []),
     ...(isOwner && onDeleteServer ? [{ label: 'Eliminar', onPress: onDeleteServer }] : []),
     ...(!isOwner && onLeaveServer ? [{ label: 'Abandonar', onPress: onLeaveServer }] : []),
   ]
@@ -85,7 +98,7 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
           </View>
         </View>
       }
-      sections={SECTIONS}
+      sections={sections}
       active={section}
       onSelect={setSection}
       actions={actions}
@@ -110,7 +123,7 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
 
       {section === 'roles' && <RolesSection roles={roles} onConfirm={(copy, action) => setPending({ ...copy, action })} />}
 
-      {section === 'members' && <MembersSection members={members} ownerId={server.ownerId} currentUserId={currentUserId} />}
+      {section === 'members' && <MembersSection members={members} ownerId={server.ownerId} currentUserId={currentUserId} actions={memberActions} />}
 
       {section === 'bans' && <BansSection bans={bans} />}
 
