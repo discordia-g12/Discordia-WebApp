@@ -1,4 +1,5 @@
 import { api } from './client';
+import { appendFile, UPLOAD_TIMEOUT_MS, type UploadableFile } from './images';
 import {
   LOCAL_CATEGORY_PREFIX,
   toBackendCategoryId,
@@ -22,7 +23,8 @@ import {
 
 export interface CreateServerRequest {
   name: string;
-  icon?: File;
+  /** Ícono opcional: File en la web, { uri, name, type } en React Native. */
+  icon?: UploadableFile;
 }
 
 export interface CreateChannelRequest {
@@ -147,9 +149,11 @@ export async function createServer(payload: CreateServerRequest): Promise<Server
   const formData = new FormData();
   formData.append('name', payload.name);
   if (payload.icon) {
-    formData.append('icon', payload.icon);
+    appendFile(formData, 'icon', payload.icon, 'icon');
   }
-  const rawServer = await api.post<ServerBackendResponse>('/api/v1/servers', formData);
+  const rawServer = await api.post<ServerBackendResponse>('/api/v1/servers', formData, {
+    timeoutMs: payload.icon ? UPLOAD_TIMEOUT_MS : undefined,
+  });
   return mapServerFromBackend(rawServer);
 }
 

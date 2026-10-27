@@ -13,6 +13,7 @@ export * from './api/client';
 export * from './api/errors';
 export * from './api/mock';
 export * from './api/users';
+export * from './api/images';
 export * from './api/passwordReset';
 export * from './api/channelLayout';
 export * from './api/servers';

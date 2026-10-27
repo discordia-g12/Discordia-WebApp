@@ -1,25 +1,33 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getInvitePreview, joinServerViaInvite, useCreateServerMutation } from '@discordia/core';
+import {
+  ApiError,
+  getInvitePreview,
+  imageUploadErrorMessage,
+  joinServerViaInvite,
+  useCreateServerMutation,
+} from '@discordia/core';
 import type { Server } from '../../types';
 import { showToast, useUIStore } from '../../app/uiStore';
 
-/** Crea un servidor y lo selecciona. */
+/** Errores de Server-Roles que solo pueden venir del ícono (el nombre inválido es 422). */
+const ICON_ERROR_STATUSES = new Set([400, 413, 503]);
+
+/** Crea un servidor (con su ícono, si se eligió) y lo selecciona. Si falla, el modal queda abierto. */
 export function useCreateServer() {
   const createServerMutation = useCreateServerMutation();
 
-  return async (name: string, icon?: string | File) => {
+  return async (name: string, icon?: File) => {
     try {
-      const newServer = await createServerMutation.mutateAsync({
-        name,
-        icon: icon instanceof File ? icon : undefined,
-      });
+      const newServer = await createServerMutation.mutateAsync(icon ? { name, icon } : { name });
       // Abre el servidor con su primer canal de texto (•general)
       selectServer(newServer.id, [newServer]);
       useUIStore.getState().setActiveModal(null);
       showToast('Servidor creado', 'success');
-    } catch {
-      showToast('Error al crear el servidor', 'danger');
+    } catch (err) {
+      // Si el ícono falla, el servidor no se crea (Server-Roles sube el ícono antes de crearlo)
+      const iconFailed = icon && err instanceof ApiError && ICON_ERROR_STATUSES.has(err.status);
+      showToast(iconFailed ? imageUploadErrorMessage(err) : 'Error al crear el servidor', 'danger');
     }
   };
 }

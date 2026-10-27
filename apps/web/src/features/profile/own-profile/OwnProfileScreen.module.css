@@ -83,6 +83,14 @@
   text-underline-offset: 2px;
 }
 
+/* Error del avatar: como los de UnderlineInput, en el color del texto y en negrita */
+.fileError {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text);
+  font-weight: 700;
+}
+
 .fieldLabel {
   margin: 0 0 var(--space-2);
   font-size: var(--font-label-size);
