@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { openChatSocket, type ChatSocketConnection, type ChatSocketStatus } from '../realtime/chatSocket';
+import {
+  openChatSocket,
+  type ChatRemovalReason,
+  type ChatSocketConnection,
+  type ChatSocketStatus,
+} from '../realtime/chatSocket';
 import type { Message, MessageBackendPayload } from '../types';
 import { normalizeMessage } from '../api/messages';
 
@@ -13,6 +18,8 @@ export interface UseChatSocketOptions {
   onMessage: (message: MessageBackendPayload) => void;
   onError?: (message: string) => void;
   onReconnect?: () => void;
+  /** El usuario ya no está en el servidor (ban o expulsión). La conexión no se reintenta. */
+  onRemoved?: (reason: ChatRemovalReason) => void;
 }
 
 export interface UseChatSocketResult {
@@ -20,12 +27,14 @@ export interface UseChatSocketResult {
   isConnecting: boolean;
   /** Estuvo conectado, se cortó y está volviendo: la interfaz muestra "reconectando". */
   isReconnecting: boolean;
+  /** false si no puede escribir en el canal (silenciado o sin permiso): la interfaz deshabilita el input. */
+  canSend: boolean;
+  /** Distinto de null si lo sacaron del servidor: la conexión quedó cerrada para siempre. */
+  removedReason: ChatRemovalReason | null;
   /** Envía un mensaje; rechaza si no hay conexión (espera si está conectando). */
   sendMessage: (content: string) => Promise<void>;
   /** Reconecta ya, sin esperar el backoff. */
   reconnect: () => void;
-  /** Puede escribir en el canal (tiene SEND_MESSAGES y no está silenciado). Lo informa el servidor. */
-  canSend: boolean;
 }
 
 /**
@@ -39,19 +48,23 @@ export function useChatSocket({
   onMessage,
   onError,
   onReconnect,
+  onRemoved,
 }: UseChatSocketOptions): UseChatSocketResult {
   const [status, setStatus] = useState<ChatSocketStatus>('closed');
-  // Lo último que informó el servidor, con el canal al que se refiere: en otro canal (o sin canal) vale true
-  const [sendPermission, setSendPermission] = useState<{ channelId: string; canSend: boolean } | null>(null);
+  const [canSend, setCanSend] = useState(true);
+  const [removedReason, setRemovedReason] = useState<ChatRemovalReason | null>(null);
   const connectionRef = useRef<ChatSocketConnection | null>(null);
 
   // Callbacks y último id en refs: cambiarlos no debe reconectar
-  const handlersRef = useRef({ onMessage, onError, onReconnect });
-  handlersRef.current = { onMessage, onError, onReconnect };
+  const handlersRef = useRef({ onMessage, onError, onReconnect, onRemoved });
+  handlersRef.current = { onMessage, onError, onReconnect, onRemoved };
   const lastMessageIdRef = useRef(lastMessageIdSeen);
   lastMessageIdRef.current = lastMessageIdSeen;
 
   useEffect(() => {
+    // Cada canal arranca de cero: permisos y cierre son de la conexión a ese canal
+    setCanSend(true);
+    setRemovedReason(null);
     if (!channelId || !userId) return;
 
     const connection = openChatSocket(
@@ -63,7 +76,11 @@ export function useChatSocket({
           : undefined,
         onReconnect: () => handlersRef.current.onReconnect?.(),
         onStatusChange: setStatus,
-        onPermissionsUpdated: (canSend) => setSendPermission({ channelId, canSend }),
+        onPermissionsChange: setCanSend,
+        onRemoved: (reason) => {
+          setRemovedReason(reason);
+          handlersRef.current.onRemoved?.(reason);
+        },
       },
       { getLastMessageIdSeen: () => lastMessageIdRef.current }
     );
@@ -90,9 +107,10 @@ export function useChatSocket({
     isConnected: status === 'open',
     isConnecting: status === 'connecting' || status === 'reconnecting',
     isReconnecting: status === 'reconnecting',
+    canSend,
+    removedReason,
     sendMessage,
     reconnect,
-    canSend: sendPermission?.channelId !== channelId || sendPermission.canSend,
   };
 }
 
@@ -104,14 +122,18 @@ export function useChatSocket({
 export function useChatWebSocket(
   channelId: string | null,
   userId: string,
-  onError?: (message: string) => void
+  options: {
+    onRemoved?: (reason: ChatRemovalReason) => void;
+    /** El servidor rechazó un mensaje (p. ej. le sacaron el permiso justo antes de enviarlo). */
+    onError?: (message: string) => void;
+  } = {}
 ) {
   const queryClient = useQueryClient();
 
-  const { sendMessage, isConnected, isReconnecting, canSend } = useChatSocket({
+  const { sendMessage, isConnected, isReconnecting, canSend, removedReason } = useChatSocket({
     channelId,
     userId,
-    onError,
+    onError: options.onError,
     onMessage: (data) => {
       queryClient.setQueriesData(
         { queryKey: ['messages', channelId] },
@@ -128,7 +150,26 @@ export function useChatWebSocket(
       // Reconexión: los mensajes enviados durante el corte no llegaron por el socket
       queryClient.invalidateQueries({ queryKey: ['messages', channelId] });
     },
+    onRemoved: (reason) => {
+      // Ya no es miembro: la lista de servidores tiene que dejar de mostrarlo
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+      options.onRemoved?.(reason);
+    },
   });
 
-  return { sendMessageWs: sendMessage, isConnected, isReconnecting, canSend };
+  return { sendMessageWs: sendMessage, isConnected, isReconnecting, canSend, removedReason };
+}
+
+/** Texto para mostrar cuando el chat cerró la conexión porque sacaron al usuario del servidor. */
+export function chatRemovalMessage(reason: ChatRemovalReason): string {
+  return reason === 'banned' ? 'Te banearon de este servidor.' : 'Ya no sos miembro de este servidor.';
+}
+
+/** Lo que muestra el input cuando Chat Engine dice que no puede escribir (mute o rol sin permiso). */
+export const CHAT_MUTED_MESSAGE = 'Estás silenciado o no tenés permiso para escribir en este canal.';
+
+/** Por qué no se puede escribir en el canal (reemplaza al input), o null si se puede. Igual en web y mobile. */
+export function chatWriteBlockMessage(state: { canSend: boolean; removedReason: ChatRemovalReason | null }): string | null {
+  if (state.removedReason) return chatRemovalMessage(state.removedReason);
+  return state.canSend ? null : CHAT_MUTED_MESSAGE;
 }

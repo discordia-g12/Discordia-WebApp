@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { ChatView } from '../ChatView';
-import { ChatConnectionContext } from '../chatConnectionContext';
 import type { Channel, DirectMessage, Message, User } from '../../../types';
 
 const users: Record<string, User> = {
@@ -77,13 +76,9 @@ describe('ChatView (rediseño)', () => {
   });
 
   it('sin permiso para escribir, en lugar de la barra solo aparece el aviso', () => {
-    render(
-      <ChatConnectionContext.Provider value={{ send: vi.fn(), isReconnecting: false, canSend: false }}>
-        <ChatView channel={channel} messages={[]} users={users} currentUserId="me" />
-      </ChatConnectionContext.Provider>
-    );
+    render(<ChatView channel={channel} messages={[]} users={users} currentUserId="me" writeBlock="Estás silenciado." />);
 
-    expect(screen.getByRole('status').textContent).toBe('No podés enviar mensajes en este canal');
+    expect(screen.getByRole('status').textContent).toBe('Estás silenciado.');
     expect(screen.queryByRole('button', { name: 'enviar /' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Adjuntar archivo' })).toBeNull();
     expect(screen.queryByPlaceholderText('Enviar mensaje a general')).toBeNull();

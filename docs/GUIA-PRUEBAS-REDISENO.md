@@ -60,6 +60,8 @@ producción (Cloudflare Pages).
 | W14 | Enviar un mensaje | Entra subiendo; el historial no se anima |
 | W15 | Con otra cuenta, escribir en el mismo canal | Aparece en vivo, con fecha |
 | W16 | DevTools → Network → Offline unos segundos y volver | Línea de 2 px arriba que avanza y `reconectando/` en la barra de usuario; al volver, se recuperan los mensajes del corte |
+| W16a | Con otra cuenta (dueña), silenciar a esta 5 minutos mientras tiene el canal abierto | Al instante el input queda deshabilitado con `/ Estás silenciado o no tenés permiso para escribir en este canal.`; al levantar el mute (o al vencer) se vuelve a habilitar solo, sin recargar. Abrir el canal estando silenciada: deshabilitado de entrada |
+| W16b | Con otra cuenta, expulsar a esta (y en otra prueba, banearla) mientras tiene un canal abierto | Aviso "Ya no sos miembro de este servidor." (o "Te banearon de este servidor."), vuelve al inicio y el servidor desaparece del rail. En DevTools → Network → WS no hay reintentos |
 
 **Voz**
 
@@ -68,6 +70,7 @@ producción (Cloudflare Pages).
 | W17 | Entrar a un canal de voz (y desde otra cuenta) | Mosaico de fichas; la nueva entra reacomodando las otras; borde que late en quien habla |
 | W18 | Clic derecho en la ficha de otra persona → silenciar para mí | `silenciado para vos` en la ficha |
 | W19 | Ir a otro canal de texto durante la llamada | Los controles siguen en la barra lateral; tocar el canal vuelve a la llamada |
+| W19a | Entrar al mismo canal de voz desde otra pestaña o desde mobile con la misma cuenta | La primera sale con "Entraste al canal de voz desde otro dispositivo" (no "se perdió la conexión") |
 
 **Ajustes, modales y avisos**
 
@@ -80,6 +83,9 @@ producción (Cloudflare Pages).
 | W24 | Miembros: `_rol +`, quitar rol con ×, silenciar (duración), expulsar, banear | Funcionan contra el backend; no se ofrecen sobre vos ni sobre quien creó el servidor |
 | W25 | Baneos → revocar | Confirmación en la fila; desaparece de la lista |
 | W26 | Crear servidor, unirse con invitación inválida, invitar | Modal que baja desde arriba; el error de invitación queda en el campo; invitar genera al abrir y ofrece `_generar otro enlace` al cambiar opciones |
+| W26a | Crear servidor con `_elegir ícono` (PNG, JPG o WebP); probar también un GIF y uno de más de 5 MB | Vista previa cuadrada antes de crear; el servidor nuevo aparece en el rail con su ícono recortado a 256×256. El GIF y el grande muestran el error bajo el ícono y no se mandan |
+| W26b | Mi perfil → `_cambiar avatar` → Guardar; después recargar | La vista previa cambia al elegir; al guardar, el avatar nuevo aparece en la barra de usuario y en tus mensajes, y sigue después de recargar. `_restablecer` antes de guardar vuelve al anterior |
+| W26c | Ajustes del servidor → Resumen → `_cambiar ícono`; después `_quitar ícono`. Repetir con una cuenta sin Gestionar servidor | Se guarda al elegirlo: el ícono nuevo aparece en el rail y en la cabecera de los ajustes; quitarlo vuelve a las iniciales. Sin permiso, el error bajo el ícono y nada cambia. Nombre y descripción siguen en "próximamente" |
 | W27 | Eliminar servidor | Pide escribir el nombre; el bloque rojo solo se habilita al coincidir |
 | W28 | Cualquier acción con aviso | Tira negra al pie, 4 s; los errores con borde rojo y `_reintentar` donde aplica |
 
@@ -128,6 +134,9 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 | M9 | Tocar otra franja de la tira de arriba | Baja la franja activa; cambia el encabezado y los canales |
 | M10 | Barra inferior: Mensajes, Avisos, Perfil | Mensajes y Avisos: vacíos con "próximamente"; la pestaña activa en bloque negro |
 | M11 | `+` de la tira | Crear servidor; `_unirme con una invitación` cambia al código |
+| M11a | Crear servidor con `_elegir ícono` (en iPhone, probar también una foto HEIC) | Vista previa cuadrada; el servidor aparece en la tira con su ícono. Una HEIC muestra "Formato no permitido" bajo el ícono y no se manda |
+| M11b | `menú v` → ajustes → Resumen → `_cambiar ícono` y `_quitar ícono` (también con una cuenta sin Gestionar servidor) | Igual que W26c: se guarda al elegirlo y la tira de arriba muestra el ícono nuevo |
+| M11c | Build de `preview` o `production` (EAS) contra el backend | Todo funciona por `https://api.discordia.lol`; el build ya no permite HTTP sin cifrar (`APP_VARIANT` en `eas.json`). Con `expo start` o el development build, el backend local por HTTP sigue andando |
 | M12 | Brújula de la tira con un código válido / inválido | Entra al servidor / el error queda en el campo y el modal sigue abierto |
 | M13 | `menú v` | Panel: invitar, ajustes, miembros, roles, crear canal y categoría, ordenar, abandonar / eliminar |
 | M14 | Ordenar canales | Flechas en canales y categorías; el orden se guarda |
@@ -142,6 +151,7 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 | M18 | Enviar | `enviando/` y después enviado; entra subiendo |
 | M19 | Modo avión y enviar | Queda `/ no se envió` y aviso de error |
 | M20 | Con otra cuenta escribir en el mismo canal | Aparece en vivo con nombre y fecha |
+| M20a | Como W16a y W16b, con la app abierta en el canal | El input se deshabilita con el aviso arriba y se rehabilita solo; expulsada o baneada, aviso, vuelve a los canales y el servidor sale de la tira |
 
 **Voz (development build)**
 
@@ -160,7 +170,7 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 | # | Pasos | Esperado |
 |---|---|---|
 | M28 | Perfil → presencia y estado personalizado | La presencia cambia en la sesión; el estado se guarda (`_guardar` / `_quitar`) |
-| M29 | Perfil → `_editar perfil` | Elegir avatar de la galería, nombre y bio; se guarda con aviso |
+| M29 | Perfil → `_editar perfil` | Elegir avatar de la galería, nombre y bio; se guarda con aviso. El avatar nuevo sigue después de cerrar sesión y volver a entrar (y se ve igual en la web) |
 | M30 | Perfil → `_ajustes` → Experiencia → tema | Cambia al instante; cerrar la app y abrirla lo conserva. "Sistema" sigue al modo del teléfono |
 | M31 | Ajustes del servidor (como W22–W25) | Mismas reglas que la web; el menú se desliza hasta la sección elegida |
 | M32 | Ajustes del servidor → INVITAR / ELIMINAR / ABANDONAR | Los ajustes se cierran y aparece el modal (en iOS no puede haber dos a la vez); eliminar pide escribir el nombre |

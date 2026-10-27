@@ -7,6 +7,19 @@ export interface ClientConfig {
   getToken: (opts?: { forceRefresh?: boolean }) => Promise<string>;
   onAuthFailure: () => void;
   timeoutMs: number;
+  /**
+   * Envío de los pedidos con archivos (FormData). Si no se define, van por fetch. Mobile registra uno con
+   * XMLHttpRequest: el fetch de Expo rechaza los archivos de React Native ({ uri, name, type }). Tiene que
+   * rechazar la promesa si la señal se aborta.
+   */
+  sendForm?: (url: string, init: SendFormInit) => Promise<Response>;
+}
+
+export interface SendFormInit {
+  method: string;
+  headers: Record<string, string>;
+  body: FormData;
+  signal: AbortSignal;
 }
 
 let clientConfig: ClientConfig = {
@@ -149,13 +162,16 @@ export async function request<T = unknown>(
 
   let response: Response;
   try {
-    response = await fetch(url, {
-      method,
-      headers,
-      body: isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
-      credentials: 'same-origin', 
-    });
+    response =
+      isFormData && clientConfig.sendForm
+        ? await clientConfig.sendForm(url, { method, headers, body: body as FormData, signal: controller.signal })
+        : await fetch(url, {
+            method,
+            headers,
+            body: isFormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
+            signal: controller.signal,
+            credentials: 'same-origin',
+          });
   } catch (err) {
     if (timedOut) {
       throw new TimeoutError();

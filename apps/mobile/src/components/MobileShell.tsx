@@ -40,12 +40,15 @@ import {
   isLocalCategoryId,
   shiftCategory,
   shiftChannel,
+  chatRemovalMessage,
+  chatWriteBlockMessage,
   useChatSocket,
   useVoicePresence,
   useVoiceRoom,
   canInServer,
   canSeeSettingsSection,
   isVoiceChannelLocked,
+  voiceDisconnectMessage,
 } from '@discordia/core'
 
 /** Lo que se ve en Servidores: la lista de canales, o un canal abierto a pantalla completa. */
@@ -86,10 +89,10 @@ export default function MobileShell() {
     deleteServer,
     reorderChannels,
     reorderCategories,
-    refreshServers,
     addOptimisticMessage,
     confirmOptimisticMessage,
     failOptimisticMessage,
+    refreshServers,
   } = useData()
   const { selectedServerId, selectedChannelId, selectChannel, selectServer, showToast } = useUI()
   const [tab, setTab] = useState<ShellTab>('servers')
@@ -98,9 +101,9 @@ export default function MobileShell() {
 
   // Voz (LiveKit). Si la conexión se corta sola, volver a la lista de canales
   const voice = useVoiceRoom({
-    onUnexpectedDisconnect: () => {
+    onUnexpectedDisconnect: reason => {
       setScreen(current => (current === 'voice' ? 'channels' : current))
-      showToast('Se perdió la conexión con el canal de voz', 'error')
+      showToast(voiceDisconnectMessage(reason), reason === 'duplicate' ? 'info' : 'error')
     },
   })
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
@@ -223,7 +226,14 @@ export default function MobileShell() {
         }
       }
     },
+    onRemoved: reason => {
+      // Lo sacaron del servidor (ban o expulsión): el chat no reintenta y el servidor sale de la lista
+      showToast(chatRemovalMessage(reason), 'error')
+      setScreen('channels')
+      refreshServers().catch(() => undefined)
+    },
   })
+  const chatBlockedMessage = activeSocketChannelId ? chatWriteBlockMessage(socket) : null
 
   const isServerOwner = !!server && server.ownerId === currentUserId
   // Qué acciones se ofrecen en el servidor elegido (el backend vuelve a chequear cada una)
@@ -362,8 +372,8 @@ export default function MobileShell() {
     if (!channel) return
     const trimmed = draft.trim()
 
-    // CA 2: Evitar envío si está vacío
-    if (!trimmed) return
+    // CA 2: Evitar envío si está vacío (o si no puede escribir: el input ya está deshabilitado)
+    if (!trimmed || chatBlockedMessage) return
 
     // CA 4: Bloquear o advertir si supera los 2000 caracteres
     if (trimmed.length > 2000) {
@@ -526,7 +536,7 @@ export default function MobileShell() {
             value={draft}
             onChangeText={setDraft}
             onSend={handleSend}
-            disabled={!socket.canSend}
+            blockedMessage={chatBlockedMessage}
           />
         </Pane>
       )

@@ -3,12 +3,15 @@ import { View } from 'react-native'
 import {
   canSeeSettingsSection,
   memberActionsIn,
+  serverIconErrorMessage,
   useRolesAdmin,
   useServerBansAdmin,
   useServerMembersAdmin,
 } from '@discordia/core'
+import { useData, useUI } from '../../../providers/AppProviders'
 import { makeStyles } from '../../../theme'
-import { ServerStrip, Text, UnderlineInput } from '../../../ui'
+import { ActionLink, ServerStrip, SquareAvatar, Text, UnderlineInput } from '../../../ui'
+import { pickSquareImage, toUploadFile } from '../../../utils/images'
 import ConfirmModal from '../../shared/ConfirmModal'
 import type { Server } from '../../../types'
 import { SettingsCell, SettingsScreen, type SettingsSection } from '../SettingsScreen'
@@ -107,11 +110,13 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
     >
       {section === 'overview' && (
         <>
-          <SettingsCell title="Identidad del servidor" soon index={0}>
+          <IconCell server={server} index={0} />
+          {/* Sin PATCH /servers/{id} en el backend: nombre y descripción todavía no se guardan */}
+          <SettingsCell title="Nombre y descripción" soon index={1}>
             <UnderlineInput label="nombre" value={server.name} disabled />
             <UnderlineInput label="descripción" value={server.description ?? ''} placeholder="de qué se trata" disabled />
           </SettingsCell>
-          <SettingsCell title="Números" index={1}>
+          <SettingsCell title="Números" index={2}>
             <View style={styles.numbers}>
               <Figure label="miembros" value={members.total || server.memberCount || 0} />
               <Figure label="canales" value={channels.length} />
@@ -143,6 +148,61 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
   )
 }
 
+/**
+ * Ícono del servidor: se guarda apenas se elige (PUT /servers/{id}/icon; dueño o Gestionar servidor) y se
+ * muestra el que devuelve la API. Si falla, el error queda abajo y el ícono como estaba.
+ */
+function IconCell({ server, index }: { server: Server; index: number }) {
+  const styles = useStyles()
+  const { setServerIcon } = useData()
+  const { showToast } = useUI()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const iconUrl = server.iconUrl || server.icon || null
+
+  const run = async (icon: Parameters<typeof setServerIcon>[1], done: string) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await setServerIcon(server.id, icon)
+      showToast(done, 'success')
+    } catch (err) {
+      setError(serverIconErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const pick = async () => {
+    const picked = await pickSquareImage('icono')
+    if (!picked) return
+    if ('error' in picked) {
+      setError(picked.error)
+      return
+    }
+    await run(await toUploadFile(picked.image), 'Ícono actualizado')
+  }
+
+  return (
+    <SettingsCell title="Ícono" index={index}>
+      <View style={styles.iconRow}>
+        <SquareAvatar user={{ username: '', displayName: server.name, avatar: iconUrl }} size="lg" />
+        <ActionLink onPress={pick} disabled={busy}>
+          {busy ? 'subiendo…' : 'cambiar ícono'}
+        </ActionLink>
+        {iconUrl && (
+          <ActionLink onPress={() => run(null, 'Ícono quitado')} disabled={busy}>
+            quitar ícono
+          </ActionLink>
+        )}
+      </View>
+      <Text variant="meta" tone={error ? 'default' : 'muted'} bold={!!error}>
+        / {error ?? 'JPEG, PNG o WebP, hasta 5 MB. Se guarda al elegirlo.'}
+      </Text>
+    </SettingsCell>
+  )
+}
+
 function Figure({ label, value }: { label: string; value: number }) {
   const styles = useStyles()
   return (
@@ -158,6 +218,7 @@ function Figure({ label, value }: { label: string; value: number }) {
 const useStyles = makeStyles(t => ({
   identity: { flexDirection: 'row', alignItems: 'center', gap: t.space[3] },
   flex: { flex: 1 },
+  iconRow: { flexDirection: 'row', alignItems: 'flex-end', flexWrap: 'wrap', gap: t.space[3] },
   numbers: { flexDirection: 'row', gap: t.space[6] },
   number: { gap: 2 },
 }))

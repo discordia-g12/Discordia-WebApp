@@ -6,7 +6,6 @@ import { formatDayLabel, formatMessageHour, formatMessageTime, placeMessage } fr
 import type { Channel, DirectMessage, Message, MessageAttachment, User } from '../../types';
 import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
 import { POPULAR_EMOJIS, QUICK_EMOJIS, sanitizeText, useChatViewState, type ChatViewState } from './useChatViewState';
-import { useChatCanSend } from './chatConnectionContext';
 import styles from './ChatView.module.css';
 
 export interface ChatViewProps {
@@ -42,6 +41,11 @@ export interface ChatViewProps {
   onStartVoiceCall?: () => void;
   /** Callback para iniciar videollamada directa. */
   onStartVideoCall?: () => void;
+  /**
+   * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: el input queda
+   * deshabilitado y se muestra esto. null o sin definir: se puede escribir.
+   */
+  writeBlock?: string | null;
 }
 
 
@@ -165,7 +169,7 @@ export function ChatView(props: ChatViewProps) {
         <div ref={chat.messagesEndRef} />
       </div>
 
-      <Composer chat={chat} users={users} />
+      <Composer chat={chat} users={users} writeBlock={props.writeBlock ?? null} />
     </div>
   );
 }
@@ -482,17 +486,17 @@ function PinnedPanel({ chat, users }: { chat: ChatViewState; users: Record<strin
 const authorName = (msg: Message, users: Record<string, User>) =>
   (msg.author || users[msg.authorId])?.displayName || 'usuario';
 
-function Composer({ chat, users }: { chat: ChatViewState; users: Record<string, User> }) {
-  // Sin SEND_MESSAGES o silenciado: en lugar de la barra, solo el aviso (los DMs no pasan por el chat del servidor)
-  const canWrite = useChatCanSend() || chat.isDirectMessage;
+function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Record<string, User>; writeBlock: string | null }) {
   const placeholder = chat.isDirectMessage ? `Enviar mensaje a @${chat.chatTitle}` : `Enviar mensaje a ${chat.chatTitle}`;
   const canSend = Boolean(chat.inputText.trim() || chat.attachment);
 
-  if (!canWrite) {
+  // Silenciado, sin permiso o fuera del servidor: en lugar de la barra, solo el aviso. Vuelve cuando el chat
+  // avisa que puede escribir (vence o se levanta el mute)
+  if (writeBlock !== null) {
     return (
       <div className={styles.composer}>
         <p className={`${styles.composerRow} ${styles.composerLocked}`} role="status">
-          No podés enviar mensajes en este canal
+          {writeBlock}
         </p>
       </div>
     );
@@ -562,6 +566,7 @@ function Composer({ chat, users }: { chat: ChatViewState; users: Record<string, 
           aria-label={placeholder}
           value={chat.inputText}
           onChange={chat.handleInputChange}
+          // Enter no envía mientras no se pueda escribir (el botón ya está deshabilitado)
           onKeyDown={chat.handleKeyDown}
         />
         <button

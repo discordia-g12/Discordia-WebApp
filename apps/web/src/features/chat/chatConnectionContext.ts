@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import { chatWriteBlockMessage, type ChatRemovalReason } from '@discordia/core';
 
 type SendMessage = (content: string) => Promise<void>;
 
@@ -6,8 +7,10 @@ interface ChatConnection {
   send: SendMessage;
   /** La conexión del canal se cortó y está volviendo. */
   isReconnecting: boolean;
-  /** Puede escribir en el canal (lo informa el chat: SEND_MESSAGES y sin silenciamiento). */
+  /** false si no puede escribir en el canal (silenciado o sin permiso). */
   canSend: boolean;
+  /** Distinto de null si lo sacaron del servidor: el chat quedó cerrado. */
+  removedReason: ChatRemovalReason | null;
 }
 
 export const ChatConnectionContext = createContext<ChatConnection | null>(null);
@@ -28,10 +31,7 @@ export function useChatReconnecting(): boolean {
   return useChatConnection().isReconnecting;
 }
 
-/**
- * false si el usuario no puede escribir en el canal seleccionado (sin permiso o silenciado). Fuera del
- * provider (DMs, tests de la vista) se puede escribir.
- */
-export function useChatCanSend(): boolean {
-  return useContext(ChatConnectionContext)?.canSend ?? true;
+/** Texto que reemplaza al input del canal si no se puede escribir; null si se puede. */
+export function useChatWriteBlock(): string | null {
+  return chatWriteBlockMessage(useChatConnection());
 }

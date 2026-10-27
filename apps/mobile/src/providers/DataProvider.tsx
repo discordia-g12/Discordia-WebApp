@@ -14,6 +14,8 @@ import {
   getServers,
   sendMessage as apiSendMessage,
   createServer as apiCreateServer,
+  updateServerIcon as apiUpdateServerIcon,
+  removeServerIcon as apiRemoveServerIcon,
   createChannel as apiCreateChannel,
   editChannel as apiEditChannel,
   deleteChannel as apiDeleteChannel,
@@ -22,6 +24,7 @@ import {
   createCategory as apiCreateCategory,
   reorderChannels as apiReorderChannels,
   reorderCategories as apiReorderCategories,
+  type UploadableFile,
 } from '@discordia/core'
 
 interface DataContextValue {
@@ -35,7 +38,10 @@ interface DataContextValue {
 
   // Servidores y canales en vivo
   refreshServers: () => Promise<void>
-  createServer: (name: string, icon?: File) => Promise<Server>
+  /** `icon`: el archivo de toUploadFile (utils/images). */
+  createServer: (name: string, icon?: UploadableFile) => Promise<Server>
+  /** Cambia el ícono (o lo quita con null) y aplica la URL que devuelve la API. Rechaza con el ApiError. */
+  setServerIcon: (serverId: string, icon: UploadableFile | null) => Promise<void>
   createChannel: (
     serverId: string,
     data: { name: string; type: 'text' | 'voice'; categoryId?: string },
@@ -118,8 +124,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.remove()
   }, [refreshServers])
 
-  const createServer = useCallback(async (name: string, icon?: File): Promise<Server> => {
-    const newServer = await apiCreateServer({ name, icon })
+  const createServer = useCallback(async (name: string, icon?: UploadableFile): Promise<Server> => {
+    const newServer = await apiCreateServer(icon ? { name, icon } : { name })
     setServers(prev => [...prev, newServer])
     return newServer
   }, [])
@@ -405,6 +411,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [addOptimisticMessage, confirmOptimisticMessage, failOptimisticMessage],
   )
 
+  const setServerIcon = useCallback(async (serverId: string, icon: UploadableFile | null): Promise<void> => {
+    const updated = icon ? await apiUpdateServerIcon(serverId, icon) : await apiRemoveServerIcon(serverId)
+    // Solo el ícono: el resto del servidor (canales, categorías) ya está al día en la lista
+    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, iconUrl: updated.iconUrl, icon: updated.icon } : srv)))
+  }, [])
+
   const value = useMemo<DataContextValue>(
     () => ({
       currentUserId: activeUserId,
@@ -414,6 +426,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       messages,
       refreshServers,
       createServer,
+      setServerIcon,
       createChannel,
       editChannel,
       deleteChannel,
@@ -436,6 +449,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       messages,
       refreshServers,
       createServer,
+      setServerIcon,
       createChannel,
       editChannel,
       deleteChannel,

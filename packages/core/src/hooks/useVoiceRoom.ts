@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ConnectionState, Participant, RemoteParticipant, RemoteTrack, Room, VideoTrack } from 'livekit-client';
+import type {
+  ConnectionState,
+  DisconnectReason,
+  Participant,
+  RemoteParticipant,
+  RemoteTrack,
+  Room,
+  VideoTrack,
+} from 'livekit-client';
 import { joinVoiceChannel, leaveVoiceChannel } from '../api/voice';
 import { DEFAULT_VOICE_PREFS, getVoicePlatform, type LiveKitModule } from '../voice/platform';
 
@@ -20,9 +28,35 @@ export interface VoiceJoinResult {
   microphoneAvailable: boolean;
 }
 
+/**
+ * Por qué se cerró la sala sin que el usuario lo pidiera. removed: lo sacaron del canal (o se cerró la sala).
+ * duplicate: entró al mismo canal desde otro dispositivo o pestaña. lost: corte de red o del servidor.
+ */
+export type VoiceDisconnectReason = 'removed' | 'duplicate' | 'lost';
+
 export interface UseVoiceRoomOptions {
-  /** Se llama cuando la sala se cierra sin que el usuario lo pida (red, servidor LiveKit). */
-  onUnexpectedDisconnect?: () => void;
+  /** Se llama cuando la sala se cierra sin que el usuario lo pida, con el motivo. */
+  onUnexpectedDisconnect?: (reason: VoiceDisconnectReason) => void;
+}
+
+/** Texto para mostrar cuando la sala se cerró sin que el usuario lo pidiera. */
+export function voiceDisconnectMessage(reason: VoiceDisconnectReason): string {
+  switch (reason) {
+    case 'removed':
+      return 'Te sacaron del canal de voz';
+    case 'duplicate':
+      return 'Entraste al canal de voz desde otro dispositivo';
+    default:
+      return 'Se perdió la conexión con el canal de voz';
+  }
+}
+
+function toDisconnectReason(reason: DisconnectReason | undefined, lk: LiveKitModule): VoiceDisconnectReason {
+  const reasons = lk.DisconnectReason;
+  if (!reasons || reason === undefined) return 'lost';
+  if (reason === reasons.PARTICIPANT_REMOVED || reason === reasons.ROOM_DELETED) return 'removed';
+  if (reason === reasons.DUPLICATE_IDENTITY) return 'duplicate';
+  return 'lost';
 }
 
 /**
@@ -212,13 +246,13 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
         .on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
           if (roomRef.current === room) setConnectionState(toConnectionState(state, lk));
         })
-        .on(RoomEvent.Disconnected, () => {
-          // Desconexión no pedida por el usuario (red, servidor): limpiar y avisar al backend
+        .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+          // Desconexión no pedida por el usuario (red, servidor, lo sacaron): limpiar y avisar al backend
           if (roomRef.current !== room) return;
           disconnectRoom(room);
           resetState();
           leaveVoiceChannel().catch((err) => console.error('[Voice] Error al salir del canal:', err));
-          onUnexpectedDisconnectRef.current?.();
+          onUnexpectedDisconnectRef.current?.(toDisconnectReason(reason, lk));
         });
     },
     [applyVolume, disconnectRoom, platform, resetState, syncParticipants]

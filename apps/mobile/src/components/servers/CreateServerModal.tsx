@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { View } from 'react-native'
-import { joinServerViaInvite } from '@discordia/core'
+import { ApiError, imageUploadErrorMessage, joinServerViaInvite } from '@discordia/core'
 import { useData, useUI } from '../../providers/AppProviders'
 import { makeStyles } from '../../theme'
-import { ActionLink, Modal, ModalActions, ModalForm, Text, UnderlineInput } from '../../ui'
+import { ActionLink, Modal, ModalActions, ModalForm, SquareAvatar, Text, UnderlineInput } from '../../ui'
+import { pickSquareImage, toUploadFile, type PickedImage } from '../../utils/images'
 import type { Server } from '../../types'
+
+/** Errores de Server-Roles que solo pueden venir del ícono (el nombre inválido es 422). */
+const ICON_ERROR_STATUSES = new Set([400, 413, 503])
 
 interface CreateServerModalProps {
   visible: boolean
@@ -14,7 +18,7 @@ interface CreateServerModalProps {
   initialMode?: 'create' | 'join'
 }
 
-/** Crear un servidor (solo el nombre) o unirse a uno con el código de una invitación. */
+/** Crear un servidor (nombre e ícono opcional) o unirse a uno con el código de una invitación. */
 export default function CreateServerModal({ visible, onClose, onSuccess, initialMode = 'create' }: CreateServerModalProps) {
   const styles = useStyles()
   const { createServer, refreshServers } = useData()
@@ -24,6 +28,24 @@ export default function CreateServerModal({ visible, onClose, onSuccess, initial
   const [error, setError] = useState<string | null>(null)
   const [isJoining, setIsJoining] = useState(initialMode === 'join')
   const [inviteCode, setInviteCode] = useState('')
+  const [icon, setIcon] = useState<PickedImage | null>(null)
+  const [iconError, setIconError] = useState<string | null>(null)
+
+  const pickIcon = async () => {
+    const picked = await pickSquareImage('icono')
+    if (!picked) return
+    if ('error' in picked) {
+      setIconError(picked.error)
+      return
+    }
+    setIconError(null)
+    setIcon(picked.image)
+  }
+
+  const removeIcon = () => {
+    setIcon(null)
+    setIconError(null)
+  }
 
   useEffect(() => {
     if (visible) setIsJoining(initialMode === 'join')
@@ -38,15 +60,21 @@ export default function CreateServerModal({ visible, onClose, onSuccess, initial
     setLoading(true)
     setError(null)
     try {
-      const server = await createServer(trimmed)
+      const server = await createServer(trimmed, icon ? await toUploadFile(icon) : undefined)
       setName('')
+      removeIcon()
       onClose()
       selectServer(server.id)
       if (server.channels && server.channels.length > 0) selectChannel(server.channels[0].id)
       showToast(`Servidor ${server.name} creado`, 'success')
       onSuccess?.(server)
     } catch (err) {
-      setError((err instanceof Error && err.message) || 'Error al crear el servidor. Intentá de nuevo.')
+      // Si el ícono falla, el servidor no se crea (Server-Roles sube el ícono antes de crearlo)
+      if (icon && err instanceof ApiError && ICON_ERROR_STATUSES.has(err.status)) {
+        setIconError(imageUploadErrorMessage(err))
+      } else {
+        setError((err instanceof Error && err.message) || 'Error al crear el servidor. Intentá de nuevo.')
+      }
     } finally {
       setLoading(false)
     }
@@ -80,6 +108,7 @@ export default function CreateServerModal({ visible, onClose, onSuccess, initial
     setError(null)
     setName('')
     setInviteCode('')
+    removeIcon()
     onClose()
   }
 
@@ -137,9 +166,20 @@ export default function CreateServerModal({ visible, onClose, onSuccess, initial
               returnKeyType="go"
               onSubmitEditing={handleCreate}
             />
-            {/* Server-Roles recibe el ícono y lo descarta: no se ofrece hasta que se guarde */}
-            <Text variant="meta" tone="muted">
-              / ícono del servidor: próximamente
+            {/* Ícono opcional: vista previa cuadrada; se sube al crear y Server-Roles lo recorta a 256×256 */}
+            <View style={styles.icon}>
+              <SquareAvatar user={{ username: '', displayName: name.trim() || 'Servidor', avatar: icon?.uri }} size={48} />
+              <ActionLink onPress={pickIcon} disabled={loading}>
+                {icon ? 'elegir otro' : 'elegir ícono'}
+              </ActionLink>
+              {icon && (
+                <ActionLink onPress={removeIcon} disabled={loading}>
+                  quitar
+                </ActionLink>
+              )}
+            </View>
+            <Text variant="meta" tone={iconError ? 'default' : 'muted'} bold={!!iconError}>
+              / {iconError ?? 'Ícono opcional. JPEG, PNG o WebP, hasta 5 MB.'}
             </Text>
           </>
         )}
@@ -163,5 +203,6 @@ export default function CreateServerModal({ visible, onClose, onSuccess, initial
 }
 
 const useStyles = makeStyles(t => ({
+  icon: { flexDirection: 'row', alignItems: 'flex-end', gap: t.space[3] },
   switch: { paddingTop: t.space[2], borderTopWidth: t.lines.hairline, borderTopColor: t.colors.line },
 }))

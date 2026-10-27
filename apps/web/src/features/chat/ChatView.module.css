@@ -543,9 +543,11 @@
 }
 
 .composerLocked {
+  /* No puede escribir: como los errores de los formularios, en el color del texto y en negrita */
   margin: 0;
-  font-size: var(--font-body-small-size);
-  color: var(--color-text-muted);
+  font-size: var(--font-meta-size);
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .composerRow:focus-within {
@@ -622,3 +624,4 @@
     display: none;
   }
 }
+
