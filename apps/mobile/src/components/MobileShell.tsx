@@ -3,7 +3,7 @@ import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { makeStyles } from '../theme'
-import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink } from '../ui'
+import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink, keyboardAvoidingBehavior } from '../ui'
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
@@ -563,7 +563,7 @@ export default function MobileShell() {
           />
         )}
 
-        <KeyboardAvoidingView style={styles.content} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.content} behavior={keyboardAvoidingBehavior}>
           {tab === 'servers' && serversContent()}
 
           {tab === 'messages' && (
