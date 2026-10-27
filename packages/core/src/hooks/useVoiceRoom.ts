@@ -88,6 +88,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const mutedBeforeDeafenRef = useRef(initialPrefs.mutedBeforeDeafen);
   const locallyMutedRef = useRef<Record<string, boolean>>({});
   const cameraOnRef = useRef(false);
+  // Sala con un cambio de cámara en curso (permiso o setCameraEnabled): se ignoran los toques que lleguen mientras
+  const cameraBusyRoomRef = useRef<Room | null>(null);
   // Hasta cuándo sigue "hablando" cada participante (retención del indicador) y el timer que lo apaga
   const speakingUntilRef = useRef<Record<string, number>>({});
   const speakingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -191,7 +193,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
           syncIfCurrent();
         })
         .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
-          platform.stopRemoteAudio?.(track);
+          // Solo el audio: el <video> de una cámara lo crea y lo saca la UI (en la web, React)
+          if (track.kind === Track.Kind.Audio) platform.stopRemoteAudio?.(track);
           syncIfCurrent();
         })
         .on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
@@ -236,6 +239,11 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       setChannelId(targetChannelId);
       setConnectionState('connecting');
       setParticipants([]);
+      // Al cerrar la sala anterior se cierra su cámara: en la nueva arranca apagada
+      cameraOnRef.current = false;
+      setIsCameraOn(false);
+      clearTimeout(speakingTimerRef.current);
+      speakingUntilRef.current = {};
       if (previous) await disconnectRoom(previous);
 
       const isSuperseded = () => channelIdRef.current !== targetChannelId;
@@ -378,26 +386,36 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
 
   /**
    * Prende o apaga la cámara propia (solo estando conectado). Apagarla no corta el audio.
-   * Devuelve false si no se pudo prender (sin permiso o sin cámara).
+   * Devuelve false si no se pudo prender (sin permiso o sin cámara). Un toque mientras hay otro
+   * cambio en curso, o que termina después de salir de la sala, se descarta y devuelve true (no hubo error).
    */
   const toggleCamera = useCallback(async (): Promise<boolean> => {
     const room = roomRef.current;
     const lk = livekitRef.current;
     if (!room || !lk || room.state !== lk.ConnectionState.Connected) return false;
+    if (cameraBusyRoomRef.current === room) return true;
 
+    cameraBusyRoomRef.current = room;
+    const isCurrent = () => roomRef.current === room;
     const next = !cameraOnRef.current;
-    if (next && platform.requestCameraPermission && !(await platform.requestCameraPermission())) {
-      return false;
-    }
     try {
+      if (next && platform.requestCameraPermission && !(await platform.requestCameraPermission())) {
+        return !isCurrent();
+      }
+      // Se colgó o se cambió de canal mientras se pedía el permiso
+      if (!isCurrent()) return true;
       await room.localParticipant.setCameraEnabled(next);
+      if (!isCurrent()) return true;
       cameraOnRef.current = next;
       setIsCameraOn(next);
       syncParticipants();
       return true;
     } catch (err) {
+      if (!isCurrent()) return true;
       console.error('[Voice] No se pudo usar la cámara:', err);
       return false;
+    } finally {
+      if (cameraBusyRoomRef.current === room) cameraBusyRoomRef.current = null;
     }
   }, [platform, syncParticipants]);
 

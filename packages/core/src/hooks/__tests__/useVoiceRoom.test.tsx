@@ -534,6 +534,90 @@ describe('useVoiceRoom', () => {
       expect(result.current.isCameraOn).toBe(false);
     });
 
+    it('al dejar de recibir una cámara no la trata como audio', async () => {
+      const stopRemoteAudio = vi.fn();
+      setVoicePlatform({ livekit: () => fakeLiveKit, stopRemoteAudio });
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+      let remote!: FakeParticipant;
+      act(() => {
+        remote = FakeRoom.instances[0].addRemote('auth0|otro');
+      });
+
+      act(() => FakeRoom.instances[0].emit('trackUnsubscribed', { kind: 'video' }, {}, remote));
+      expect(stopRemoteAudio).not.toHaveBeenCalled();
+
+      const audio = { kind: 'audio' };
+      act(() => FakeRoom.instances[0].emit('trackUnsubscribed', audio, {}, remote));
+      expect(stopRemoteAudio).toHaveBeenCalledWith(audio);
+    });
+
+    it('al cambiar de canal la cámara queda apagada', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+      expect(result.current.isCameraOn).toBe(true);
+
+      await act(async () => {
+        await result.current.join('chan-2');
+      });
+      expect(result.current.isCameraOn).toBe(false);
+
+      // Un solo toque la prende en la sala nueva
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+      expect(FakeRoom.instances[1].localParticipant.setCameraEnabled).toHaveBeenCalledWith(true);
+      expect(result.current.isCameraOn).toBe(true);
+    });
+
+    it('si se cuelga mientras se pide el permiso, la cámara no queda prendida', async () => {
+      let grant!: (ok: boolean) => void;
+      setVoicePlatform({
+        livekit: () => fakeLiveKit,
+        requestCameraPermission: () => new Promise<boolean>((resolve) => (grant = resolve)),
+      });
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+
+      let pending!: Promise<boolean>;
+      act(() => {
+        pending = result.current.toggleCamera();
+      });
+      await act(async () => {
+        await result.current.leave();
+      });
+      let ok: boolean | undefined;
+      await act(async () => {
+        grant(true);
+        ok = await pending;
+      });
+
+      expect(ok).toBe(true);
+      expect(result.current.isCameraOn).toBe(false);
+      expect(FakeRoom.instances[0].localParticipant.setCameraEnabled).not.toHaveBeenCalled();
+    });
+
+    it('un doble toque no cambia la cámara dos veces', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+
+      await act(async () => {
+        await Promise.all([result.current.toggleCamera(), result.current.toggleCamera()]);
+      });
+
+      expect(FakeRoom.instances[0].localParticipant.setCameraEnabled).toHaveBeenCalledTimes(1);
+      expect(result.current.isCameraOn).toBe(true);
+
+      // Terminado el primero, el siguiente toque sí la apaga
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+      expect(result.current.isCameraOn).toBe(false);
+    });
+
     it('la sala usa adaptiveStream y dynacast', async () => {
       const { result } = renderHook(() => useVoiceRoom());
       await join(result);
