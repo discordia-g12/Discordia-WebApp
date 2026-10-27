@@ -38,6 +38,7 @@ import {
   cancelServerTransfer,
 } from '../api/serverTransfer';
 import { getMessages, sendMessage, GetMessagesOptions } from '../api/messages';
+import { MESSAGES_PAGE_SIZE, flattenMessagePages, messagesQueryKey, olderPageParam } from './messageCache';
 import type { Category, Role, Server } from '../types';
 import { useSession } from '../auth/session';
 
@@ -157,17 +158,31 @@ export function useCreateServerMutation() {
 
 // El autor de cada mensaje no se embebe acá: la UI lo resuelve por authorId contra el mapa de
 // usuarios, que mantiene al día el perfil propio (p. ej. tras cambiar el nombre visible).
-export function useChannelMessagesQuery(channelId: string | null, options?: GetMessagesOptions) {
+/**
+ * Historial de un canal, paginado hacia atrás: arranca con los MESSAGES_PAGE_SIZE más recientes y
+ * `fetchOlder` pide la página anterior. `data` es la lista completa en orden cronológico.
+ */
+export function useChannelMessagesQuery(channelId: string | null, options: Pick<GetMessagesOptions, 'limit'> = {}) {
   const status = useSession((s) => s.status);
+  const limit = options.limit ?? MESSAGES_PAGE_SIZE;
 
-  return useQuery({
-    queryKey: ['messages', channelId, options],
-    queryFn: async () => {
-      if (!channelId) return [];
-      return getMessages(channelId, options);
-    },
+  const query = useInfiniteQuery({
+    queryKey: messagesQueryKey(channelId),
+    queryFn: ({ pageParam }) => getMessages(channelId as string, { before: pageParam, limit }),
+    initialPageParam: undefined as string | undefined,
+    // "Next" para React Query es la página siguiente en la lista de páginas: acá, la más vieja
+    getNextPageParam: (oldestPage) => olderPageParam(oldestPage, limit),
+    select: flattenMessagePages,
     enabled: status === 'authenticated' && Boolean(channelId),
   });
+
+  return {
+    ...query,
+    /** Hay mensajes anteriores a los cargados. */
+    hasOlder: query.hasNextPage,
+    isFetchingOlder: query.isFetchingNextPage,
+    fetchOlder: query.fetchNextPage,
+  };
 }
 
 export function useSendMessageMutation(channelId: string) {

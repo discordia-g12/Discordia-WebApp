@@ -66,6 +66,41 @@ describe('ChatView (rediseño)', () => {
     expect(screen.queryByText(/respondiendo a/)).toBeNull();
   });
 
+  it('con mensajes anteriores sin cargar, arriba ofrece cargarlos en vez del comienzo del canal', () => {
+    const onLoadOlder = vi.fn();
+    const { rerender } = render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" hasOlderMessages onLoadOlder={onLoadOlder} />
+    );
+
+    expect(screen.queryByText(/este es el comienzo del canal/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '_cargar mensajes anteriores' }));
+    expect(onLoadOlder).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" hasOlderMessages isLoadingOlder onLoadOlder={onLoadOlder} />
+    );
+    expect(screen.getByRole('status').textContent).toMatch(/cargando mensajes anteriores/);
+
+    // Ya no quedan más: vuelve el comienzo del canal
+    rerender(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onLoadOlder={onLoadOlder} />);
+    expect(screen.getByText(/este es el comienzo del canal/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '_cargar mensajes anteriores' })).toBeNull();
+  });
+
+  it('al subir cerca del borde de arriba pide los anteriores, pero no al bajar', () => {
+    const onLoadOlder = vi.fn();
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" hasOlderMessages onLoadOlder={onLoadOlder} />);
+    const log = screen.getByRole('log');
+
+    // Al abrir se baja desde arriba: no cuenta
+    fireEvent.scroll(log, { target: { scrollTop: 150 } });
+    expect(onLoadOlder).not.toHaveBeenCalled();
+    fireEvent.scroll(log, { target: { scrollTop: 900 } });
+    // El usuario sube hasta cerca del borde
+    fireEvent.scroll(log, { target: { scrollTop: 100 } });
+    expect(onLoadOlder).toHaveBeenCalledTimes(1);
+  });
+
   it('el botón de enviar se habilita solo con texto', () => {
     render(<ChatView channel={channel} messages={[]} users={users} currentUserId="me" />);
 

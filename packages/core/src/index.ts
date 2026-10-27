@@ -25,6 +25,7 @@ export * from './api/voice';
 
 // Hooks de React (React Query y perfiles), los mismos en web y mobile
 export * from './hooks/useApi';
+export * from './hooks/messageCache';
 export * from './hooks/useUserProfiles';
 export * from './hooks/useChatSocket';
 

@@ -1,5 +1,5 @@
 import { useChannelMessagesQuery } from '@discordia/core';
-import { useUIStore } from '../../app/uiStore';
+import { showToast, useUIStore } from '../../app/uiStore';
 import { useUsers } from '../../app/usersContext';
 import { useCurrentServer } from '../servers/useCurrentServer';
 import { useCurrentUser } from '../profile/currentUserStore';
@@ -21,16 +21,22 @@ export function ChatPanel() {
   const voice = useVoice();
   const actions = useMessageActions();
   const writeBlock = useChatWriteBlock();
-  const { data: realMessages, isLoading } = useChannelMessagesQuery(
+  const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder } = useChannelMessagesQuery(
     selectedServerId !== 'home' ? selectedChannelId : null
   );
-
 
   return (
     <ChatView
       channel={currentChannel}
       messages={realMessages || []}
       isLoading={isLoading}
+      hasOlderMessages={hasOlder}
+      isLoadingOlder={isFetchingOlder}
+      onLoadOlder={() => {
+        fetchOlder().then((result) => {
+          if (result.isError) showToast('No se pudieron cargar los mensajes anteriores', 'danger', { label: 'reintentar', onPress: () => fetchOlder() });
+        });
+      }}
       currentUserId={currentUser.id}
       users={usersMap}
       isMemberListOpen={isMemberListOpen}
