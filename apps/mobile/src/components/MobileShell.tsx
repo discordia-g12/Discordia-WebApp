@@ -86,6 +86,7 @@ export default function MobileShell() {
     deleteServer,
     reorderChannels,
     reorderCategories,
+    refreshServers,
     addOptimisticMessage,
     confirmOptimisticMessage,
     failOptimisticMessage,
@@ -288,12 +289,13 @@ export default function MobileShell() {
     } catch (err) {
       console.error('[Voice] Error al unirse al canal:', err)
       setScreen(current => (current === 'voice' ? 'channels' : current))
+      const forbidden = err instanceof ApiError && err.status === 403
       showToast(
-        err instanceof ApiError && err.status === 403
-          ? 'No tenés permiso para entrar a este canal de voz'
-          : 'No se pudo conectar al canal de voz',
+        forbidden ? 'No tenés permiso para entrar a este canal de voz' : 'No se pudo conectar al canal de voz',
         'error',
       )
+      // Le cambiaron los permisos desde que se cargó el servidor: se vuelven a pedir para mostrar el candado
+      if (forbidden) refreshServers()
     }
   }
 
