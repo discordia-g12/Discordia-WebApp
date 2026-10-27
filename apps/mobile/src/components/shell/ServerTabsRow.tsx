@@ -4,6 +4,7 @@ import { Compass, Plus } from 'lucide-react-native'
 import { makeStyles, useTheme } from '../../theme'
 import { Logo, ServerStrip } from '../../ui'
 import type { Server } from '../../types'
+import { serverUnreadLabel } from '../../utils/unread'
 
 interface ServerTabsRowProps {
   servers: Server[]
@@ -29,7 +30,7 @@ export function ServerTabsRow({ servers, activeServerId, onSelect, onAdd, onJoin
             key={server.id}
             server={server}
             active={server.id === activeServerId}
-            unread={server.unread}
+            unread={serverUnreadLabel(server)}
             onPress={() => onSelect(server.id)}
           />
         ))}

@@ -32,6 +32,7 @@ import { ServerMenu } from './shell/ServerMenu'
 import { ServerTabsRow } from './shell/ServerTabsRow'
 import { Padded, Pane, Screen } from './shell/ShellScreen'
 import { useUserDisplay } from '../hooks/useUserProfiles'
+import { useAppActive } from '../hooks/useAppActive'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
 import {
@@ -49,6 +50,11 @@ import {
   canSeeSettingsSection,
   isVoiceChannelLocked,
   voiceDisconnectMessage,
+  applyUnread,
+  useAutoMarkChannelRead,
+  useMarkAllReadMutation,
+  useMarkChannelReadMutation,
+  useUnreadQuery,
 } from '@discordia/core'
 
 /** Lo que se ve en Servidores: la lista de canales, o un canal abierto a pantalla completa. */
@@ -79,7 +85,7 @@ export default function MobileShell() {
   const { logout } = useAuth()
   const {
     users,
-    servers,
+    servers: loadedServers,
     serversLoaded,
     messages,
     currentUserId,
@@ -101,6 +107,17 @@ export default function MobileShell() {
   const [tab, setTab] = useState<ShellTab>('servers')
   const [screen, setScreen] = useState<MobileScreen>('channels')
   const keyboardVisible = useKeyboardVisible()
+  const appActive = useAppActive()
+
+  // No leídos de cada canal y servidor. El chat abierto no cuenta: ya se está leyendo
+  const { data: unread } = useUnreadQuery()
+  const readingChannelId = tab === 'servers' && screen === 'chat' ? selectedChannelId : null
+  const servers = useMemo(
+    () => applyUnread(loadedServers, unread, readingChannelId),
+    [loadedServers, unread, readingChannelId],
+  )
+  const markChannelRead = useMarkChannelReadMutation()
+  const markAllRead = useMarkAllReadMutation()
 
   // Voz (LiveKit). Si la conexión se corta sola, volver a la lista de canales
   const voice = useVoiceRoom({
@@ -203,6 +220,9 @@ export default function MobileShell() {
     }
     return undefined
   }, [channelMessages])
+
+  // Con el chat a la vista se marca leído al abrirlo y con cada mensaje; en segundo plano, no
+  useAutoMarkChannelRead(readingChannelId, lastMessageId, { enabled: appActive })
 
   const activeSocketChannelId =
     channel && channel.type !== 'voice' ? channel.id : null
@@ -448,8 +468,22 @@ export default function MobileShell() {
   }
 
   const firstSettingsSection = SERVER_SETTINGS_SECTIONS.find(canOpenSettingsSection)
+  const markReadError = () => showToast('No se pudo marcar como leído', 'error')
+  const unreadChannels = allChannels.filter(c => (c.unreadCount ?? 0) > 0)
   const serverMenuItems = server
     ? [
+        {
+          label: 'Marcar como leído',
+          onSelect: unreadChannels.length
+            ? () => unreadChannels.forEach(c => markChannelRead.mutate({ channelId: c.id }, { onError: markReadError }))
+            : undefined,
+        },
+        {
+          label: 'Marcar todo como leído',
+          onSelect: servers.some(s => s.unread)
+            ? () => markAllRead.mutate(undefined, { onError: markReadError })
+            : undefined,
+        },
         { label: 'Invitar personas', onSelect: canInvite ? () => setInviteModalOpen(true) : undefined },
         {
           label: 'Ajustes del servidor',
