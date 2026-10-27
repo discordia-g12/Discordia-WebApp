@@ -374,6 +374,67 @@ describe('useVoiceRoom', () => {
     });
   });
 
+  it('silenciado para mí con el micrófono apagado: cuando lo prende, su audio llega en 0', async () => {
+    const { result } = renderHook(() => useVoiceRoom());
+    await act(async () => {
+      await result.current.join('chan-1');
+    });
+    let remote!: FakeParticipant;
+    act(() => {
+      remote = FakeRoom.instances[0].addRemote('auth0|otro');
+      remote.isMicrophoneEnabled = false;
+    });
+
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    remote.setVolume.mockClear();
+
+    // Prende el micrófono: LiveKit publica un track nuevo y avisa (publicado / desmuteado)
+    act(() => {
+      remote.isMicrophoneEnabled = true;
+      FakeRoom.instances[0].emit('trackPublished');
+      FakeRoom.instances[0].emit('trackUnmuted');
+    });
+
+    expect(remote.setVolume).toHaveBeenCalled();
+    expect(remote.setVolume).not.toHaveBeenCalledWith(1);
+    expect(remote.setVolume).toHaveBeenLastCalledWith(0);
+  });
+
+  it('al dejar de silenciarlo para mí vuelve a volumen 1', async () => {
+    const { result } = renderHook(() => useVoiceRoom());
+    await act(async () => {
+      await result.current.join('chan-1');
+    });
+    let remote!: FakeParticipant;
+    act(() => {
+      remote = FakeRoom.instances[0].addRemote('auth0|otro');
+    });
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    act(() => FakeRoom.instances[0].emit('trackUnmuted'));
+    expect(remote.setVolume).toHaveBeenLastCalledWith(1);
+  });
+
+  it('silenciado para mí sigue silenciado después de ensordecerme y dejar de estarlo', async () => {
+    const { result } = renderHook(() => useVoiceRoom());
+    await act(async () => {
+      await result.current.join('chan-1');
+    });
+    let remote!: FakeParticipant;
+    act(() => {
+      remote = FakeRoom.instances[0].addRemote('auth0|otro');
+    });
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    await act(async () => {
+      result.current.toggleDeafen();
+    });
+    await act(async () => {
+      result.current.toggleDeafen();
+    });
+    expect(remote.setVolume).toHaveBeenLastCalledWith(0);
+    expect(remote.setVolume).not.toHaveBeenLastCalledWith(1);
+  });
+
   describe('cámara', () => {
     const join = async (result: { current: ReturnType<typeof useVoiceRoom> }) => {
       await act(async () => {

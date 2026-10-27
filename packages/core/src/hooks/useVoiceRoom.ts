@@ -101,6 +101,11 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const [locallyMutedUsers, setLocallyMutedUsers] = useState<Record<string, boolean>>({});
   const [isCameraOn, setIsCameraOn] = useState(false);
 
+  const applyVolume = useCallback((participant: RemoteParticipant) => {
+    const silenced = deafenedRef.current || locallyMutedRef.current[participant.identity];
+    participant.setVolume(silenced ? 0 : 1);
+  }, []);
+
   const syncParticipants = useCallback(() => {
     const room = roomRef.current;
     if (!room) {
@@ -127,6 +132,10 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     setParticipants([
       withHold(toParticipant(room.localParticipant, true, lk), true),
       ...Array.from(room.remoteParticipants.values()).map((p) => {
+        // El volumen se vuelve a aplicar en cada cambio de la sala: si alguien silenciado (para mí o
+        // por deafen) prende el micrófono, su audio nuevo llega con volumen 0 sin depender del orden
+        // en que LiveKit crea el track y emite los eventos
+        applyVolume(p);
         const participant = toParticipant(p, false, lk);
         const heard = !deafenedRef.current && !locallyMutedRef.current[participant.id];
         return withHold(participant, heard);
@@ -138,13 +147,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     if (nextExpiry !== Infinity) {
       speakingTimerRef.current = setTimeout(() => syncParticipantsRef.current(), nextExpiry - now + 1);
     }
-  }, []);
+  }, [applyVolume]);
   syncParticipantsRef.current = syncParticipants;
-
-  const applyVolume = useCallback((participant: RemoteParticipant) => {
-    const silenced = deafenedRef.current || locallyMutedRef.current[participant.identity];
-    participant.setVolume(silenced ? 0 : 1);
-  }, []);
 
   const applyVolumes = useCallback(() => {
     roomRef.current?.remoteParticipants.forEach(applyVolume);
