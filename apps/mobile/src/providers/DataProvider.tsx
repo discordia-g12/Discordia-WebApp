@@ -21,6 +21,7 @@ import {
   createCategory as apiCreateCategory,
   reorderChannels as apiReorderChannels,
   reorderCategories as apiReorderCategories,
+  type UploadableFile,
 } from '@discordia/core'
 
 interface DataContextValue {
@@ -34,7 +35,8 @@ interface DataContextValue {
 
   // Servidores y canales en vivo
   refreshServers: () => Promise<void>
-  createServer: (name: string, icon?: File) => Promise<Server>
+  /** `icon`: el archivo de toUploadFile (utils/images). */
+  createServer: (name: string, icon?: UploadableFile) => Promise<Server>
   createChannel: (
     serverId: string,
     data: { name: string; type: 'text' | 'voice'; categoryId?: string },
@@ -108,8 +110,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshServers()
   }, [refreshServers])
 
-  const createServer = useCallback(async (name: string, icon?: File): Promise<Server> => {
-    const newServer = await apiCreateServer({ name, icon })
+  const createServer = useCallback(async (name: string, icon?: UploadableFile): Promise<Server> => {
+    const newServer = await apiCreateServer(icon ? { name, icon } : { name })
     setServers(prev => [...prev, newServer])
     return newServer
   }, [])

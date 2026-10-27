@@ -23,17 +23,57 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('CreateServerModal', () => {
-  it('propone un nombre, crea con el que quede y deja el ícono en próximamente', async () => {
+  const png = () => new File([new Uint8Array([137, 80, 78, 71])], 'icono.png', { type: 'image/png' });
+
+  it('propone un nombre y crea con el que quede, sin ícono si no se eligió', async () => {
     const onCreateServer = vi.fn().mockResolvedValue(undefined);
     render(<CreateServerModal currentUser={{ displayName: 'Pilar' } as never} onClose={vi.fn()} onCreateServer={onCreateServer} />);
 
     const name = screen.getByLabelText(/Nombre del servidor/) as HTMLInputElement;
     expect(name.value).toBe('Servidor de Pilar');
-    expect(screen.getByText('próximamente')).toBeTruthy();
 
     fireEvent.change(name, { target: { value: '  Torton  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear /' }));
     await waitFor(() => expect(onCreateServer).toHaveBeenCalledWith({ name: 'Torton' }));
+    expect(onCreateServer.mock.calls[0][0]).not.toHaveProperty('icon');
+  });
+
+  it('manda el ícono elegido como archivo y muestra la vista previa', async () => {
+    const onCreateServer = vi.fn().mockResolvedValue(undefined);
+    render(<CreateServerModal currentUser={{ displayName: 'Pilar' } as never} onClose={vi.fn()} onCreateServer={onCreateServer} />);
+    const icon = png();
+
+    fireEvent.change(screen.getByLabelText('Ícono del servidor'), { target: { files: [icon] } });
+    await waitFor(() => expect(screen.getByRole('img', { name: 'Servidor de Pilar' }).tagName).toBe('IMG'));
+    expect(screen.getByText('_elegir otro')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear /' }));
+    await waitFor(() => expect(onCreateServer).toHaveBeenCalledWith({ name: 'Servidor de Pilar', icon }));
+  });
+
+  it('rechaza un formato no permitido sin mandarlo', async () => {
+    const onCreateServer = vi.fn().mockResolvedValue(undefined);
+    render(<CreateServerModal currentUser={{ displayName: 'Pilar' } as never} onClose={vi.fn()} onCreateServer={onCreateServer} />);
+    const gif = new File(['GIF89a'], 'icono.gif', { type: 'image/gif' });
+
+    fireEvent.change(screen.getByLabelText('Ícono del servidor'), { target: { files: [gif] } });
+    expect(screen.getByRole('alert').textContent).toBe('/ Formato no permitido: usá JPEG, PNG o WebP.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear /' }));
+    await waitFor(() => expect(onCreateServer).toHaveBeenCalledWith({ name: 'Servidor de Pilar' }));
+    expect(onCreateServer.mock.calls[0][0]).not.toHaveProperty('icon');
+  });
+
+  it('_quitar descarta el ícono elegido', async () => {
+    const onCreateServer = vi.fn().mockResolvedValue(undefined);
+    render(<CreateServerModal currentUser={{ displayName: 'Pilar' } as never} onClose={vi.fn()} onCreateServer={onCreateServer} />);
+
+    fireEvent.change(screen.getByLabelText('Ícono del servidor'), { target: { files: [png()] } });
+    fireEvent.click(await screen.findByRole('button', { name: '_quitar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear /' }));
+
+    await waitFor(() => expect(onCreateServer).toHaveBeenCalledTimes(1));
+    expect(onCreateServer.mock.calls[0][0]).not.toHaveProperty('icon');
   });
 });
 

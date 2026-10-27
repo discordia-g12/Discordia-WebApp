@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { imageFileError } from '@discordia/core';
 import { User, Status } from '../../../types';
 import { ProfileMode } from './shared';
 
@@ -6,7 +7,11 @@ import { ProfileMode } from './shared';
 export interface OwnProfileViewProps {
   currentUser?: User;
   onBack?: () => void;
-  onSave?: (updatedUser: User) => void;
+  /**
+   * Guarda el perfil; `avatarFile` llega solo si se eligió un avatar nuevo. Si devuelve (o resuelve)
+   * false, el formulario queda como estaba para reintentar.
+   */
+  onSave?: (updatedUser: User, avatarFile?: File) => boolean | void | Promise<boolean | void>;
 }
 
 
@@ -28,37 +33,49 @@ export function useOwnProfileState(props: OwnProfileViewProps) {
   const [status, setStatus] = useState<Status>(baseUser.status || 'online');
   const [customStatus, setCustomStatus] = useState(baseUser.customStatus || '');
   const [bannerColor, setBannerColor] = useState(baseUser.bannerColor || '#5865f2');
-  const [avatarUrl, setAvatarUrl] = useState<string>(
-    baseUser.avatarUrl || baseUser.avatar || ''
-  );
-  const [defaultAvatar] = useState<string>(
-    baseUser.avatarUrl || baseUser.avatar || ''
-  );
+
+  // Avatar: el guardado viene del usuario; el elegido se sube recién al guardar y mientras tanto se
+  // muestra su vista previa local
+  const defaultAvatar = baseUser.avatarUrl || baseUser.avatar || '';
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarUrl = avatarPreview ?? defaultAvatar;
 
   // Validation
   const isDisplayNameValid = displayName.trim().length >= 2 && displayName.trim().length <= 32;
 
+  const clearNewAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    setAvatarError(null);
+  };
+
   // Avatar file upload handler
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Avatar image size cannot exceed 5 MB.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setAvatarUrl(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+    // Permite volver a elegir el mismo archivo después de restablecer
+    e.target.value = '';
+    if (!file) return;
+
+    const error = imageFileError(file);
+    if (error) {
+      setAvatarError(error);
+      return;
     }
+
+    setAvatarError(null);
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (typeof event.target?.result === 'string') {
+        setAvatarPreview(event.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleResetAvatar = () => {
-    setAvatarUrl(defaultAvatar);
-  };
+  const handleResetAvatar = clearNewAvatar;
 
   // Discard changes
   const handleDiscard = () => {
@@ -67,35 +84,34 @@ export function useOwnProfileState(props: OwnProfileViewProps) {
     setStatus(baseUser.status || 'online');
     setCustomStatus(baseUser.customStatus || '');
     setBannerColor(baseUser.bannerColor || '#5865f2');
-    setAvatarUrl(baseUser.avatarUrl || baseUser.avatar || defaultAvatar);
+    clearNewAvatar();
     setMode('view');
   };
 
   // Save changes
-  const handleSave = () => {
-    if (!isDisplayNameValid) return;
+  const handleSave = async () => {
+    if (!isDisplayNameValid || mode === 'saving') return;
 
     setMode('saving');
+    const updated: User = {
+      ...baseUser,
+      displayName: displayName.trim(),
+      bio: bio.trim(),
+      status,
+      customStatus: customStatus.trim(),
+      bannerColor,
+    };
+
+    const result = await (avatarFile ? onSave?.(updated, avatarFile) : onSave?.(updated));
+    setMode('view');
+    if (result === false) return;
+
+    // Guardado: el avatar nuevo ya es el del usuario (llega con currentUser)
+    clearNewAvatar();
+    setSavedIndicator(true);
     setTimeout(() => {
-      const updated: User = {
-        ...baseUser,
-        displayName: displayName.trim(),
-        bio: bio.trim(),
-        status,
-        customStatus: customStatus.trim(),
-        bannerColor,
-        avatar: avatarUrl,
-        avatarUrl,
-      };
-
-      setMode('view');
-      setSavedIndicator(true);
-      onSave?.(updated);
-
-      setTimeout(() => {
-        setSavedIndicator(false);
-      }, 2500);
-    }, 750);
+      setSavedIndicator(false);
+    }, 2500);
   };
 
   return {
@@ -119,7 +135,8 @@ export function useOwnProfileState(props: OwnProfileViewProps) {
     bannerColor,
     setBannerColor,
     avatarUrl,
-    setAvatarUrl,
+    avatarFile,
+    avatarError,
     defaultAvatar,
     isDisplayNameValid,
     handleAvatarFileChange,

@@ -80,6 +80,8 @@ producción (Cloudflare Pages).
 | W24 | Miembros: `_rol +`, quitar rol con ×, silenciar (duración), expulsar, banear | Funcionan contra el backend; no se ofrecen sobre vos ni sobre quien creó el servidor |
 | W25 | Baneos → revocar | Confirmación en la fila; desaparece de la lista |
 | W26 | Crear servidor, unirse con invitación inválida, invitar | Modal que baja desde arriba; el error de invitación queda en el campo; invitar genera al abrir y ofrece `_generar otro enlace` al cambiar opciones |
+| W26a | Crear servidor con `_elegir ícono` (PNG, JPG o WebP); probar también un GIF y uno de más de 5 MB | Vista previa cuadrada antes de crear; el servidor nuevo aparece en el rail con su ícono recortado a 256×256. El GIF y el grande muestran el error bajo el ícono y no se mandan |
+| W26b | Mi perfil → `_cambiar avatar` → Guardar; después recargar | La vista previa cambia al elegir; al guardar, el avatar nuevo aparece en la barra de usuario y en tus mensajes, y sigue después de recargar. `_restablecer` antes de guardar vuelve al anterior |
 | W27 | Eliminar servidor | Pide escribir el nombre; el bloque rojo solo se habilita al coincidir |
 | W28 | Cualquier acción con aviso | Tira negra al pie, 4 s; los errores con borde rojo y `_reintentar` donde aplica |
 
@@ -128,6 +130,7 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 | M9 | Tocar otra franja de la tira de arriba | Baja la franja activa; cambia el encabezado y los canales |
 | M10 | Barra inferior: Mensajes, Avisos, Perfil | Mensajes y Avisos: vacíos con "próximamente"; la pestaña activa en bloque negro |
 | M11 | `+` de la tira | Crear servidor; `_unirme con una invitación` cambia al código |
+| M11a | Crear servidor con `_elegir ícono` (en iPhone, probar también una foto HEIC) | Vista previa cuadrada; el servidor aparece en la tira con su ícono. Una HEIC muestra "Formato no permitido" bajo el ícono y no se manda |
 | M12 | Brújula de la tira con un código válido / inválido | Entra al servidor / el error queda en el campo y el modal sigue abierto |
 | M13 | `menú v` | Panel: invitar, ajustes, miembros, roles, crear canal y categoría, ordenar, abandonar / eliminar |
 | M14 | Ordenar canales | Flechas en canales y categorías; el orden se guarda |
@@ -160,7 +163,7 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 | # | Pasos | Esperado |
 |---|---|---|
 | M28 | Perfil → presencia y estado personalizado | La presencia cambia en la sesión; el estado se guarda (`_guardar` / `_quitar`) |
-| M29 | Perfil → `_editar perfil` | Elegir avatar de la galería, nombre y bio; se guarda con aviso |
+| M29 | Perfil → `_editar perfil` | Elegir avatar de la galería, nombre y bio; se guarda con aviso. El avatar nuevo sigue después de cerrar sesión y volver a entrar (y se ve igual en la web) |
 | M30 | Perfil → `_ajustes` → Experiencia → tema | Cambia al instante; cerrar la app y abrirla lo conserva. "Sistema" sigue al modo del teléfono |
 | M31 | Ajustes del servidor (como W22–W25) | Mismas reglas que la web; el menú se desliza hasta la sección elegida |
 | M32 | Ajustes del servidor → INVITAR / ELIMINAR / ABANDONAR | Los ajustes se cierran y aparece el modal (en iOS no puede haber dos a la vez); eliminar pide escribir el nombre |
