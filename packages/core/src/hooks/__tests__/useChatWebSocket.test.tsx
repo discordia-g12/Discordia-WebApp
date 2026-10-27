@@ -247,6 +247,35 @@ describe('useChatWebSocket', () => {
     consoleSpy.mockRestore();
   });
 
+  it('expone canSend según lo que informa el servidor y lo resetea al cambiar de canal', async () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const sockets: MockWebSocket[] = [];
+    const OriginalWebSocket = global.WebSocket;
+    global.WebSocket = mockWebSocketClass((ws) => sockets.push(ws));
+    global.WebSocket.CONNECTING = 0;
+    global.WebSocket.OPEN = 1;
+
+    const { result, rerender, unmount } = renderHook(({ channelId }) => useChatWebSocket(channelId, 'user-1'), {
+      wrapper,
+      initialProps: { channelId: 'channel-1' as string | null },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    act(() => sockets[0]._simulateOpen());
+    expect(result.current.canSend).toBe(true);
+
+    act(() => sockets[0]._simulateMessage({ type: 'PERMISSIONS_UPDATED', canSend: false, channelId: 'channel-1' }));
+    expect(result.current.canSend).toBe(false);
+
+    // Sin canal (p. ej. DMs) se puede escribir
+    rerender({ channelId: null });
+    expect(result.current.canSend).toBe(true);
+
+    unmount();
+    global.WebSocket = OriginalWebSocket;
+  });
+
   it('should send message immediately if OPEN', async () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>

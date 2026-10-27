@@ -42,6 +42,8 @@
 
 .menuWrap {
   position: static;
+  /* Queda a la derecha aunque no esté "Invitar al servidor" (sin permiso para invitar) */
+  margin-left: auto;
 }
 
 .menuToggle {
@@ -222,6 +224,17 @@
 .channelButton:hover {
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.channelButton:disabled {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
+.lock {
+  margin-left: var(--space-1);
+  vertical-align: -1px;
 }
 
 .channelMeta {

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { Animated, KeyboardAvoidingView, Modal as RNModal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { Animated, KeyboardAvoidingView, Modal as RNModal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from 'lucide-react-native'
+import { keyboardAvoidingBehavior } from './platform'
 import { makeStyles, useTheme } from '../theme'
 import { ActionLink } from './ActionLink'
 import { BlockButton } from './BlockButton'
@@ -62,7 +63,7 @@ export function Modal({ visible, title, description, onClose, role = 'dialog', c
       <Animated.View style={[styles.scrim, { opacity: progress }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Cerrar" accessibilityRole="button" />
       </Animated.View>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} pointerEvents="box-none" style={styles.layer}>
+      <KeyboardAvoidingView behavior={keyboardAvoidingBehavior} pointerEvents="box-none" style={styles.layer}>
         <Animated.View
           style={[styles.panel, { paddingTop: insets.top, maxHeight: height * 0.9 }, panelMotion]}
           accessibilityViewIsModal

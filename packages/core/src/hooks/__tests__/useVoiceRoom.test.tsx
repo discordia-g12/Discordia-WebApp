@@ -26,9 +26,12 @@ class FakeLocalParticipant extends FakeParticipant {
     if (FakeRoom.micDenied) throw new Error('NotAllowedError');
     this.isMicrophoneEnabled = enabled;
   });
-  setCameraEnabled = vi.fn(async (enabled: boolean) => {
-    if (FakeRoom.cameraDenied) throw new Error('NotAllowedError');
-    this.cameraPublication = enabled ? { track: { kind: 'video', sid: 'local-cam' }, isMuted: false } : undefined;
+  publishTrack = vi.fn(async (track: object) => {
+    this.cameraPublication = { track, isMuted: false };
+  });
+  unpublishTrack = vi.fn(async (track: { stop: () => void }) => {
+    track.stop();
+    this.cameraPublication = undefined;
   });
 }
 
@@ -105,6 +108,11 @@ const fakeLiveKit = {
     SignalReconnecting: 'signalReconnecting',
   },
   Track: { Kind: { Audio: 'audio', Video: 'video' }, Source: { Camera: 'camera', Microphone: 'microphone' } },
+  // En la web acá el navegador pide el permiso de cámara
+  createLocalVideoTrack: vi.fn(async () => {
+    if (FakeRoom.cameraDenied) throw new Error('NotAllowedError');
+    return { kind: 'video', sid: 'local-cam', stop: vi.fn() };
+  }),
   // Los mismos valores que el enum de @livekit/protocol
   DisconnectReason: { UNKNOWN_REASON: 0, CLIENT_INITIATED: 1, DUPLICATE_IDENTITY: 2, PARTICIPANT_REMOVED: 4, ROOM_DELETED: 5 },
 } as unknown as LiveKitModule;
@@ -376,6 +384,123 @@ describe('useVoiceRoom', () => {
     });
   });
 
+  it('silenciado para mí con el micrófono apagado: cuando lo prende, su audio llega en 0', async () => {
+    const { result } = renderHook(() => useVoiceRoom());
+    await act(async () => {
+      await result.current.join('chan-1');
+    });
+    let remote!: FakeParticipant;
+    act(() => {
+      remote = FakeRoom.instances[0].addRemote('auth0|otro');
+      remote.isMicrophoneEnabled = false;
+    });
+
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    remote.setVolume.mockClear();
+
+    // Prende el micrófono: LiveKit publica un track nuevo y avisa (publicado / desmuteado)
+    act(() => {
+      remote.isMicrophoneEnabled = true;
+      FakeRoom.instances[0].emit('trackPublished');
+      FakeRoom.instances[0].emit('trackUnmuted');
+    });
+
+    expect(remote.setVolume).toHaveBeenCalled();
+    expect(remote.setVolume).not.toHaveBeenCalledWith(1);
+    expect(remote.setVolume).toHaveBeenLastCalledWith(0);
+  });
+
+  it('al dejar de silenciarlo para mí vuelve a volumen 1', async () => {
+    const { result } = renderHook(() => useVoiceRoom());
+    await act(async () => {
+      await result.current.join('chan-1');
+    });
+    let remote!: FakeParticipant;
+    act(() => {
+      remote = FakeRoom.instances[0].addRemote('auth0|otro');
+    });
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    act(() => FakeRoom.instances[0].emit('trackUnmuted'));
+    expect(remote.setVolume).toHaveBeenLastCalledWith(1);
+  });
+
+  it('silenciado para mí sigue silenciado después de ensordecerme y dejar de estarlo', async () => {
+    const { result } = renderHook(() => useVoiceRoom());
+    await act(async () => {
+      await result.current.join('chan-1');
+    });
+    let remote!: FakeParticipant;
+    act(() => {
+      remote = FakeRoom.instances[0].addRemote('auth0|otro');
+    });
+    act(() => result.current.toggleLocalMute('auth0|otro'));
+    await act(async () => {
+      result.current.toggleDeafen();
+    });
+    await act(async () => {
+      result.current.toggleDeafen();
+    });
+    expect(remote.setVolume).toHaveBeenLastCalledWith(0);
+    expect(remote.setVolume).not.toHaveBeenLastCalledWith(1);
+  });
+
+  describe('permisos de voz del rol', () => {
+    const noSpeakNoVideo = { canSpeak: false, canVideo: false, canScreenShare: false };
+
+    it('sin permiso para hablar no prende el micrófono, se muestra silenciado y no se puede activar', async () => {
+      mockJoinVoiceChannel.mockResolvedValue({ token: 't', url: 'ws://lk', permissions: noSpeakNoVideo });
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+
+      const local = FakeRoom.instances[0].localParticipant;
+      expect(local.setMicrophoneEnabled).not.toHaveBeenCalled();
+      expect(result.current.canSpeak).toBe(false);
+      expect(result.current.isMuted).toBe(true);
+
+      act(() => result.current.toggleMute());
+      expect(local.setMicrophoneEnabled).not.toHaveBeenCalled();
+    });
+
+    it('sin permiso de video la cámara no se prende', async () => {
+      mockJoinVoiceChannel.mockResolvedValue({ token: 't', url: 'ws://lk', permissions: noSpeakNoVideo });
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+
+      let ok: boolean | undefined;
+      await act(async () => {
+        ok = await result.current.toggleCamera();
+      });
+      expect(ok).toBe(false);
+      expect(result.current.canVideo).toBe(false);
+      expect(fakeLiveKit.createLocalVideoTrack).not.toHaveBeenCalled();
+    });
+
+    it('al salir vuelve a poder todo, y sin permisos en la respuesta (voice-service anterior) se puede todo', async () => {
+      mockJoinVoiceChannel.mockResolvedValue({ token: 't', url: 'ws://lk', permissions: noSpeakNoVideo });
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+      await act(async () => {
+        await result.current.leave();
+      });
+      expect(result.current.canSpeak).toBe(true);
+      expect(result.current.canVideo).toBe(true);
+
+      mockJoinVoiceChannel.mockResolvedValue({ token: 't', url: 'ws://lk' });
+      await act(async () => {
+        await result.current.join('chan-2');
+      });
+      expect(result.current.canSpeak).toBe(true);
+      expect(FakeRoom.instances[1].localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    });
+  });
+
   describe('cámara', () => {
     const join = async (result: { current: ReturnType<typeof useVoiceRoom> }) => {
       await act(async () => {
@@ -397,7 +522,7 @@ describe('useVoiceRoom', () => {
       });
       expect(ok).toBe(true);
       expect(result.current.isCameraOn).toBe(true);
-      expect(me(result).videoTrack).toEqual({ kind: 'video', sid: 'local-cam' });
+      expect(me(result).videoTrack).toMatchObject({ kind: 'video', sid: 'local-cam' });
 
       await act(async () => {
         await result.current.toggleCamera();
@@ -431,7 +556,7 @@ describe('useVoiceRoom', () => {
         ok = await result.current.toggleCamera();
       });
       expect(ok).toBe(false);
-      expect(FakeRoom.instances[0].localParticipant.setCameraEnabled).not.toHaveBeenCalled();
+      expect(fakeLiveKit.createLocalVideoTrack).not.toHaveBeenCalled();
     });
 
     it('no hace nada fuera de una llamada', async () => {
@@ -471,6 +596,132 @@ describe('useVoiceRoom', () => {
       });
       await act(async () => {
         await result.current.leave();
+      });
+      expect(result.current.isCameraOn).toBe(false);
+    });
+
+    it('al dejar de recibir una cámara no la trata como audio', async () => {
+      const stopRemoteAudio = vi.fn();
+      setVoicePlatform({ livekit: () => fakeLiveKit, stopRemoteAudio });
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+      let remote!: FakeParticipant;
+      act(() => {
+        remote = FakeRoom.instances[0].addRemote('auth0|otro');
+      });
+
+      act(() => FakeRoom.instances[0].emit('trackUnsubscribed', { kind: 'video' }, {}, remote));
+      expect(stopRemoteAudio).not.toHaveBeenCalled();
+
+      const audio = { kind: 'audio' };
+      act(() => FakeRoom.instances[0].emit('trackUnsubscribed', audio, {}, remote));
+      expect(stopRemoteAudio).toHaveBeenCalledWith(audio);
+    });
+
+    it('al cambiar de canal la cámara queda apagada', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+      expect(result.current.isCameraOn).toBe(true);
+
+      await act(async () => {
+        await result.current.join('chan-2');
+      });
+      expect(result.current.isCameraOn).toBe(false);
+
+      // Un solo toque la prende en la sala nueva
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+      expect(FakeRoom.instances[1].localParticipant.publishTrack).toHaveBeenCalledTimes(1);
+      expect(result.current.isCameraOn).toBe(true);
+    });
+
+    it('si se cuelga mientras se pide el permiso, la cámara no queda prendida', async () => {
+      let grant!: (ok: boolean) => void;
+      setVoicePlatform({
+        livekit: () => fakeLiveKit,
+        requestCameraPermission: () => new Promise<boolean>((resolve) => (grant = resolve)),
+      });
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+
+      let pending!: Promise<boolean>;
+      act(() => {
+        pending = result.current.toggleCamera();
+      });
+      await act(async () => {
+        await result.current.leave();
+      });
+      let ok: boolean | undefined;
+      await act(async () => {
+        grant(true);
+        ok = await pending;
+      });
+
+      expect(ok).toBe(true);
+      expect(result.current.isCameraOn).toBe(false);
+      expect(fakeLiveKit.createLocalVideoTrack).not.toHaveBeenCalled();
+    });
+
+    it('si se cuelga mientras el navegador pide el permiso, apaga la cámara en vez de publicarla', async () => {
+      const track = { kind: 'video', sid: 'local-cam', stop: vi.fn() };
+      let grant!: () => void;
+      vi.mocked(fakeLiveKit.createLocalVideoTrack).mockImplementationOnce(
+        () => new Promise((resolve) => (grant = () => resolve(track as never)))
+      );
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+
+      let pending!: Promise<boolean>;
+      act(() => {
+        pending = result.current.toggleCamera();
+      });
+      await act(async () => {
+        await result.current.leave();
+      });
+      await act(async () => {
+        grant();
+        await pending;
+      });
+
+      expect(track.stop).toHaveBeenCalled();
+      expect(FakeRoom.instances[0].localParticipant.publishTrack).not.toHaveBeenCalled();
+      expect(result.current.isCameraOn).toBe(false);
+    });
+
+    it('apagarla despublica el track y libera la cámara', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+      const track = me(result).videoTrack as unknown as { stop: () => void };
+
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+
+      expect(FakeRoom.instances[0].localParticipant.unpublishTrack).toHaveBeenCalledWith(track);
+      expect(track.stop).toHaveBeenCalled();
+    });
+
+    it('un doble toque no cambia la cámara dos veces', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+
+      await act(async () => {
+        await Promise.all([result.current.toggleCamera(), result.current.toggleCamera()]);
+      });
+
+      expect(FakeRoom.instances[0].localParticipant.publishTrack).toHaveBeenCalledTimes(1);
+      expect(result.current.isCameraOn).toBe(true);
+
+      // Terminado el primero, el siguiente toque sí la apaga
+      await act(async () => {
+        await result.current.toggleCamera();
       });
       expect(result.current.isCameraOn).toBe(false);
     });

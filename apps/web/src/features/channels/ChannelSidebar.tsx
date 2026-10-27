@@ -1,7 +1,7 @@
 import type { VideoTrack } from 'livekit-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MicOff, HeadphoneOff, VolumeX } from 'lucide-react';
-import { isLocalCategoryId } from '@discordia/core';
+import { MicOff, HeadphoneOff, Lock, VolumeX } from 'lucide-react';
+import { isLocalCategoryId, isVoiceChannelLocked } from '@discordia/core';
 import type { Channel, Server, User } from '../../types';
 import { ActionLink, SectionLabel, Skeleton, SquareAvatar } from '../../ui';
 import { VoiceParticipantMenu } from '../voice/VoiceParticipantMenu';
@@ -136,9 +136,11 @@ export function ChannelSidebar({
   return (
     <nav className={styles.sidebar} aria-label={`Canales de ${server.name}`}>
       <div className={styles.top}>
-        <button type="button" className={styles.invite} onClick={onInvitePeople}>
-          Invitar al servidor <span aria-hidden="true">+</span>
-        </button>
+        {onInvitePeople && (
+          <button type="button" className={styles.invite} onClick={onInvitePeople}>
+            Invitar al servidor <span aria-hidden="true">+</span>
+          </button>
+        )}
         <ServerMenu serverName={server.name} items={menuItems} />
       </div>
 
@@ -199,6 +201,7 @@ export function ChannelSidebar({
                           active={channel.id === activeChannelId}
                           inCall={isVoiceConnected && channel.id === activeVoiceChannelId}
                           participants={voiceParticipants[channel.id] ?? []}
+                          locked={isVoiceChannelLocked(server, channel, currentUser.id)}
                           onSelect={() => {
                             onSelectChannel(channel.id);
                             if (channel.type === 'voice') onJoinVoiceChannel?.(channel.id);
@@ -263,6 +266,7 @@ function ChannelRow({
   active,
   inCall,
   participants,
+  locked,
   onSelect,
   onEdit,
 }: {
@@ -270,6 +274,8 @@ function ChannelRow({
   active: boolean;
   inCall: boolean;
   participants: VoiceParticipant[];
+  /** Canal de voz sin permiso para conectarse: candado y no se puede entrar. */
+  locked: boolean;
   onSelect: () => void;
   onEdit?: () => void;
 }) {
@@ -280,10 +286,13 @@ function ChannelRow({
         type="button"
         className={styles.channelButton}
         onClick={onSelect}
-        aria-label={`Canal ${channel.name}`}
+        disabled={locked}
+        title={locked ? 'No tenés permiso para conectarte a este canal' : undefined}
+        aria-label={locked ? `Canal ${channel.name}, sin permiso para conectarte` : `Canal ${channel.name}`}
         aria-current={active ? 'page' : undefined}
       >
         •{channel.name}
+        {locked && <Lock className={styles.lock} size={12} strokeWidth={1.5} aria-hidden="true" />}
         {channel.isPrivate && <span className={styles.channelMeta}> privado</span>}
         {inCall && <span className={styles.channelMeta}> en llamada/</span>}
         {channel.type === 'voice' && channel.userLimit ? (

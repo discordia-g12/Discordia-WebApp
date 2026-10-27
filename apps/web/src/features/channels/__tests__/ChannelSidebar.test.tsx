@@ -60,6 +60,21 @@ describe('ChannelSidebar (rediseño)', () => {
     expect(onJoinVoiceChannel).toHaveBeenCalledWith('v1');
   });
 
+  it('un canal de voz sin permiso para conectarse tiene candado y no se puede elegir', () => {
+    const onSelectChannel = vi.fn();
+    const lockedServer = {
+      ...server,
+      myPermissions: ['VIEW_CHANNELS'],
+      categories: [{ id: 'k2', name: 'Voz', channels: [{ id: 'v1', name: 'meet core', type: 'voice', myPermissions: ['VIEW_CHANNELS'] }] }],
+    } as unknown as Server;
+    render(<ChannelSidebar {...base} server={lockedServer} onSelectChannel={onSelectChannel} />);
+
+    const channel = screen.getByRole('button', { name: 'Canal meet core, sin permiso para conectarte' }) as HTMLButtonElement;
+    expect(channel.disabled).toBe(true);
+    fireEvent.click(channel);
+    expect(onSelectChannel).not.toHaveBeenCalled();
+  });
+
   it('muestra quién está en un canal de voz y quién habla', () => {
     const lbars = { id: 'u2', username: 'lbars', displayName: 'lbars', status: 'online' } as User;
     render(

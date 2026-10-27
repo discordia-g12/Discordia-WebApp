@@ -35,6 +35,13 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe('mapServerFromBackend', () => {
+  it('convierte my_permissions en ids de permisos (o lo deja vacío si el backend no lo manda)', () => {
+    const withPermissions = mapServerFromBackend(backendServer({ my_permissions: (1 << 1) | (1 << 6) }));
+    expect(withPermissions.myPermissions).toEqual(['MANAGE_CHANNELS', 'CREATE_INSTANT_INVITE']);
+
+    expect(mapServerFromBackend(backendServer()).myPermissions).toBeUndefined();
+  });
+
   it('agrupa cada canal bajo su categoría (CA 2)', () => {
     const server = mapServerFromBackend(
       backendServer({

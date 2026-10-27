@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react'
+import { AppState } from 'react-native'
 import type { User, Server, Category, Channel, Message, MessageBackendPayload } from '../types'
 import { useAuth } from './AuthProvider'
 import {
@@ -112,6 +113,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshServers()
+  }, [refreshServers])
+
+  // Al volver a la app se piden de nuevo: los permisos (my_permissions) o los canales pueden haber
+  // cambiado mientras estaba en segundo plano
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') refreshServers()
+    })
+    return () => subscription.remove()
   }, [refreshServers])
 
   const createServer = useCallback(async (name: string, icon?: UploadableFile): Promise<Server> => {

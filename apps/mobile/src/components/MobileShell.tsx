@@ -3,7 +3,7 @@ import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { makeStyles } from '../theme'
-import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink } from '../ui'
+import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink, keyboardAvoidingBehavior } from '../ui'
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
@@ -17,7 +17,11 @@ import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
 import EditProfileModal from './profile/EditProfileModal'
 import Toast from './shared/Toast'
-import { ServerSettingsScreen, type ServerSettingsSection } from './settings/server/ServerSettingsScreen'
+import {
+  SERVER_SETTINGS_SECTIONS,
+  ServerSettingsScreen,
+  type ServerSettingsSection,
+} from './settings/server/ServerSettingsScreen'
 import { UserSettingsScreen } from './settings/user/UserSettingsScreen'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
@@ -41,6 +45,9 @@ import {
   useChatSocket,
   useVoicePresence,
   useVoiceRoom,
+  canInServer,
+  canSeeSettingsSection,
+  isVoiceChannelLocked,
   voiceDisconnectMessage,
 } from '@discordia/core'
 
@@ -228,15 +235,17 @@ export default function MobileShell() {
   })
   const chatBlockedMessage = activeSocketChannelId ? chatWriteBlockMessage(socket) : null
 
-  const isServerAdmin = useMemo(() => {
-    if (!server) return false
-    return server.ownerId === currentUserId
-  }, [server, currentUserId])
+  const isServerOwner = !!server && server.ownerId === currentUserId
+  // Qué acciones se ofrecen en el servidor elegido (el backend vuelve a chequear cada una)
+  const canManageChannels = canInServer(server, currentUserId, 'MANAGE_CHANNELS')
+  const canInvite = canInServer(server, currentUserId, 'CREATE_INSTANT_INVITE')
+  const canOpenSettingsSection = (section: ServerSettingsSection) => canSeeSettingsSection(server, currentUserId, section)
+  const isChannelLocked = (ch: Channel) => isVoiceChannelLocked(server, ch, currentUserId)
 
   const handleOpenEditChannel = (ch: Channel) => {
     // CA 2: Sin permisos
-    if (!isServerAdmin) {
-      showToast('No tienes permisos de administración para editar este canal.', 'error')
+    if (!canManageChannels) {
+      showToast('No tenés permiso para editar canales en este servidor.', 'error')
       return
     }
     setTargetChannelForAction(ch)
@@ -290,12 +299,13 @@ export default function MobileShell() {
     } catch (err) {
       console.error('[Voice] Error al unirse al canal:', err)
       setScreen(current => (current === 'voice' ? 'channels' : current))
+      const forbidden = err instanceof ApiError && err.status === 403
       showToast(
-        err instanceof ApiError && err.status === 403
-          ? 'No tenés permiso para entrar a este canal de voz'
-          : 'No se pudo conectar al canal de voz',
+        forbidden ? 'No tenés permiso para entrar a este canal de voz' : 'No se pudo conectar al canal de voz',
         'error',
       )
+      // Le cambiaron los permisos desde que se cargó el servidor: se vuelven a pedir para mostrar el candado
+      if (forbidden) refreshServers()
     }
   }
 
@@ -434,20 +444,24 @@ export default function MobileShell() {
     setScreen('voice')
   }
 
+  const firstSettingsSection = SERVER_SETTINGS_SECTIONS.find(canOpenSettingsSection)
   const serverMenuItems = server
     ? [
-        { label: 'Invitar personas', onSelect: () => setInviteModalOpen(true) },
-        { label: 'Ajustes del servidor', onSelect: () => setServerSettings('overview') },
-        { label: 'Miembros', onSelect: () => setServerSettings('members') },
-        { label: 'Roles', onSelect: () => setServerSettings('roles') },
-        { label: 'Crear canal', onSelect: () => handleAddChannel(null) },
-        { label: 'Crear categoría', onSelect: () => setCreateCategoryModalOpen(true) },
+        { label: 'Invitar personas', onSelect: canInvite ? () => setInviteModalOpen(true) : undefined },
+        {
+          label: 'Ajustes del servidor',
+          onSelect: firstSettingsSection ? () => setServerSettings(firstSettingsSection) : undefined,
+        },
+        { label: 'Miembros', onSelect: canOpenSettingsSection('members') ? () => setServerSettings('members') : undefined },
+        { label: 'Roles', onSelect: canOpenSettingsSection('roles') ? () => setServerSettings('roles') : undefined },
+        { label: 'Crear canal', onSelect: canManageChannels ? () => handleAddChannel(null) : undefined },
+        { label: 'Crear categoría', onSelect: canManageChannels ? () => setCreateCategoryModalOpen(true) : undefined },
         {
           label: reorderMode ? 'Terminar de ordenar' : 'Ordenar canales',
-          onSelect: () => setReorderMode(on => !on),
+          onSelect: canManageChannels ? () => setReorderMode(on => !on) : undefined,
           detail: reorderMode ? 'activo' : undefined,
         },
-        isServerAdmin
+        isServerOwner
           ? { label: 'Eliminar servidor', onSelect: () => setDeleteServerConfirmOpen(true), separated: true }
           : { label: 'Abandonar servidor', onSelect: () => setLeaveServerConfirmOpen(true), separated: true },
       ]
@@ -501,7 +515,7 @@ export default function MobileShell() {
             serverName={voiceLocation?.server.name}
             connectionState={voice.connectionState}
             participants={voiceParticipants}
-            onInvite={() => setInviteModalOpen(true)}
+            onInvite={canInvite ? () => setInviteModalOpen(true) : undefined}
             onLongPressParticipant={p => setVoiceActionTarget({ id: p.id, name: p.name })}
           />
         </Pane>
@@ -532,15 +546,16 @@ export default function MobileShell() {
       <Screen title={server?.name ?? 'Servidores'} tinted scroll={false}>
         {server ? (
           <>
-            <ServerMenu onInvite={() => setInviteModalOpen(true)} items={serverMenuItems} />
+            <ServerMenu onInvite={canInvite ? () => setInviteModalOpen(true) : undefined} items={serverMenuItems} />
             <ChannelList
               categories={server.categories}
               collapsed={collapsed}
               selectedChannelId={selectedChannelId}
               onToggleCategory={toggleCategory}
-              onAddChannel={handleAddChannel}
+              onAddChannel={canManageChannels ? handleAddChannel : undefined}
               onSelectChannel={handleSelectChannel}
               onLongPressChannel={handleOpenEditChannel}
+              isChannelLocked={isChannelLocked}
               voiceParticipants={sidebarVoiceParticipants}
               currentUserId={currentUserId}
               onLongPressVoiceParticipant={p => setVoiceActionTarget({ id: p.id, name: p.name })}
@@ -580,7 +595,7 @@ export default function MobileShell() {
           />
         )}
 
-        <KeyboardAvoidingView style={styles.content} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.content} behavior={keyboardAvoidingBehavior}>
           {tab === 'servers' && serversContent()}
 
           {tab === 'messages' && (
@@ -625,6 +640,9 @@ export default function MobileShell() {
             onDisconnect={handleDisconnectVoice}
             isCameraOn={voice.isCameraOn}
             onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined}
+            cannotSpeak={!voice.canSpeak}
+            cannotUseCamera={!voice.canVideo}
+            onBlocked={message => showToast(message, 'info')}
           />
         )}
         {showBars && <BottomTabs value={tab} onChange={goTo} />}
@@ -657,10 +675,14 @@ export default function MobileShell() {
           currentUserId={currentUserId}
           onClose={() => setServerSettings(null)}
           // En iOS un modal no se presenta encima de otro que no lo contiene: los ajustes se cierran antes
-          onInvite={() => {
-            setServerSettings(null)
-            setInviteModalOpen(true)
-          }}
+          onInvite={
+            canInvite
+              ? () => {
+                  setServerSettings(null)
+                  setInviteModalOpen(true)
+                }
+              : undefined
+          }
           onDeleteServer={() => {
             setServerSettings(null)
             setDeleteServerConfirmOpen(true)

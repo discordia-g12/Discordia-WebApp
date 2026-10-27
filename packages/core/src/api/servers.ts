@@ -1,6 +1,7 @@
 import { api } from './client';
 import { ApiError } from './errors';
 import { appendFile, imageUploadErrorMessage, UPLOAD_TIMEOUT_MS, type UploadableFile } from './images';
+import { bitmaskToPermissions } from './roles';
 import {
   LOCAL_CATEGORY_PREFIX,
   toBackendCategoryId,
@@ -83,6 +84,7 @@ export function mapChannelFromBackend(raw: ChannelBackendResponse): Channel {
     categoryId: raw.category_id || undefined,
     position: raw.position,
     topic: raw.topic || undefined,
+    myPermissions: raw.my_permissions === undefined ? undefined : bitmaskToPermissions(raw.my_permissions),
   };
 }
 
@@ -122,6 +124,7 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
     id: raw.id,
     name: raw.name,
     ownerId: raw.owner_id,
+    myPermissions: raw.my_permissions === undefined ? undefined : bitmaskToPermissions(raw.my_permissions),
     iconUrl: raw.icon_url || undefined,
     icon: raw.icon_url || undefined,
     description: raw.description || undefined,

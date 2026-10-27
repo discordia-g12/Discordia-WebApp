@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { useUIStore } from './uiStore';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
+import { useCanInCurrentServer } from '../features/servers/useServerPermission';
 import { useUpdateServer } from '../features/servers/serverActions';
 import { useCurrentUser, useCurrentUserStore } from '../features/profile/currentUserStore';
 
@@ -33,6 +34,7 @@ export function FullScreenViews() {
   const currentUser = useCurrentUser();
   const saveProfile = useCurrentUserStore((s) => s.saveProfile);
   const updateServer = useUpdateServer();
+  const canInvite = useCanInCurrentServer()('CREATE_INSTANT_INVITE');
   const close = () => setAppView('chat');
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export function FullScreenViews() {
             currentUser={currentUser}
             onClose={close}
             onUpdateServer={updateServer}
-            onInvite={() => useUIStore.getState().setActiveModal('invite')}
+            onInvite={canInvite ? () => useUIStore.getState().setActiveModal('invite') : undefined}
             onDeleteServer={() => useUIStore.getState().openConfirm('delete-server', currentServer.name)}
             onLeaveServer={() => useUIStore.getState().openConfirm('leave-server', currentServer.name)}
           />

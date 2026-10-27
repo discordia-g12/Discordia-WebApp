@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type TextInputInstance } from 'react-native'
+import { Animated, KeyboardAvoidingView, Pressable, ScrollView, View, type TextInputInstance } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   PASSWORD_RESET_SENT_MESSAGE,
@@ -13,7 +13,7 @@ import {
   type SessionStatus,
 } from '@discordia/core'
 import { makeStyles } from '../theme'
-import { Background, BlockButton, DisplayText, Text, UnderlineInput, useRise } from '../ui'
+import { Background, BlockButton, DisplayText, Text, UnderlineInput, keyboardAvoidingBehavior, useRise } from '../ui'
 
 /**
  * Acceso del rediseño (PDF, págs. 3 a 5), igual que la web: el formulario de campos subrayados arriba y,
@@ -36,7 +36,7 @@ export default function AuthView() {
     <View style={styles.screen}>
       <Background gradient="backgroundGlow" drift />
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.flex} behavior={keyboardAvoidingBehavior}>
           <ScrollView contentContainerStyle={styles.column} keyboardShouldPersistTaps="handled">
             {/* El panel se vuelve a montar al cambiar de vista: sus elementos entran escalonados */}
             <View key={view} style={styles.panel}>

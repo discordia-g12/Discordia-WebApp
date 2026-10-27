@@ -104,7 +104,8 @@ describe('ServerSettingsScreen (rediseño)', () => {
       fetchMock.mockImplementation(async (input: RequestInfo | URL) =>
         String(input).endsWith('/icon') ? json({ detail: 'Missing required permission: MANAGE_SERVER' }, 403) : json([])
       );
-      renderSettings({ server: { ...server, ownerId: 'otra' } });
+      // El front todavía lo cree con permiso (p. ej. se lo acaban de sacar): el backend lo rechaza
+      renderSettings({ server: { ...server, ownerId: 'otra', myPermissions: ['MANAGE_SERVER'] } });
       const cell = within(screen.getByRole('region', { name: 'Ícono' }));
 
       fireEvent.change(cell.getByLabelText('_cambiar ícono'), { target: { files: [png()] } });

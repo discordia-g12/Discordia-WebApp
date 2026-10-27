@@ -19,7 +19,15 @@ interface CallBarProps {
   isCameraOn?: boolean
   /** Prende o apaga la cámara; sin esta función no se muestra el botón (p. ej. en Expo Go). */
   onToggleCamera?: () => void
+  /** Sus roles no le dejan hablar / usar la cámara en este canal: el botón se ve atenuado. */
+  cannotSpeak?: boolean
+  cannotUseCamera?: boolean
+  /** Tocar un botón bloqueado: la app explica por qué (en el teléfono no hay tooltip). */
+  onBlocked?: (message: string) => void
 }
+
+const CANNOT_SPEAK = 'No tenés permiso para hablar en este canal'
+const CANNOT_USE_CAMERA = 'No tenés permiso para usar la cámara en este canal'
 
 const STATE_LABEL: Record<VoiceConnectionState, string> = {
   connecting: 'conectando',
@@ -45,6 +53,9 @@ export function CallBar({
   onDisconnect,
   isCameraOn = false,
   onToggleCamera,
+  cannotSpeak = false,
+  cannotUseCamera = false,
+  onBlocked,
 }: CallBarProps) {
   const styles = useStyles()
   const { colors } = useTheme()
@@ -63,7 +74,13 @@ export function CallBar({
         </Text>
         <CallState state={connectionState} />
       </Pressable>
-      <Pressable style={styles.control} onPress={onToggleMute} accessibilityRole="button" accessibilityLabel={isMuted ? 'Activar micrófono' : 'Silenciar micrófono'} accessibilityState={{ selected: isMuted }}>
+      <Pressable
+        style={[styles.control, cannotSpeak && styles.disabled]}
+        onPress={cannotSpeak ? () => onBlocked?.(CANNOT_SPEAK) : onToggleMute}
+        accessibilityRole="button"
+        accessibilityLabel={cannotSpeak ? CANNOT_SPEAK : isMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
+        accessibilityState={{ selected: isMuted, disabled: cannotSpeak }}
+      >
         <MicIcon color={colors.text} size={18} strokeWidth={1.5} />
       </Pressable>
       <Pressable style={styles.control} onPress={onToggleDeafen} accessibilityRole="button" accessibilityLabel={isDeafened ? 'Activar audio' : 'Desactivar audio'} accessibilityState={{ selected: isDeafened }}>
@@ -71,12 +88,12 @@ export function CallBar({
       </Pressable>
       {onToggleCamera && (
         <Pressable
-          style={[styles.control, isCameraOn && styles.active, !cameraUsable && styles.disabled]}
-          onPress={onToggleCamera}
+          style={[styles.control, isCameraOn && styles.active, (!cameraUsable || cannotUseCamera) && styles.disabled]}
+          onPress={cannotUseCamera ? () => onBlocked?.(CANNOT_USE_CAMERA) : onToggleCamera}
           disabled={!cameraUsable}
           accessibilityRole="button"
-          accessibilityLabel={isCameraOn ? 'Apagar cámara' : 'Prender cámara'}
-          accessibilityState={{ selected: isCameraOn, disabled: !cameraUsable }}
+          accessibilityLabel={cannotUseCamera ? CANNOT_USE_CAMERA : isCameraOn ? 'Apagar cámara' : 'Prender cámara'}
+          accessibilityState={{ selected: isCameraOn, disabled: !cameraUsable || cannotUseCamera }}
         >
           <CameraIcon color={isCameraOn ? colors.inverseText : colors.text} size={18} strokeWidth={1.5} />
         </Pressable>

@@ -18,6 +18,8 @@ export interface VoiceControlsProps {
   isCameraOn?: boolean;
   /** Prende o apaga la cámara; sin esta función el botón queda deshabilitado. */
   onToggleCamera?: () => void;
+  /** Sus roles no le dejan usar la cámara en este canal: el botón queda deshabilitado y lo explica. */
+  cannotUseCamera?: boolean;
 }
 
 /**
@@ -34,9 +36,10 @@ export function VoiceControls({
   onDisconnect,
   isCameraOn = false,
   onToggleCamera,
+  cannotUseCamera = false,
 }: VoiceControlsProps) {
   // La cámara se publica en la sala: solo se puede usar con la conexión establecida
-  const cameraUsable = Boolean(onToggleCamera) && connectionState === 'connected';
+  const cameraUsable = Boolean(onToggleCamera) && connectionState === 'connected' && !cannotUseCamera;
   return (
     <div className={`${styles.controls} ${styles[tone]}`} role="group" aria-label="Llamada en curso">
       <button type="button" className={styles.where} onClick={onOpenCall} disabled={!onOpenCall}>
@@ -47,7 +50,13 @@ export function VoiceControls({
       <div className={styles.buttons}>
         <Control
           icon={isCameraOn ? Video : VideoOff}
-          label={isCameraOn ? 'Apagar cámara' : 'Prender cámara'}
+          label={
+            cannotUseCamera
+              ? 'No tenés permiso para usar la cámara en este canal'
+              : isCameraOn
+                ? 'Apagar cámara'
+                : 'Prender cámara'
+          }
           pressed={isCameraOn}
           disabled={!cameraUsable}
           onPress={onToggleCamera}
@@ -103,6 +112,7 @@ export function VoiceControlsPanel({ tone }: { tone: VoiceControlsProps['tone'] 
       onDisconnect={voice.disconnect}
       isCameraOn={voice.room.isCameraOn}
       onToggleCamera={voice.toggleCamera}
+      cannotUseCamera={!voice.room.canVideo}
       onOpenCall={
         activeVoice
           ? () => {

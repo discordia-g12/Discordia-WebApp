@@ -7,6 +7,7 @@ import {
 } from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { useCurrentServer } from '../servers/useCurrentServer';
+import { useCanInCurrentServer } from '../servers/useServerPermission';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
 import { useVoice } from '../voice/voiceContext';
@@ -37,8 +38,12 @@ export function ChannelSidebarPanel({ onChannelOpened }: { onChannelOpened?: () 
   const { sidebarVoiceParticipants } = useVoiceParticipants();
   const reorderChannelsMutation = useReorderChannelsMutation();
   const reorderCategoriesMutation = useReorderCategoriesMutation();
+  const can = useCanInCurrentServer();
 
   if (!currentServer) return null;
+  // Las acciones sin permiso no se ofrecen (ChannelSidebar oculta las que no tienen handler)
+  const canManageChannels = can('MANAGE_CHANNELS');
+  const canInvite = can('CREATE_INSTANT_INVITE');
 
   const handleSelectChannel = (channelId: string) => {
     const channel = allServerChannels.find((ch) => ch.id === channelId);
@@ -89,12 +94,12 @@ export function ChannelSidebarPanel({ onChannelOpened }: { onChannelOpened?: () 
       onViewParticipantProfile={(u) => openUserProfile(u.id)}
       onJoinVoiceChannel={(channelId) => voice.join(channelId)}
       onOpenServerSettings={() => ui().setAppView('server-settings')}
-      onInvitePeople={() => ui().setActiveModal('invite')}
-      onCreateChannel={(catId) => ui().openCreateChannel(catId)}
-      onCreateCategory={() => ui().setActiveModal('create-category')}
-      onMoveChannel={handleMoveChannel}
-      onMoveCategory={handleMoveCategory}
-      onEditChannel={(channel) => ui().openEditChannel(channel)}
+      onInvitePeople={canInvite ? () => ui().setActiveModal('invite') : undefined}
+      onCreateChannel={canManageChannels ? (catId) => ui().openCreateChannel(catId) : undefined}
+      onCreateCategory={canManageChannels ? () => ui().setActiveModal('create-category') : undefined}
+      onMoveChannel={canManageChannels ? handleMoveChannel : undefined}
+      onMoveCategory={canManageChannels ? handleMoveCategory : undefined}
+      onEditChannel={canManageChannels ? (channel) => ui().openEditChannel(channel) : undefined}
       onOpenServerBoost={() => ui().setAppView('server-settings')}
       onOpenServerProfile={() => ui().setAppView('server-settings')}
       onLeaveServer={() => ui().openConfirm('leave-server', currentServer.name)}

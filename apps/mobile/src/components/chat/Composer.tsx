@@ -9,8 +9,8 @@ interface ComposerProps {
   onChangeText: (text: string) => void
   onSend: () => void
   /**
-   * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: el input queda
-   * deshabilitado y se muestra arriba. null o sin definir: se puede escribir.
+   * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: se muestra en lugar
+   * de la barra. null o sin definir: se puede escribir.
    */
   blockedMessage?: string | null
 }
@@ -19,16 +19,21 @@ interface ComposerProps {
 export default function Composer({ channelName, value, onChangeText, onSend, blockedMessage = null }: ComposerProps) {
   const styles = useStyles()
   const { colors } = useTheme()
-  const blocked = blockedMessage !== null
-  const canSend = !blocked && !!value.trim()
+  const canSend = !!value.trim()
+
+  // En lugar de la barra, solo el aviso. Vuelve cuando el chat avisa que puede escribir (vence o se levanta el mute)
+  if (blockedMessage !== null) {
+    return (
+      <View style={styles.composer}>
+        <Text variant="meta" bold style={styles.blocked} accessibilityLiveRegion="polite">
+          {blockedMessage}
+        </Text>
+      </View>
+    )
+  }
+
   return (
     <View>
-      {/* Se vuelve a habilitar solo cuando el chat avisa que puede escribir (vence o se levanta el mute) */}
-      {blocked && (
-        <Text variant="meta" bold style={styles.blocked} accessibilityLiveRegion="polite">
-          / {blockedMessage}
-        </Text>
-      )}
       <View style={styles.composer}>
         <TextInput
           style={styles.input}
@@ -39,9 +44,7 @@ export default function Composer({ channelName, value, onChangeText, onSend, blo
           onChangeText={onChangeText}
           maxLength={2500}
           multiline
-          editable={!blocked}
           accessibilityLabel={`Mensaje para ${channelName}`}
-          accessibilityState={{ disabled: blocked }}
         />
         <Pressable
           style={styles.send}
@@ -62,11 +65,11 @@ export default function Composer({ channelName, value, onChangeText, onSend, blo
 }
 
 const useStyles = makeStyles(t => ({
+  // Va adentro de la barra (que ya tiene la línea de arriba), en lugar del input
   blocked: {
-    paddingVertical: t.space[2],
+    flex: 1,
+    paddingVertical: t.space[3],
     paddingHorizontal: t.space[4],
-    borderTopWidth: t.lines.hairline,
-    borderTopColor: t.colors.line,
   },
   composer: {
     flexDirection: 'row',

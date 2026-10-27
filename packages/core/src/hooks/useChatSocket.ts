@@ -122,13 +122,18 @@ export function useChatSocket({
 export function useChatWebSocket(
   channelId: string | null,
   userId: string,
-  options: { onRemoved?: (reason: ChatRemovalReason) => void } = {}
+  options: {
+    onRemoved?: (reason: ChatRemovalReason) => void;
+    /** El servidor rechazó un mensaje (p. ej. le sacaron el permiso justo antes de enviarlo). */
+    onError?: (message: string) => void;
+  } = {}
 ) {
   const queryClient = useQueryClient();
 
   const { sendMessage, isConnected, isReconnecting, canSend, removedReason } = useChatSocket({
     channelId,
     userId,
+    onError: options.onError,
     onMessage: (data) => {
       queryClient.setQueriesData(
         { queryKey: ['messages', channelId] },

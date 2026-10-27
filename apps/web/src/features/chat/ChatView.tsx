@@ -488,17 +488,22 @@ const authorName = (msg: Message, users: Record<string, User>) =>
 
 function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Record<string, User>; writeBlock: string | null }) {
   const placeholder = chat.isDirectMessage ? `Enviar mensaje a @${chat.chatTitle}` : `Enviar mensaje a ${chat.chatTitle}`;
-  const blocked = writeBlock !== null;
-  const canSend = !blocked && Boolean(chat.inputText.trim() || chat.attachment);
+  const canSend = Boolean(chat.inputText.trim() || chat.attachment);
+
+  // Silenciado, sin permiso o fuera del servidor: en lugar de la barra, solo el aviso. Vuelve cuando el chat
+  // avisa que puede escribir (vence o se levanta el mute)
+  if (writeBlock !== null) {
+    return (
+      <div className={styles.composer}>
+        <p className={`${styles.composerRow} ${styles.composerLocked}`} role="status">
+          {writeBlock}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.composer}>
-      {/* Se vuelve a habilitar solo cuando el chat avisa que puede escribir (vence o se levanta el mute) */}
-      {blocked && (
-        <p className={styles.composerBlocked} role="status">
-          / {writeBlock}
-        </p>
-      )}
       {chat.replyingTo && (
         <p className={styles.composerNote}>
           respondiendo a <strong>@{authorName(chat.replyingTo, users)}</strong>{' '}
@@ -551,7 +556,6 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
           onClick={chat.handleAttachMock}
           aria-label="Adjuntar archivo"
           title="Adjuntar archivo"
-          disabled={blocked}
         >
           <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>
@@ -563,8 +567,7 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
           value={chat.inputText}
           onChange={chat.handleInputChange}
           // Enter no envía mientras no se pueda escribir (el botón ya está deshabilitado)
-          onKeyDown={blocked ? undefined : chat.handleKeyDown}
-          disabled={blocked}
+          onKeyDown={chat.handleKeyDown}
         />
         <button
           type="button"
@@ -573,7 +576,6 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
           aria-label="Emojis"
           aria-expanded={chat.isEmojiPickerOpen}
           title="Emojis"
-          disabled={blocked}
         >
           <Smile size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>

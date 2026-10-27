@@ -1,4 +1,5 @@
 import { useCurrentServer } from '../servers/useCurrentServer';
+import { useCanInCurrentServer } from '../servers/useServerPermission';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
 import { useVoice } from './voiceContext';
@@ -12,6 +13,7 @@ export function VoicePanel() {
   const currentUser = useCurrentUser();
   const voice = useVoice();
   const { voiceParticipants } = useVoiceParticipants();
+  const canInvite = useCanInCurrentServer()('CREATE_INSTANT_INVITE');
 
   return (
     <VoiceView
@@ -23,7 +25,7 @@ export function VoicePanel() {
       locallyMutedUsers={voice.room.locallyMutedUsers}
       onToggleLocalMute={voice.room.toggleLocalMute}
       onSelectUser={(u) => openUserProfile(u.id)}
-      onInvite={() => useUIStore.getState().setActiveModal('invite')}
+      onInvite={canInvite ? () => useUIStore.getState().setActiveModal('invite') : undefined}
     />
   );
 }

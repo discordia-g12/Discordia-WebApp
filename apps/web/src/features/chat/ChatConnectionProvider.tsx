@@ -22,6 +22,8 @@ export function ChatConnectionProvider({ children }: { children: ReactNode }) {
         showToast(chatRemovalMessage(reason), 'danger');
         selectServer('home', []);
       },
+      // El servidor rechazó el mensaje (p. ej. le sacaron el permiso justo antes de enviarlo)
+      onError: (error) => showToast(`No se pudo enviar el mensaje: ${error}`, 'danger'),
     }
   );
 

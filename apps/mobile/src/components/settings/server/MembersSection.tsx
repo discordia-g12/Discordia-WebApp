@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native'
 import {
   BAN_REASON_MAX_LENGTH,
   MUTE_DURATIONS,
+  type MemberActions,
   type Role,
   type ServerBansAdminState,
   type ServerMember,
@@ -17,13 +18,15 @@ interface MembersSectionProps {
   members: ServerMembersAdminState
   ownerId: string
   currentUserId: string
+  /** Lo que el usuario puede hacer con los miembros: lo demás no se ofrece. */
+  actions: MemberActions
 }
 
 /**
  * MIEMBROS: búsqueda en lo cargado y cada miembro con sus roles (× para quitar, _rol + para asignar) y
  * _silenciar, _expulsar y _banear, cada uno con su panel (motivo opcional; silenciar, con la duración).
  */
-export function MembersSection({ members: m, ownerId, currentUserId }: MembersSectionProps) {
+export function MembersSection({ members: m, ownerId, currentUserId, actions }: MembersSectionProps) {
   const styles = useStyles()
   return (
     <SettingsCell title={`Miembros${m.total ? ` (${m.total})` : ''}`}>
@@ -41,7 +44,14 @@ export function MembersSection({ members: m, ownerId, currentUserId }: MembersSe
         <EmptyState title="sin resultados" hint={m.search ? 'probá con otro nombre' : 'este servidor no tiene miembros'} />
       ) : (
         m.filteredMembers.map(member => (
-          <MemberRow key={member.id} m={m} member={member} isOwner={member.userId === ownerId} isMe={member.userId === currentUserId} />
+          <MemberRow
+            key={member.id}
+            m={m}
+            member={member}
+            isOwner={member.userId === ownerId}
+            isMe={member.userId === currentUserId}
+            actions={actions}
+          />
         ))
       )}
       {m.hasNextPage && (
@@ -53,7 +63,19 @@ export function MembersSection({ members: m, ownerId, currentUserId }: MembersSe
   )
 }
 
-function MemberRow({ m, member, isOwner, isMe }: { m: ServerMembersAdminState; member: ServerMember; isOwner: boolean; isMe: boolean }) {
+function MemberRow({
+  m,
+  member,
+  isOwner,
+  isMe,
+  actions,
+}: {
+  m: ServerMembersAdminState
+  member: ServerMember
+  isOwner: boolean
+  isMe: boolean
+  actions: MemberActions
+}) {
   const styles = useStyles()
   const name = m.displayName(member)
   const memberRoles = member.roleIds
@@ -82,7 +104,7 @@ function MemberRow({ m, member, isOwner, isMe }: { m: ServerMembersAdminState; m
             <View key={role.id} style={styles.chip}>
               <RoleSwatch color={role.color} />
               <Text variant="meta">{role.name}</Text>
-              {!role.isDefault && (
+              {!role.isDefault && actions.manageRoles && (
                 <Pressable onPress={() => m.handleRemove(member, role)} disabled={m.isMutating} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Quitar el rol ${role.name}`}>
                   <Text variant="meta">×</Text>
                 </Pressable>
@@ -92,27 +114,35 @@ function MemberRow({ m, member, isOwner, isMe }: { m: ServerMembersAdminState; m
         </View>
       )}
       <View style={styles.links}>
-        <ActionLink
-          onPress={() => {
-            m.setBanMemberId(null)
-            m.setPickerMemberId(m.pickerMemberId === member.id ? null : member.id)
-          }}
-          disabled={m.isMutating}
-        >
-          rol +
-        </ActionLink>
+        {actions.manageRoles && (
+          <ActionLink
+            onPress={() => {
+              m.setBanMemberId(null)
+              m.setPickerMemberId(m.pickerMemberId === member.id ? null : member.id)
+            }}
+            disabled={m.isMutating}
+          >
+            rol +
+          </ActionLink>
+        )}
         {/* Dueña/o y una/o misma/o: el backend lo rechaza, así que no se ofrece */}
         {!isOwner && !isMe && (
           <>
-            <ActionLink onPress={() => m.openModerationPanel(member, 'mute')} disabled={m.isMutating}>
-              silenciar
-            </ActionLink>
-            <ActionLink onPress={() => m.openModerationPanel(member, 'kick')} disabled={m.isMutating}>
-              expulsar
-            </ActionLink>
-            <ActionLink onPress={() => m.openBanPanel(member)} disabled={m.isMutating}>
-              banear
-            </ActionLink>
+            {actions.mute && (
+              <ActionLink onPress={() => m.openModerationPanel(member, 'mute')} disabled={m.isMutating}>
+                silenciar
+              </ActionLink>
+            )}
+            {actions.kick && (
+              <ActionLink onPress={() => m.openModerationPanel(member, 'kick')} disabled={m.isMutating}>
+                expulsar
+              </ActionLink>
+            )}
+            {actions.ban && (
+              <ActionLink onPress={() => m.openBanPanel(member)} disabled={m.isMutating}>
+                banear
+              </ActionLink>
+            )}
           </>
         )}
       </View>

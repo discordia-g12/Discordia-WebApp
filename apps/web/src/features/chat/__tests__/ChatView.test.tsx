@@ -75,6 +75,15 @@ describe('ChatView (rediseño)', () => {
     expect(send.disabled).toBe(false);
   });
 
+  it('sin permiso para escribir, en lugar de la barra solo aparece el aviso', () => {
+    render(<ChatView channel={channel} messages={[]} users={users} currentUserId="me" writeBlock="Estás silenciado." />);
+
+    expect(screen.getByRole('status').textContent).toBe('Estás silenciado.');
+    expect(screen.queryByRole('button', { name: 'enviar /' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Adjuntar archivo' })).toBeNull();
+    expect(screen.queryByPlaceholderText('Enviar mensaje a general')).toBeNull();
+  });
+
   it('el autor edita su mensaje (Enter guarda)', () => {
     const onEditMessage = vi.fn();
     render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onEditMessage={onEditMessage} />);

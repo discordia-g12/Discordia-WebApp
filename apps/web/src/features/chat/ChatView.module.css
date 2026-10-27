@@ -514,16 +514,6 @@
   color: var(--color-text);
 }
 
-/* No puede escribir: como los errores de los formularios, en el color del texto y en negrita */
-.composerBlocked {
-  margin: 0;
-  padding: var(--space-2) var(--space-5);
-  border-bottom: var(--line-hairline) solid var(--color-line);
-  font-size: var(--font-meta-size);
-  font-weight: 700;
-  color: var(--color-text);
-}
-
 .composerPopover {
   bottom: calc(100% + var(--space-2));
   left: var(--space-5);
@@ -550,6 +540,14 @@
   gap: var(--space-3);
   height: var(--space-7);
   padding: 0 var(--space-5);
+}
+
+.composerLocked {
+  /* No puede escribir: como los errores de los formularios, en el color del texto y en negrita */
+  margin: 0;
+  font-size: var(--font-meta-size);
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .composerRow:focus-within {
@@ -627,9 +625,3 @@
   }
 }
 
-/* Sin permiso para escribir: el input y los íconos quedan atenuados */
-.composerInput:disabled,
-.composerIcon:disabled {
-  color: var(--color-text-muted);
-  cursor: not-allowed;
-}

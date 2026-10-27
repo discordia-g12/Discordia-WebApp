@@ -52,6 +52,15 @@ describe('UserBar', () => {
     expect(screen.getByRole('button', { name: 'Activar audio' }).getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('sin permiso para hablar, el micrófono queda deshabilitado y lo explica', () => {
+    const handlers = renderBar({ isMuted: true, cannotSpeak: true, inVoiceChannel: true });
+
+    const mic = screen.getByRole('button', { name: 'No tenés permiso para hablar en este canal' }) as HTMLButtonElement;
+    expect(mic.disabled).toBe(true);
+    fireEvent.click(mic);
+    expect(handlers.onToggleMute).not.toHaveBeenCalled();
+  });
+
   it('en una llamada muestra "En canal de voz/" y permite salir', () => {
     const handlers = renderBar({ inVoiceChannel: true });
 

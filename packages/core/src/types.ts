@@ -172,6 +172,8 @@ export interface ChannelBackendResponse {
   category_id?: string | null;
   position: number;
   topic?: string | null;
+  /** Permisos efectivos del usuario que pide en este canal (con los overrides del canal). */
+  my_permissions?: number;
 }
 
 export interface CategoryBackendResponse {
@@ -189,6 +191,8 @@ export interface ServerBackendResponse {
   description?: string | null;
   icon_url?: string | null;
   created_at: string;
+  /** Permisos efectivos del usuario que pide (bitmask, mismos bits que los roles). */
+  my_permissions?: number;
   channels: ChannelBackendResponse[];
   categories?: CategoryBackendResponse[];
 }
@@ -218,6 +222,8 @@ export interface Channel {
   participants?: string[];
   userLimit?: number;
   bitrate?: number;
+  /** Permisos del usuario actual en el canal (ids de PERMISSION_BITS). Ver canInChannel. */
+  myPermissions?: string[];
 }
 
 /** Agrupador de canales en la barra lateral del servidor. */
@@ -235,6 +241,8 @@ export interface Server {
   id: string;
   name: string;
   ownerId: string;
+  /** Permisos del usuario actual en el servidor (ids de PERMISSION_BITS). Ver canInServer. */
+  myPermissions?: string[];
   icon?: string;
   iconUrl?: string;
   banner?: string;
