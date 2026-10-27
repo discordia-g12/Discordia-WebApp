@@ -189,8 +189,8 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 ## 3. Lo que no es error ("próximamente")
 
 - **Ambas:** amigos, mensajes directos y avisos (no hay backend); identidad del servidor (no hay
-  `PATCH /servers/{id}`), ícono al crear un servidor; contraseña y dos factores; permisos "Ver registro de
-  auditoría" y "Video y pantalla" (sin bit en el backend); presencia, que vale solo para la sesión.
+  `PATCH /servers/{id}`), ícono al crear un servidor; contraseña y dos factores; permiso "Ver registro de
+  auditoría" (sin bit en el backend); presencia, que vale solo para la sesión.
 - **Web:** moderación, notificaciones, emojis y mejoras del servidor; notificaciones, voz y factura del
   usuario; banner del perfil.
 - **Mobile:** cámara y pantalla compartida (la voz es solo audio); los ajustes de usuario y de servidor tienen

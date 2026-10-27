@@ -3,7 +3,7 @@ import type { Channel, Server } from '../types';
 
 /**
  * Permisos de un rol tal como se muestran en los ajustes del servidor (web y mobile), agrupados. Los ids
- * son los de PERMISSION_BITS; los que todavía no tienen bit en el backend (VIEW_AUDIT_LOG, STREAM) se
+ * son los de PERMISSION_BITS; los que todavía no tienen bit en el backend (VIEW_AUDIT_LOG) se
  * muestran sin poder activarse (hasBackendBit).
  */
 export const PERMISSION_CATEGORIES = [
@@ -41,7 +41,8 @@ export const PERMISSION_CATEGORIES = [
     permissions: [
       { id: 'CONNECT', name: 'Conectarse', desc: 'Entrar a los canales de voz y escuchar.' },
       { id: 'SPEAK', name: 'Hablar', desc: 'Transmitir el micrófono en los canales de voz.' },
-      { id: 'STREAM', name: 'Video y pantalla', desc: 'Compartir la cámara o la pantalla.' },
+      { id: 'VIDEO', name: 'Video', desc: 'Prender la cámara en los canales de voz.' },
+      { id: 'SCREEN_SHARE', name: 'Compartir pantalla', desc: 'Transmitir la pantalla en los canales de voz.' },
       { id: 'MUTE_MEMBERS', name: 'Silenciar miembros', desc: 'Silenciar a otros en los canales de voz.' },
       { id: 'DEAFEN_MEMBERS', name: 'Ensordecer miembros', desc: 'Quitarles el audio a otros en los canales de voz.' },
       { id: 'MOVE_MEMBERS', name: 'Mover miembros', desc: 'Pasar gente de un canal de voz a otro.' },
