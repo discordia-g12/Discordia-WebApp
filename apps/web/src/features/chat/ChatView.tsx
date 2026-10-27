@@ -483,14 +483,20 @@ const authorName = (msg: Message, users: Record<string, User>) =>
   (msg.author || users[msg.authorId])?.displayName || 'usuario';
 
 function Composer({ chat, users }: { chat: ChatViewState; users: Record<string, User> }) {
-  // Sin SEND_MESSAGES o silenciado: la barra queda deshabilitada (los DMs no pasan por el chat del servidor)
+  // Sin SEND_MESSAGES o silenciado: en lugar de la barra, solo el aviso (los DMs no pasan por el chat del servidor)
   const canWrite = useChatCanSend() || chat.isDirectMessage;
-  const placeholder = !canWrite
-    ? 'No podés enviar mensajes en este canal'
-    : chat.isDirectMessage
-      ? `Enviar mensaje a @${chat.chatTitle}`
-      : `Enviar mensaje a ${chat.chatTitle}`;
-  const canSend = canWrite && Boolean(chat.inputText.trim() || chat.attachment);
+  const placeholder = chat.isDirectMessage ? `Enviar mensaje a @${chat.chatTitle}` : `Enviar mensaje a ${chat.chatTitle}`;
+  const canSend = Boolean(chat.inputText.trim() || chat.attachment);
+
+  if (!canWrite) {
+    return (
+      <div className={styles.composer}>
+        <p className={`${styles.composerRow} ${styles.composerLocked}`} role="status">
+          No podés enviar mensajes en este canal
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.composer}>
@@ -544,7 +550,6 @@ function Composer({ chat, users }: { chat: ChatViewState; users: Record<string, 
           type="button"
           className={styles.composerIcon}
           onClick={chat.handleAttachMock}
-          disabled={!canWrite}
           aria-label="Adjuntar archivo"
           title="Adjuntar archivo"
         >
@@ -558,13 +563,11 @@ function Composer({ chat, users }: { chat: ChatViewState; users: Record<string, 
           value={chat.inputText}
           onChange={chat.handleInputChange}
           onKeyDown={chat.handleKeyDown}
-          disabled={!canWrite}
         />
         <button
           type="button"
           className={styles.composerIcon}
           onClick={() => chat.setIsEmojiPickerOpen((v) => !v)}
-          disabled={!canWrite}
           aria-label="Emojis"
           aria-expanded={chat.isEmojiPickerOpen}
           title="Emojis"

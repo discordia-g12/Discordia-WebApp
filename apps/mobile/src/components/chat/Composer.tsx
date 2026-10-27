@@ -8,7 +8,7 @@ interface ComposerProps {
   value: string
   onChangeText: (text: string) => void
   onSend: () => void
-  /** Sin permiso para escribir (o silenciado): la barra queda deshabilitada. */
+  /** Sin permiso para escribir (o silenciado): en lugar de la barra se muestra el aviso. */
   disabled?: boolean
 }
 
@@ -16,19 +16,30 @@ interface ComposerProps {
 export default function Composer({ channelName, value, onChangeText, onSend, disabled = false }: ComposerProps) {
   const styles = useStyles()
   const { colors } = useTheme()
-  const canSend = !disabled && !!value.trim()
+  const canSend = !!value.trim()
+
+  // Sin permiso para escribir (o silenciado): en lugar de la barra, solo el aviso
+  if (disabled) {
+    return (
+      <View style={styles.composer} accessibilityRole="text" accessibilityLiveRegion="polite">
+        <Text variant="bodySmall" tone="muted" style={styles.locked}>
+          No podés enviar mensajes en este canal
+        </Text>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.composer}>
       <TextInput
         style={styles.input}
-        placeholder={disabled ? 'No podés enviar mensajes en este canal' : `Enviar mensaje a •${channelName}`}
+        placeholder={`Enviar mensaje a •${channelName}`}
         placeholderTextColor={colors.textMuted}
         selectionColor={colors.text}
         value={value}
         onChangeText={onChangeText}
         maxLength={2500}
         multiline
-        editable={!disabled}
         accessibilityLabel={`Mensaje para ${channelName}`}
       />
       <Pressable
@@ -65,6 +76,7 @@ const useStyles = makeStyles(t => ({
     paddingHorizontal: t.space[4],
     ...noWebOutline,
   },
+  locked: { flex: 1, paddingVertical: t.space[3], paddingHorizontal: t.space[4] },
   send: {
     alignSelf: 'stretch',
     justifyContent: 'center',

@@ -76,18 +76,17 @@ describe('ChatView (rediseño)', () => {
     expect(send.disabled).toBe(false);
   });
 
-  it('sin permiso para escribir, la barra queda deshabilitada', () => {
+  it('sin permiso para escribir, en lugar de la barra solo aparece el aviso', () => {
     render(
       <ChatConnectionContext.Provider value={{ send: vi.fn(), isReconnecting: false, canSend: false }}>
         <ChatView channel={channel} messages={[]} users={users} currentUserId="me" />
       </ChatConnectionContext.Provider>
     );
 
-    const isDisabled = (el: HTMLElement) => (el as HTMLInputElement | HTMLButtonElement).disabled;
-    expect(isDisabled(screen.getByPlaceholderText('No podés enviar mensajes en este canal'))).toBe(true);
-    expect(isDisabled(screen.getByRole('button', { name: 'enviar /' }))).toBe(true);
-    expect(isDisabled(screen.getByRole('button', { name: 'Adjuntar archivo' }))).toBe(true);
-    expect(isDisabled(screen.getByRole('button', { name: 'Emojis' }))).toBe(true);
+    expect(screen.getByRole('status').textContent).toBe('No podés enviar mensajes en este canal');
+    expect(screen.queryByRole('button', { name: 'enviar /' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Adjuntar archivo' })).toBeNull();
+    expect(screen.queryByPlaceholderText('Enviar mensaje a general')).toBeNull();
   });
 
   it('el autor edita su mensaje (Enter guarda)', () => {

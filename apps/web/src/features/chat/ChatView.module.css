@@ -542,6 +542,12 @@
   padding: 0 var(--space-5);
 }
 
+.composerLocked {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text-muted);
+}
+
 .composerRow:focus-within {
   box-shadow: inset 0 var(--line-focus) 0 var(--color-line-strong);
 }
@@ -571,18 +577,9 @@
   cursor: pointer;
 }
 
-.composerIcon:hover:not(:disabled),
+.composerIcon:hover,
 .composerIcon[aria-expanded='true'] {
   color: var(--color-text);
-}
-
-.composerIcon:disabled,
-.composerInput:disabled {
-  cursor: not-allowed;
-}
-
-.composerIcon:disabled {
-  opacity: 0.35;
 }
 
 .send {
