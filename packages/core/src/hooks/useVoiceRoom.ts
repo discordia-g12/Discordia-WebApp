@@ -88,7 +88,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const mutedBeforeDeafenRef = useRef(initialPrefs.mutedBeforeDeafen);
   const locallyMutedRef = useRef<Record<string, boolean>>({});
   const cameraOnRef = useRef(false);
-  // Sala con un cambio de cámara en curso (permiso o setCameraEnabled): se ignoran los toques que lleguen mientras
+  // Sala con un cambio de cámara en curso (permiso, crear o publicar el track): se ignoran los toques que lleguen mientras
   const cameraBusyRoomRef = useRef<Room | null>(null);
   // Hasta cuándo sigue "hablando" cada participante (retención del indicador) y el timer que lo apaga
   const speakingUntilRef = useRef<Record<string, number>>({});
@@ -404,8 +404,29 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       }
       // Se colgó o se cambió de canal mientras se pedía el permiso
       if (!isCurrent()) return true;
-      await room.localParticipant.setCameraEnabled(next);
-      if (!isCurrent()) return true;
+      if (next) {
+        // El track se crea acá y no con setCameraEnabled: en la web el permiso lo pide el navegador
+        // al crearlo, y si mientras tanto se salió de la sala hay que apagarlo en vez de publicarlo
+        const track = await lk.createLocalVideoTrack();
+        if (!isCurrent()) {
+          track.stop();
+          return true;
+        }
+        try {
+          await room.localParticipant.publishTrack(track);
+        } catch (err) {
+          track.stop();
+          throw err;
+        }
+        if (!isCurrent()) {
+          track.stop();
+          return true;
+        }
+      } else {
+        // Despublicar (no solo silenciar) libera la cámara; prenderla de nuevo crea un track nuevo
+        const track = room.localParticipant.getTrackPublication(lk.Track.Source.Camera)?.track;
+        if (track) await room.localParticipant.unpublishTrack(track);
+      }
       cameraOnRef.current = next;
       setIsCameraOn(next);
       syncParticipants();

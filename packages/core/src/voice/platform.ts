@@ -7,7 +7,7 @@ import type { RemoteTrack, Room } from 'livekit-client';
  */
 
 /** Lo que la sala usa de livekit-client (la web lo importa; mobile lo carga solo si hay WebRTC nativo). */
-export type LiveKitModule = Pick<typeof import('livekit-client'), 'Room' | 'RoomEvent' | 'ConnectionState' | 'Track'>;
+export type LiveKitModule = Pick<typeof import('livekit-client'), 'Room' | 'RoomEvent' | 'ConnectionState' | 'Track' | 'createLocalVideoTrack'>;
 
 export interface VoicePrefs {
   muted: boolean;

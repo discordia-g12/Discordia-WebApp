@@ -26,9 +26,12 @@ class FakeLocalParticipant extends FakeParticipant {
     if (FakeRoom.micDenied) throw new Error('NotAllowedError');
     this.isMicrophoneEnabled = enabled;
   });
-  setCameraEnabled = vi.fn(async (enabled: boolean) => {
-    if (FakeRoom.cameraDenied) throw new Error('NotAllowedError');
-    this.cameraPublication = enabled ? { track: { kind: 'video', sid: 'local-cam' }, isMuted: false } : undefined;
+  publishTrack = vi.fn(async (track: object) => {
+    this.cameraPublication = { track, isMuted: false };
+  });
+  unpublishTrack = vi.fn(async (track: { stop: () => void }) => {
+    track.stop();
+    this.cameraPublication = undefined;
   });
 }
 
@@ -105,6 +108,11 @@ const fakeLiveKit = {
     SignalReconnecting: 'signalReconnecting',
   },
   Track: { Kind: { Audio: 'audio', Video: 'video' }, Source: { Camera: 'camera', Microphone: 'microphone' } },
+  // En la web acá el navegador pide el permiso de cámara
+  createLocalVideoTrack: vi.fn(async () => {
+    if (FakeRoom.cameraDenied) throw new Error('NotAllowedError');
+    return { kind: 'video', sid: 'local-cam', stop: vi.fn() };
+  }),
 } as unknown as LiveKitModule;
 
 /** Plataforma como la web: startAudio al conectar y preferencias en localStorage. */
@@ -456,7 +464,7 @@ describe('useVoiceRoom', () => {
       });
       expect(ok).toBe(true);
       expect(result.current.isCameraOn).toBe(true);
-      expect(me(result).videoTrack).toEqual({ kind: 'video', sid: 'local-cam' });
+      expect(me(result).videoTrack).toMatchObject({ kind: 'video', sid: 'local-cam' });
 
       await act(async () => {
         await result.current.toggleCamera();
@@ -490,7 +498,7 @@ describe('useVoiceRoom', () => {
         ok = await result.current.toggleCamera();
       });
       expect(ok).toBe(false);
-      expect(FakeRoom.instances[0].localParticipant.setCameraEnabled).not.toHaveBeenCalled();
+      expect(fakeLiveKit.createLocalVideoTrack).not.toHaveBeenCalled();
     });
 
     it('no hace nada fuera de una llamada', async () => {
@@ -569,7 +577,7 @@ describe('useVoiceRoom', () => {
       await act(async () => {
         await result.current.toggleCamera();
       });
-      expect(FakeRoom.instances[1].localParticipant.setCameraEnabled).toHaveBeenCalledWith(true);
+      expect(FakeRoom.instances[1].localParticipant.publishTrack).toHaveBeenCalledTimes(1);
       expect(result.current.isCameraOn).toBe(true);
     });
 
@@ -597,7 +605,49 @@ describe('useVoiceRoom', () => {
 
       expect(ok).toBe(true);
       expect(result.current.isCameraOn).toBe(false);
-      expect(FakeRoom.instances[0].localParticipant.setCameraEnabled).not.toHaveBeenCalled();
+      expect(fakeLiveKit.createLocalVideoTrack).not.toHaveBeenCalled();
+    });
+
+    it('si se cuelga mientras el navegador pide el permiso, apaga la cámara en vez de publicarla', async () => {
+      const track = { kind: 'video', sid: 'local-cam', stop: vi.fn() };
+      let grant!: () => void;
+      vi.mocked(fakeLiveKit.createLocalVideoTrack).mockImplementationOnce(
+        () => new Promise((resolve) => (grant = () => resolve(track as never)))
+      );
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+
+      let pending!: Promise<boolean>;
+      act(() => {
+        pending = result.current.toggleCamera();
+      });
+      await act(async () => {
+        await result.current.leave();
+      });
+      await act(async () => {
+        grant();
+        await pending;
+      });
+
+      expect(track.stop).toHaveBeenCalled();
+      expect(FakeRoom.instances[0].localParticipant.publishTrack).not.toHaveBeenCalled();
+      expect(result.current.isCameraOn).toBe(false);
+    });
+
+    it('apagarla despublica el track y libera la cámara', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+      const track = me(result).videoTrack as unknown as { stop: () => void };
+
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+
+      expect(FakeRoom.instances[0].localParticipant.unpublishTrack).toHaveBeenCalledWith(track);
+      expect(track.stop).toHaveBeenCalled();
     });
 
     it('un doble toque no cambia la cámara dos veces', async () => {
@@ -608,7 +658,7 @@ describe('useVoiceRoom', () => {
         await Promise.all([result.current.toggleCamera(), result.current.toggleCamera()]);
       });
 
-      expect(FakeRoom.instances[0].localParticipant.setCameraEnabled).toHaveBeenCalledTimes(1);
+      expect(FakeRoom.instances[0].localParticipant.publishTrack).toHaveBeenCalledTimes(1);
       expect(result.current.isCameraOn).toBe(true);
 
       // Terminado el primero, el siguiente toque sí la apaga
