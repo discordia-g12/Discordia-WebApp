@@ -131,6 +131,26 @@ export interface ServerBan {
   createdAt: string;
 }
 
+export interface ServerOwnershipTransferBackendResponse {
+  id: string;
+  server_id: string;
+  sender_id: string;
+  target_user_id: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface ServerOwnershipTransfer {
+  id: string;
+  serverId: string;
+  senderId: string;
+  targetUserId: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
 /** DTO de miembro de un servidor retornado por Server-Roles-Core-Service */
 export interface ServerMemberBackendResponse {
   id: string;

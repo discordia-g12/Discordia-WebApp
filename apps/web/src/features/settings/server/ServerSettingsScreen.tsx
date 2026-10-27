@@ -15,7 +15,7 @@ import {
 } from '@discordia/core';
 import type { MemberActions } from '@discordia/core';
 import type { Category, Channel, ChannelType, Role, Server, ServerMember } from '../../../types';
-import { ActionLink, BlockButton, EmptyState, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
+import { ActionLink, BlockButton, ConfirmDialog, EmptyState, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
 import { useServerMembersAdmin } from '../../moderation/useServerMembersAdmin';
 import { useServerBansAdmin } from '../../moderation/useServerBansAdmin';
 import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen';
@@ -394,10 +394,31 @@ function MembersSection({
   permissions: MemberActions;
 }) {
   const m = useServerMembersAdmin(serverId);
+  const isOwnerViewing = ownerId === currentUserId;
   return (
     <SettingsCell title={`Miembros${m.membersQuery.data ? ` — ${m.total}` : ''}`} wide>
       <UnderlineInput label="buscar miembros" value={m.search} onChange={(e) => m.setSearch(e.target.value)} placeholder="nombre o apodo" />
       {m.search.trim() && m.hasNextPage && <p className={styles.meta}>/ La búsqueda solo incluye los miembros ya cargados: bajá para cargar más.</p>}
+      {isOwnerViewing && m.pendingTransfer && m.pendingTransfer.status === 'PENDING' && (
+        <Feedback>
+          / Solicitud de transferencia de propiedad pendiente.{' '}
+          <ActionLink onPress={() => m.handleCancelTransfer(m.pendingTransfer!.id)} disabled={m.isMutating}>
+            cancelar solicitud
+          </ActionLink>
+        </Feedback>
+      )}
+      {!isOwnerViewing && m.pendingTransfer && m.pendingTransfer.targetUserId === currentUserId && m.pendingTransfer.status === 'PENDING' && (
+        <Feedback>
+          / Te ofrecieron la propiedad de este servidor.{' '}
+          <ActionLink onPress={() => m.handleAcceptTransfer(m.pendingTransfer!.id)} disabled={m.isMutating}>
+            aceptar
+          </ActionLink>
+          {' · '}
+          <ActionLink onPress={() => m.handleRejectTransfer(m.pendingTransfer!.id)} disabled={m.isMutating}>
+            rechazar
+          </ActionLink>
+        </Feedback>
+      )}
       {m.error && <Feedback tone="error">/ {m.error}</Feedback>}
       {m.notice && <Feedback>{m.notice}</Feedback>}
       {m.membersQuery.isLoading && <Skeleton lines={5} label="Cargando miembros" />}
@@ -421,12 +442,21 @@ function MembersSection({
               member={member}
               isOwner={member.userId === ownerId}
               isMe={member.userId === currentUserId}
+              isOwnerViewing={isOwnerViewing}
               permissions={permissions}
             />
           ))}
           <div ref={m.sentinelRef} />
           {m.isFetchingNextPage && <Skeleton lines={2} label="Cargando más miembros" />}
         </div>
+      )}
+      {m.transferMember && (
+        <ConfirmDialog
+          action="transfer-ownership"
+          targetName={m.displayName(m.transferMember)}
+          onConfirm={() => m.handleTransferOwnership(m.transferMember!)}
+          onCancel={() => m.setTransferMember(null)}
+        />
       )}
     </SettingsCell>
   );
@@ -437,12 +467,14 @@ function MemberRow({
   member,
   isOwner,
   isMe,
+  isOwnerViewing,
   permissions,
 }: {
   m: ReturnType<typeof useServerMembersAdmin>;
   member: ServerMember;
   isOwner: boolean;
   isMe: boolean;
+  isOwnerViewing: boolean;
   permissions: MemberActions;
 }) {
   const name = m.displayName(member);
@@ -510,6 +542,11 @@ function MemberRow({
               {permissions.ban && (
                 <ActionLink onPress={() => m.openBanPanel(member)} disabled={m.isMutating} aria-expanded={m.banMemberId === member.id}>
                   banear
+                </ActionLink>
+              )}
+              {isOwnerViewing && (
+                <ActionLink onPress={() => m.setTransferMember(member)} disabled={m.isMutating}>
+                  transferir
                 </ActionLink>
               )}
             </>

@@ -218,4 +218,42 @@ describe('ServerSettingsScreen (rediseño)', () => {
     expect(screen.getByRole('region', { name: 'Roles — 0' })).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Crear rol /' }) as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('MIEMBROS: dueña puede iniciar transferencia de propiedad pidiendo confirmación', async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/members?')) {
+        return json({ items: [{ id: 'm2', user_id: 'u2', nickname: 'lbars', role_ids: [] }], total: 1, limit: 50, offset: 0 });
+      }
+      if (url.includes('/transfers') && init?.method === 'POST') {
+        return json(
+          {
+            id: 'tr-1',
+            server_id: 's1',
+            sender_id: 'me',
+            target_user_id: 'u2',
+            status: 'PENDING',
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+          201
+        );
+      }
+      return json([]);
+    });
+
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Miembros' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: '_transferir' }));
+    expect(screen.getByText('¿Transferir el servidor?')).toBeTruthy();
+    expect(screen.getByText('El servidor pasa a ser de @lbars y perdés el control total sobre él.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Transferir /' }));
+    expect(await screen.findByText('Se envió la solicitud de transferencia a lbars.')).toBeTruthy();
+
+    const transferCall = fetchMock.mock.calls.find(([u, i]) => String(u).includes('/transfers') && i?.method === 'POST')!;
+    expect(String(transferCall[0])).toBe('http://localhost:8000/api/v1/servers/s1/transfers');
+    expect(JSON.parse(transferCall[1].body)).toEqual({ target_user_id: 'u2' });
+  });
 });

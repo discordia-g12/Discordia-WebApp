@@ -30,6 +30,13 @@ import {
   UpdateRoleInfoRequest,
 } from '../api/roles';
 import { banMember, getServerBans, kickMember, muteMember, unbanMember, unmuteMember } from '../api/moderation';
+import {
+  initiateServerTransfer,
+  getPendingServerTransfer,
+  acceptServerTransfer,
+  rejectServerTransfer,
+  cancelServerTransfer,
+} from '../api/serverTransfer';
 import { getMessages, sendMessage, GetMessagesOptions } from '../api/messages';
 import type { Category, Role, Server } from '../types';
 import { useSession } from '../auth/session';
@@ -363,3 +370,58 @@ export function useDeleteRoleMutation(serverId: string) {
     },
   });
 }
+
+export function usePendingServerTransferQuery(serverId: string | null) {
+  const status = useSession((s) => s.status);
+
+  return useQuery({
+    queryKey: ['servers', serverId, 'transfers', 'pending'],
+    queryFn: async () => {
+      if (!serverId) return null;
+      return getPendingServerTransfer(serverId);
+    },
+    enabled: status === 'authenticated' && Boolean(serverId),
+  });
+}
+
+export function useInitiateServerTransferMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (targetUserId: string) => initiateServerTransfer(serverId, targetUserId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers', serverId, 'transfers', 'pending'] });
+    },
+  });
+}
+
+export function useAcceptServerTransferMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (transferId?: string) => acceptServerTransfer(serverId, transferId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+      queryClient.invalidateQueries({ queryKey: ['servers', serverId, 'transfers', 'pending'] });
+    },
+  });
+}
+
+export function useRejectServerTransferMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (transferId?: string) => rejectServerTransfer(serverId, transferId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers', serverId, 'transfers', 'pending'] });
+    },
+  });
+}
+
+export function useCancelServerTransferMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (transferId: string) => cancelServerTransfer(serverId, transferId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['servers', serverId, 'transfers', 'pending'] });
+    },
+  });
+}
+
