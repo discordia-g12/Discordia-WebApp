@@ -17,6 +17,8 @@ interface CategorySectionProps {
   onAddChannel?: (categoryId: string) => void
   onSelectChannel: (channel: Channel) => void
   onLongPressChannel: (channel: Channel) => void
+  /** Canales a los que el usuario no puede entrar (voz sin permiso para conectarse). */
+  isChannelLocked?: (channel: Channel) => boolean
   /** Participantes conectados a cada canal de voz, por channelId. */
   voiceParticipants?: Record<string, VoiceChannelParticipant[]>
   currentUserId?: string
@@ -58,6 +60,7 @@ export default function CategorySection({
   onAddChannel,
   onSelectChannel,
   onLongPressChannel,
+  isChannelLocked,
   voiceParticipants = {},
   currentUserId,
   onLongPressVoiceParticipant,
@@ -105,6 +108,7 @@ export default function CategorySection({
                     active={selectedChannelId === ch.id}
                     onPress={onSelectChannel}
                     onLongPress={onLongPressChannel}
+                    locked={isChannelLocked?.(ch)}
                   />
                 </View>
                 {reorderMode && onShiftChannel && (

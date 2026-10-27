@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canInServer, canSeeSettingsSection, memberActionsIn } from '../permissions';
+import { canInChannel, canInServer, canSeeSettingsSection, isVoiceChannelLocked, memberActionsIn } from '../permissions';
 
 const server = (myPermissions?: string[]) => ({ ownerId: 'owner', myPermissions });
 
@@ -17,6 +17,28 @@ describe('canInServer', () => {
   it('sin myPermissions (backend viejo) o sin servidor, un miembro no puede nada', () => {
     expect(canInServer(server(), 'user', 'MANAGE_CHANNELS')).toBe(false);
     expect(canInServer(null, 'owner', 'MANAGE_CHANNELS')).toBe(false);
+  });
+});
+
+describe('canInChannel', () => {
+  it('usa los permisos del canal (con sus overrides) si vinieron del backend', () => {
+    const channel = { myPermissions: ['VIEW_CHANNELS'] };
+    expect(canInChannel(server(['CONNECT']), channel, 'user', 'CONNECT')).toBe(false);
+    expect(canInChannel(server([]), { myPermissions: ['CONNECT'] }, 'user', 'CONNECT')).toBe(true);
+  });
+
+  it('sin permisos del canal usa los del servidor; el dueño siempre puede', () => {
+    expect(canInChannel(server(['CONNECT']), {}, 'user', 'CONNECT')).toBe(true);
+    expect(canInChannel(server([]), { myPermissions: [] }, 'owner', 'CONNECT')).toBe(true);
+  });
+});
+
+describe('isVoiceChannelLocked', () => {
+  it('bloquea un canal de voz sin CONNECT, pero no si el backend no mandó permisos', () => {
+    expect(isVoiceChannelLocked(server([]), { type: 'voice', myPermissions: ['VIEW_CHANNELS'] }, 'user')).toBe(true);
+    expect(isVoiceChannelLocked(server(['CONNECT']), { type: 'voice', myPermissions: ['CONNECT'] }, 'user')).toBe(false);
+    expect(isVoiceChannelLocked(server(), { type: 'voice' }, 'user')).toBe(false);
+    expect(isVoiceChannelLocked(server([]), { type: 'text', myPermissions: [] }, 'user')).toBe(false);
   });
 });
 

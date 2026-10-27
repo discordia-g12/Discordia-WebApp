@@ -172,6 +172,8 @@ export interface ChannelBackendResponse {
   category_id?: string | null;
   position: number;
   topic?: string | null;
+  /** Permisos efectivos del usuario que pide en este canal (con los overrides del canal). */
+  my_permissions?: number;
 }
 
 export interface CategoryBackendResponse {
@@ -220,6 +222,8 @@ export interface Channel {
   participants?: string[];
   userLimit?: number;
   bitrate?: number;
+  /** Permisos del usuario actual en el canal (ids de PERMISSION_BITS). Ver canInChannel. */
+  myPermissions?: string[];
 }
 
 /** Agrupador de canales en la barra lateral del servidor. */

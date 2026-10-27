@@ -81,6 +81,7 @@ export function mapChannelFromBackend(raw: ChannelBackendResponse): Channel {
     categoryId: raw.category_id || undefined,
     position: raw.position,
     topic: raw.topic || undefined,
+    myPermissions: raw.my_permissions === undefined ? undefined : bitmaskToPermissions(raw.my_permissions),
   };
 }
 

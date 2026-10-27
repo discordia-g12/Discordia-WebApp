@@ -45,6 +45,7 @@ import {
   useVoiceRoom,
   canInServer,
   canSeeSettingsSection,
+  isVoiceChannelLocked,
 } from '@discordia/core'
 
 /** Lo que se ve en Servidores: la lista de canales, o un canal abierto a pantalla completa. */
@@ -228,6 +229,7 @@ export default function MobileShell() {
   const canManageChannels = canInServer(server, currentUserId, 'MANAGE_CHANNELS')
   const canInvite = canInServer(server, currentUserId, 'CREATE_INSTANT_INVITE')
   const canOpenSettingsSection = (section: ServerSettingsSection) => canSeeSettingsSection(server, currentUserId, section)
+  const isChannelLocked = (ch: Channel) => isVoiceChannelLocked(server, ch, currentUserId)
 
   const handleOpenEditChannel = (ch: Channel) => {
     // CA 2: Sin permisos
@@ -541,6 +543,7 @@ export default function MobileShell() {
               onAddChannel={canManageChannels ? handleAddChannel : undefined}
               onSelectChannel={handleSelectChannel}
               onLongPressChannel={handleOpenEditChannel}
+              isChannelLocked={isChannelLocked}
               voiceParticipants={sidebarVoiceParticipants}
               currentUserId={currentUserId}
               onLongPressVoiceParticipant={p => setVoiceActionTarget({ id: p.id, name: p.name })}

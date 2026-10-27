@@ -1,5 +1,5 @@
 import { PERMISSION_BITS } from '../api/roles';
-import type { Server } from '../types';
+import type { Channel, Server } from '../types';
 
 /**
  * Permisos de un rol tal como se muestran en los ajustes del servidor (web y mobile), agrupados. Los ids
@@ -59,6 +59,34 @@ export function canInServer(server: Pick<Server, 'ownerId' | 'myPermissions'> | 
   if (server.ownerId === userId) return true;
   const permissions = server.myPermissions ?? [];
   return permissions.includes('ADMINISTRATOR') || permissions.includes(permission);
+}
+
+/**
+ * Igual que canInServer, pero en un canal: usa los permisos del canal (que incluyen sus overrides) si
+ * vinieron del backend; si no (p. ej. un canal recién creado), los del servidor.
+ */
+export function canInChannel(
+  server: Pick<Server, 'ownerId' | 'myPermissions'> | null | undefined,
+  channel: Pick<Channel, 'myPermissions'>,
+  userId: string,
+  permission: string
+): boolean {
+  if (!channel.myPermissions || !server || server.ownerId === userId) return canInServer(server, userId, permission);
+  return channel.myPermissions.includes('ADMINISTRATOR') || channel.myPermissions.includes(permission);
+}
+
+/**
+ * Canal de voz al que el usuario no puede entrar (sin CONNECT): se muestra con candado. Si el backend no
+ * mandó permisos no se bloquea, y decide el join.
+ */
+export function isVoiceChannelLocked(
+  server: Pick<Server, 'ownerId' | 'myPermissions'> | null | undefined,
+  channel: Pick<Channel, 'type' | 'myPermissions'>,
+  userId: string
+): boolean {
+  if (channel.type !== 'voice' || !server) return false;
+  if (!channel.myPermissions && !server.myPermissions) return false;
+  return !canInChannel(server, channel, userId, 'CONNECT');
 }
 
 /**

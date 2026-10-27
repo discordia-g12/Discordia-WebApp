@@ -226,6 +226,17 @@
   text-underline-offset: 2px;
 }
 
+.channelButton:disabled {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
+.lock {
+  margin-left: var(--space-1);
+  vertical-align: -1px;
+}
+
 .channelMeta {
   font-size: var(--font-meta-size);
   color: var(--color-text-muted);
