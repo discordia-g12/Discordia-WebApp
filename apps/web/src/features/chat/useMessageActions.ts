@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { updateCachedMessages } from '@discordia/core';
 import type { Message, MessageAttachment, Reaction } from '../../types';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { useCurrentUser } from '../profile/currentUserStore';
@@ -23,12 +24,8 @@ export function useMessageActions() {
   const isHome = selectedServerId === 'home';
   const activeKey = isHome ? selectedDmId : selectedChannelId;
 
-  const updateChannelMessages = (channelId: string, update: (old: Message[]) => Message[]) => {
-    queryClient.setQueryData(['messages', channelId, undefined], (old: Message[] | undefined) => {
-      if (!old) return old;
-      return update(old);
-    });
-  };
+  const updateChannelMessages = (channelId: string, update: (old: Message[]) => Message[]) =>
+    updateCachedMessages(queryClient, channelId, update);
 
   // Enviar mensaje en canal o DM
   const sendMessage = async (content: string, attachment?: MessageAttachment, replyToId?: string) => {

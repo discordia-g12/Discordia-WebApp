@@ -1,4 +1,4 @@
-import { Fragment, useRef, type ReactNode } from 'react';
+import { Fragment, useCallback, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Paperclip, Smile } from 'lucide-react';
 import { distances } from '@discordia/tokens';
@@ -46,14 +46,20 @@ export interface ChatViewProps {
    * deshabilitado y se muestra esto. null o sin definir: se puede escribir.
    */
   writeBlock?: string | null;
+  /** Hay mensajes anteriores a los cargados: arriba se ofrece cargarlos en vez del comienzo del canal. */
+  hasOlderMessages?: boolean;
+  /** Se están pidiendo los mensajes anteriores. */
+  isLoadingOlder?: boolean;
+  /** Pide la página anterior del historial. */
+  onLoadOlder?: () => void;
 }
 
 
 const UNKNOWN_USER = { username: 'desconocido', displayName: 'Desconocido', status: 'offline' } as const;
 
 /**
- * Ids de los mensajes que ya estaban al abrir la conversación: esos no se animan. Los que llegan
- * después (enviados o recibidos por el WebSocket) entran subiendo.
+ * Ids de los mensajes que ya estaban al abrir la conversación, más los anteriores que se cargan después:
+ * esos no se animan. Los que llegan al final (enviados o recibidos por el WebSocket) entran subiendo.
  */
 function useHistoryIds(conversationKey: string, messages: Message[], isLoading: boolean) {
   const state = useRef<{ key: string | null; ready: boolean; ids: Set<string> }>({ key: null, ready: false, ids: new Set() });
@@ -61,8 +67,56 @@ function useHistoryIds(conversationKey: string, messages: Message[], isLoading: 
   if (!state.current.ready && !isLoading) {
     messages.forEach((m) => state.current.ids.add(m.id));
     state.current.ready = true;
+  } else if (state.current.ready) {
+    // Los que aparecen arriba del primero conocido son historial (una página anterior)
+    for (const m of messages) {
+      if (state.current.ids.has(m.id)) break;
+      state.current.ids.add(m.id);
+    }
   }
   return state.current.ids;
+}
+
+/** Distancia al borde de arriba (px) desde la que, subiendo, se piden los mensajes anteriores. */
+const LOAD_OLDER_THRESHOLD = 200;
+
+/**
+ * Carga de mensajes anteriores: se piden al subir cerca del borde de arriba (o con el enlace) y, cuando
+ * llegan, el scroll se corrige para que lo que se estaba leyendo quede en el mismo lugar. Solo cuenta
+ * el scroll hacia arriba: al abrir el canal se baja desde arriba y eso no tiene que pedir nada.
+ */
+function useLoadOlder(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  firstMessageId: string | undefined,
+  { hasOlder, isLoadingOlder, onLoadOlder }: { hasOlder: boolean; isLoadingOlder: boolean; onLoadOlder?: () => void }
+) {
+  // Distancia al final antes de pedir la página; null si no hay nada que restaurar
+  const fromBottom = useRef<number | null>(null);
+  const lastScrollTop = useRef(0);
+
+  const loadOlder = useCallback(() => {
+    const el = scrollRef.current;
+    if (!onLoadOlder || !hasOlder || isLoadingOlder) return;
+    fromBottom.current = el ? el.scrollHeight - el.scrollTop : null;
+    onLoadOlder();
+  }, [scrollRef, onLoadOlder, hasOlder, isLoadingOlder]);
+
+  // Cuando termina el pedido (con la página nueva arriba, o con error), se restaura y se olvida
+  useLayoutEffect(() => {
+    if (isLoadingOlder) return;
+    const el = scrollRef.current;
+    if (el && fromBottom.current !== null) el.scrollTop = el.scrollHeight - fromBottom.current;
+    fromBottom.current = null;
+  }, [scrollRef, firstMessageId, isLoadingOlder]);
+
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (el.scrollTop < lastScrollTop.current && el.scrollTop < LOAD_OLDER_THRESHOLD) loadOlder();
+    lastScrollTop.current = el.scrollTop;
+  }, [scrollRef, loadOlder]);
+
+  return { loadOlder, onScroll };
 }
 
 /**
@@ -84,9 +138,18 @@ export function ChatView(props: ChatViewProps) {
     isMemberListOpen = true,
     onStartVoiceCall,
     onStartVideoCall,
+    hasOlderMessages = false,
+    isLoadingOlder = false,
+    onLoadOlder,
   } = props;
   const chat = useChatViewState({ ...props, messages });
   const history = useHistoryIds(channel?.id ?? directMessage?.id ?? 'chat', chat.localMessages, isLoading);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const older = useLoadOlder(scrollRef, chat.localMessages[0]?.id, {
+    hasOlder: hasOlderMessages && !isLoading,
+    isLoadingOlder,
+    onLoadOlder,
+  });
   const currentUsername = users[currentUserId ?? '']?.username;
 
   return (
@@ -123,16 +186,34 @@ export function ChatView(props: ChatViewProps) {
 
       {chat.isPinnedPanelOpen && <PinnedPanel chat={chat} users={users} />}
 
-      <div className={styles.scroll} role="log" aria-label={`Mensajes de ${chat.chatTitle}`}>
-        <div className={styles.welcome}>
-          <p className={styles.welcomeTitle}>{chat.isDirectMessage ? chat.chatTitle : `•${chat.chatTitle}`}</p>
-          <p className={styles.welcomeText}>
-            /{' '}
-            {chat.isDirectMessage
-              ? `este es el comienzo de tu conversación con ${chat.chatTitle}.`
-              : `este es el comienzo del canal •${chat.chatTitle}.`}
-          </p>
-        </div>
+      <div
+        ref={scrollRef}
+        className={styles.scroll}
+        role="log"
+        aria-label={`Mensajes de ${chat.chatTitle}`}
+        onScroll={older.onScroll}
+      >
+        {hasOlderMessages && !isLoading ? (
+          <div className={styles.older}>
+            {isLoadingOlder ? (
+              <p className={styles.welcomeText} role="status">
+                / cargando mensajes anteriores…
+              </p>
+            ) : (
+              <ActionLink onPress={older.loadOlder}>cargar mensajes anteriores</ActionLink>
+            )}
+          </div>
+        ) : (
+          <div className={styles.welcome}>
+            <p className={styles.welcomeTitle}>{chat.isDirectMessage ? chat.chatTitle : `•${chat.chatTitle}`}</p>
+            <p className={styles.welcomeText}>
+              /{' '}
+              {chat.isDirectMessage
+                ? `este es el comienzo de tu conversación con ${chat.chatTitle}.`
+                : `este es el comienzo del canal •${chat.chatTitle}.`}
+            </p>
+          </div>
+        )}
 
         {isLoading ? (
           <div className={styles.loading}>

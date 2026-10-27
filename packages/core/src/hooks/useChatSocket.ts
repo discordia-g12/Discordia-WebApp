@@ -8,6 +8,7 @@ import {
 } from '../realtime/chatSocket';
 import type { Message, MessageBackendPayload } from '../types';
 import { normalizeMessage } from '../api/messages';
+import { appendMessage, messagesQueryKey, type MessagePages } from './messageCache';
 
 export interface UseChatSocketOptions {
   /** Canal al que conectarse; null para no conectar (p. ej. DMs, que todavía no van por el backend). */
@@ -115,9 +116,9 @@ export function useChatSocket({
 }
 
 /**
- * Chat en tiempo real integrado con React Query: lo que llega se agrega al caché de
- * ['messages', channelId] (el mismo de useChannelMessagesQuery) y, después de un corte, se vuelve a
- * pedir el historial. El autor de cada mensaje se resuelve en la UI por authorId.
+ * Chat en tiempo real integrado con React Query: lo que llega se agrega a la página más nueva del caché
+ * ['messages', channelId] (el mismo de useChannelMessagesQuery) y, después de un corte, se vuelven a
+ * pedir las páginas cargadas. El autor de cada mensaje se resuelve en la UI por authorId.
  */
 export function useChatWebSocket(
   channelId: string | null,
@@ -135,15 +136,9 @@ export function useChatWebSocket(
     userId,
     onError: options.onError,
     onMessage: (data) => {
-      queryClient.setQueriesData(
-        { queryKey: ['messages', channelId] },
-        (old: Message[] | undefined) => {
-          const message = normalizeMessage(data as unknown as Message);
-          if (!old) return [message];
-          // Evitar duplicados
-          if (old.some((m) => m.id === message.id)) return old;
-          return [...old, message];
-        }
+      // Si el historial todavía no cargó, no se toca: cuando llegue ya va a traer este mensaje
+      queryClient.setQueryData<MessagePages>(messagesQueryKey(channelId), (old) =>
+        appendMessage(old, normalizeMessage(data as unknown as Message))
       );
     },
     onReconnect: () => {

@@ -85,6 +85,9 @@ export default function MobileShell() {
     currentUserId,
     sendMessage,
     fetchChannelMessages,
+    fetchOlderChannelMessages,
+    hasOlderMessages,
+    loadingOlderMessages,
     leaveServer,
     deleteServer,
     reorderChannels,
@@ -530,7 +533,18 @@ export default function MobileShell() {
             socketConnected={activeSocketChannelId ? socket.isConnected : undefined}
             onOpenSettings={() => handleOpenEditChannel(channel)}
           />
-          <MessageList channelName={channel.name} messages={channelMessages} describeUser={describeUser} />
+          <MessageList
+            channelName={channel.name}
+            messages={channelMessages}
+            describeUser={describeUser}
+            hasOlder={!!hasOlderMessages[channel.id]}
+            loadingOlder={!!loadingOlderMessages[channel.id]}
+            onLoadOlder={() => {
+              fetchOlderChannelMessages(channel.id).catch(() =>
+                showToast('No se pudieron cargar los mensajes anteriores', 'error'),
+              )
+            }}
+          />
           <Composer
             channelName={channel.name}
             value={draft}
