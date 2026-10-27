@@ -103,6 +103,12 @@
   opacity: 1;
 }
 
+/* Sin permiso para hablar en la llamada: tachado, atenuado y sin poder activarlo */
+.control:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* El foco del rediseño es del color del texto: sobre el bloque negro no se vería */
 .ink :focus-visible {
   outline-color: var(--color-inverse-text);

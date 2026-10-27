@@ -640,6 +640,9 @@ export default function MobileShell() {
             onDisconnect={handleDisconnectVoice}
             isCameraOn={voice.isCameraOn}
             onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined}
+            cannotSpeak={!voice.canSpeak}
+            cannotUseCamera={!voice.canVideo}
+            onBlocked={message => showToast(message, 'info')}
           />
         )}
         {showBars && <BottomTabs value={tab} onChange={goTo} />}

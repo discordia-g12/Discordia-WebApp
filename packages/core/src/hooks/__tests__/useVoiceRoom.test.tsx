@@ -445,6 +445,62 @@ describe('useVoiceRoom', () => {
     expect(remote.setVolume).not.toHaveBeenLastCalledWith(1);
   });
 
+  describe('permisos de voz del rol', () => {
+    const noSpeakNoVideo = { canSpeak: false, canVideo: false, canScreenShare: false };
+
+    it('sin permiso para hablar no prende el micrófono, se muestra silenciado y no se puede activar', async () => {
+      mockJoinVoiceChannel.mockResolvedValue({ token: 't', url: 'ws://lk', permissions: noSpeakNoVideo });
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+
+      const local = FakeRoom.instances[0].localParticipant;
+      expect(local.setMicrophoneEnabled).not.toHaveBeenCalled();
+      expect(result.current.canSpeak).toBe(false);
+      expect(result.current.isMuted).toBe(true);
+
+      act(() => result.current.toggleMute());
+      expect(local.setMicrophoneEnabled).not.toHaveBeenCalled();
+    });
+
+    it('sin permiso de video la cámara no se prende', async () => {
+      mockJoinVoiceChannel.mockResolvedValue({ token: 't', url: 'ws://lk', permissions: noSpeakNoVideo });
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+
+      let ok: boolean | undefined;
+      await act(async () => {
+        ok = await result.current.toggleCamera();
+      });
+      expect(ok).toBe(false);
+      expect(result.current.canVideo).toBe(false);
+      expect(fakeLiveKit.createLocalVideoTrack).not.toHaveBeenCalled();
+    });
+
+    it('al salir vuelve a poder todo, y sin permisos en la respuesta (voice-service anterior) se puede todo', async () => {
+      mockJoinVoiceChannel.mockResolvedValue({ token: 't', url: 'ws://lk', permissions: noSpeakNoVideo });
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+      await act(async () => {
+        await result.current.leave();
+      });
+      expect(result.current.canSpeak).toBe(true);
+      expect(result.current.canVideo).toBe(true);
+
+      mockJoinVoiceChannel.mockResolvedValue({ token: 't', url: 'ws://lk' });
+      await act(async () => {
+        await result.current.join('chan-2');
+      });
+      expect(result.current.canSpeak).toBe(true);
+      expect(FakeRoom.instances[1].localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    });
+  });
+
   describe('cámara', () => {
     const join = async (result: { current: ReturnType<typeof useVoiceRoom> }) => {
       await act(async () => {

@@ -86,6 +86,17 @@ describe('VoiceControls', () => {
     expect(screen.getByRole('button', { name: 'Apagar cámara' }).getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('sin permiso de video, la cámara queda deshabilitada y lo explica', () => {
+    const onToggleCamera = vi.fn();
+    render(
+      <VoiceControls channelName="meet core" connectionState="connected" onDisconnect={vi.fn()} onToggleCamera={onToggleCamera} cannotUseCamera />
+    );
+    const camera = screen.getByRole('button', { name: 'No tenés permiso para usar la cámara en este canal' }) as HTMLButtonElement;
+    expect(camera.disabled).toBe(true);
+    fireEvent.click(camera);
+    expect(onToggleCamera).not.toHaveBeenCalled();
+  });
+
   it('la cámara no se puede usar mientras conecta', () => {
     render(<VoiceControls channelName="meet core" connectionState="connecting" onDisconnect={vi.fn()} onToggleCamera={vi.fn()} />);
     expect((screen.getByRole('button', { name: 'Prender cámara' }) as HTMLButtonElement).disabled).toBe(true);

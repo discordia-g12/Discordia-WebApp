@@ -8,7 +8,7 @@ import type {
   Room,
   VideoTrack,
 } from 'livekit-client';
-import { joinVoiceChannel, leaveVoiceChannel } from '../api/voice';
+import { joinVoiceChannel, leaveVoiceChannel, type VoicePublishPermissions } from '../api/voice';
 import { DEFAULT_VOICE_PREFS, getVoicePlatform, type LiveKitModule } from '../voice/platform';
 
 export type VoiceConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
@@ -22,6 +22,9 @@ export interface VoiceRoomParticipant {
   /** Track de la cámara si la tiene prendida; null si no (la interfaz muestra su foto o iniciales). */
   videoTrack: VideoTrack | null;
 }
+
+/** Fuera de una llamada (y si el voice-service no informa permisos) se puede publicar todo. */
+const PUBLISH_ALL: VoicePublishPermissions = { canSpeak: true, canVideo: true, canScreenShare: true };
 
 export interface VoiceJoinResult {
   /** false si no hubo acceso al micrófono: el usuario queda conectado pero silenciado. */
@@ -122,6 +125,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const mutedBeforeDeafenRef = useRef(initialPrefs.mutedBeforeDeafen);
   const locallyMutedRef = useRef<Record<string, boolean>>({});
   const cameraOnRef = useRef(false);
+  // Qué permiten publicar los roles en la llamada actual (lo informa el join)
+  const publishRef = useRef<VoicePublishPermissions>(PUBLISH_ALL);
   // Sala con un cambio de cámara en curso (permiso, crear o publicar el track): se ignoran los toques que lleguen mientras
   const cameraBusyRoomRef = useRef<Room | null>(null);
   // Hasta cuándo sigue "hablando" cada participante (retención del indicador) y el timer que lo apaga
@@ -136,6 +141,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const [isDeafened, setIsDeafened] = useState(initialPrefs.deafened);
   const [locallyMutedUsers, setLocallyMutedUsers] = useState<Record<string, boolean>>({});
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const [publishPermissions, setPublishPermissions] = useState<VoicePublishPermissions>(PUBLISH_ALL);
 
   const applyVolume = useCallback((participant: RemoteParticipant) => {
     const silenced = deafenedRef.current || locallyMutedRef.current[participant.identity];
@@ -211,6 +217,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     // La cámara arranca apagada en cada llamada
     cameraOnRef.current = false;
     setIsCameraOn(false);
+    publishRef.current = PUBLISH_ALL;
+    setPublishPermissions(PUBLISH_ALL);
   }, []);
 
   const bindRoomEvents = useCallback(
@@ -284,8 +292,10 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       let room: Room | null = null;
 
       try {
-        const { token, url } = await joinVoiceChannel(targetChannelId);
+        const { token, url, permissions } = await joinVoiceChannel(targetChannelId);
         if (isSuperseded()) return { microphoneAvailable: true };
+        publishRef.current = permissions ?? PUBLISH_ALL;
+        setPublishPermissions(publishRef.current);
 
         const lk = await platform.livekit();
         livekitRef.current = lk;
@@ -302,10 +312,13 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
 
         await platform.afterConnect?.(room);
 
-        let microphoneAvailable = platform.requestMicrophonePermission
-          ? await platform.requestMicrophonePermission()
-          : true;
-        if (microphoneAvailable) {
+        // Sin permiso para hablar no se pide el micrófono: el token no deja publicarlo
+        let microphoneAvailable = !publishRef.current.canSpeak
+          ? true
+          : platform.requestMicrophonePermission
+            ? await platform.requestMicrophonePermission()
+            : true;
+        if (microphoneAvailable && publishRef.current.canSpeak) {
           try {
             await room.localParticipant.setMicrophoneEnabled(!mutedRef.current);
           } catch (err) {
@@ -348,6 +361,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       const room = roomRef.current;
       const lk = livekitRef.current;
       if (!room || !lk || room.state !== lk.ConnectionState.Connected) return;
+      // Sin permiso para hablar el micrófono queda apagado; se guarda la preferencia para la próxima llamada
+      if (!publishRef.current.canSpeak) return;
       try {
         await room.localParticipant.setMicrophoneEnabled(!muted);
       } catch (err) {
@@ -380,6 +395,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   }, [platform]);
 
   const toggleMute = useCallback(() => {
+    // Sin permiso para hablar no hay micrófono que activar (la interfaz deshabilita el botón)
+    if (!publishRef.current.canSpeak) return;
     // Como en Discord: activar el micrófono estando ensordecido también reactiva el audio
     if (deafenedRef.current) {
       setDeafened(false);
@@ -429,9 +446,12 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     if (!room || !lk || room.state !== lk.ConnectionState.Connected) return false;
     if (cameraBusyRoomRef.current === room) return true;
 
+    const next = !cameraOnRef.current;
+    // Sin permiso de video el token no deja publicar la cámara (la interfaz deshabilita el botón)
+    if (next && !publishRef.current.canVideo) return false;
+
     cameraBusyRoomRef.current = room;
     const isCurrent = () => roomRef.current === room;
-    const next = !cameraOnRef.current;
     try {
       if (next && platform.requestCameraPermission && !(await platform.requestCameraPermission())) {
         return !isCurrent();
@@ -491,9 +511,14 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     channelId,
     connectionState,
     participants,
-    isMuted,
+    // Sin permiso para hablar se muestra silenciado, aunque la preferencia guardada sea otra
+    isMuted: isMuted || !publishPermissions.canSpeak,
     isDeafened,
     isCameraOn,
+    /** Lo que los roles dejan publicar en la llamada actual (en la interfaz, botones deshabilitados). */
+    canSpeak: publishPermissions.canSpeak,
+    canVideo: publishPermissions.canVideo,
+    canScreenShare: publishPermissions.canScreenShare,
     locallyMutedUsers,
     join,
     leave,
