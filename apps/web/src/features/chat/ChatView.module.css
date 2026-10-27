@@ -514,6 +514,16 @@
   color: var(--color-text);
 }
 
+/* No puede escribir: como los errores de los formularios, en el color del texto y en negrita */
+.composerBlocked {
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+  font-size: var(--font-meta-size);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
 .composerPopover {
   bottom: calc(100% + var(--space-2));
   left: var(--space-5);
@@ -615,4 +625,11 @@
   .topic {
     display: none;
   }
+}
+
+/* Sin permiso para escribir: el input y los íconos quedan atenuados */
+.composerInput:disabled,
+.composerIcon:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
 }

@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useVoiceRoom, SPEAKING_HOLD_MS } from '../useVoiceRoom';
+import { useVoiceRoom, voiceDisconnectMessage, SPEAKING_HOLD_MS } from '../useVoiceRoom';
 import { createVoicePrefsStore, setVoicePlatform, type LiveKitModule } from '../../voice/platform';
 
 const mockJoinVoiceChannel = vi.fn();
@@ -105,6 +105,8 @@ const fakeLiveKit = {
     SignalReconnecting: 'signalReconnecting',
   },
   Track: { Kind: { Audio: 'audio', Video: 'video' }, Source: { Camera: 'camera', Microphone: 'microphone' } },
+  // Los mismos valores que el enum de @livekit/protocol
+  DisconnectReason: { UNKNOWN_REASON: 0, CLIENT_INITIATED: 1, DUPLICATE_IDENTITY: 2, PARTICIPANT_REMOVED: 4, ROOM_DELETED: 5 },
 } as unknown as LiveKitModule;
 
 /** Plataforma como la web: startAudio al conectar y preferencias en localStorage. */
@@ -530,6 +532,33 @@ describe('useVoiceRoom', () => {
       FakeRoom.instances[1].emit('disconnected');
     });
     expect(onUnexpectedDisconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [4, 'removed'], // PARTICIPANT_REMOVED: lo sacaron del canal
+    [5, 'removed'], // ROOM_DELETED
+    [2, 'duplicate'], // DUPLICATE_IDENTITY: entró desde otro dispositivo
+    [0, 'lost'],
+    [undefined, 'lost'],
+  ] as const)('el motivo %s de LiveKit llega como %s', async (lkReason, reason) => {
+    const onUnexpectedDisconnect = vi.fn();
+    const { result } = renderHook(() => useVoiceRoom({ onUnexpectedDisconnect }));
+    await act(async () => {
+      await result.current.join('chan-1');
+    });
+
+    await act(async () => {
+      FakeRoom.instances[0].emit('disconnected', lkReason);
+    });
+
+    expect(onUnexpectedDisconnect).toHaveBeenCalledWith(reason);
+    expect(result.current.channelId).toBeNull();
+  });
+
+  it('cada motivo tiene su aviso', () => {
+    expect(voiceDisconnectMessage('removed')).toBe('Te sacaron del canal de voz');
+    expect(voiceDisconnectMessage('duplicate')).toBe('Entraste al canal de voz desde otro dispositivo');
+    expect(voiceDisconnectMessage('lost')).toBe('Se perdió la conexión con el canal de voz');
   });
 
   it('al desmontar cierra la sala y avisa al backend', async () => {

@@ -7,7 +7,9 @@ import type { RemoteTrack, Room } from 'livekit-client';
  */
 
 /** Lo que la sala usa de livekit-client (la web lo importa; mobile lo carga solo si hay WebRTC nativo). */
-export type LiveKitModule = Pick<typeof import('livekit-client'), 'Room' | 'RoomEvent' | 'ConnectionState' | 'Track'>;
+export type LiveKitModule = Pick<typeof import('livekit-client'), 'Room' | 'RoomEvent' | 'ConnectionState' | 'Track'> &
+  // Opcional: sin él, toda desconexión inesperada se informa como corte de conexión
+  Partial<Pick<typeof import('livekit-client'), 'DisconnectReason'>>;
 
 export interface VoicePrefs {
   muted: boolean;
