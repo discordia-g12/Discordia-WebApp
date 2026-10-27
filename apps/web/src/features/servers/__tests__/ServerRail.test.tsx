@@ -12,18 +12,25 @@ describe('ServerRail (rediseño)', () => {
     render(<ServerRail servers={servers} selectedServerId="s1" onSelectServer={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: 'Servidor torton' }).getAttribute('aria-current')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Servidor ibars' }).getAttribute('aria-current')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Servidor ibars, 3 mensajes nuevos' }).getAttribute('aria-current')).toBeNull();
     expect(screen.getByRole('button', { name: 'Mensajes directos' }).getAttribute('aria-current')).toBeNull();
   });
 
   it('al pasar el mouse despliega la etiqueta con el nombre y la actividad nueva', () => {
     render(<ServerRail servers={servers} selectedServerId="home" onSelectServer={vi.fn()} />);
 
-    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Servidor ibars' }).parentElement!);
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Servidor ibars, 3 mensajes nuevos' }).parentElement!);
 
     const label = screen.getByRole('tooltip');
     expect(label.textContent).toContain(': ibars');
     expect(label.textContent).toContain('3 mensajes nuevos');
+  });
+
+  it('las menciones sin leer se anuncian en lugar de los mensajes', () => {
+    const mentioned = { ...server('s3', 'menciones', 5), mentions: 2 } as Server;
+    render(<ServerRail servers={[mentioned]} selectedServerId="home" onSelectServer={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Servidor menciones, 2 menciones' })).toBeTruthy();
   });
 
   it('selecciona servidores e inicio, y abre crear y explorar', () => {

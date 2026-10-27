@@ -267,6 +267,13 @@
   background: var(--color-inverse-background);
 }
 
+/* Mención sin leer (CA 3 de #27): contorneado en lugar de lleno, con "@" */
+.mentionBadge {
+  color: var(--color-text);
+  background: transparent;
+  box-shadow: inset 0 0 0 var(--line-accent) var(--color-inverse-background);
+}
+
 .edit {
   opacity: 0;
   transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);

@@ -45,7 +45,7 @@ export function ServerStrip({ server, active = false, unread, onPress, orientati
       <button
         type="button"
         className={styles.strip}
-        aria-label={`Servidor ${server.name}`}
+        aria-label={activity ? `Servidor ${server.name}, ${activity.toLowerCase()}` : `Servidor ${server.name}`}
         aria-current={active ? 'true' : undefined}
         onClick={onPress}
         onFocus={() => show()}
