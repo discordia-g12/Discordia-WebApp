@@ -19,6 +19,7 @@ export * from './api/channelLayout';
 export * from './api/servers';
 export * from './api/roles';
 export * from './api/moderation';
+export * from './api/serverTransfer';
 export * from './api/messages';
 export * from './api/voice';
 
