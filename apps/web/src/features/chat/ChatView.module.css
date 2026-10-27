@@ -90,6 +90,11 @@
   padding: 0 var(--space-5) var(--space-6) calc(var(--space-1) + var(--layout-avatar-size-md) + var(--space-4));
 }
 
+/* En lugar del comienzo del canal mientras haya mensajes anteriores sin cargar */
+.older {
+  padding: 0 var(--space-5) var(--space-4) calc(var(--space-1) + var(--layout-avatar-size-md) + var(--space-4));
+}
+
 .welcomeTitle {
   margin: 0;
   font-size: var(--font-display-size);

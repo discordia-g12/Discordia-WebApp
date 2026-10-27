@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { AppState } from 'react-native'
@@ -11,6 +12,7 @@ import type { User, Server, Category, Channel, Message, MessageBackendPayload } 
 import { useAuth } from './AuthProvider'
 import {
   getMessages,
+  MESSAGES_PAGE_SIZE,
   getServers,
   sendMessage as apiSendMessage,
   createServer as apiCreateServer,
@@ -35,6 +37,10 @@ interface DataContextValue {
   /** Ya respondió el backend (o falló): distingue "cargando" de "no tenés servidores". */
   serversLoaded: boolean
   messages: Record<string, Message[]>
+  /** Por canal: hay mensajes anteriores a los cargados (Chat-Engine devolvió una página llena). */
+  hasOlderMessages: Record<string, boolean>
+  /** Por canal: se están pidiendo los mensajes anteriores. */
+  loadingOlderMessages: Record<string, boolean>
 
   // Servidores y canales en vivo
   refreshServers: () => Promise<void>
@@ -66,6 +72,8 @@ interface DataContextValue {
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
   failOptimisticMessage: (channelId: string) => void
   fetchChannelMessages: (channelId: string) => Promise<void>
+  /** Pide la página anterior del historial y la agrega arriba. Rechaza si falla la red. */
+  fetchOlderChannelMessages: (channelId: string) => Promise<void>
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
@@ -79,6 +87,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [servers, setServers] = useState<Server[]>([])
   const [serversLoaded, setServersLoaded] = useState(false)
   const [messages, setMessages] = useState<Record<string, Message[]>>({})
+  const [hasOlderMessages, setHasOlderMessages] = useState<Record<string, boolean>>({})
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState<Record<string, boolean>>({})
+  // Lo que ya está cargado, para elegir el cursor sin depender del render
+  const messagesRef = useRef(messages)
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+  const loadingOlderRef = useRef(new Set<string>())
 
   // Sincronizar el perfil del usuario autenticado en el diccionario de usuarios
   useEffect(() => {
@@ -298,8 +314,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       try {
         const list = await getMessages(channelId)
         setMessages(prev => ({ ...prev, [channelId]: list.map(m => ({ ...m, status: 'sent' as const })) }))
+        setHasOlderMessages(prev => ({ ...prev, [channelId]: list.length >= MESSAGES_PAGE_SIZE }))
       } catch {
         // sin red: se conservan los mensajes en memoria
+      }
+    },
+    [token],
+  )
+
+  // Página anterior: los mensajes antes del más viejo que ya está (sin contar los que todavía no se enviaron)
+  const fetchOlderChannelMessages = useCallback(
+    async (channelId: string) => {
+      const oldest = (messagesRef.current[channelId] ?? []).find(m => !m.id.startsWith('temp-'))
+      if (!token || !oldest || loadingOlderRef.current.has(channelId)) return
+      loadingOlderRef.current.add(channelId)
+      setLoadingOlderMessages(prev => ({ ...prev, [channelId]: true }))
+      try {
+        const list = await getMessages(channelId, { before: oldest.id })
+        setMessages(prev => {
+          const current = prev[channelId] ?? []
+          const known = new Set(current.map(m => m.id))
+          const older = list.filter(m => !known.has(m.id)).map(m => ({ ...m, status: 'sent' as const }))
+          return { ...prev, [channelId]: [...older, ...current] }
+        })
+        setHasOlderMessages(prev => ({ ...prev, [channelId]: list.length >= MESSAGES_PAGE_SIZE }))
+      } finally {
+        loadingOlderRef.current.delete(channelId)
+        setLoadingOlderMessages(prev => ({ ...prev, [channelId]: false }))
       }
     },
     [token],
@@ -424,6 +465,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       servers,
       serversLoaded,
       messages,
+      hasOlderMessages,
+      loadingOlderMessages,
       refreshServers,
       createServer,
       setServerIcon,
@@ -440,6 +483,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       confirmOptimisticMessage,
       failOptimisticMessage,
       fetchChannelMessages,
+      fetchOlderChannelMessages,
     }),
     [
       activeUserId,
@@ -447,6 +491,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       servers,
       serversLoaded,
       messages,
+      hasOlderMessages,
+      loadingOlderMessages,
       refreshServers,
       createServer,
       setServerIcon,
@@ -463,6 +509,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       confirmOptimisticMessage,
       failOptimisticMessage,
       fetchChannelMessages,
+      fetchOlderChannelMessages,
     ],
   )
 
