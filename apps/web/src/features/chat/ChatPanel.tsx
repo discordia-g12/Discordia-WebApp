@@ -7,6 +7,7 @@ import { openUserProfile } from '../profile/profileActions';
 import { useVoice } from '../voice/voiceContext';
 import { ChatView } from './ChatView';
 import { useMessageActions } from './useMessageActions';
+import { useChatWriteBlock } from './chatConnectionContext';
 
 /** Chat del canal de texto seleccionado. */
 export function ChatPanel() {
@@ -19,6 +20,7 @@ export function ChatPanel() {
   const { usersMap } = useUsers();
   const voice = useVoice();
   const actions = useMessageActions();
+  const writeBlock = useChatWriteBlock();
   const { data: realMessages, isLoading } = useChannelMessagesQuery(
     selectedServerId !== 'home' ? selectedChannelId : null
   );
@@ -34,6 +36,7 @@ export function ChatPanel() {
       isMemberListOpen={isMemberListOpen}
       onToggleMemberList={toggleMemberList}
       onSendMessage={actions.sendMessage}
+      writeBlock={writeBlock}
       onToggleReaction={actions.toggleReaction}
       onDeleteMessage={actions.deleteMessage}
       onEditMessage={actions.editMessage}

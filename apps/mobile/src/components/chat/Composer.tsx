@@ -8,44 +8,66 @@ interface ComposerProps {
   value: string
   onChangeText: (text: string) => void
   onSend: () => void
+  /**
+   * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: el input queda
+   * deshabilitado y se muestra arriba. null o sin definir: se puede escribir.
+   */
+  blockedMessage?: string | null
 }
 
 /** Barra de escritura de una línea, entre líneas finas, con "ENVIAR /" a la derecha. */
-export default function Composer({ channelName, value, onChangeText, onSend }: ComposerProps) {
+export default function Composer({ channelName, value, onChangeText, onSend, blockedMessage = null }: ComposerProps) {
   const styles = useStyles()
   const { colors } = useTheme()
-  const canSend = !!value.trim()
+  const blocked = blockedMessage !== null
+  const canSend = !blocked && !!value.trim()
   return (
-    <View style={styles.composer}>
-      <TextInput
-        style={styles.input}
-        placeholder={`Enviar mensaje a •${channelName}`}
-        placeholderTextColor={colors.textMuted}
-        selectionColor={colors.text}
-        value={value}
-        onChangeText={onChangeText}
-        maxLength={2500}
-        multiline
-        accessibilityLabel={`Mensaje para ${channelName}`}
-      />
-      <Pressable
-        style={styles.send}
-        onPress={onSend}
-        disabled={!canSend}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel="Enviar"
-        accessibilityState={{ disabled: !canSend }}
-      >
-        <Text variant="bodySmall" bold tone={canSend ? 'default' : 'muted'}>
-          ENVIAR /
+    <View>
+      {/* Se vuelve a habilitar solo cuando el chat avisa que puede escribir (vence o se levanta el mute) */}
+      {blocked && (
+        <Text variant="meta" bold style={styles.blocked} accessibilityLiveRegion="polite">
+          / {blockedMessage}
         </Text>
-      </Pressable>
+      )}
+      <View style={styles.composer}>
+        <TextInput
+          style={styles.input}
+          placeholder={`Enviar mensaje a •${channelName}`}
+          placeholderTextColor={colors.textMuted}
+          selectionColor={colors.text}
+          value={value}
+          onChangeText={onChangeText}
+          maxLength={2500}
+          multiline
+          editable={!blocked}
+          accessibilityLabel={`Mensaje para ${channelName}`}
+          accessibilityState={{ disabled: blocked }}
+        />
+        <Pressable
+          style={styles.send}
+          onPress={onSend}
+          disabled={!canSend}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Enviar"
+          accessibilityState={{ disabled: !canSend }}
+        >
+          <Text variant="bodySmall" bold tone={canSend ? 'default' : 'muted'}>
+            ENVIAR /
+          </Text>
+        </Pressable>
+      </View>
     </View>
   )
 }
 
 const useStyles = makeStyles(t => ({
+  blocked: {
+    paddingVertical: t.space[2],
+    paddingHorizontal: t.space[4],
+    borderTopWidth: t.lines.hairline,
+    borderTopColor: t.colors.line,
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'center',

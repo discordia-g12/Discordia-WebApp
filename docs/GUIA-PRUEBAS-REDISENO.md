@@ -60,6 +60,8 @@ producción (Cloudflare Pages).
 | W14 | Enviar un mensaje | Entra subiendo; el historial no se anima |
 | W15 | Con otra cuenta, escribir en el mismo canal | Aparece en vivo, con fecha |
 | W16 | DevTools → Network → Offline unos segundos y volver | Línea de 2 px arriba que avanza y `reconectando/` en la barra de usuario; al volver, se recuperan los mensajes del corte |
+| W16a | Con otra cuenta (dueña), silenciar a esta 5 minutos mientras tiene el canal abierto | Al instante el input queda deshabilitado con `/ Estás silenciado o no tenés permiso para escribir en este canal.`; al levantar el mute (o al vencer) se vuelve a habilitar solo, sin recargar. Abrir el canal estando silenciada: deshabilitado de entrada |
+| W16b | Con otra cuenta, expulsar a esta (y en otra prueba, banearla) mientras tiene un canal abierto | Aviso "Ya no sos miembro de este servidor." (o "Te banearon de este servidor."), vuelve al inicio y el servidor desaparece del rail. En DevTools → Network → WS no hay reintentos |
 
 **Voz**
 
@@ -68,6 +70,7 @@ producción (Cloudflare Pages).
 | W17 | Entrar a un canal de voz (y desde otra cuenta) | Mosaico de fichas; la nueva entra reacomodando las otras; borde que late en quien habla |
 | W18 | Clic derecho en la ficha de otra persona → silenciar para mí | `silenciado para vos` en la ficha |
 | W19 | Ir a otro canal de texto durante la llamada | Los controles siguen en la barra lateral; tocar el canal vuelve a la llamada |
+| W19a | Entrar al mismo canal de voz desde otra pestaña o desde mobile con la misma cuenta | La primera sale con "Entraste al canal de voz desde otro dispositivo" (no "se perdió la conexión") |
 
 **Ajustes, modales y avisos**
 
@@ -148,6 +151,7 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 | M18 | Enviar | `enviando/` y después enviado; entra subiendo |
 | M19 | Modo avión y enviar | Queda `/ no se envió` y aviso de error |
 | M20 | Con otra cuenta escribir en el mismo canal | Aparece en vivo con nombre y fecha |
+| M20a | Como W16a y W16b, con la app abierta en el canal | El input se deshabilita con el aviso arriba y se rehabilita solo; expulsada o baneada, aviso, vuelve a los canales y el servidor sale de la tira |
 
 **Voz (development build)**
 

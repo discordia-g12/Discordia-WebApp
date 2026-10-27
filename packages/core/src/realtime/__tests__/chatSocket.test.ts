@@ -10,7 +10,7 @@ class FakeWebSocket {
 
   readyState = FakeWebSocket.CONNECTING;
   onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
+  onclose: ((event?: { code?: number }) => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
   send = vi.fn();
   close = vi.fn(() => {
@@ -36,6 +36,12 @@ class FakeWebSocket {
   drop() {
     this.readyState = FakeWebSocket.CLOSED;
     this.onclose?.();
+  }
+
+  /** El servidor cierra con un código (4003 baneado, 4002 expulsado o salió). */
+  closeWith(code: number) {
+    this.readyState = FakeWebSocket.CLOSED;
+    this.onclose?.({ code });
   }
 }
 
@@ -160,5 +166,91 @@ describe('openChatSocket', () => {
 
     await expect(connection.send('hola', 'u1')).rejects.toThrow('WebSocket not connected');
     connection.close();
+  });
+
+  describe('permisos de escritura (W1)', () => {
+    it('cada conexión arranca pudiendo escribir y sigue los PERMISSIONS_UPDATED del canal', async () => {
+      const onPermissionsChange = vi.fn();
+      const connection = openChatSocket('c1', { onMessage: vi.fn(), onPermissionsChange });
+      await vi.advanceTimersByTimeAsync(0);
+      const ws = FakeWebSocket.instances[0];
+
+      ws.open();
+      expect(onPermissionsChange).toHaveBeenLastCalledWith(true);
+
+      ws.receive({ type: 'PERMISSIONS_UPDATED', canSend: false, channelId: 'c1' });
+      expect(onPermissionsChange).toHaveBeenLastCalledWith(false);
+
+      ws.receive({ type: 'PERMISSIONS_UPDATED', canSend: true, channelId: 'c1' });
+      expect(onPermissionsChange).toHaveBeenLastCalledWith(true);
+      connection.close();
+    });
+
+    it('ignora los avisos de otro canal y no los trata como mensajes', async () => {
+      const onPermissionsChange = vi.fn();
+      const onMessage = vi.fn();
+      const connection = openChatSocket('c1', { onMessage, onPermissionsChange });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWebSocket.instances[0].open();
+      onPermissionsChange.mockClear();
+
+      FakeWebSocket.instances[0].receive({ type: 'PERMISSIONS_UPDATED', canSend: false, channelId: 'otro' });
+
+      expect(onPermissionsChange).not.toHaveBeenCalled();
+      expect(onMessage).not.toHaveBeenCalled();
+      connection.close();
+    });
+
+    it('un 403 al enviar también deja sin permiso (por si el aviso no llegó)', async () => {
+      const onPermissionsChange = vi.fn();
+      const connection = openChatSocket('c1', { onMessage: vi.fn(), onError: vi.fn(), onPermissionsChange });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWebSocket.instances[0].open();
+
+      FakeWebSocket.instances[0].receive({ error: 'User does not have permission', status: 403 });
+
+      expect(onPermissionsChange).toHaveBeenLastCalledWith(false);
+      connection.close();
+    });
+  });
+
+  describe('ban o expulsión (W2)', () => {
+    it.each([
+      [4003, 'banned'],
+      [4002, 'removed'],
+    ] as const)('al cerrar con %i avisa %s y no vuelve a intentar', async (code, reason) => {
+      const onRemoved = vi.fn();
+      const onStatusChange = vi.fn();
+      const connection = openChatSocket('c1', { onMessage: vi.fn(), onRemoved, onStatusChange });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWebSocket.instances[0].open();
+
+      FakeWebSocket.instances[0].closeWith(code);
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(onRemoved).toHaveBeenCalledWith(reason);
+      expect(onStatusChange).toHaveBeenLastCalledWith('removed');
+      expect(FakeWebSocket.instances).toHaveLength(1);
+
+      // Ni reconnect() la revive
+      connection.reconnect();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(FakeWebSocket.instances).toHaveLength(1);
+      connection.close();
+    });
+
+    it('otros códigos de cierre siguen reconectando', async () => {
+      const onRemoved = vi.fn();
+      const connection = openChatSocket('c1', { onMessage: vi.fn(), onRemoved });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWebSocket.instances[0].open();
+
+      FakeWebSocket.instances[0].closeWith(1006);
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(onRemoved).not.toHaveBeenCalled();
+      expect(FakeWebSocket.instances).toHaveLength(2);
+      connection.close();
+    });
   });
 });
