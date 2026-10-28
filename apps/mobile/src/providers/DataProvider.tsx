@@ -4,15 +4,20 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
+import { AppState } from 'react-native'
 import type { User, Server, Category, Channel, Message, MessageBackendPayload } from '../types'
 import { useAuth } from './AuthProvider'
 import {
   getMessages,
+  MESSAGES_PAGE_SIZE,
   getServers,
   sendMessage as apiSendMessage,
   createServer as apiCreateServer,
+  updateServerIcon as apiUpdateServerIcon,
+  removeServerIcon as apiRemoveServerIcon,
   createChannel as apiCreateChannel,
   editChannel as apiEditChannel,
   deleteChannel as apiDeleteChannel,
@@ -21,6 +26,7 @@ import {
   createCategory as apiCreateCategory,
   reorderChannels as apiReorderChannels,
   reorderCategories as apiReorderCategories,
+  type UploadableFile,
 } from '@discordia/core'
 
 interface DataContextValue {
@@ -31,10 +37,17 @@ interface DataContextValue {
   /** Ya respondió el backend (o falló): distingue "cargando" de "no tenés servidores". */
   serversLoaded: boolean
   messages: Record<string, Message[]>
+  /** Por canal: hay mensajes anteriores a los cargados (Chat-Engine devolvió una página llena). */
+  hasOlderMessages: Record<string, boolean>
+  /** Por canal: se están pidiendo los mensajes anteriores. */
+  loadingOlderMessages: Record<string, boolean>
 
   // Servidores y canales en vivo
   refreshServers: () => Promise<void>
-  createServer: (name: string, icon?: File) => Promise<Server>
+  /** `icon`: el archivo de toUploadFile (utils/images). */
+  createServer: (name: string, icon?: UploadableFile) => Promise<Server>
+  /** Cambia el ícono (o lo quita con null) y aplica la URL que devuelve la API. Rechaza con el ApiError. */
+  setServerIcon: (serverId: string, icon: UploadableFile | null) => Promise<void>
   createChannel: (
     serverId: string,
     data: { name: string; type: 'text' | 'voice'; categoryId?: string },
@@ -59,6 +72,8 @@ interface DataContextValue {
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
   failOptimisticMessage: (channelId: string) => void
   fetchChannelMessages: (channelId: string) => Promise<void>
+  /** Pide la página anterior del historial y la agrega arriba. Rechaza si falla la red. */
+  fetchOlderChannelMessages: (channelId: string) => Promise<void>
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
@@ -72,6 +87,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [servers, setServers] = useState<Server[]>([])
   const [serversLoaded, setServersLoaded] = useState(false)
   const [messages, setMessages] = useState<Record<string, Message[]>>({})
+  const [hasOlderMessages, setHasOlderMessages] = useState<Record<string, boolean>>({})
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState<Record<string, boolean>>({})
+  // Lo que ya está cargado, para elegir el cursor sin depender del render
+  const messagesRef = useRef(messages)
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+  const loadingOlderRef = useRef(new Set<string>())
 
   // Sincronizar el perfil del usuario autenticado en el diccionario de usuarios
   useEffect(() => {
@@ -108,8 +131,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     refreshServers()
   }, [refreshServers])
 
-  const createServer = useCallback(async (name: string, icon?: File): Promise<Server> => {
-    const newServer = await apiCreateServer({ name, icon })
+  // Al volver a la app se piden de nuevo: los permisos (my_permissions) o los canales pueden haber
+  // cambiado mientras estaba en segundo plano
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') refreshServers()
+    })
+    return () => subscription.remove()
+  }, [refreshServers])
+
+  const createServer = useCallback(async (name: string, icon?: UploadableFile): Promise<Server> => {
+    const newServer = await apiCreateServer(icon ? { name, icon } : { name })
     setServers(prev => [...prev, newServer])
     return newServer
   }, [])
@@ -282,8 +314,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       try {
         const list = await getMessages(channelId)
         setMessages(prev => ({ ...prev, [channelId]: list.map(m => ({ ...m, status: 'sent' as const })) }))
+        setHasOlderMessages(prev => ({ ...prev, [channelId]: list.length >= MESSAGES_PAGE_SIZE }))
       } catch {
         // sin red: se conservan los mensajes en memoria
+      }
+    },
+    [token],
+  )
+
+  // Página anterior: los mensajes antes del más viejo que ya está (sin contar los que todavía no se enviaron)
+  const fetchOlderChannelMessages = useCallback(
+    async (channelId: string) => {
+      const oldest = (messagesRef.current[channelId] ?? []).find(m => !m.id.startsWith('temp-'))
+      if (!token || !oldest || loadingOlderRef.current.has(channelId)) return
+      loadingOlderRef.current.add(channelId)
+      setLoadingOlderMessages(prev => ({ ...prev, [channelId]: true }))
+      try {
+        const list = await getMessages(channelId, { before: oldest.id })
+        setMessages(prev => {
+          const current = prev[channelId] ?? []
+          const known = new Set(current.map(m => m.id))
+          const older = list.filter(m => !known.has(m.id)).map(m => ({ ...m, status: 'sent' as const }))
+          return { ...prev, [channelId]: [...older, ...current] }
+        })
+        setHasOlderMessages(prev => ({ ...prev, [channelId]: list.length >= MESSAGES_PAGE_SIZE }))
+      } finally {
+        loadingOlderRef.current.delete(channelId)
+        setLoadingOlderMessages(prev => ({ ...prev, [channelId]: false }))
       }
     },
     [token],
@@ -395,6 +452,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [addOptimisticMessage, confirmOptimisticMessage, failOptimisticMessage],
   )
 
+  const setServerIcon = useCallback(async (serverId: string, icon: UploadableFile | null): Promise<void> => {
+    const updated = icon ? await apiUpdateServerIcon(serverId, icon) : await apiRemoveServerIcon(serverId)
+    // Solo el ícono: el resto del servidor (canales, categorías) ya está al día en la lista
+    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, iconUrl: updated.iconUrl, icon: updated.icon } : srv)))
+  }, [])
+
   const value = useMemo<DataContextValue>(
     () => ({
       currentUserId: activeUserId,
@@ -402,8 +465,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       servers,
       serversLoaded,
       messages,
+      hasOlderMessages,
+      loadingOlderMessages,
       refreshServers,
       createServer,
+      setServerIcon,
       createChannel,
       editChannel,
       deleteChannel,
@@ -417,6 +483,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       confirmOptimisticMessage,
       failOptimisticMessage,
       fetchChannelMessages,
+      fetchOlderChannelMessages,
     }),
     [
       activeUserId,
@@ -424,8 +491,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       servers,
       serversLoaded,
       messages,
+      hasOlderMessages,
+      loadingOlderMessages,
       refreshServers,
       createServer,
+      setServerIcon,
       createChannel,
       editChannel,
       deleteChannel,
@@ -439,6 +509,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       confirmOptimisticMessage,
       failOptimisticMessage,
       fetchChannelMessages,
+      fetchOlderChannelMessages,
     ],
   )
 

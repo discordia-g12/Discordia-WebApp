@@ -1,13 +1,16 @@
 import React from 'react'
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 
 import { configureClient } from '@discordia/core'
 import { getApiBaseUrl } from './src/utils/config'
+import { sendFormWithXhr } from './src/api/upload'
 
 configureClient({
-  baseUrl: getApiBaseUrl()
+  baseUrl: getApiBaseUrl(),
+  // En iOS y Android los archivos (avatar, ícono) van por XMLHttpRequest; en la web, fetch sirve
+  sendForm: Platform.OS === 'web' ? undefined : sendFormWithXhr,
 })
 
 import { AppProviders, useAuth } from './src/providers/AppProviders'

@@ -60,6 +60,21 @@ describe('ChannelSidebar (rediseño)', () => {
     expect(onJoinVoiceChannel).toHaveBeenCalledWith('v1');
   });
 
+  it('un canal de voz sin permiso para conectarse tiene candado y no se puede elegir', () => {
+    const onSelectChannel = vi.fn();
+    const lockedServer = {
+      ...server,
+      myPermissions: ['VIEW_CHANNELS'],
+      categories: [{ id: 'k2', name: 'Voz', channels: [{ id: 'v1', name: 'meet core', type: 'voice', myPermissions: ['VIEW_CHANNELS'] }] }],
+    } as unknown as Server;
+    render(<ChannelSidebar {...base} server={lockedServer} onSelectChannel={onSelectChannel} />);
+
+    const channel = screen.getByRole('button', { name: 'Canal meet core, sin permiso para conectarte' }) as HTMLButtonElement;
+    expect(channel.disabled).toBe(true);
+    fireEvent.click(channel);
+    expect(onSelectChannel).not.toHaveBeenCalled();
+  });
+
   it('muestra quién está en un canal de voz y quién habla', () => {
     const lbars = { id: 'u2', username: 'lbars', displayName: 'lbars', status: 'online' } as User;
     render(
@@ -91,5 +106,60 @@ describe('ChannelSidebar (rediseño)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Menú del servidor torton' }));
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('muestra el banner de transferencia de propiedad cuando el usuario es el destinatario', () => {
+    const onAcceptTransfer = vi.fn();
+    const onRejectTransfer = vi.fn();
+    render(
+      <ChannelSidebar
+        {...base}
+        onSelectChannel={vi.fn()}
+        pendingTransfer={{
+          id: 'tr-1',
+          serverId: 's1',
+          currentOwnerId: 'other',
+          targetUserId: 'me',
+          status: 'PENDING',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        }}
+        onAcceptTransfer={onAcceptTransfer}
+        onRejectTransfer={onRejectTransfer}
+      />
+    );
+
+    expect(screen.getByText('Te ofrecieron la propiedad de este servidor.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '_aceptar' }));
+    expect(onAcceptTransfer).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '_rechazar' }));
+    expect(onRejectTransfer).toHaveBeenCalledTimes(1);
+  });
+
+  it('muestra el banner de cancelación para la dueña cuando hay una transferencia pendiente', () => {
+    const onCancelTransfer = vi.fn();
+    const ownerServer = { ...server, ownerId: 'me' } as unknown as Server;
+    render(
+      <ChannelSidebar
+        {...base}
+        server={ownerServer}
+        onSelectChannel={vi.fn()}
+        pendingTransfer={{
+          id: 'tr-2',
+          serverId: 's1',
+          currentOwnerId: 'me',
+          targetUserId: 'other',
+          status: 'PENDING',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        }}
+        onCancelTransfer={onCancelTransfer}
+      />
+    );
+
+    expect(screen.getByText('Transferencia de propiedad pendiente.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '_cancelar solicitud' }));
+    expect(onCancelTransfer).toHaveBeenCalledTimes(1);
   });
 });

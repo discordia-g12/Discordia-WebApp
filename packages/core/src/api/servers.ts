@@ -1,4 +1,7 @@
 import { api } from './client';
+import { ApiError } from './errors';
+import { appendFile, imageUploadErrorMessage, UPLOAD_TIMEOUT_MS, type UploadableFile } from './images';
+import { bitmaskToPermissions } from './roles';
 import {
   LOCAL_CATEGORY_PREFIX,
   toBackendCategoryId,
@@ -22,7 +25,8 @@ import {
 
 export interface CreateServerRequest {
   name: string;
-  icon?: File;
+  /** Ícono opcional: File en la web, { uri, name, type } en React Native. */
+  icon?: UploadableFile;
 }
 
 export interface CreateChannelRequest {
@@ -80,6 +84,7 @@ export function mapChannelFromBackend(raw: ChannelBackendResponse): Channel {
     categoryId: raw.category_id || undefined,
     position: raw.position,
     topic: raw.topic || undefined,
+    myPermissions: raw.my_permissions === undefined ? undefined : bitmaskToPermissions(raw.my_permissions),
   };
 }
 
@@ -119,6 +124,7 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
     id: raw.id,
     name: raw.name,
     ownerId: raw.owner_id,
+    myPermissions: raw.my_permissions === undefined ? undefined : bitmaskToPermissions(raw.my_permissions),
     iconUrl: raw.icon_url || undefined,
     icon: raw.icon_url || undefined,
     description: raw.description || undefined,
@@ -147,10 +153,38 @@ export async function createServer(payload: CreateServerRequest): Promise<Server
   const formData = new FormData();
   formData.append('name', payload.name);
   if (payload.icon) {
-    formData.append('icon', payload.icon);
+    appendFile(formData, 'icon', payload.icon, 'icon');
   }
-  const rawServer = await api.post<ServerBackendResponse>('/api/v1/servers', formData);
+  const rawServer = await api.post<ServerBackendResponse>('/api/v1/servers', formData, {
+    timeoutMs: payload.icon ? UPLOAD_TIMEOUT_MS : undefined,
+  });
   return mapServerFromBackend(rawServer);
+}
+
+/**
+ * Reemplaza el ícono de un servidor (PUT /servers/{id}/icon, campo "icon"). Hace falta ser el dueño o tener
+ * Gestionar servidor. Devuelve el servidor con la URL nueva: la anterior deja de existir.
+ */
+export async function updateServerIcon(serverId: string, icon: UploadableFile): Promise<Server> {
+  const formData = new FormData();
+  appendFile(formData, 'icon', icon, 'icon');
+  const rawServer = await api.put<ServerBackendResponse>(`/api/v1/servers/${serverId}/icon`, formData, {
+    timeoutMs: UPLOAD_TIMEOUT_MS,
+  });
+  return mapServerFromBackend(rawServer);
+}
+
+/** Quita el ícono de un servidor (vuelve a mostrar sus iniciales). Mismos permisos que updateServerIcon. */
+export async function removeServerIcon(serverId: string): Promise<Server> {
+  return mapServerFromBackend(await api.delete<ServerBackendResponse>(`/api/v1/servers/${serverId}/icon`));
+}
+
+/** Mensaje para mostrar si no se pudo cambiar o quitar el ícono de un servidor. */
+export function serverIconErrorMessage(err: unknown): string {
+  if (err instanceof ApiError && err.status === 403) {
+    return 'Necesitás el permiso Gestionar servidor para cambiar el ícono.';
+  }
+  return imageUploadErrorMessage(err);
 }
 
 /**

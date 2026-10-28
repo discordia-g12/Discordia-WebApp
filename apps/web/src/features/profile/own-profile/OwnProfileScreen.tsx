@@ -1,3 +1,4 @@
+import { IMAGE_UPLOAD_ACCEPT } from '@discordia/core';
 import type { Status } from '../../../types';
 import { ActionLink, BlockButton, SquareAvatar, UnderlineInput } from '../../../ui';
 import { Choice, SettingsCell, SettingsScreen, SoonFieldset } from '../../settings/SettingsScreen';
@@ -71,10 +72,24 @@ export function OwnProfileScreen(props: OwnProfileViewProps) {
           <SquareAvatar user={{ ...user, avatar: s.avatarUrl }} size={48} />
           <label className={styles.fileAction}>
             _cambiar avatar
-            <input type="file" accept="image/*" onChange={s.handleAvatarFileChange} className={styles.srOnly} />
+            <input
+              type="file"
+              accept={IMAGE_UPLOAD_ACCEPT}
+              onChange={s.handleAvatarFileChange}
+              disabled={saving}
+              aria-describedby="avatar-message"
+              className={styles.srOnly}
+            />
           </label>
-          {s.avatarUrl !== s.defaultAvatar && <ActionLink onPress={s.handleResetAvatar}>restablecer</ActionLink>}
+          {s.avatarFile && (
+            <ActionLink onPress={s.handleResetAvatar} disabled={saving}>
+              restablecer
+            </ActionLink>
+          )}
         </div>
+        <p id="avatar-message" className={s.avatarError ? styles.fileError : styles.meta} role={s.avatarError ? 'alert' : undefined}>
+          / {s.avatarError ?? (s.avatarFile ? 'Se sube al guardar.' : 'JPEG, PNG o WebP, hasta 5 MB. Se recorta al centro.')}
+        </p>
 
         <SoonFieldset note="El banner todavía no se guarda en el servidor.">
           <p className={styles.fieldLabel}>banner</p>

@@ -83,3 +83,10 @@ Los agregan los config plugins al generar el build:
 
 - Android: `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, entre otros (`@config-plugins/react-native-webrtc`).
 - iOS: `NSMicrophoneUsageDescription` / `NSCameraUsageDescription` con los textos definidos en `app.json`.
+
+## HTTP sin cifrar (Android)
+
+`app.config.ts` ajusta `app.json` según el build: Android permite HTTP sin cifrar solo en desarrollo
+(`expo start`, `expo run:android`, perfil `development`), que es lo que usa el backend local
+(`http://<IP>:8000`). Los perfiles `preview` y `production` de `eas.json` definen `APP_VARIANT` y quedan solo con
+HTTPS (`https://api.discordia.lol`). Para un perfil nuevo que apunte a producción, agregarle `APP_VARIANT`.

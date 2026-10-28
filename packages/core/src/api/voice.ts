@@ -1,10 +1,19 @@
 import { api } from './client';
 
+/** Qué puede publicar el usuario en la llamada, según sus roles (el token de LiveKit solo deja eso). */
+export interface VoicePublishPermissions {
+  canSpeak: boolean;
+  canVideo: boolean;
+  canScreenShare: boolean;
+}
+
 export interface VoiceJoinResponse {
   /** JWT firmado por el voice-service para entrar a la sala de LiveKit. */
   token: string;
   /** URL pública del servidor LiveKit (el browser se conecta directo, no vía Gateway). */
   url: string;
+  /** Sin el campo (voice-service anterior), puede publicar todo. */
+  permissions?: VoicePublishPermissions;
 }
 
 /**

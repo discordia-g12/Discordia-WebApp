@@ -13,9 +13,12 @@ interface CategorySectionProps {
   collapsed: boolean
   selectedChannelId: string | null
   onToggle: (categoryId: string) => void
-  onAddChannel: (categoryId: string) => void
+  /** Sin permiso para gestionar canales, no se pasa y no aparece el +. */
+  onAddChannel?: (categoryId: string) => void
   onSelectChannel: (channel: Channel) => void
   onLongPressChannel: (channel: Channel) => void
+  /** Canales a los que el usuario no puede entrar (voz sin permiso para conectarse). */
+  isChannelLocked?: (channel: Channel) => boolean
   /** Participantes conectados a cada canal de voz, por channelId. */
   voiceParticipants?: Record<string, VoiceChannelParticipant[]>
   currentUserId?: string
@@ -57,6 +60,7 @@ export default function CategorySection({
   onAddChannel,
   onSelectChannel,
   onLongPressChannel,
+  isChannelLocked,
   voiceParticipants = {},
   currentUserId,
   onLongPressVoiceParticipant,
@@ -76,7 +80,7 @@ export default function CategorySection({
   const canShiftCategory = reorderMode && !!onShiftCategory && !isLocalCategoryId(category.id)
   const trailing = canShiftCategory ? (
     <ShiftButtons label={`la categoría ${category.name}`} onShift={direction => onShiftCategory!(category.id, direction)} />
-  ) : !reorderMode ? (
+  ) : !reorderMode && onAddChannel ? (
     <Pressable
       style={styles.iconButton}
       onPress={() => onAddChannel(category.id)}
@@ -104,6 +108,7 @@ export default function CategorySection({
                     active={selectedChannelId === ch.id}
                     onPress={onSelectChannel}
                     onLongPress={onLongPressChannel}
+                    locked={isChannelLocked?.(ch)}
                   />
                 </View>
                 {reorderMode && onShiftChannel && (

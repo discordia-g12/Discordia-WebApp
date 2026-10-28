@@ -8,8 +8,22 @@ const RECONNECT_MAX_MS = 15000;
 /**
  * connecting: primer intento. reconnecting: estuvo abierta, se cortó y está volviendo (la interfaz lo
  * avisa). closed: cerrada a pedido, o sin haber conectado nunca, esperando el próximo intento.
+ * removed: el servidor la cerró porque el usuario ya no está en el servidor (ban, expulsión, salida); no
+ * se reintenta.
  */
-export type ChatSocketStatus = 'connecting' | 'open' | 'reconnecting' | 'closed';
+export type ChatSocketStatus = 'connecting' | 'open' | 'reconnecting' | 'closed' | 'removed';
+
+/** Por qué el chat cerró la conexión para siempre: baneado, o expulsado / salió del servidor. */
+export type ChatRemovalReason = 'banned' | 'removed';
+
+/**
+ * Códigos de cierre de Chat Engine (SessionManager.disconnectUser). Reintentar no sirve: cada intento
+ * recibiría 403.
+ */
+const CLOSE_CODE_REMOVAL: Record<number, ChatRemovalReason> = {
+  4003: 'banned',
+  4002: 'removed',
+};
 
 export interface ChatSocketHandlers {
   onMessage: (message: MessageBackendPayload) => void;
@@ -18,6 +32,13 @@ export interface ChatSocketHandlers {
   /** La conexión volvió después de un corte: los mensajes del corte llegan por last_message_id_seen. */
   onReconnect?: () => void;
   onStatusChange?: (status: ChatSocketStatus) => void;
+  /**
+   * Cambió el permiso de escribir en el canal (mute, vence el mute, cambio de roles). Cada conexión
+   * arranca en true: si no puede escribir, Chat Engine lo avisa apenas abre.
+   */
+  onPermissionsChange?: (canSend: boolean) => void;
+  /** El usuario ya no está en el servidor (ban o expulsión): la conexión se cerró y no se reintenta. */
+  onRemoved?: (reason: ChatRemovalReason) => void;
 }
 
 export interface ChatSocketOptions {
@@ -89,6 +110,8 @@ export function openChatSocket(
 
     ws.onopen = () => {
       attempts = 0;
+      // Conexión nueva: puede escribir salvo que el servidor diga lo contrario (lo manda enseguida)
+      handlers.onPermissionsChange?.(true);
       setStatus('open');
       if (hasConnectedBefore) handlers.onReconnect?.();
       hasConnectedBefore = true;
@@ -97,7 +120,16 @@ export function openChatSocket(
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.type === 'PERMISSIONS_UPDATED') {
+          if (typeof data.canSend === 'boolean' && (!data.channelId || data.channelId === channelId)) {
+            handlers.onPermissionsChange?.(data.canSend);
+          }
+          return;
+        }
+
         if (data.error) {
+          // Un 403 al enviar es que ya no puede escribir (por si el aviso de permisos no llegó)
+          if (data.status === 403) handlers.onPermissionsChange?.(false);
           if (handlers.onError) handlers.onError(String(data.error));
           else console.error('[WS] Server Error:', data.error);
           return;
@@ -112,9 +144,19 @@ export function openChatSocket(
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event?: { code?: number }) => {
       // Un socket reemplazado (reconnect / close) no vuelve a programar nada
       if (socket !== ws) return;
+
+      const removal = CLOSE_CODE_REMOVAL[event?.code ?? 0];
+      if (removal) {
+        disposed = true;
+        socket = null;
+        setStatus('removed');
+        handlers.onRemoved?.(removal);
+        return;
+      }
+
       setPending('closed');
       scheduleReconnect();
     };

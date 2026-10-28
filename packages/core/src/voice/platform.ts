@@ -7,7 +7,12 @@ import type { RemoteTrack, Room } from 'livekit-client';
  */
 
 /** Lo que la sala usa de livekit-client (la web lo importa; mobile lo carga solo si hay WebRTC nativo). */
-export type LiveKitModule = Pick<typeof import('livekit-client'), 'Room' | 'RoomEvent' | 'ConnectionState' | 'Track'>;
+export type LiveKitModule = Pick<
+  typeof import('livekit-client'),
+  'Room' | 'RoomEvent' | 'ConnectionState' | 'Track' | 'createLocalVideoTrack'
+> &
+  // Opcional: sin él, toda desconexión inesperada se informa como corte de conexión
+  Partial<Pick<typeof import('livekit-client'), 'DisconnectReason'>>;
 
 export interface VoicePrefs {
   muted: boolean;
@@ -50,6 +55,8 @@ export interface VoicePlatform {
 
   /** Pedir permiso de micrófono antes de activarlo (Android). Default: concedido. */
   requestMicrophonePermission?(): Promise<boolean>;
+  /** Pedir permiso de cámara antes de prenderla (Android). Default: concedido. */
+  requestCameraPermission?(): Promise<boolean>;
 
   /** Dónde se recuerdan mute y deafen entre visitas. Sin store, arrancan en false. */
   prefs?: VoicePrefsStore;

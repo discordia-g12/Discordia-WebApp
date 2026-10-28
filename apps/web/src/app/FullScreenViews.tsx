@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { AnimatePresence } from 'motion/react';
+import { useIsPlatformStaff } from '@discordia/core';
 import { useUIStore } from './uiStore';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
+import { useCanInCurrentServer } from '../features/servers/useServerPermission';
 import { useUpdateServer } from '../features/servers/serverActions';
 import { useCurrentUser, useCurrentUserStore } from '../features/profile/currentUserStore';
 
@@ -11,9 +13,12 @@ import { useCurrentUser, useCurrentUserStore } from '../features/profile/current
 const loadUserSettings = () => import('../features/settings/user/UserSettingsScreen');
 const loadServerSettings = () => import('../features/settings/server/ServerSettingsScreen');
 const loadOwnProfile = () => import('../features/profile/own-profile/OwnProfileScreen');
+// El backoffice se usa poco: no se precarga, baja recién al abrirlo
+const loadAdmin = () => import('../features/admin/AdminScreen');
 const UserSettingsScreen = lazy(() => loadUserSettings().then((m) => ({ default: m.UserSettingsScreen })));
 const ServerSettingsScreen = lazy(() => loadServerSettings().then((m) => ({ default: m.ServerSettingsScreen })));
 const OwnProfileScreen = lazy(() => loadOwnProfile().then((m) => ({ default: m.OwnProfileScreen })));
+const AdminScreen = lazy(() => loadAdmin().then((m) => ({ default: m.AdminScreen })));
 
 function preload() {
   void loadUserSettings();
@@ -22,7 +27,7 @@ function preload() {
 }
 
 /**
- * Ajustes de usuario, ajustes del servidor y perfil propio bajan como una cortina encima del
+ * Ajustes de usuario, ajustes del servidor, perfil propio y administración bajan como una cortina encima del
  * layout (que sigue montado, así no se corta el chat ni la llamada) y suben al cerrarse. Igual en
  * escritorio y en mobile.
  */
@@ -33,6 +38,8 @@ export function FullScreenViews() {
   const currentUser = useCurrentUser();
   const saveProfile = useCurrentUserStore((s) => s.saveProfile);
   const updateServer = useUpdateServer();
+  const canInvite = useCanInCurrentServer()('CREATE_INSTANT_INVITE');
+  const isStaff = useIsPlatformStaff();
   const close = () => setAppView('chat');
 
   useEffect(() => {
@@ -60,7 +67,7 @@ export function FullScreenViews() {
             currentUser={currentUser}
             onClose={close}
             onUpdateServer={updateServer}
-            onInvite={() => useUIStore.getState().setActiveModal('invite')}
+            onInvite={canInvite ? () => useUIStore.getState().setActiveModal('invite') : undefined}
             onDeleteServer={() => useUIStore.getState().openConfirm('delete-server', currentServer.name)}
             onLeaveServer={() => useUIStore.getState().openConfirm('leave-server', currentServer.name)}
           />
@@ -69,6 +76,11 @@ export function FullScreenViews() {
       {appView === 'own-profile' && (
         <Suspense key="own-profile" fallback={null}>
           <OwnProfileScreen currentUser={currentUser} onBack={close} onSave={saveProfile} />
+        </Suspense>
+      )}
+      {appView === 'admin' && isStaff && (
+        <Suspense key="admin" fallback={null}>
+          <AdminScreen currentUser={currentUser} onClose={close} />
         </Suspense>
       )}
     </AnimatePresence>

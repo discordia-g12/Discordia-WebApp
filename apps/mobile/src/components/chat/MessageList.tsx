@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react'
 import { FlatList, Keyboard, Platform, View } from 'react-native'
 import { formatDayLabel, placeMessage } from '@discordia/core'
 import { makeStyles } from '../../theme'
-import { EmptyState, Text } from '../../ui'
+import { ActionLink, EmptyState, Text } from '../../ui'
 import type { Message } from '../../types'
 import type { UserDisplay } from '../../hooks/useUserProfiles'
 import MessageItem from './MessageItem'
@@ -11,6 +11,11 @@ interface MessageListProps {
   channelName: string
   messages: Message[]
   describeUser: (userId: string) => UserDisplay
+  /** Hay mensajes anteriores a los cargados: arriba se ofrece cargarlos en vez del comienzo del canal. */
+  hasOlder?: boolean
+  loadingOlder?: boolean
+  /** Pide la página anterior del historial (al llegar arriba o con el enlace). */
+  onLoadOlder?: () => void
 }
 
 type Row =
@@ -23,12 +28,27 @@ const NEW_WINDOW_MS = 10_000
 /**
  * Mensajes del canal, con los separadores por día ("hoy", "ayer") y agrupados por autor (las reglas de core).
  * Como en la web, arrancan arriba, debajo del comienzo del canal, y bajan a medida que llegan: con pocos
- * mensajes no quedan pegados a la barra de escritura.
+ * mensajes no quedan pegados a la barra de escritura. Los mensajes anteriores se cargan al llegar arriba,
+ * sin mover lo que se está leyendo.
  */
-export default function MessageList({ channelName, messages, describeUser }: MessageListProps) {
+export default function MessageList({
+  channelName,
+  messages,
+  describeUser,
+  hasOlder = false,
+  loadingOlder = false,
+  onLoadOlder,
+}: MessageListProps) {
   const styles = useStyles()
   const listRef = useRef<FlatList<Row>>(null)
   const openedAt = useRef(Date.now())
+  // Último mensaje al que ya se bajó: cargar mensajes anteriores no debe bajar hasta el final
+  const scrolledToKey = useRef<string | null>(null)
+  // Al abrir, la lista arranca arriba y baja sola: eso no tiene que pedir mensajes anteriores
+  const userScrolled = useRef(false)
+  const loadOlder = () => {
+    if (hasOlder && !loadingOlder) onLoadOlder?.()
+  }
 
   // Al abrirse el teclado, volver a mostrar el último mensaje
   useEffect(() => {
@@ -51,6 +71,19 @@ export default function MessageList({ channelName, messages, describeUser }: Mes
     return out
   }, [messages])
 
+  // Mientras haya mensajes anteriores sin cargar, arriba va eso en vez del comienzo del canal
+  const older = (
+    <View style={styles.older}>
+      {loadingOlder ? (
+        <Text variant="meta" tone="muted">
+          / cargando mensajes anteriores…
+        </Text>
+      ) : (
+        <ActionLink onPress={loadOlder}>cargar mensajes anteriores</ActionLink>
+      )}
+    </View>
+  )
+
   // El comienzo del canal, como en la web: "•general" en grande y la bajada
   const welcome = (
     <View style={styles.welcome}>
@@ -69,11 +102,25 @@ export default function MessageList({ channelName, messages, describeUser }: Mes
       ref={listRef}
       data={rows}
       keyExtractor={row => row.key}
-      ListHeaderComponent={welcome}
+      ListHeaderComponent={hasOlder ? older : welcome}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-      onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+      onContentSizeChange={() => {
+        const lastKey = rows[rows.length - 1]?.key ?? null
+        if (lastKey === scrolledToKey.current) return
+        scrolledToKey.current = lastKey
+        listRef.current?.scrollToEnd({ animated: true })
+      }}
+      onScrollBeginDrag={() => {
+        userScrolled.current = true
+      }}
+      onStartReached={() => {
+        if (userScrolled.current) loadOlder()
+      }}
+      onStartReachedThreshold={0.5}
+      // Al agregar mensajes arriba, lo visible queda en su lugar
+      maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
       renderItem={({ item }) =>
         item.kind === 'day' ? (
           <View style={styles.day} accessibilityRole="header">
@@ -100,5 +147,6 @@ const useStyles = makeStyles(t => ({
   welcome: { gap: t.space[2], paddingLeft: t.layout.avatarSize.md + t.space[3], paddingBottom: t.space[3] },
   // El display tiene interlineado < 1: en iOS cortaría el borde de arriba de las mayúsculas
   welcomeTitle: { lineHeight: Math.round(t.text.display.fontSize * 1.1) },
+  older: { paddingLeft: t.layout.avatarSize.md + t.space[3], paddingBottom: t.space[3] },
   day: { paddingTop: t.space[5], paddingLeft: t.layout.avatarSize.md + t.space[3] },
 }))

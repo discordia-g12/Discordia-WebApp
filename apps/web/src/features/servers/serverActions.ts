@@ -1,25 +1,35 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getInvitePreview, joinServerViaInvite, useCreateServerMutation } from '@discordia/core';
+import {
+  ApiError,
+  getInvitePreview,
+  imageUploadErrorMessage,
+  joinServerViaInvite,
+  removeServerIcon,
+  updateServerIcon,
+  useCreateServerMutation,
+} from '@discordia/core';
 import type { Server } from '../../types';
 import { showToast, useUIStore } from '../../app/uiStore';
 
-/** Crea un servidor y lo selecciona. */
+/** Errores de Server-Roles que solo pueden venir del ícono (el nombre inválido es 422). */
+const ICON_ERROR_STATUSES = new Set([400, 413, 503]);
+
+/** Crea un servidor (con su ícono, si se eligió) y lo selecciona. Si falla, el modal queda abierto. */
 export function useCreateServer() {
   const createServerMutation = useCreateServerMutation();
 
-  return async (name: string, icon?: string | File) => {
+  return async (name: string, icon?: File) => {
     try {
-      const newServer = await createServerMutation.mutateAsync({
-        name,
-        icon: icon instanceof File ? icon : undefined,
-      });
+      const newServer = await createServerMutation.mutateAsync(icon ? { name, icon } : { name });
       // Abre el servidor con su primer canal de texto (•general)
       selectServer(newServer.id, [newServer]);
       useUIStore.getState().setActiveModal(null);
       showToast('Servidor creado', 'success');
-    } catch {
-      showToast('Error al crear el servidor', 'danger');
+    } catch (err) {
+      // Si el ícono falla, el servidor no se crea (Server-Roles sube el ícono antes de crearlo)
+      const iconFailed = icon && err instanceof ApiError && ICON_ERROR_STATUSES.has(err.status);
+      showToast(iconFailed ? imageUploadErrorMessage(err) : 'Error al crear el servidor', 'danger');
     }
   };
 }
@@ -98,6 +108,26 @@ export function useInvitePreview(invite: string): InvitePreview | null {
   }, [invite]);
 
   return preview;
+}
+
+/**
+ * Cambia o quita el ícono de un servidor y aplica en el caché la URL que devuelve la API (la anterior deja
+ * de existir). Si falla, rechaza con el error de la API.
+ */
+export function useServerIcon() {
+  const queryClient = useQueryClient();
+
+  const apply = (updated: Server) => {
+    queryClient.setQueryData<Server[]>(['servers'], (prev = []) =>
+      prev.map((s) => (s.id === updated.id ? { ...s, iconUrl: updated.iconUrl, icon: updated.icon } : s))
+    );
+    return updated.iconUrl;
+  };
+
+  return {
+    change: async (serverId: string, icon: File) => apply(await updateServerIcon(serverId, icon)),
+    remove: async (serverId: string) => apply(await removeServerIcon(serverId)),
+  };
 }
 
 /** Aplica en el caché la configuración guardada desde los ajustes del servidor. */

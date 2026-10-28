@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { ApiError, useVoicePresence, useVoiceRoom } from '@discordia/core';
+import { ApiError, useVoicePresence, useVoiceRoom, voiceDisconnectMessage } from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { useCurrentServer } from '../servers/useCurrentServer';
 import { VoiceContext } from './voiceContext';
@@ -23,9 +23,9 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   };
 
   const room = useVoiceRoom({
-    onUnexpectedDisconnect: () => {
+    onUnexpectedDisconnect: (reason) => {
       exitVoiceView();
-      showToast('Se perdió la conexión con el canal de voz', 'danger');
+      showToast(voiceDisconnectMessage(reason), reason === 'duplicate' ? 'info' : 'danger');
     },
   });
 
@@ -73,6 +73,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleCamera = async () => {
+    const turningOn = !room.isCameraOn;
+    const ok = await room.toggleCamera();
+    if (!ok && turningOn) {
+      showToast('No se pudo prender la cámara: revisá los permisos del navegador', 'info');
+    }
+  };
+
   const disconnect = () => {
     room.leave();
     exitVoiceView();
@@ -80,6 +88,6 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <VoiceContext.Provider value={{ room, presence, join, disconnect, isSwitching }}>{children}</VoiceContext.Provider>
+    <VoiceContext.Provider value={{ room, presence, join, disconnect, isSwitching, toggleCamera }}>{children}</VoiceContext.Provider>
   );
 }

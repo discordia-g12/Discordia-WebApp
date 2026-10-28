@@ -1,17 +1,21 @@
 import { useState, type FormEvent } from 'react';
 import {
   BAN_REASON_MAX_LENGTH,
+  IMAGE_UPLOAD_ACCEPT,
   MUTE_DURATIONS,
   PERMISSION_BITS,
+  canSeeSettingsSection,
   errorMessageFor,
+  memberActionsIn,
   isLocalCategoryId,
   useCreateCategoryMutation,
   useCreateChannelMutation,
   useDeleteCategoryMutation,
   useDeleteChannelMutation,
 } from '@discordia/core';
+import type { MemberActions } from '@discordia/core';
 import type { Category, Channel, ChannelType, Role, Server, ServerMember } from '../../../types';
-import { ActionLink, BlockButton, EmptyState, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
+import { ActionLink, BlockButton, ConfirmDialog, EmptyState, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
 import { useServerMembersAdmin } from '../../moderation/useServerMembersAdmin';
 import { useServerBansAdmin } from '../../moderation/useServerBansAdmin';
 import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen';
@@ -24,7 +28,7 @@ import styles from './ServerSettingsScreen.module.css';
 type Section = 'overview' | 'roles' | 'members' | 'bans' | 'channels' | 'moderation' | 'notifications' | 'emojis' | 'boost';
 
 const SECTIONS: SettingsSection<Section>[] = [
-  { id: 'overview', label: 'Resumen', items: ['Identidad del servidor', 'Números'] },
+  { id: 'overview', label: 'Resumen', items: ['Ícono', 'Nombre y descripción', 'Números'] },
   { id: 'roles', label: 'Roles', items: ['Crear rol', 'Roles', 'Editar rol', 'Permisos'] },
   { id: 'members', label: 'Miembros', items: ['Asignar roles', 'Silenciar', 'Expulsar', 'Banear'] },
   { id: 'bans', label: 'Baneos', items: ['Usuarios baneados', 'Revocar'] },
@@ -51,8 +55,12 @@ export interface ServerSettingsScreenProps extends ServerSettingsProps {
  */
 export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, ...props }: ServerSettingsScreenProps) {
   const s = useServerSettingsState(props);
-  const [section, setSection] = useState<Section>('overview');
   const isOwner = s.serverState.ownerId === s.user.id;
+  // Solo las secciones y acciones que el usuario puede usar (el backend las vuelve a chequear)
+  const server = props.server ?? s.serverState;
+  const sections = SECTIONS.filter((sec) => canSeeSettingsSection(server, s.user.id, sec.id));
+  const [section, setSection] = useState<Section>(sections[0]?.id ?? 'notifications');
+  const memberActions = memberActionsIn(server, s.user.id);
 
   const actions = [
     ...(onInvite ? [{ label: 'Invitar', onPress: onInvite }] : []),
@@ -72,7 +80,7 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
           </div>
         </div>
       }
-      sections={SECTIONS}
+      sections={sections}
       active={section}
       onSelect={setSection}
       actions={actions}
@@ -81,7 +89,12 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
       {section === 'overview' && <OverviewSection s={s} />}
       {section === 'roles' && <RolesSection s={s} />}
       {section === 'members' && (
-        <MembersSection serverId={s.serverState.id} ownerId={s.serverState.ownerId} currentUserId={s.user.id} />
+        <MembersSection
+          serverId={s.serverState.id}
+          ownerId={s.serverState.ownerId}
+          currentUserId={s.user.id}
+          permissions={memberActions}
+        />
       )}
       {section === 'bans' && <BansSection serverId={s.serverState.id} />}
       {/* El servidor de las props (no el estado local): se actualiza cuando el backend confirma */}
@@ -95,11 +108,23 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
 }
 
 /** Subir un archivo con una acción de texto (_cambiar ícono, _subir emoji). */
-function FileAction({ label, accept, onChange }: { label: string; accept: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+function FileAction({
+  label,
+  accept,
+  onChange,
+  disabled = false,
+  describedBy,
+}: {
+  label: string;
+  accept: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
+  describedBy?: string;
+}) {
   return (
-    <label className={styles.fileAction}>
+    <label className={`${styles.fileAction} ${disabled ? styles.fileActionDisabled : ''}`}>
       _{label}
-      <input type="file" accept={accept} onChange={onChange} className={styles.srOnly} />
+      <input type="file" accept={accept} onChange={onChange} disabled={disabled} aria-describedby={describedBy} className={styles.srOnly} />
     </label>
   );
 }
@@ -112,12 +137,34 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
   const channels = s.categories.reduce((n, c) => n + c.channels.length, 0);
   return (
     <>
-      {/* Sin PATCH /servers/{id} en el backend: guardar solo cambiaba el caché y se perdía al recargar */}
-      <SettingsCell title="Identidad del servidor" soon>
+      {/* El ícono sí se guarda (PUT /servers/{id}/icon, dueño o Gestionar servidor), apenas se elige */}
+      <SettingsCell title="Ícono">
         <div className={styles.iconRow}>
           <SquareAvatar user={{ displayName: s.serverName, username: s.serverName, avatar: s.serverIcon || null }} size="lg" />
-          <FileAction label="cambiar ícono" accept="image/*" onChange={s.handleIconUpload} />
+          <FileAction
+            label={s.iconBusy ? 'subiendo…' : 'cambiar ícono'}
+            accept={IMAGE_UPLOAD_ACCEPT}
+            onChange={s.handleIconUpload}
+            disabled={s.iconBusy}
+            describedBy="server-icon-message"
+          />
+          {s.serverIcon && (
+            <ActionLink onPress={s.handleRemoveIcon} disabled={s.iconBusy}>
+              quitar ícono
+            </ActionLink>
+          )}
         </div>
+        {s.iconError ? (
+          <Feedback tone="error">/ {s.iconError}</Feedback>
+        ) : (
+          <p id="server-icon-message" className={styles.meta}>
+            / JPEG, PNG o WebP, hasta 5 MB. Se guarda al elegirlo y se recorta al centro.
+          </p>
+        )}
+      </SettingsCell>
+
+      {/* Sin PATCH /servers/{id} en el backend: guardar solo cambiaba el caché y se perdía al recargar */}
+      <SettingsCell title="Nombre y descripción" soon>
         <UnderlineInput label="nombre del servidor" value={s.serverName} maxLength={100} onChange={(e) => s.setServerName(e.target.value)} />
         <UnderlineInput
           label="descripción"
@@ -335,12 +382,43 @@ function RolesSection({ s }: { s: ServerSettingsState }) {
 // MIEMBROS
 // ==========================================
 
-function MembersSection({ serverId, ownerId, currentUserId }: { serverId: string; ownerId: string; currentUserId: string }) {
+function MembersSection({
+  serverId,
+  ownerId,
+  currentUserId,
+  permissions,
+}: {
+  serverId: string;
+  ownerId: string;
+  currentUserId: string;
+  permissions: MemberActions;
+}) {
   const m = useServerMembersAdmin(serverId);
+  const isOwnerViewing = ownerId === currentUserId;
   return (
     <SettingsCell title={`Miembros${m.membersQuery.data ? ` — ${m.total}` : ''}`} wide>
       <UnderlineInput label="buscar miembros" value={m.search} onChange={(e) => m.setSearch(e.target.value)} placeholder="nombre o apodo" />
       {m.search.trim() && m.hasNextPage && <p className={styles.meta}>/ La búsqueda solo incluye los miembros ya cargados: bajá para cargar más.</p>}
+      {isOwnerViewing && m.pendingTransfer && m.pendingTransfer.status === 'PENDING' && (
+        <Feedback>
+          / Solicitud de transferencia de propiedad pendiente.{' '}
+          <ActionLink onPress={() => m.handleCancelTransfer(m.pendingTransfer!.id)} disabled={m.isMutating}>
+            cancelar solicitud
+          </ActionLink>
+        </Feedback>
+      )}
+      {!isOwnerViewing && m.pendingTransfer && m.pendingTransfer.targetUserId === currentUserId && m.pendingTransfer.status === 'PENDING' && (
+        <Feedback>
+          / Te ofrecieron la propiedad de este servidor.{' '}
+          <ActionLink onPress={() => m.handleAcceptTransfer(m.pendingTransfer!.id)} disabled={m.isMutating}>
+            aceptar
+          </ActionLink>
+          {' · '}
+          <ActionLink onPress={() => m.handleRejectTransfer(m.pendingTransfer!.id)} disabled={m.isMutating}>
+            rechazar
+          </ActionLink>
+        </Feedback>
+      )}
       {m.error && <Feedback tone="error">/ {m.error}</Feedback>}
       {m.notice && <Feedback>{m.notice}</Feedback>}
       {m.membersQuery.isLoading && <Skeleton lines={5} label="Cargando miembros" />}
@@ -358,11 +436,27 @@ function MembersSection({ serverId, ownerId, currentUserId }: { serverId: string
             />
           )}
           {m.filteredMembers.map((member) => (
-            <MemberRow key={member.id} m={m} member={member} isOwner={member.userId === ownerId} isMe={member.userId === currentUserId} />
+            <MemberRow
+              key={member.id}
+              m={m}
+              member={member}
+              isOwner={member.userId === ownerId}
+              isMe={member.userId === currentUserId}
+              isOwnerViewing={isOwnerViewing}
+              permissions={permissions}
+            />
           ))}
           <div ref={m.sentinelRef} />
           {m.isFetchingNextPage && <Skeleton lines={2} label="Cargando más miembros" />}
         </div>
+      )}
+      {m.transferMember && (
+        <ConfirmDialog
+          action="transfer-ownership"
+          targetName={m.displayName(m.transferMember)}
+          onConfirm={() => m.handleTransferOwnership(m.transferMember!)}
+          onCancel={() => m.setTransferMember(null)}
+        />
       )}
     </SettingsCell>
   );
@@ -373,11 +467,15 @@ function MemberRow({
   member,
   isOwner,
   isMe,
+  isOwnerViewing,
+  permissions,
 }: {
   m: ReturnType<typeof useServerMembersAdmin>;
   member: ServerMember;
   isOwner: boolean;
   isMe: boolean;
+  isOwnerViewing: boolean;
+  permissions: MemberActions;
 }) {
   const name = m.displayName(member);
   const memberRoles = member.roleIds
@@ -399,7 +497,7 @@ function MemberRow({
             <li key={role.id} className={styles.chip}>
               <span className={styles.roleColor} style={{ background: role.color || 'transparent' }} aria-hidden="true" />
               {role.name}
-              {!role.isDefault && (
+              {!role.isDefault && permissions.manageRoles && (
                 <button type="button" onClick={() => m.handleRemove(member, role)} disabled={m.isMutating} aria-label={`Quitar el rol ${role.name}`}>
                   ×
                 </button>
@@ -408,36 +506,49 @@ function MemberRow({
           ))}
         </ul>
         <span className={styles.links}>
-          <ActionLink
-            onPress={() => {
-              m.setBanMemberId(null);
-              m.setPickerMemberId(m.pickerMemberId === member.id ? null : member.id);
-            }}
-            disabled={m.isMutating}
-            aria-expanded={m.pickerMemberId === member.id}
-          >
-            rol +
-          </ActionLink>
+          {permissions.manageRoles && (
+            <ActionLink
+              onPress={() => {
+                m.setBanMemberId(null);
+                m.setPickerMemberId(m.pickerMemberId === member.id ? null : member.id);
+              }}
+              disabled={m.isMutating}
+              aria-expanded={m.pickerMemberId === member.id}
+            >
+              rol +
+            </ActionLink>
+          )}
           {/* Dueña/o y una/o misma/o: el backend lo rechaza, así que no se ofrece */}
           {!isOwner && !isMe && (
             <>
-              <ActionLink
-                onPress={() => m.openModerationPanel(member, 'mute')}
-                disabled={m.isMutating}
-                aria-expanded={m.moderationPanel?.memberId === member.id && m.moderationPanel.kind === 'mute'}
-              >
-                silenciar
-              </ActionLink>
-              <ActionLink
-                onPress={() => m.openModerationPanel(member, 'kick')}
-                disabled={m.isMutating}
-                aria-expanded={m.moderationPanel?.memberId === member.id && m.moderationPanel.kind === 'kick'}
-              >
-                expulsar
-              </ActionLink>
-              <ActionLink onPress={() => m.openBanPanel(member)} disabled={m.isMutating} aria-expanded={m.banMemberId === member.id}>
-                banear
-              </ActionLink>
+              {permissions.mute && (
+                <ActionLink
+                  onPress={() => m.openModerationPanel(member, 'mute')}
+                  disabled={m.isMutating}
+                  aria-expanded={m.moderationPanel?.memberId === member.id && m.moderationPanel.kind === 'mute'}
+                >
+                  silenciar
+                </ActionLink>
+              )}
+              {permissions.kick && (
+                <ActionLink
+                  onPress={() => m.openModerationPanel(member, 'kick')}
+                  disabled={m.isMutating}
+                  aria-expanded={m.moderationPanel?.memberId === member.id && m.moderationPanel.kind === 'kick'}
+                >
+                  expulsar
+                </ActionLink>
+              )}
+              {permissions.ban && (
+                <ActionLink onPress={() => m.openBanPanel(member)} disabled={m.isMutating} aria-expanded={m.banMemberId === member.id}>
+                  banear
+                </ActionLink>
+              )}
+              {isOwnerViewing && (
+                <ActionLink onPress={() => m.setTransferMember(member)} disabled={m.isMutating}>
+                  transferir
+                </ActionLink>
+              )}
             </>
           )}
         </span>

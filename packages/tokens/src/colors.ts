@@ -28,6 +28,10 @@ export const palette = {
   /** Celeste decorativo de noche: la marca de agua de un servidor, tan sutil como el cielo de día. */
   slate800: '#2b4550',
   red600: '#c0392b',
+  /** Verde de "hablando" de día: oscuro para llegar a 3:1 también sobre el celeste del degradé. */
+  green700: '#15803d',
+  /** Verde de "hablando" de noche: brillante, se ve sobre la noche y sobre fotos o video. */
+  green400: '#4ade80',
 } as const;
 
 export interface SemanticColors {
@@ -58,6 +62,11 @@ export interface SemanticColors {
   skyTint: string;
   /** Celeste decorativo (marca de agua de un servidor): nunca texto que haya que leer. */
   skyDecoration: string;
+  /**
+   * Quién está hablando en una llamada (borde de su ficha). Tiene que distinguirse de las líneas de la
+   * grilla y verse sobre fotos y video: por eso es el único color saturado de la paleta.
+   */
+  speaking: string;
 }
 
 export const colors: Record<ColorScheme, SemanticColors> = {
@@ -77,6 +86,7 @@ export const colors: Record<ColorScheme, SemanticColors> = {
     glow: palette.sky100,
     skyTint: 'rgba(168, 219, 239, 0.3)',
     skyDecoration: palette.sky100,
+    speaking: palette.green700,
   },
   dark: {
     background: palette.night900,
@@ -94,5 +104,6 @@ export const colors: Record<ColorScheme, SemanticColors> = {
     glow: palette.sky100,
     skyTint: 'rgba(168, 219, 239, 0.06)',
     skyDecoration: palette.slate800,
+    speaking: palette.green400,
   },
 };

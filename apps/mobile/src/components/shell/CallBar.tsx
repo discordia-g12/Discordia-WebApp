@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Animated, Pressable, View } from 'react-native'
-import { Headphones, HeadphoneOff, Mic, MicOff, PhoneOff } from 'lucide-react-native'
+import { Headphones, HeadphoneOff, Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-react-native'
 import type { VoiceConnectionState } from '@discordia/core'
 import { makeStyles, useTheme } from '../../theme'
 import { Text, useNativeDriver, useReducedMotion } from '../../ui'
@@ -15,7 +15,19 @@ interface CallBarProps {
   onToggleMute: () => void
   onToggleDeafen: () => void
   onDisconnect: () => void
+  /** Cámara propia prendida. */
+  isCameraOn?: boolean
+  /** Prende o apaga la cámara; sin esta función no se muestra el botón (p. ej. en Expo Go). */
+  onToggleCamera?: () => void
+  /** Sus roles no le dejan hablar / usar la cámara en este canal: el botón se ve atenuado. */
+  cannotSpeak?: boolean
+  cannotUseCamera?: boolean
+  /** Tocar un botón bloqueado: la app explica por qué (en el teléfono no hay tooltip). */
+  onBlocked?: (message: string) => void
 }
+
+const CANNOT_SPEAK = 'No tenés permiso para hablar en este canal'
+const CANNOT_USE_CAMERA = 'No tenés permiso para usar la cámara en este canal'
 
 const STATE_LABEL: Record<VoiceConnectionState, string> = {
   connecting: 'conectando',
@@ -29,11 +41,29 @@ const STATE_LABEL: Record<VoiceConnectionState, string> = {
  * llamada), su estado y micrófono, audio y colgar, separados por líneas. En gris, como la marca de agua
  * del escritorio durante una llamada.
  */
-export function CallBar({ channelName, serverName, connectionState, isMuted, isDeafened, onOpen, onToggleMute, onToggleDeafen, onDisconnect }: CallBarProps) {
+export function CallBar({
+  channelName,
+  serverName,
+  connectionState,
+  isMuted,
+  isDeafened,
+  onOpen,
+  onToggleMute,
+  onToggleDeafen,
+  onDisconnect,
+  isCameraOn = false,
+  onToggleCamera,
+  cannotSpeak = false,
+  cannotUseCamera = false,
+  onBlocked,
+}: CallBarProps) {
   const styles = useStyles()
   const { colors } = useTheme()
   const MicIcon = isMuted ? MicOff : Mic
   const AudioIcon = isDeafened ? HeadphoneOff : Headphones
+  const CameraIcon = isCameraOn ? Video : VideoOff
+  // La cámara se publica en la sala: solo con la conexión establecida
+  const cameraUsable = connectionState === 'connected'
 
   return (
     <View style={styles.bar}>
@@ -44,12 +74,30 @@ export function CallBar({ channelName, serverName, connectionState, isMuted, isD
         </Text>
         <CallState state={connectionState} />
       </Pressable>
-      <Pressable style={styles.control} onPress={onToggleMute} accessibilityRole="button" accessibilityLabel={isMuted ? 'Activar micrófono' : 'Silenciar micrófono'} accessibilityState={{ selected: isMuted }}>
+      <Pressable
+        style={[styles.control, cannotSpeak && styles.disabled]}
+        onPress={cannotSpeak ? () => onBlocked?.(CANNOT_SPEAK) : onToggleMute}
+        accessibilityRole="button"
+        accessibilityLabel={cannotSpeak ? CANNOT_SPEAK : isMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
+        accessibilityState={{ selected: isMuted, disabled: cannotSpeak }}
+      >
         <MicIcon color={colors.text} size={18} strokeWidth={1.5} />
       </Pressable>
       <Pressable style={styles.control} onPress={onToggleDeafen} accessibilityRole="button" accessibilityLabel={isDeafened ? 'Activar audio' : 'Desactivar audio'} accessibilityState={{ selected: isDeafened }}>
         <AudioIcon color={colors.text} size={18} strokeWidth={1.5} />
       </Pressable>
+      {onToggleCamera && (
+        <Pressable
+          style={[styles.control, isCameraOn && styles.active, (!cameraUsable || cannotUseCamera) && styles.disabled]}
+          onPress={cannotUseCamera ? () => onBlocked?.(CANNOT_USE_CAMERA) : onToggleCamera}
+          disabled={!cameraUsable}
+          accessibilityRole="button"
+          accessibilityLabel={cannotUseCamera ? CANNOT_USE_CAMERA : isCameraOn ? 'Apagar cámara' : 'Prender cámara'}
+          accessibilityState={{ selected: isCameraOn, disabled: !cameraUsable || cannotUseCamera }}
+        >
+          <CameraIcon color={isCameraOn ? colors.inverseText : colors.text} size={18} strokeWidth={1.5} />
+        </Pressable>
+      )}
       <Pressable style={[styles.control, styles.hangUp]} onPress={onDisconnect} accessibilityRole="button" accessibilityLabel="Colgar">
         <PhoneOff color={colors.onDanger} size={18} strokeWidth={1.5} />
       </Pressable>
@@ -102,6 +150,9 @@ const useStyles = makeStyles(t => ({
     borderLeftWidth: t.lines.hairline,
     borderLeftColor: t.colors.lineStrong,
   },
+  // Cámara prendida: el bloque invertido, como un interruptor encendido
+  active: { backgroundColor: t.colors.inverseBackground },
+  disabled: { opacity: 0.4 },
   // Colgar: el único bloque rojo (acción destructiva)
   hangUp: { backgroundColor: t.colors.danger },
 }))

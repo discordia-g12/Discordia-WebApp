@@ -3,7 +3,7 @@ import { useChatWebSocket } from '../useChatSocket';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Message } from '../../types';
+import type { MessagePages } from '../messageCache';
 
 const mockGetToken = vi.fn().mockResolvedValue('mock-token');
 
@@ -95,8 +95,8 @@ describe('useChatWebSocket', () => {
   });
 
   it('should initialize, connect, and handle receiving messages', async () => {
-    // Pre-seed query to allow setQueriesData to match
-    queryClient.setQueryData(['messages', 'channel-1'], []);
+    // El historial ya cargó (una página vacía): lo que llega por el socket se agrega a la más nueva
+    queryClient.setQueryData<MessagePages>(['messages', 'channel-1'], { pages: [[]], pageParams: [undefined] });
 
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>
@@ -123,10 +123,7 @@ describe('useChatWebSocket', () => {
       await new Promise(resolve => setTimeout(resolve, 10));
     });
 
-    // Validamos en el queryCache con exact/active o recuperando el data exacto
-    // setQueriesData impacta queries activas o inactivas que hagan match. 
-    // Como pre-seteamos, debería estar.
-    const cached = queryClient.getQueryData<Message[]>(['messages', 'channel-1']);
+    const cached = queryClient.getQueryData<MessagePages>(['messages', 'channel-1'])?.pages[0];
     expect(cached).toBeDefined();
     expect(cached).toHaveLength(1);
     expect(cached![0].content).toBe('hello');
@@ -136,7 +133,7 @@ describe('useChatWebSocket', () => {
       await new Promise(resolve => setTimeout(resolve, 20));
     });
 
-    const cached2 = queryClient.getQueryData<Message[]>(['messages', 'channel-1']);
+    const cached2 = queryClient.getQueryData<MessagePages>(['messages', 'channel-1'])?.pages[0];
     expect(cached2).toHaveLength(2);
     expect(cached2![1].authorId).toBe('user-1');
     expect(cached2![1].author).toBeUndefined();
@@ -245,6 +242,35 @@ describe('useChatWebSocket', () => {
     expect(consoleSpy).toHaveBeenCalledWith('[WS] Error parsing message', expect.any(Error));
 
     consoleSpy.mockRestore();
+  });
+
+  it('expone canSend según lo que informa el servidor y lo resetea al cambiar de canal', async () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const sockets: MockWebSocket[] = [];
+    const OriginalWebSocket = global.WebSocket;
+    global.WebSocket = mockWebSocketClass((ws) => sockets.push(ws));
+    global.WebSocket.CONNECTING = 0;
+    global.WebSocket.OPEN = 1;
+
+    const { result, rerender, unmount } = renderHook(({ channelId }) => useChatWebSocket(channelId, 'user-1'), {
+      wrapper,
+      initialProps: { channelId: 'channel-1' as string | null },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    act(() => sockets[0]._simulateOpen());
+    expect(result.current.canSend).toBe(true);
+
+    act(() => sockets[0]._simulateMessage({ type: 'PERMISSIONS_UPDATED', canSend: false, channelId: 'channel-1' }));
+    expect(result.current.canSend).toBe(false);
+
+    // Sin canal (p. ej. DMs) se puede escribir
+    rerender({ channelId: null });
+    expect(result.current.canSend).toBe(true);
+
+    unmount();
+    global.WebSocket = OriginalWebSocket;
   });
 
   it('should send message immediately if OPEN', async () => {

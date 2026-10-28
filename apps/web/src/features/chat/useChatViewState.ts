@@ -84,9 +84,11 @@ export function useChatViewState({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Solo cuando cambia el último mensaje: cargar mensajes anteriores no debe bajar hasta el final
+  const lastMessageId = localMessages[localMessages.length - 1]?.id;
   useEffect(() => {
     scrollToBottom();
-  }, [localMessages.length]);
+  }, [lastMessageId]);
 
   // Título e información de cabecera
   const chatTitle = channel ? channel.name : directMessage?.recipient?.displayName || 'Chat';

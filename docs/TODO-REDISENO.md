@@ -560,7 +560,8 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
   contraseña y 2FA.
 - [x] 9b. Perfil propio (`profile/own-profile/OwnProfileScreen`) en el mismo marco: vista previa en vivo
       (banner como franja, avatar cuadrado encima) y edición de avatar, banner, nombre (validado), bio y
-      estado.
+      estado. El avatar se sube como archivo a `PATCH /profile/avatar` al guardar (Auth lo guarda en S3) y la
+      interfaz toma la URL que devuelve; `PATCH /profile` ya no manda `avatar_url`.
 - [x] Los tres bajan como cortina encima de la grilla. Los modales y avisos se movieron fuera de la grilla
       (que aísla su apilado) para quedar arriba de los ajustes; Escape cierra primero el modal de arriba.
 - [x] Textos al castellano: permisos (`server/shared.ts`) y mensajes del estado del servidor.
@@ -575,8 +576,8 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
       lo cierran; el foco queda adentro y vuelve al cerrar), `ModalForm` y `ModalActions` (`_cancelar` y
       el bloque al pie), `ConfirmDialog`, `Choice` (pasó de los ajustes al catálogo; si la fila no entra, se
       parte en una grilla limpia) y `ConnectionBanner`. Preset de movimiento `toast` (entra desde abajo).
-- [x] Modales del rediseño: crear servidor (solo el nombre; el ícono, en "próximamente": Server-Roles lo
-      recibe y lo descarta), unirse (vista previa como franja; si la invitación no sirve, el error queda en el
+- [x] Modales del rediseño: crear servidor (nombre e ícono opcional, que se manda como archivo y Server-Roles
+      guarda en S3), unirse (vista previa como franja; si la invitación no sirve, el error queda en el
       campo y el modal sigue abierto), invitar (vencimiento y usos con `Choice`), crear / editar canal (tipo y
       categoría con `Choice`; eliminar confirma adentro del mismo modal, sin `window.confirm`), crear
       categoría y perfil de otro usuario.

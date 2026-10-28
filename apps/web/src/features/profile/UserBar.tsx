@@ -15,6 +15,8 @@ export interface UserBarProps {
    */
   tone?: 'ink' | 'sky' | 'muted';
   isMuted: boolean;
+  /** En la llamada no tiene permiso para hablar: el micrófono queda apagado y deshabilitado. */
+  cannotSpeak?: boolean;
   isDeafened: boolean;
   inVoiceChannel?: boolean;
   /** Se cortó la conexión y la app está volviendo: el estado dice "reconectando/". */
@@ -26,6 +28,7 @@ export interface UserBarProps {
   onChangeStatus?: (status: Status) => void;
   onSaveCustomStatus?: (customStatus: string) => void;
   onEditProfile?: () => void;
+  onOpenAdmin?: () => void;
   onLogout?: () => void;
 }
 
@@ -38,6 +41,7 @@ export function UserBar({
   currentUser,
   tone = 'ink',
   isMuted,
+  cannotSpeak = false,
   isDeafened,
   inVoiceChannel = false,
   reconnecting = false,
@@ -48,6 +52,7 @@ export function UserBar({
   onChangeStatus,
   onSaveCustomStatus,
   onEditProfile,
+  onOpenAdmin,
   onLogout,
 }: UserBarProps) {
   const [showMenu, setShowMenu] = useState(false);
@@ -75,8 +80,15 @@ export function UserBar({
       <div className={styles.controls}>
         <Control
           icon={isMuted ? MicOff : Mic}
-          label={isMuted ? 'Activar micrófono' : 'Silenciar micrófono'}
+          label={
+            cannotSpeak
+              ? 'No tenés permiso para hablar en este canal'
+              : isMuted
+                ? 'Activar micrófono'
+                : 'Silenciar micrófono'
+          }
           pressed={isMuted}
+          disabled={cannotSpeak}
           onPress={onToggleMute}
         />
         <Control
@@ -100,6 +112,7 @@ export function UserBar({
             onSaveCustomStatus={onSaveCustomStatus}
             onEditProfile={onEditProfile}
             onOpenSettings={onOpenSettings}
+            onOpenAdmin={onOpenAdmin}
             onLogout={onLogout}
           />
         )}
@@ -112,12 +125,14 @@ function Control({
   icon: Icon,
   label,
   pressed,
+  disabled,
   onPress,
 }: {
   icon: LucideIcon;
   label: string;
   /** Micrófono y audio: indica si están apagados. */
   pressed?: boolean;
+  disabled?: boolean;
   onPress: () => void;
 }) {
   return (
@@ -125,6 +140,7 @@ function Control({
       type="button"
       className={`${styles.control} ${pressed ? styles.controlOff : ''}`}
       onClick={onPress}
+      disabled={disabled}
       aria-label={label}
       aria-pressed={pressed}
       title={label}

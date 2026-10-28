@@ -19,6 +19,7 @@ export function UserBarPanel({ tone }: { tone: UserBarProps['tone'] }) {
       currentUser={currentUser}
       tone={tone}
       isMuted={voice.room.isMuted}
+      cannotSpeak={voice.room.channelId !== null && !voice.room.canSpeak}
       isDeafened={voice.room.isDeafened}
       inVoiceChannel={voice.room.channelId !== null}
       reconnecting={reconnecting}
@@ -28,6 +29,7 @@ export function UserBarPanel({ tone }: { tone: UserBarProps['tone'] }) {
       onChangeStatus={actions.onChangeStatus}
       onSaveCustomStatus={actions.onSaveCustomStatus}
       onEditProfile={actions.onEditProfile}
+      onOpenAdmin={actions.onOpenAdmin}
       onLogout={actions.onLogout}
     />
   );

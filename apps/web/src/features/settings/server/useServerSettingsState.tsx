@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Server, Channel, User, ChannelType } from '../../../types';
-import { useRolesAdmin } from '@discordia/core';
+import { imageFileError, serverIconErrorMessage, useRolesAdmin } from '@discordia/core';
 import { TabType } from './shared';
+import { useServerIcon } from '../../servers/serverActions';
+import { showToast } from '../../../app/uiStore';
 
 /** Lo que recibe la pantalla de ajustes del servidor. */
 export interface ServerSettingsProps {
@@ -33,6 +35,9 @@ export function useServerSettingsState(props: ServerSettingsProps) {
   const [serverName, setServerName] = useState(serverState.name);
   const [serverDescription, setServerDescription] = useState(serverState.description || '');
   const [serverIcon, setServerIcon] = useState(serverState.iconUrl || serverState.icon || '');
+  const [iconBusy, setIconBusy] = useState(false);
+  const [iconError, setIconError] = useState<string | null>(null);
+  const serverIconActions = useServerIcon();
 
   // Roles: estado y reglas de core (los mismos que mobile); acá se confirma con el diálogo del navegador
   const rolesAdmin = useRolesAdmin(serverState.id, { confirm: (message) => window.confirm(message) });
@@ -73,21 +78,42 @@ export function useServerSettingsState(props: ServerSettingsProps) {
   const [userBoostedCount, setUserBoostedCount] = useState<number>(1);
   const [boostFeedback, setBoostFeedback] = useState<string | null>(null);
 
-  // Icon upload handler
-  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Ícono: se guarda apenas se elige (PUT /servers/{id}/icon) y se muestra el que devuelve la API
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('El ícono tiene que pesar menos de 5 MB.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setServerIcon(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+    // Permite volver a elegir el mismo archivo
+    e.target.value = '';
+    if (!file || iconBusy) return;
+
+    const error = imageFileError(file);
+    if (error) {
+      setIconError(error);
+      return;
+    }
+
+    setIconBusy(true);
+    setIconError(null);
+    try {
+      setServerIcon((await serverIconActions.change(serverState.id, file)) || '');
+      showToast('Ícono actualizado', 'success');
+    } catch (err) {
+      setIconError(serverIconErrorMessage(err));
+    } finally {
+      setIconBusy(false);
+    }
+  };
+
+  const handleRemoveIcon = async () => {
+    if (iconBusy) return;
+    setIconBusy(true);
+    setIconError(null);
+    try {
+      setServerIcon((await serverIconActions.remove(serverState.id)) || '');
+      showToast('Ícono quitado', 'success');
+    } catch (err) {
+      setIconError(serverIconErrorMessage(err));
+    } finally {
+      setIconBusy(false);
     }
   };
 
@@ -293,6 +319,9 @@ export function useServerSettingsState(props: ServerSettingsProps) {
     boostFeedback,
     setBoostFeedback,
     handleIconUpload,
+    handleRemoveIcon,
+    iconBusy,
+    iconError,
     handleSaveOverview,
     handleCreateChannel,
     handleDeleteChannel,

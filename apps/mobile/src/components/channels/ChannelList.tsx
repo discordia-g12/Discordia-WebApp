@@ -10,9 +10,12 @@ interface ChannelListProps {
     collapsed: Record<string, boolean>
     selectedChannelId: string | null
     onToggleCategory: (categoryId: string) => void
-    onAddChannel: (categoryId: string) => void
+    /** Sin permiso para gestionar canales, no se pasa y no aparece el +. */
+    onAddChannel?: (categoryId: string) => void
     onSelectChannel: (channel: Channel) => void
     onLongPressChannel: (channel: Channel) => void
+    /** Canales a los que el usuario no puede entrar (voz sin permiso para conectarse). */
+    isChannelLocked?: (channel: Channel) => boolean
     voiceParticipants?: Record<string, VoiceChannelParticipant[]>
     currentUserId?: string
     onLongPressVoiceParticipant?: (participant: VoiceChannelParticipant) => void
@@ -30,6 +33,7 @@ export default function ChannelList({
     onAddChannel,
     onSelectChannel,
     onLongPressChannel,
+    isChannelLocked,
     voiceParticipants,
     currentUserId,
     onLongPressVoiceParticipant,
@@ -52,6 +56,7 @@ export default function ChannelList({
                     onAddChannel={onAddChannel}
                     onSelectChannel={onSelectChannel}
                     onLongPressChannel={onLongPressChannel}
+                    isChannelLocked={isChannelLocked}
                     voiceParticipants={voiceParticipants}
                     currentUserId={currentUserId}
                     onLongPressVoiceParticipant={onLongPressVoiceParticipant}

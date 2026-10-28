@@ -55,7 +55,7 @@ describe('VoiceView (rediseño)', () => {
 });
 
 describe('VoiceControls', () => {
-  it('dice en qué canal estás, vuelve a la llamada y cuelga; cámara y pantalla deshabilitadas', () => {
+  it('dice en qué canal estás, vuelve a la llamada y cuelga; sin handler la cámara queda deshabilitada', () => {
     const onOpenCall = vi.fn();
     const onDisconnect = vi.fn();
     render(<VoiceControls channelName="meet core" serverName="torton" connectionState="connected" onOpenCall={onOpenCall} onDisconnect={onDisconnect} />);
@@ -66,6 +66,71 @@ describe('VoiceControls', () => {
 
     expect(onOpenCall).toHaveBeenCalledTimes(1);
     expect(onDisconnect).toHaveBeenCalledTimes(1);
-    expect((within(group).getByRole('button', { name: 'Cámara: próximamente' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(group).getByRole('button', { name: 'Prender cámara' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(group).getByRole('button', { name: 'Compartir pantalla: próximamente' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('prende la cámara y la muestra como activa', () => {
+    const onToggleCamera = vi.fn();
+    const { rerender } = render(
+      <VoiceControls channelName="meet core" connectionState="connected" onDisconnect={vi.fn()} onToggleCamera={onToggleCamera} />
+    );
+    const off = screen.getByRole('button', { name: 'Prender cámara' });
+    expect(off.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(off);
+    expect(onToggleCamera).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <VoiceControls channelName="meet core" connectionState="connected" onDisconnect={vi.fn()} onToggleCamera={onToggleCamera} isCameraOn />
+    );
+    expect(screen.getByRole('button', { name: 'Apagar cámara' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('sin permiso de video, la cámara queda deshabilitada y lo explica', () => {
+    const onToggleCamera = vi.fn();
+    render(
+      <VoiceControls channelName="meet core" connectionState="connected" onDisconnect={vi.fn()} onToggleCamera={onToggleCamera} cannotUseCamera />
+    );
+    const camera = screen.getByRole('button', { name: 'No tenés permiso para usar la cámara en este canal' }) as HTMLButtonElement;
+    expect(camera.disabled).toBe(true);
+    fireEvent.click(camera);
+    expect(onToggleCamera).not.toHaveBeenCalled();
+  });
+
+  it('la cámara no se puede usar mientras conecta', () => {
+    render(<VoiceControls channelName="meet core" connectionState="connecting" onDisconnect={vi.fn()} onToggleCamera={vi.fn()} />);
+    expect((screen.getByRole('button', { name: 'Prender cámara' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('VoiceView - cámara', () => {
+  const fakeTrack = () => ({ attach: vi.fn(), detach: vi.fn() });
+
+  it('muestra el video en la ficha de quien tiene la cámara prendida (la propia en espejo)', () => {
+    const mine = fakeTrack();
+    const theirs = fakeTrack();
+    const { container, unmount } = render(
+      <VoiceView
+        currentUserId="me"
+        participants={[
+          { user: u('me', 'Mar'), videoTrack: mine as never },
+          { user: u('u2', 'lbars'), videoTrack: theirs as never },
+          { user: u('u3', 'Sin cámara') },
+        ]}
+      />
+    );
+
+    const videos = container.querySelectorAll('video');
+    expect(videos).toHaveLength(2);
+    expect(mine.attach).toHaveBeenCalledWith(videos[0]);
+    expect(theirs.attach).toHaveBeenCalledWith(videos[1]);
+    expect(videos[0].className).toMatch(/mirrored/);
+    expect(videos[1].className).not.toMatch(/mirrored/);
+    // Sin cámara: sus iniciales, como siempre
+    expect(screen.getByText('SC')).toBeTruthy();
+
+    unmount();
+    expect(mine.detach).toHaveBeenCalled();
+    expect(theirs.detach).toHaveBeenCalled();
   });
 });

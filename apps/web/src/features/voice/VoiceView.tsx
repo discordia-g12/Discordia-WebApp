@@ -4,6 +4,7 @@ import { MicOff, Shapes } from 'lucide-react';
 import { transitions } from '../../ui';
 import type { VoiceParticipant } from '../channels/ChannelSidebar';
 import { VoiceParticipantMenu } from './VoiceParticipantMenu';
+import { ParticipantVideo } from './ParticipantVideo';
 import { CONNECTION_LABEL, isPending, type VoiceViewConnectionState } from './connectionState';
 import styles from './VoiceView.module.css';
 
@@ -92,7 +93,7 @@ export function VoiceView({
 
       <ul className={styles.grid} data-columns={columns} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-label={`Participantes de ${channelName}`}>
         <AnimatePresence initial={false}>
-          {participants.map(({ user, isSpeaking, isMuted }) => {
+          {participants.map(({ user, isSpeaking, isMuted, videoTrack }) => {
             const isMe = user.id === currentUserId;
             const locallyMuted = !isMe && Boolean(locallyMutedUsers[user.id]);
             return (
@@ -117,7 +118,9 @@ export function VoiceView({
                   onClick={() => onSelectUser?.(user)}
                   aria-label={`${user.displayName}${isMe ? ' (vos)' : ''}${isSpeaking ? ', hablando' : ''}`}
                 >
-                  {user.avatar ? (
+                  {videoTrack ? (
+                    <ParticipantVideo track={videoTrack} mirrored={isMe} />
+                  ) : user.avatar ? (
                     <img src={user.avatar} alt="" className={styles.photo} />
                   ) : (
                     <span className={styles.initials} aria-hidden="true">

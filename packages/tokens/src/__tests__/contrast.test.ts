@@ -44,6 +44,12 @@ describe.each<ColorScheme>(['light', 'dark'])('contraste WCAG AA (%s)', (scheme)
     }
   });
 
+  it('el indicador de quién habla se distingue del fondo (3:1, componente no textual)', () => {
+    for (const bg of backgrounds(scheme)) {
+      expect(contrast(c.speaking, bg), `${c.speaking} sobre ${bg}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it('el contorno de foco se distingue del fondo (3:1, componente no textual)', () => {
     for (const bg of backgrounds(scheme)) {
       expect(contrast(c.focus, bg), `sobre ${bg}`).toBeGreaterThanOrEqual(3);

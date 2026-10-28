@@ -66,6 +66,41 @@ describe('ChatView (rediseño)', () => {
     expect(screen.queryByText(/respondiendo a/)).toBeNull();
   });
 
+  it('con mensajes anteriores sin cargar, arriba ofrece cargarlos en vez del comienzo del canal', () => {
+    const onLoadOlder = vi.fn();
+    const { rerender } = render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" hasOlderMessages onLoadOlder={onLoadOlder} />
+    );
+
+    expect(screen.queryByText(/este es el comienzo del canal/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '_cargar mensajes anteriores' }));
+    expect(onLoadOlder).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" hasOlderMessages isLoadingOlder onLoadOlder={onLoadOlder} />
+    );
+    expect(screen.getByRole('status').textContent).toMatch(/cargando mensajes anteriores/);
+
+    // Ya no quedan más: vuelve el comienzo del canal
+    rerender(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onLoadOlder={onLoadOlder} />);
+    expect(screen.getByText(/este es el comienzo del canal/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '_cargar mensajes anteriores' })).toBeNull();
+  });
+
+  it('al subir cerca del borde de arriba pide los anteriores, pero no al bajar', () => {
+    const onLoadOlder = vi.fn();
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" hasOlderMessages onLoadOlder={onLoadOlder} />);
+    const log = screen.getByRole('log');
+
+    // Al abrir se baja desde arriba: no cuenta
+    fireEvent.scroll(log, { target: { scrollTop: 150 } });
+    expect(onLoadOlder).not.toHaveBeenCalled();
+    fireEvent.scroll(log, { target: { scrollTop: 900 } });
+    // El usuario sube hasta cerca del borde
+    fireEvent.scroll(log, { target: { scrollTop: 100 } });
+    expect(onLoadOlder).toHaveBeenCalledTimes(1);
+  });
+
   it('el botón de enviar se habilita solo con texto', () => {
     render(<ChatView channel={channel} messages={[]} users={users} currentUserId="me" />);
 
@@ -73,6 +108,15 @@ describe('ChatView (rediseño)', () => {
     expect(send.disabled).toBe(true);
     fireEvent.change(screen.getByPlaceholderText('Enviar mensaje a general'), { target: { value: 'hola' } });
     expect(send.disabled).toBe(false);
+  });
+
+  it('sin permiso para escribir, en lugar de la barra solo aparece el aviso', () => {
+    render(<ChatView channel={channel} messages={[]} users={users} currentUserId="me" writeBlock="Estás silenciado." />);
+
+    expect(screen.getByRole('status').textContent).toBe('Estás silenciado.');
+    expect(screen.queryByRole('button', { name: 'enviar /' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Adjuntar archivo' })).toBeNull();
+    expect(screen.queryByPlaceholderText('Enviar mensaje a general')).toBeNull();
   });
 
   it('el autor edita su mensaje (Enter guarda)', () => {

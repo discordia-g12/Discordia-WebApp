@@ -1,6 +1,7 @@
 import { api } from './client';
 import { ApiError } from './errors';
 import { getApiMock } from './mock';
+import { appendFile, UPLOAD_TIMEOUT_MS, type UploadableFile } from './images';
 import { Status, User } from '../types';
 
 /** Perfil de Auth-User-Service: el modelo de dominio más los campos crudos del backend (snake_case). */
@@ -113,9 +114,25 @@ export async function upsertMyProfile(payload: CreateProfileRequest): Promise<Us
 
 /**
  * Actualiza atributos modificables del perfil de usuario.
+ * El avatar nuevo se sube con uploadMyAvatar, no como `avatar_url` acá.
  */
 export async function updateMyProfile(payload: UpdateProfileRequest): Promise<UserProfile> {
   return await api.patch<UserProfile>('/api/v1/users/me/profile', payload);
+}
+
+/**
+ * Sube un avatar nuevo (PATCH /profile/avatar, multipart con el campo "file"). El backend lo valida, lo
+ * recorta a 256×256, lo guarda en S3 y devuelve el perfil con la URL nueva; la anterior deja de existir,
+ * así que hay que usar la que vuelve acá.
+ *
+ * `file`: un File o Blob, o en React Native el { uri, name, type } (ver UploadableFile).
+ */
+export async function uploadMyAvatar(file: UploadableFile, filename = 'avatar'): Promise<UserProfile> {
+  const form = new FormData();
+  appendFile(form, 'file', file, filename);
+  return toUserProfile(
+    await api.patch<UserBackendResponse>('/api/v1/users/me/profile/avatar', form, { timeoutMs: UPLOAD_TIMEOUT_MS })
+  );
 }
 
 

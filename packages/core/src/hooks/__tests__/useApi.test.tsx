@@ -1,5 +1,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useChannelMessagesQuery, useServersQuery, useCreateServerMutation } from '../useApi';
+import { getMessages } from '../../api/messages';
+import type { Message } from '../../types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -59,6 +61,27 @@ describe('useApi Hooks', () => {
       expect(result.current.data).toHaveLength(1);
       expect(result.current.data![0].authorId).toBe('user-1');
       expect(result.current.data![0].author).toBeUndefined();
+    });
+
+    it('carga la página anterior con el cursor del mensaje más viejo y la pone arriba', async () => {
+      const msg = (id: string) => ({ id, content: id, authorId: 'user-1', channelId: 'channel-1' }) as Message;
+      vi.mocked(getMessages)
+        .mockResolvedValueOnce([msg('c'), msg('d')])
+        .mockResolvedValueOnce([msg('b')]);
+
+      const { result } = renderHook(() => useChannelMessagesQuery('channel-1', { limit: 2 }), { wrapper });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(getMessages).toHaveBeenLastCalledWith('channel-1', { before: undefined, limit: 2 });
+      expect(result.current.hasOlder).toBe(true);
+
+      await act(async () => {
+        await result.current.fetchOlder();
+      });
+
+      expect(getMessages).toHaveBeenLastCalledWith('channel-1', { before: 'c', limit: 2 });
+      await waitFor(() => expect(result.current.data!.map((m) => m.id)).toEqual(['b', 'c', 'd']));
+      // La página vino incompleta: no hay nada más atrás
+      expect(result.current.hasOlder).toBe(false);
     });
   });
 

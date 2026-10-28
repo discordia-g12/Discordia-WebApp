@@ -146,7 +146,7 @@ export function GlobalModals() {
           currentUser={currentUser}
           onClose={close}
           onJoinExisting={() => ui.setActiveModal('join-server')}
-          onCreateServer={({ name }) => createServer(name)}
+          onCreateServer={({ name, icon }) => createServer(name, icon)}
         />
       )}
       {modal === 'join-server' && (

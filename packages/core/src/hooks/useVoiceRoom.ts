@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ConnectionState, Participant, RemoteParticipant, RemoteTrack, Room } from 'livekit-client';
-import { joinVoiceChannel, leaveVoiceChannel } from '../api/voice';
+import type {
+  ConnectionState,
+  DisconnectReason,
+  Participant,
+  RemoteParticipant,
+  RemoteTrack,
+  Room,
+  VideoTrack,
+} from 'livekit-client';
+import { joinVoiceChannel, leaveVoiceChannel, type VoicePublishPermissions } from '../api/voice';
 import { DEFAULT_VOICE_PREFS, getVoicePlatform, type LiveKitModule } from '../voice/platform';
 
 export type VoiceConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
@@ -11,24 +19,72 @@ export interface VoiceRoomParticipant {
   isLocal: boolean;
   isSpeaking: boolean;
   isMuted: boolean;
+  /** Track de la cámara si la tiene prendida; null si no (la interfaz muestra su foto o iniciales). */
+  videoTrack: VideoTrack | null;
 }
+
+/** Fuera de una llamada (y si el voice-service no informa permisos) se puede publicar todo. */
+const PUBLISH_ALL: VoicePublishPermissions = { canSpeak: true, canVideo: true, canScreenShare: true };
 
 export interface VoiceJoinResult {
   /** false si no hubo acceso al micrófono: el usuario queda conectado pero silenciado. */
   microphoneAvailable: boolean;
 }
 
+/**
+ * Por qué se cerró la sala sin que el usuario lo pidiera. removed: lo sacaron del canal (o se cerró la sala).
+ * duplicate: entró al mismo canal desde otro dispositivo o pestaña. lost: corte de red o del servidor.
+ */
+export type VoiceDisconnectReason = 'removed' | 'duplicate' | 'lost';
+
 export interface UseVoiceRoomOptions {
-  /** Se llama cuando la sala se cierra sin que el usuario lo pida (red, servidor LiveKit). */
-  onUnexpectedDisconnect?: () => void;
+  /** Se llama cuando la sala se cierra sin que el usuario lo pida, con el motivo. */
+  onUnexpectedDisconnect?: (reason: VoiceDisconnectReason) => void;
 }
 
-function toParticipant(participant: Participant, isLocal: boolean): VoiceRoomParticipant {
+/** Texto para mostrar cuando la sala se cerró sin que el usuario lo pidiera. */
+export function voiceDisconnectMessage(reason: VoiceDisconnectReason): string {
+  switch (reason) {
+    case 'removed':
+      return 'Te sacaron del canal de voz';
+    case 'duplicate':
+      return 'Entraste al canal de voz desde otro dispositivo';
+    default:
+      return 'Se perdió la conexión con el canal de voz';
+  }
+}
+
+function toDisconnectReason(reason: DisconnectReason | undefined, lk: LiveKitModule): VoiceDisconnectReason {
+  const reasons = lk.DisconnectReason;
+  if (!reasons || reason === undefined) return 'lost';
+  if (reason === reasons.PARTICIPANT_REMOVED || reason === reasons.ROOM_DELETED) return 'removed';
+  if (reason === reasons.DUPLICATE_IDENTITY) return 'duplicate';
+  return 'lost';
+}
+
+/**
+ * Cuánto sigue marcado como "hablando" alguien después de la última vez que LiveKit lo detectó.
+ * LiveKit actualiza quién habla cada ~400 ms y en las pausas entre palabras lo desmarca: sin esta
+ * retención el indicador parpadea en vez de quedarse mientras la persona habla.
+ */
+export const SPEAKING_HOLD_MS = 600;
+
+function cameraTrackOf(participant: Participant, lk: LiveKitModule | null): VideoTrack | null {
+  const source = lk?.Track.Source?.Camera;
+  if (!source) return null;
+  const publication = participant.getTrackPublication?.(source);
+  // Una cámara apagada (mute) o todavía no recibida (remota sin suscribir) no tiene imagen que mostrar
+  if (!publication?.track || publication.isMuted) return null;
+  return publication.track as VideoTrack;
+}
+
+function toParticipant(participant: Participant, isLocal: boolean, lk: LiveKitModule | null): VoiceRoomParticipant {
   return {
     id: participant.identity,
     isLocal,
     isSpeaking: participant.isSpeaking,
     isMuted: !participant.isMicrophoneEnabled,
+    videoTrack: cameraTrackOf(participant, lk),
   };
 }
 
@@ -46,7 +102,7 @@ function toConnectionState(state: ConnectionState, lk: LiveKitModule): VoiceConn
 }
 
 /**
- * Conexión a un canal de voz vía LiveKit (solo audio), igual en web y mobile; lo propio de cada
+ * Conexión a un canal de voz vía LiveKit (audio y cámara), igual en web y mobile; lo propio de cada
  * plataforma (cargar LiveKit, reproducir el audio, permisos, preferencias) lo aporta VoicePlatform.
  *
  * El voice-service firma el token y el cliente se conecta directo a LiveKit. Hay una sola sala
@@ -68,6 +124,15 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const deafenedRef = useRef(initialPrefs.deafened);
   const mutedBeforeDeafenRef = useRef(initialPrefs.mutedBeforeDeafen);
   const locallyMutedRef = useRef<Record<string, boolean>>({});
+  const cameraOnRef = useRef(false);
+  // Qué permiten publicar los roles en la llamada actual (lo informa el join)
+  const publishRef = useRef<VoicePublishPermissions>(PUBLISH_ALL);
+  // Sala con un cambio de cámara en curso (permiso, crear o publicar el track): se ignoran los toques que lleguen mientras
+  const cameraBusyRoomRef = useRef<Room | null>(null);
+  // Hasta cuándo sigue "hablando" cada participante (retención del indicador) y el timer que lo apaga
+  const speakingUntilRef = useRef<Record<string, number>>({});
+  const speakingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const syncParticipantsRef = useRef<() => void>(() => undefined);
 
   const [channelId, setChannelId] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<VoiceConnectionState>('disconnected');
@@ -75,6 +140,13 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const [isMuted, setIsMuted] = useState(initialPrefs.muted);
   const [isDeafened, setIsDeafened] = useState(initialPrefs.deafened);
   const [locallyMutedUsers, setLocallyMutedUsers] = useState<Record<string, boolean>>({});
+  const [isCameraOn, setIsCameraOn] = useState(false);
+  const [publishPermissions, setPublishPermissions] = useState<VoicePublishPermissions>(PUBLISH_ALL);
+
+  const applyVolume = useCallback((participant: RemoteParticipant) => {
+    const silenced = deafenedRef.current || locallyMutedRef.current[participant.identity];
+    participant.setVolume(silenced ? 0 : 1);
+  }, []);
 
   const syncParticipants = useCallback(() => {
     const room = roomRef.current;
@@ -82,21 +154,43 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       setParticipants([]);
       return;
     }
+    const lk = livekitRef.current;
+    const now = Date.now();
+    const until = speakingUntilRef.current;
+    let nextExpiry = Infinity;
+
+    const withHold = (participant: VoiceRoomParticipant, heard: boolean): VoiceRoomParticipant => {
+      // Si no lo escuchás (ensordecido, silenciado para vos) o tiene el micrófono apagado, se apaga ya
+      if (!heard || participant.isMuted) {
+        delete until[participant.id];
+        return { ...participant, isSpeaking: false };
+      }
+      if (participant.isSpeaking) until[participant.id] = now + SPEAKING_HOLD_MS;
+      const held = (until[participant.id] ?? 0) > now;
+      if (held) nextExpiry = Math.min(nextExpiry, until[participant.id]);
+      return { ...participant, isSpeaking: held };
+    };
+
     setParticipants([
-      toParticipant(room.localParticipant, true),
+      withHold(toParticipant(room.localParticipant, true, lk), true),
       ...Array.from(room.remoteParticipants.values()).map((p) => {
-        const participant = toParticipant(p, false);
-        // Si no lo estás escuchando (ensordecido o silenciado para vos), no se marca como hablando
-        if (deafenedRef.current || locallyMutedRef.current[participant.id]) participant.isSpeaking = false;
-        return participant;
+        // El volumen se vuelve a aplicar en cada cambio de la sala: si alguien silenciado (para mí o
+        // por deafen) prende el micrófono, su audio nuevo llega con volumen 0 sin depender del orden
+        // en que LiveKit crea el track y emite los eventos
+        applyVolume(p);
+        const participant = toParticipant(p, false, lk);
+        const heard = !deafenedRef.current && !locallyMutedRef.current[participant.id];
+        return withHold(participant, heard);
       }),
     ]);
-  }, []);
 
-  const applyVolume = useCallback((participant: RemoteParticipant) => {
-    const silenced = deafenedRef.current || locallyMutedRef.current[participant.identity];
-    participant.setVolume(silenced ? 0 : 1);
-  }, []);
+    // Volver a calcular cuando venza la próxima retención (para apagar el indicador)
+    clearTimeout(speakingTimerRef.current);
+    if (nextExpiry !== Infinity) {
+      speakingTimerRef.current = setTimeout(() => syncParticipantsRef.current(), nextExpiry - now + 1);
+    }
+  }, [applyVolume]);
+  syncParticipantsRef.current = syncParticipants;
 
   const applyVolumes = useCallback(() => {
     roomRef.current?.remoteParticipants.forEach(applyVolume);
@@ -118,6 +212,13 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     setChannelId(null);
     setConnectionState('disconnected');
     setParticipants([]);
+    clearTimeout(speakingTimerRef.current);
+    speakingUntilRef.current = {};
+    // La cámara arranca apagada en cada llamada
+    cameraOnRef.current = false;
+    setIsCameraOn(false);
+    publishRef.current = PUBLISH_ALL;
+    setPublishPermissions(PUBLISH_ALL);
   }, []);
 
   const bindRoomEvents = useCallback(
@@ -134,7 +235,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
           syncIfCurrent();
         })
         .on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
-          platform.stopRemoteAudio?.(track);
+          // Solo el audio: el <video> de una cámara lo crea y lo saca la UI (en la web, React)
+          if (track.kind === Track.Kind.Audio) platform.stopRemoteAudio?.(track);
           syncIfCurrent();
         })
         .on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
@@ -152,13 +254,13 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
         .on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
           if (roomRef.current === room) setConnectionState(toConnectionState(state, lk));
         })
-        .on(RoomEvent.Disconnected, () => {
-          // Desconexión no pedida por el usuario (red, servidor): limpiar y avisar al backend
+        .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+          // Desconexión no pedida por el usuario (red, servidor, lo sacaron): limpiar y avisar al backend
           if (roomRef.current !== room) return;
           disconnectRoom(room);
           resetState();
           leaveVoiceChannel().catch((err) => console.error('[Voice] Error al salir del canal:', err));
-          onUnexpectedDisconnectRef.current?.();
+          onUnexpectedDisconnectRef.current?.(toDisconnectReason(reason, lk));
         });
     },
     [applyVolume, disconnectRoom, platform, resetState, syncParticipants]
@@ -179,21 +281,30 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       setChannelId(targetChannelId);
       setConnectionState('connecting');
       setParticipants([]);
+      // Al cerrar la sala anterior se cierra su cámara: en la nueva arranca apagada
+      cameraOnRef.current = false;
+      setIsCameraOn(false);
+      clearTimeout(speakingTimerRef.current);
+      speakingUntilRef.current = {};
       if (previous) await disconnectRoom(previous);
 
       const isSuperseded = () => channelIdRef.current !== targetChannelId;
       let room: Room | null = null;
 
       try {
-        const { token, url } = await joinVoiceChannel(targetChannelId);
+        const { token, url, permissions } = await joinVoiceChannel(targetChannelId);
         if (isSuperseded()) return { microphoneAvailable: true };
+        publishRef.current = permissions ?? PUBLISH_ALL;
+        setPublishPermissions(publishRef.current);
 
         const lk = await platform.livekit();
         livekitRef.current = lk;
         if (isSuperseded()) return { microphoneAvailable: true };
         await platform.startAudioSession?.();
 
-        room = new lk.Room();
+        // adaptiveStream: cada video se recibe a la resolución en que se muestra (y se pausa si no se ve);
+        // dynacast: no se envía una calidad de la cámara propia que nadie esté mirando
+        room = new lk.Room({ adaptiveStream: true, dynacast: true });
         roomRef.current = room;
         bindRoomEvents(room, lk);
         await room.connect(url, token);
@@ -201,10 +312,13 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
 
         await platform.afterConnect?.(room);
 
-        let microphoneAvailable = platform.requestMicrophonePermission
-          ? await platform.requestMicrophonePermission()
-          : true;
-        if (microphoneAvailable) {
+        // Sin permiso para hablar no se pide el micrófono: el token no deja publicarlo
+        let microphoneAvailable = !publishRef.current.canSpeak
+          ? true
+          : platform.requestMicrophonePermission
+            ? await platform.requestMicrophonePermission()
+            : true;
+        if (microphoneAvailable && publishRef.current.canSpeak) {
           try {
             await room.localParticipant.setMicrophoneEnabled(!mutedRef.current);
           } catch (err) {
@@ -247,6 +361,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       const room = roomRef.current;
       const lk = livekitRef.current;
       if (!room || !lk || room.state !== lk.ConnectionState.Connected) return;
+      // Sin permiso para hablar el micrófono queda apagado; se guarda la preferencia para la próxima llamada
+      if (!publishRef.current.canSpeak) return;
       try {
         await room.localParticipant.setMicrophoneEnabled(!muted);
       } catch (err) {
@@ -279,6 +395,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   }, [platform]);
 
   const toggleMute = useCallback(() => {
+    // Sin permiso para hablar no hay micrófono que activar (la interfaz deshabilita el botón)
+    if (!publishRef.current.canSpeak) return;
     // Como en Discord: activar el micrófono estando ensordecido también reactiva el audio
     if (deafenedRef.current) {
       setDeafened(false);
@@ -317,6 +435,65 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     [applyVolume, syncParticipants]
   );
 
+  /**
+   * Prende o apaga la cámara propia (solo estando conectado). Apagarla no corta el audio.
+   * Devuelve false si no se pudo prender (sin permiso o sin cámara). Un toque mientras hay otro
+   * cambio en curso, o que termina después de salir de la sala, se descarta y devuelve true (no hubo error).
+   */
+  const toggleCamera = useCallback(async (): Promise<boolean> => {
+    const room = roomRef.current;
+    const lk = livekitRef.current;
+    if (!room || !lk || room.state !== lk.ConnectionState.Connected) return false;
+    if (cameraBusyRoomRef.current === room) return true;
+
+    const next = !cameraOnRef.current;
+    // Sin permiso de video el token no deja publicar la cámara (la interfaz deshabilita el botón)
+    if (next && !publishRef.current.canVideo) return false;
+
+    cameraBusyRoomRef.current = room;
+    const isCurrent = () => roomRef.current === room;
+    try {
+      if (next && platform.requestCameraPermission && !(await platform.requestCameraPermission())) {
+        return !isCurrent();
+      }
+      // Se colgó o se cambió de canal mientras se pedía el permiso
+      if (!isCurrent()) return true;
+      if (next) {
+        // El track se crea acá y no con setCameraEnabled: en la web el permiso lo pide el navegador
+        // al crearlo, y si mientras tanto se salió de la sala hay que apagarlo en vez de publicarlo
+        const track = await lk.createLocalVideoTrack();
+        if (!isCurrent()) {
+          track.stop();
+          return true;
+        }
+        try {
+          await room.localParticipant.publishTrack(track);
+        } catch (err) {
+          track.stop();
+          throw err;
+        }
+        if (!isCurrent()) {
+          track.stop();
+          return true;
+        }
+      } else {
+        // Despublicar (no solo silenciar) libera la cámara; prenderla de nuevo crea un track nuevo
+        const track = room.localParticipant.getTrackPublication(lk.Track.Source.Camera)?.track;
+        if (track) await room.localParticipant.unpublishTrack(track);
+      }
+      cameraOnRef.current = next;
+      setIsCameraOn(next);
+      syncParticipants();
+      return true;
+    } catch (err) {
+      if (!isCurrent()) return true;
+      console.error('[Voice] No se pudo usar la cámara:', err);
+      return false;
+    } finally {
+      if (cameraBusyRoomRef.current === room) cameraBusyRoomRef.current = null;
+    }
+  }, [platform, syncParticipants]);
+
   // Al desmontar (p. ej. logout) cerrar la sala y avisar al backend
   useEffect(() => {
     return () => {
@@ -324,6 +501,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       const wasInChannel = channelIdRef.current !== null;
       roomRef.current = null;
       channelIdRef.current = null;
+      clearTimeout(speakingTimerRef.current);
       if (room) disconnectRoom(room);
       if (wasInChannel) leaveVoiceChannel().catch(() => undefined);
     };
@@ -333,13 +511,20 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     channelId,
     connectionState,
     participants,
-    isMuted,
+    // Sin permiso para hablar se muestra silenciado, aunque la preferencia guardada sea otra
+    isMuted: isMuted || !publishPermissions.canSpeak,
     isDeafened,
+    isCameraOn,
+    /** Lo que los roles dejan publicar en la llamada actual (en la interfaz, botones deshabilitados). */
+    canSpeak: publishPermissions.canSpeak,
+    canVideo: publishPermissions.canVideo,
+    canScreenShare: publishPermissions.canScreenShare,
     locallyMutedUsers,
     join,
     leave,
     toggleMute,
     toggleDeafen,
     toggleLocalMute,
+    toggleCamera,
   };
 }

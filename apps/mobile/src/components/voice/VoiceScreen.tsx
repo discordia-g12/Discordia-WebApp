@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Animated, Image, LayoutAnimation, Pressable, ScrollView, View } from 'react-native'
 import { MicOff, VolumeX } from 'lucide-react-native'
 import type { VoiceConnectionState } from '@discordia/core'
+import type { VideoTrack } from 'livekit-client'
 import { makeStyles, useTheme } from '../../theme'
 import { Text, initials, useNativeDriver, useReducedMotion } from '../../ui'
 import { CallState } from '../shell/CallBar'
+import ParticipantVideo from './ParticipantVideo'
 
 export interface VoiceScreenParticipant {
   id: string
@@ -15,6 +17,8 @@ export interface VoiceScreenParticipant {
   isMuted: boolean
   /** Silenciado solo para este dispositivo. */
   isLocallyMuted?: boolean
+  /** Cámara prendida: llena la ficha en vez de la foto. */
+  videoTrack?: VideoTrack | null
 }
 
 interface VoiceScreenProps {
@@ -31,8 +35,9 @@ interface VoiceScreenProps {
 /**
  * Llamada (PDF, pág. 10), como la web: mosaico a sangre de fichas separadas por líneas finas, con la foto
  * (o las iniciales en grande) y el nombre en la etiqueta negra al pie. Las fichas se reacomodan animadas
- * al entrar o salir alguien; quien habla tiene un borde grueso que late. Los controles (micrófono, audio,
- * colgar) están en la barra de la llamada, que se ve en toda la app.
+ * al entrar o salir alguien; quien habla tiene un borde grueso verde que late. Con la cámara prendida, el
+ * video llena la ficha. Los controles (micrófono, audio, cámara, colgar) están en la barra de la llamada,
+ * que se ve en toda la app.
  */
 export default function VoiceScreen({ channelName, serverName, connectionState, participants, onInvite, onLongPressParticipant }: VoiceScreenProps) {
   const styles = useStyles()
@@ -103,7 +108,9 @@ function Tile({
       accessibilityLabel={`${p.name}${p.isLocal ? ' (vos)' : ''}${p.isSpeaking ? ', hablando' : ''}${p.isMuted ? ', micrófono silenciado' : ''}${p.isLocallyMuted ? ', silenciado para vos' : ''}`}
       accessibilityHint={onLongPress ? 'Mantené presionado para silenciarlo solo para vos' : undefined}
     >
-      {p.avatar && !broken ? (
+      {p.videoTrack ? (
+        <ParticipantVideo track={p.videoTrack} mirrored={p.isLocal} style={styles.photo} />
+      ) : p.avatar && !broken ? (
         <Image source={{ uri: p.avatar }} style={styles.photo} onError={() => setBroken(true)} />
       ) : (
         <View style={styles.initials}>
@@ -141,7 +148,8 @@ function SpeakingBorder() {
     if (reduce) return
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.3, duration: 600, useNativeDriver }),
+        // Late sin llegar a desaparecer: a mitad de camino se tiene que seguir viendo quién habla
+        Animated.timing(opacity, { toValue: 0.6, duration: 600, useNativeDriver }),
         Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver }),
       ]),
     )
@@ -189,7 +197,7 @@ const useStyles = makeStyles(t => ({
     backgroundColor: t.colors.inverseBackground,
   },
   labelName: { flexShrink: 1 },
-  // Del color del texto invertido: se ve sobre el bloque de las iniciales y sobre una foto, en los dos temas
-  speaking: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 4, borderColor: t.colors.inverseText },
+  // Verde (token speaking, como la web): se distingue de las líneas y se ve sobre fotos, iniciales y video
+  speaking: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 4, borderColor: t.colors.speaking },
   inviteTile: { justifyContent: 'flex-end', gap: t.space[1], padding: t.space[4], backgroundColor: 'transparent' },
 }))

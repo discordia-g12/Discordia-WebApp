@@ -131,6 +131,26 @@ export interface ServerBan {
   createdAt: string;
 }
 
+export interface ServerOwnershipTransferBackendResponse {
+  id: string;
+  server_id: string;
+  sender_id: string;
+  target_user_id: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface ServerOwnershipTransfer {
+  id: string;
+  serverId: string;
+  senderId: string;
+  targetUserId: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
 /** DTO de miembro de un servidor retornado por Server-Roles-Core-Service */
 export interface ServerMemberBackendResponse {
   id: string;
@@ -172,6 +192,8 @@ export interface ChannelBackendResponse {
   category_id?: string | null;
   position: number;
   topic?: string | null;
+  /** Permisos efectivos del usuario que pide en este canal (con los overrides del canal). */
+  my_permissions?: number;
 }
 
 export interface CategoryBackendResponse {
@@ -189,6 +211,8 @@ export interface ServerBackendResponse {
   description?: string | null;
   icon_url?: string | null;
   created_at: string;
+  /** Permisos efectivos del usuario que pide (bitmask, mismos bits que los roles). */
+  my_permissions?: number;
   channels: ChannelBackendResponse[];
   categories?: CategoryBackendResponse[];
 }
@@ -218,6 +242,8 @@ export interface Channel {
   participants?: string[];
   userLimit?: number;
   bitrate?: number;
+  /** Permisos del usuario actual en el canal (ids de PERMISSION_BITS). Ver canInChannel. */
+  myPermissions?: string[];
 }
 
 /** Agrupador de canales en la barra lateral del servidor. */
@@ -235,6 +261,8 @@ export interface Server {
   id: string;
   name: string;
   ownerId: string;
+  /** Permisos del usuario actual en el servidor (ids de PERMISSION_BITS). Ver canInServer. */
+  myPermissions?: string[];
   icon?: string;
   iconUrl?: string;
   banner?: string;
