@@ -21,12 +21,23 @@ docs/           ADRs, planes (TODO-REDISENO.md), guía de pruebas y capturas
 - Las dependencias se instalan **una sola vez, desde la raíz**: `npm install`. No correr `npm install`
   adentro de `apps/*`: el monorepo tiene un único `package-lock.json` y una sola copia de React para los dos
   clientes.
-- El backend levantado desde el orquestador (`docker compose up -d` en su raíz).
+- Un backend, según lo que se quiera probar (ver la tabla de abajo).
+
+## Contra qué backend
+
+| Opción | Cómo | Para qué |
+|---|---|---|
+| Sin backend | `VITE_USE_MOCK=true npm run dev` | Interfaz y componentes. Entra con cualquier email y contraseña, con datos de ejemplo |
+| Backend local completo | En `discordia-orchestrator`: `docker compose -f deploy/docker-compose.yml up -d --build` (ver su `deploy/README.md`). Kong queda en `localhost:8000`, que es el default de `.env.example` | Desarrollo de punta a punta |
+| Producción | `VITE_API_URL=https://api.discordia.lol` en `apps/web/.env` | Probar la interfaz contra datos reales. **Cuidado:** todo lo que se haga queda guardado |
+
+El login es siempre el de Auth0 (tenant de desarrollo del equipo), salvo en modo mock. Kong acepta pedidos
+desde `http://localhost:5173` (CORS).
 
 ## Web
 
 ```bash
-cp apps/web/.env.example apps/web/.env   # URL de la API y Auth0
+cp apps/web/.env.example apps/web/.env   # URL de la API (Kong) y modo mock
 npm run dev                              # http://localhost:5173
 npm test                                 # tests de todos los workspaces
 npm run typecheck                        # TypeScript de web y mobile
@@ -36,13 +47,27 @@ npm run build                            # deja el build en dist/ (raíz)
 
 `dist/` queda en la raíz porque ahí lo buscan Cloudflare Pages y el `Dockerfile`.
 
+Variables de `apps/web/.env` (Vite las toma al arrancar `npm run dev`):
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `VITE_API_URL` | `http://localhost:8000` | API Gateway (Kong). La URL de los WebSockets de chat y de voz sale de esta (`http` → `ws`), así también pasan por Kong |
+| `VITE_AUTH0_DOMAIN` / `VITE_AUTH0_CLIENT_ID` / `VITE_AUTH0_AUDIENCE` | tenant de desarrollo | Auth0. Los defaults están en `apps/web/src/platform/auth/auth0.ts`; el client ID de una SPA es público |
+| `VITE_USE_MOCK` | `false` | `true`: sin backend, con datos de ejemplo. El build de producción lo ignora |
+
+En producción, Cloudflare Pages compila con `VITE_API_URL=https://api.discordia.lol` y los valores de Auth0
+(Terraform del orquestador, `infra/terraform/pages.tf`).
+
 ## Mobile
 
 ```bash
 npm run mobile        # = expo start --go, desde la raíz
 ```
 
-El resto (development build, voz, EAS) está en [`apps/mobile/README.md`](apps/mobile/README.md).
+Sin configurar nada, la app usa la IP de la máquina que corre Metro, puerto 8000 (el Kong del backend
+local). Para apuntar a producción, `EXPO_PUBLIC_API_URL=https://api.discordia.lol` en `apps/mobile/.env`
+(ver `apps/mobile/.env.example`). El resto (development build, voz, EAS) está en
+[`apps/mobile/README.md`](apps/mobile/README.md).
 
 ## Diseño
 
@@ -110,8 +135,11 @@ como contexto e instalan solo las dependencias de la web. Los usa el `docker-com
 ## CI
 
 `.github/workflows/ci.yml` corre en cada push y pull request a `main` y `develop`, con Node 22 (`.nvmrc`):
-typecheck y lint de los cuatro workspaces, tests, build de la web (lo mismo que compila Cloudflare Pages),
-bundle de mobile con Metro y build de la imagen de Docker (no se publica).
+typecheck y lint de los cuatro workspaces, `npm audit` (informativo, no bloquea), tests, build de la web (lo mismo que compila
+Cloudflare Pages), bundle de mobile con Metro y build de la imagen de Docker (no se publica).
+
+No hay deploy desde el CI: Cloudflare Pages publica la web sola en cada push a `main`. La app mobile se
+compila con EAS (ver `apps/mobile/README.md`).
 
 El lint usa una sola configuración para todo el monorepo (`eslint.config.mjs`) y falla solo con errores. Las
 reglas del React Compiler (`react-hooks/refs`, `set-state-in-effect`, `purity` y
