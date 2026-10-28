@@ -5,6 +5,7 @@ import { useSession } from './session';
  * https://discordia.app/role del access token (ROLE_CLAIM, auth/auth0.ts), el mismo que Kong valida con
  * validate("staff") en las rutas de staff. En el cliente solo decide qué interfaz se ve: quien fuerce la
  * pantalla no obtiene nada, porque los datos y las acciones los vuelve a autorizar el Gateway.
+ * Reglas para los endpoints del backoffice: Gateway/docs/ADR-002-Rol-Staff-Backoffice.md.
  */
 
 /** Staff de la plataforma: ve el backoffice de administración. */
