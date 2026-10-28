@@ -9,6 +9,10 @@
     "dev": "npm run dev -w @discordia/web --",
     "build": "npm run build -w @discordia/web",
     "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w @discordia/web --",
+    "test:e2e:ui": "npm run test:e2e:ui -w @discordia/web --",
+    "test:e2e:headed": "npm run test:e2e -w @discordia/web -- --headed",
+    "test:e2e:codegen": "npm run test:e2e:codegen -w @discordia/web --",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "mobile": "npm run start -w @discordia/mobile --",
     "lint": "eslint ."
