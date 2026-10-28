@@ -1,3 +1,4 @@
+import { useIsPlatformStaff } from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { authService } from '../../platform/auth/session';
 import { useCurrentUserStore } from './currentUserStore';
@@ -24,6 +25,7 @@ export function useUserPanelActions() {
   const setAppView = useUIStore((s) => s.setAppView);
   const setStatus = useCurrentUserStore((s) => s.setStatus);
   const saveProfile = useCurrentUserStore((s) => s.saveProfile);
+  const isStaff = useIsPlatformStaff();
 
   return {
     onOpenSettings: () => setAppView('user-settings'),
@@ -32,6 +34,8 @@ export function useUserPanelActions() {
     onSaveCustomStatus: (customStatus: string) =>
       saveProfile({ ...useCurrentUserStore.getState().currentUser, customStatus }),
     onEditProfile: () => setAppView('own-profile'),
+    // Backoffice de la plataforma: solo con el rol "staff" (sin la acción, el menú no muestra el link)
+    onOpenAdmin: isStaff ? () => setAppView('admin') : undefined,
     onBuyPoints: () => setAppView('user-settings'),
     onSubscribePremium: () => setAppView('user-settings'),
     // Cerrar sesión pide confirmación
