@@ -121,7 +121,20 @@ export function SettingsScreen<T extends string>({ visible, title, identity, sec
 }
 
 /** Celda de la grilla: título con barra final ("INFORMACIÓN /") y su contenido, que entra subiendo. */
-export function SettingsCell({ title, soon = false, index = 0, children }: { title: string; soon?: boolean; index?: number; children: React.ReactNode }) {
+export function SettingsCell({
+  title,
+  soon = false,
+  soonNote = 'Todavía no se guarda en el servidor.',
+  index = 0,
+  children,
+}: {
+  title: string
+  soon?: boolean
+  /** Aclaración de la parte deshabilitada, si no es "Todavía no se guarda en el servidor." */
+  soonNote?: string
+  index?: number
+  children: React.ReactNode
+}) {
   const styles = useStyles()
   const enter = useRise({ delay: index * 60, name: 'base' })
   return (
@@ -139,7 +152,7 @@ export function SettingsCell({ title, soon = false, index = 0, children }: { tit
       {soon ? (
         <View style={styles.soon} pointerEvents="none" accessibilityState={{ disabled: true }}>
           <Text variant="meta" tone="muted">
-            / Todavía no se guarda en el servidor.
+            / {soonNote}
           </Text>
           {children}
         </View>
