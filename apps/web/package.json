@@ -21,7 +21,7 @@
     "lucide-react": "^1.41.0",
     "motion": "^13.5.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react-dom": "19.3.1",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
@@ -32,7 +32,7 @@
     "@types/react-dom": "~19.3.0",
     "@vitejs/plugin-react": "^4.3.3",
     "@vitest/coverage-v8": "^5.0.1",
-    "axe-core": "^4.10.3",
+    "axe-core": "^4.14.0",
     "jsdom": "^26.0.0",
     "typescript": "~6.0.3",
     "vite": "^7.3.0",
