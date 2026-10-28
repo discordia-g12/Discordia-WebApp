@@ -23,6 +23,7 @@ import {
   type ServerSettingsSection,
 } from './settings/server/ServerSettingsScreen'
 import { UserSettingsScreen } from './settings/user/UserSettingsScreen'
+import { AdminScreen } from './admin/AdminScreen'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
 import { BottomTabs, type ShellTab } from './shell/BottomTabs'
@@ -49,6 +50,7 @@ import {
   canSeeSettingsSection,
   isVoiceChannelLocked,
   voiceDisconnectMessage,
+  useIsPlatformStaff,
 } from '@discordia/core'
 
 /** Lo que se ve en Servidores: la lista de canales, o un canal abierto a pantalla completa. */
@@ -131,6 +133,9 @@ export default function MobileShell() {
   const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [userSettingsOpen, setUserSettingsOpen] = useState(false)
+  // Backoffice de la plataforma: solo con el rol "staff" (claim del access token, ver core/auth/roles.ts)
+  const isPlatformStaff = useIsPlatformStaff()
+  const [adminOpen, setAdminOpen] = useState(false)
   // Canal de voz al que se quiere pasar estando conectado a otro (pide confirmación)
   const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
   // Participante sobre el que se mantuvo presionado (menú para silenciarlo solo para vos)
@@ -634,6 +639,7 @@ export default function MobileShell() {
               inCall={!!voice.channelId}
               onEditProfile={() => setEditProfileOpen(true)}
               onOpenSettings={() => setUserSettingsOpen(true)}
+              onOpenAdmin={isPlatformStaff ? () => setAdminOpen(true) : undefined}
               onLogout={() => setLogoutConfirmOpen(true)}
             />
           )}
@@ -720,6 +726,7 @@ export default function MobileShell() {
           setLogoutConfirmOpen(true)
         }}
       />
+      <AdminScreen visible={adminOpen && isPlatformStaff} onClose={() => setAdminOpen(false)} />
       <EditProfileModal visible={editProfileOpen} onClose={() => setEditProfileOpen(false)} />
       <InviteModal visible={inviteModalOpen} server={server || undefined} onClose={() => setInviteModalOpen(false)} />
 

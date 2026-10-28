@@ -10,6 +10,18 @@ import { SignupConflictError, toAuthDenialError } from './errors';
 /** Claim del ID token con el username elegido al registrarse (lo agrega la Auth0 Action). */
 export const USERNAME_CLAIM = 'https://discordia.app/username';
 
+/**
+ * Claim del access token con el rol de plataforma ("user" o "staff"). Lo agrega la Auth0 Action desde
+ * app_metadata.role (Gateway/auth0/post-login-action.js) y es el mismo que valida Kong (auth0_validator.lua).
+ */
+export const ROLE_CLAIM = 'https://discordia.app/role';
+
+/** Rol de plataforma de un access token; "user" si falta o no se puede leer (igual que Kong). */
+export function roleFromAccessToken(token: unknown): string {
+  const role = decodeJwtPayload(token)?.[ROLE_CLAIM];
+  return typeof role === 'string' && role ? role : 'user';
+}
+
 export interface PasswordLoginResult {
   accessToken: string;
   /** Segundos de validez del access token. */
