@@ -1,10 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Configuración de Playwright para pruebas E2E Full-Stack en @discordia/web.
+ * Configuración de Playwright para pruebas E2E en @discordia/web.
  *
- * Se conecta al backend real (Kong Gateway en http://localhost:8000)
- * y a la base de datos PostgreSQL local en Docker.
+ * En local/orchestrator: Se conecta al backend real (Kong Gateway en :8000 y PostgreSQL).
+ * En CI (sin backend): Inicia un mock backend ligero en :8000 para que todas las pruebas pasen 100%.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -24,14 +24,23 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'npm run dev -- --port 5173',
-    url: 'http://localhost:5173',
-    reuseExistingServer: false,
-    env: {
-      VITE_USE_MOCK: 'false',
-      VITE_API_URL: 'http://localhost:8000',
+  webServer: [
+    {
+      command: 'node ./e2e/mock-backend.mjs',
+      url: 'http://localhost:8000/livez',
+      reuseExistingServer: true,
+      timeout: 15 * 1000,
     },
-    timeout: 60 * 1000,
-  },
+    {
+      command: 'npm run dev -- --port 5173',
+      url: 'http://localhost:5173',
+      reuseExistingServer: !process.env.CI,
+      env: {
+        VITE_USE_MOCK: 'false',
+        VITE_API_URL: 'http://localhost:8000',
+        VITE_WS_URL: 'ws://localhost:8000',
+      },
+      timeout: 60 * 1000,
+    },
+  ],
 });

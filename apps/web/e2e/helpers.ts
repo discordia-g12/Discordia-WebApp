@@ -17,6 +17,11 @@ export function cleanTestServers() {
   } catch {
     // Continúa silenciosamente si docker no está en el host actual
   }
+  try {
+    execSync(`curl -s -X DELETE http://localhost:8000/api/v1/servers/test-reset`, { stdio: 'ignore' });
+  } catch {
+    // Continúa silenciosamente si no responde
+  }
 }
 
 /**

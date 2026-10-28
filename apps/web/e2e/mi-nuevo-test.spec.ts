@@ -1,18 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { execSync } from 'child_process';
-
-const TEST_USER_ID = 'auth0|6ae25c494d4ba47b0ff49739';
-
-function cleanTestServers() {
-  try {
-    execSync(
-      `docker exec discordia-postgres psql -U postgres -d server_roles_db -c "DELETE FROM servers WHERE owner_id = '${TEST_USER_ID}';"`,
-      { stdio: 'ignore' }
-    );
-  } catch {
-    // Si docker no está disponible o en CI sin docker, continúa sin bloquear el test
-  }
-}
+import { cleanTestServers } from './helpers';
 
 test.describe('Creación de Servidor', () => {
   test.beforeEach(() => {
