@@ -259,7 +259,8 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
       (paso 13).
 - [x] La configuración entra por core, sin `import.meta.env` / `process.env` adentro del paquete:
       `configureClient()` (API y WebSocket, `wsBaseUrl`) y `configureAuth()` (Auth0). La web no usa
-      `VITE_WS_URL`: en el compose del orquestador apunta directo al Chat-Engine, salteando Kong.
+      `VITE_WS_URL` (el WebSocket se deriva de `VITE_API_URL` y pasa por Kong); se sacó del Dockerfile, de
+      los tipos y de las configs de Playwright.
 
 #### 1.3 `packages/tokens`
 

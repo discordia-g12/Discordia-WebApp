@@ -10,6 +10,7 @@ android/
 ios/
 web-build/
 expo-env.d.ts
+tsconfig.json
 
 # Native
 .kotlin/

@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { configureClient } from '@discordia/core';
 
-// La URL de los WebSockets se deriva de la de la API (http -> ws), así pasan por Kong. VITE_WS_URL no
-// se usa: en el compose del orquestador apunta directo al Chat-Engine.
+// La URL de los WebSockets se deriva de la de la API (http -> ws), así pasan por Kong. No hay una
+// variable aparte para el WebSocket.
 configureClient({
   baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000',
 });

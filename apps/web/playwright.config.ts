@@ -38,7 +38,6 @@ export default defineConfig({
       env: {
         VITE_USE_MOCK: 'false',
         VITE_API_URL: 'http://localhost:8000',
-        VITE_WS_URL: 'ws://localhost:8000',
       },
       timeout: 60 * 1000,
     },
