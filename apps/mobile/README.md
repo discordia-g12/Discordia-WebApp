@@ -29,6 +29,8 @@ npm start            # = npx expo start --go
 
 y escanear el QR con Expo Go. **Ojo:** como el proyecto tiene `expo-dev-client`, `npx expo start` a secas arranca en modo development build y su QR no abre en Expo Go; hay que usar `npm start` / `--go`, o apretar `s` en la terminal de Metro para cambiar de modo.
 
+Los comandos de Expo se corren **en esta carpeta** (o con `npm run mobile` desde la raíz del monorepo). Un `npx expo start` en la raíz falla con `Unable to resolve module ../../App` (ver el [README de la raíz](../../README.md#mobile)).
+
 Funciona todo excepto la voz: Expo Go no trae el módulo nativo de WebRTC que usa LiveKit, así que la app lo detecta (`src/utils/voice.ts`) y no carga LiveKit.
 
 ### Con el development build (incluye la voz)

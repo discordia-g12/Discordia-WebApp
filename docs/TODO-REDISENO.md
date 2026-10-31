@@ -220,8 +220,12 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
 - [x] Borrar `shared-api/` (vacío). El alias `@shared` queda apuntando a `apps/web/src` hasta 1.2.
 - [x] React 19.3.0 y TypeScript 6.0.3 en la web, iguales a mobile: una sola copia en el monorepo.
 - [x] `tsconfig.base.json` en la raíz, que extienden la web y `packages/core`. Mobile sigue con la base de Expo.
-- [ ] ESLint: el script `lint` de la web ya estaba roto antes de esto (no hay ESLint instalado ni
-      configurado). Configurarlo para todo el monorepo.
+- [x] ESLint: una sola config para todo el monorepo (`eslint.config.mjs`, ESLint 10 + typescript-eslint +
+      react-hooks v7), se corre desde la raíz con `npm run lint` y el CI falla con errores, no con avisos.
+- [ ] Revisar los avisos de lint (113 al 31/10: 87 `react-hooks/refs`, 19 `set-state-in-effect`, 5
+      `exhaustive-deps`, 1 `purity`, 1 `preserve-manual-memoization`). La mayoría de `refs` es el patrón
+      "ref con el último valor" (`ref.current = x` en el render), en ChatView, ServerSettingsScreen y los hooks
+      de voz de core. Cuando queden en 0, pasar esas reglas de `warn` a `error`.
 - [ ] Probar un build de EAS (`preview`) y un deploy de Pages desde esta rama antes de mergear a `main`.
 
 #### 1.2 `packages/core`: lógica única
@@ -259,7 +263,8 @@ Cada sub-paso es un PR que no cambia el comportamiento: la app se ve y funciona 
       (paso 13).
 - [x] La configuración entra por core, sin `import.meta.env` / `process.env` adentro del paquete:
       `configureClient()` (API y WebSocket, `wsBaseUrl`) y `configureAuth()` (Auth0). La web no usa
-      `VITE_WS_URL`: en el compose del orquestador apunta directo al Chat-Engine, salteando Kong.
+      `VITE_WS_URL` (el WebSocket se deriva de `VITE_API_URL` y pasa por Kong); se sacó del Dockerfile, de
+      los tipos y de las configs de Playwright.
 
 #### 1.3 `packages/tokens`
 

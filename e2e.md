@@ -32,7 +32,9 @@ flowchart TD
 2. **Modo Aislado / CI (GitHub Actions en `Discordia-WebApp`):**
    - En el entorno de CI del frontend no se dispone de Docker ni de los 7 microservicios.
    - Playwright detecta el puerto 8000 libre y arranca automáticamente `node ./e2e/mock-backend.mjs`.
-   - Este mock atiende las rutas necesarias (`/api/v1/users/me`, `/api/v1/servers`, `/channels`, `/categories`, `/invites` y WebSocket de chat en tiempo real), permitiendo que **los 9 tests de interfaz corran y aprueben en ~1 minuto con 0 dependencias externas**.
+   - Este mock atiende las rutas necesarias (`/api/v1/users/me`, `/api/v1/servers`, `/channels`, `/categories`, `/invites`, roles, miembros, historial, no leídos y WebSocket de chat en tiempo real), permitiendo que **los 14 tests de interfaz corran y aprueben en ~2 minutos con 0 dependencias externas**.
+   - Imita a Chat-Engine en las menciones: calcula `mentions` al enviar (el usuario de prueba es dueño, así que tiene MENTION_EVERYONE) y cuenta `mentionCount` en `/api/v1/chat/unread`. Tiene un segundo miembro, `ana_e2e`.
+   - Endpoints solo del mock, para los tests: `GET /__test/ping` (dice que es el mock), `POST /__test/messages` (un mensaje de `ana_e2e`, con sus `mentions`) y `POST /__test/roles` (un rol en un servidor).
 
 ---
 
@@ -49,13 +51,14 @@ Los tests residen en `Discordia-WebApp/apps/web/e2e/`:
 | `user-settings.spec.ts` | **Ajustes y Logout** | Recorre secciones de ajustes de usuario y prueba el cierre de sesión seguro. |
 | `auth.spec.ts` | **UI de Acceso** | Valida campos, alternancia login/registro y alertas de error. |
 | `mi-nuevo-test.spec.ts` | **Flujo Grabado** | Prueba generada mediante `playwright codegen` tocando la pantalla. |
+| `mentions.spec.ts` | **Menciones (#46)** | Autocompletar `@` y enviar `@everyone` o un miembro (contra Kong o el mock). Recibir una mención con el badge `@1`, un `@everyone` sin permiso como texto plano y la mención de un rol: solo contra el mock, porque necesitan un segundo usuario (con Kong se saltean). |
 
 ---
 
 ## 3. Aislamiento e Idempotencia (Limpieza Automática)
 
 Cada prueba es **hermética e independiente**: no depende de corridas previas ni deja datos residuales.
-- **`beforeEach`**: Antes de iniciar cada test, se eliminan todos los servidores creados por el usuario de prueba mediante SQL en PostgreSQL (`DELETE FROM servers WHERE owner_id = 'auth0|6ae25c494d4ba47b0ff49739'`) y mediante reset HTTP al mock en caso de correr en CI (`DELETE /api/v1/servers/test-reset`). El test siempre arranca con **0 servidores**.
+- **`beforeEach`**: Antes de iniciar cada test, se eliminan todos los servidores creados por el usuario de prueba mediante SQL en PostgreSQL (en el contenedor `discordia-postgres` del compose de la raíz o en el del servicio `local-postgres` de `deploy/`; se puede forzar con `E2E_POSTGRES_CONTAINER`) (`DELETE FROM servers WHERE owner_id = 'auth0|6ae25c494d4ba47b0ff49739'`) y mediante reset HTTP al mock en caso de correr en CI (`DELETE /api/v1/servers/test-reset`). El test siempre arranca con **0 servidores**.
 - **`afterAll`**: Al finalizar la suite, se vuelven a purgar los registros de prueba, dejando tanto la base de datos como el mock completamente limpios.
 
 ---
@@ -64,8 +67,11 @@ Cada prueba es **hermética e independiente**: no depende de corridas previas ni
 
 Para no depender de mails personales ni exponer cuentas privadas, se utiliza un usuario de servicio verificado:
 
-- **Email**: `discordia.chat.service@gmail.com`
-- **Contraseña**: `Password123!`
+- **Email**: `discordia.chat.service@gmail.com` (se puede cambiar con `E2E_EMAIL`)
+- **Contraseña**: no está en el repo. Va en la variable `E2E_PASSWORD`:
+  - **En local**: en `apps/web/.env.e2e.local` (no se commitea, lo cubre `.env*.local`), con una línea `E2E_PASSWORD=...`. La config de Playwright lo carga sola. Pedísela a quien administre Auth0.
+  - **En el CI**: el secret `E2E_PASSWORD` del repo (Settings → Secrets and variables → Actions).
+  - Sin la variable, los tests que inician sesión fallan con "Falta E2E_PASSWORD".
 - **Auth0 ID**: `auth0|6ae25c494d4ba47b0ff49739`
 - **Estado**: Email verificado en Auth0 y perfil sincronizado en `auth_db`.
 
@@ -153,7 +159,7 @@ El workflow en `.github/workflows/ci.yml` ejecuta automáticamente en cada push 
 3. `npx playwright install --with-deps chromium`.
 4. `npm run test:e2e` (pruebas E2E completas con Playwright).
    - Playwright detecta que no hay backend activo en el runner y levanta el `mock-backend.mjs`.
-   - Se ejecutan los 9 tests E2E validando flujos de login, navegación, WebSockets, modales y validaciones.
+   - Se ejecutan los 14 tests E2E validando flujos de login, navegación, WebSockets, menciones, modales y validaciones.
    - Duración: ~1 minuto. No requiere contenedores Docker ni acceso a repositorios privados del backend.
 5. Sube el reporte HTML de Playwright como artefacto descargable si hay fallos.
 

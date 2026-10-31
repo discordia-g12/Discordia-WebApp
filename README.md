@@ -62,7 +62,13 @@ En producción, Cloudflare Pages compila con `VITE_API_URL=https://api.discordia
 
 ```bash
 npm run mobile        # = expo start --go, desde la raíz
+npm run mobile -- -c  # lo mismo, limpiando el cache de Metro
 ```
+
+**No correr `npx expo start` en la raíz.** La raíz no es un proyecto de Expo: Expo la toma como tal, cae en
+`node_modules/expo/AppEntry.js` y falla con `Unable to resolve module ../../App`. De paso deja un
+`tsconfig.json` y un `.expo/` sueltos en la raíz (borrarlos). `npm run mobile` corre Expo adentro de
+`apps/mobile`. Si ya pasó, arrancar de nuevo con `npm run mobile -- -c`.
 
 Sin configurar nada, la app usa la IP de la máquina que corre Metro, puerto 8000 (el Kong del backend
 local). Para apuntar a producción, `EXPO_PUBLIC_API_URL=https://api.discordia.lol` en `apps/mobile/.env`

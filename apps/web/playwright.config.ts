@@ -1,4 +1,16 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+
+// Credenciales del usuario de prueba (E2E_PASSWORD) en local: apps/web/.env.e2e.local, que no se commitea.
+// Se busca desde la raíz del monorepo y desde apps/web, según dónde se corra Playwright. En el CI vienen
+// del entorno (secret).
+for (const file of [resolve('apps/web/.env.e2e.local'), resolve('.env.e2e.local')]) {
+  if (existsSync(file)) {
+    process.loadEnvFile(file);
+    break;
+  }
+}
 
 /**
  * Configuración de Playwright para pruebas E2E en @discordia/web.
@@ -38,7 +50,6 @@ export default defineConfig({
       env: {
         VITE_USE_MOCK: 'false',
         VITE_API_URL: 'http://localhost:8000',
-        VITE_WS_URL: 'ws://localhost:8000',
       },
       timeout: 60 * 1000,
     },

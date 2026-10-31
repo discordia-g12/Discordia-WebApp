@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { cleanTestServers } from './helpers';
+import { TEST_USER_EMAIL, cleanTestServers, testUserPassword } from './helpers';
 
 test.describe('Creación de Servidor', () => {
   test.beforeEach(() => {
@@ -17,8 +17,8 @@ test.describe('Creación de Servidor', () => {
   const loginButton = page.getByTestId('btn-submit-login');
   await expect(loginButton).toBeEnabled({ timeout: 10000 });
 
-  await page.getByRole('textbox', { name: 'correo electrónico' }).fill('discordia.chat.service@gmail.com');
-  await page.getByRole('textbox', { name: 'contraseña' }).fill('Password123!');
+  await page.getByRole('textbox', { name: 'correo electrónico' }).fill(TEST_USER_EMAIL);
+  await page.getByRole('textbox', { name: 'contraseña' }).fill(testUserPassword());
   await loginButton.click();
 
   // Esperar a que ingrese al dashboard

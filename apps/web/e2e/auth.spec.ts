@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TEST_USER_EMAIL, testUserPassword } from './helpers';
 
 test.describe('Flujo de Autenticación y Acceso al Dashboard', () => {
   test.beforeEach(async ({ page }) => {
@@ -66,8 +67,8 @@ test.describe('Flujo de Autenticación y Acceso al Dashboard', () => {
     await expect(loginButton).toBeEnabled({ timeout: 10000 });
 
     // Completar credenciales válidas
-    await page.getByPlaceholder('ejemplo@discordia.com').fill('discordia.chat.service@gmail.com');
-    await page.getByPlaceholder('tu contraseña').fill('Password123!');
+    await page.getByPlaceholder('ejemplo@discordia.com').fill(TEST_USER_EMAIL);
+    await page.getByPlaceholder('tu contraseña').fill(testUserPassword());
 
     await loginButton.click();
 
