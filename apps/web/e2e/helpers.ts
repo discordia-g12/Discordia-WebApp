@@ -51,3 +51,50 @@ export async function createServerViaUI(page: Page, serverName: string) {
   await expect(page.getByRole('button', { name: new RegExp(serverName) })).toBeVisible({ timeout: 15000 });
 }
 
+
+const MOCK_URL = 'http://localhost:8000';
+
+/** Corre contra mock-backend.mjs (CI) y no contra Kong: solo el mock tiene /__test. */
+export async function isMockBackend(): Promise<boolean> {
+  try {
+    const res = await fetch(`${MOCK_URL}/__test/ping`);
+    return res.ok && (await res.json()).mock === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Solo mock: el canal de texto de un servidor creado en el test, buscado por nombre. */
+export async function mockTextChannelId(serverName: string): Promise<{ serverId: string; channelId: string }> {
+  const servers = (await (await fetch(`${MOCK_URL}/api/v1/servers`)).json()) as {
+    id: string;
+    name: string;
+    channels: { id: string; type: string }[];
+  }[];
+  const server = servers.find((s) => s.name === serverName);
+  if (!server) throw new Error(`No está el servidor ${serverName} en el mock`);
+  return { serverId: server.id, channelId: server.channels.find((c) => c.type === 'text')!.id };
+}
+
+/** Solo mock: un mensaje de otro miembro, con las menciones que hubiera calculado Chat-Engine. */
+export async function mockMessageFromOther(
+  channelId: string,
+  content: string,
+  mentions: { users: string[]; roles: string[]; everyone: boolean }
+) {
+  await fetch(`${MOCK_URL}/__test/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channelId, content, mentions }),
+  });
+}
+
+/** Solo mock: un rol en el servidor. */
+export async function mockRole(serverId: string, name: string): Promise<string> {
+  const res = await fetch(`${MOCK_URL}/__test/roles`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ serverId, name }),
+  });
+  return ((await res.json()) as { id: string }).id;
+}

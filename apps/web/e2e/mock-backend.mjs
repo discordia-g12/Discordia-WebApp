@@ -2,8 +2,65 @@ import http from 'http';
 import { WebSocketServer } from 'ws';
 
 const PORT = 8000;
+const TEST_USER_ID = 'auth0|6ae25c494d4ba47b0ff49739';
+// Otro miembro de todos los servidores, para las menciones (#46)
+const OTHER_USER = { user_id: 'auth0|e2e-ana', username: 'ana_e2e', display_name: 'Ana E2E' };
 
 let servers = [];
+// Mensajes por canal, roles por servidor y hasta qué mensaje leyó el usuario de prueba en cada canal
+let messages = {};
+let roles = {};
+let readUpTo = {};
+let nextMessage = 1;
+
+// Mismas expresiones que Chat-Engine (src/helpers/mentions.ts)
+const USER_MENTION = /<@([^\s<>@&]{1,128})>/g;
+const ROLE_MENTION = /<@&([^\s<>@&]{1,128})>/g;
+const EVERYONE = /(?<![\w@])@everyone(?![\w-])/;
+
+/** Como Chat-Engine al enviar. En el mock el único que escribe es el dueño: tiene MENTION_EVERYONE. */
+function parseMentions(content, serverId) {
+  const unique = (re) => [...new Set([...content.matchAll(re)].map((m) => m[1]))];
+  const serverRoles = (roles[serverId] ?? []).map((r) => r.id);
+  return {
+    users: unique(USER_MENTION),
+    roles: unique(ROLE_MENTION).filter((id) => serverRoles.includes(id)),
+    everyone: EVERYONE.test(content),
+  };
+}
+
+function serverOfChannel(channelId) {
+  return servers.find((srv) => srv.channels.some((ch) => ch.id === channelId))?.id;
+}
+
+function addMessage({ channelId, authorId, content, mentions }) {
+  const message = {
+    id: `msg-${String(nextMessage++).padStart(6, '0')}`,
+    content,
+    authorId,
+    channelId,
+    createdAt: new Date().toISOString(),
+    mentions: mentions ?? { users: [], roles: [], everyone: false },
+  };
+  (messages[channelId] ??= []).push(message);
+  return message;
+}
+
+/** Como GET /unread de Chat-Engine, para el usuario de prueba (que no tiene roles propios). */
+function unreadChannels() {
+  return Object.entries(messages)
+    .map(([channelId, list]) => {
+      const pending = list.filter((m) => m.id > (readUpTo[channelId] ?? '') && m.authorId !== TEST_USER_ID);
+      const mentionCount = pending.filter((m) => m.mentions.everyone || m.mentions.users.includes(TEST_USER_ID)).length;
+      return { channelId, unreadCount: Math.min(pending.length, 100), mentionCount: Math.min(mentionCount, 100) };
+    })
+    .filter((c) => c.unreadCount > 0);
+}
+
+function markRead(channelId) {
+  const last = messages[channelId]?.at(-1);
+  if (last) readUpTo[channelId] = last.id;
+}
 
 const server = http.createServer(async (req, res) => {
   // CORS
@@ -49,7 +106,30 @@ const server = http.createServer(async (req, res) => {
   // Reset test servers
   if (path === '/api/v1/servers/test-reset' && req.method === 'DELETE') {
     servers = [];
+    messages = {};
+    roles = {};
+    readUpTo = {};
     return send(200, { ok: true });
+  }
+
+  // Solo en el mock: los tests lo usan para saber dónde corren y para cargar datos de otros usuarios
+  if (path === '/__test/ping') {
+    return send(200, { mock: true });
+  }
+  if (path === '/__test/messages' && req.method === 'POST') {
+    return send(201, addMessage({ authorId: OTHER_USER.user_id, ...json }));
+  }
+  if (path === '/__test/roles' && req.method === 'POST') {
+    const role = {
+      id: `role-${Date.now()}`,
+      name: json.name || 'rol',
+      color: null,
+      position: (roles[json.serverId]?.length ?? 0) + 1,
+      permissions_bitmask: 0,
+      is_default: false,
+    };
+    (roles[json.serverId] ??= []).push(role);
+    return send(201, role);
   }
 
   // Current user profile
@@ -77,7 +157,24 @@ const server = http.createServer(async (req, res) => {
         username: 'discordia_test',
         display_name: 'Discordia Test',
       },
+      OTHER_USER,
     ]);
+  }
+
+  // Chat: no leídos y marcar leído
+  if (path === '/api/v1/chat/unread') {
+    return send(200, { channels: unreadChannels() });
+  }
+  const readMatch = path.match(/^\/api\/v1\/chat\/channels\/([^/]+)\/read$/);
+  if (readMatch && req.method === 'POST') {
+    markRead(readMatch[1]);
+    res.writeHead(204);
+    return res.end();
+  }
+  if (path === '/api/v1/chat/read-states/read-all' && req.method === 'POST') {
+    Object.keys(messages).forEach(markRead);
+    res.writeHead(204);
+    return res.end();
   }
 
   // Servers
@@ -144,19 +241,31 @@ const server = http.createServer(async (req, res) => {
   // Server members
   if (path.includes('/members')) {
     return send(200, {
-      items: [{ id: 'm1', user_id: 'auth0|6ae25c494d4ba47b0ff49739', nickname: null, role_ids: [] }],
-      total: 1,
+      items: [
+        { id: 'm1', user_id: 'auth0|6ae25c494d4ba47b0ff49739', nickname: null, role_ids: [] },
+        { id: 'm2', user_id: OTHER_USER.user_id, nickname: null, role_ids: [] },
+      ],
+      total: 2,
       limit: 50,
       offset: 0,
     });
   }
 
-  // Roles
+  // Roles (GET: los del servidor, con el por defecto primero)
+  const rolesMatch = path.match(/^\/api\/v1\/servers\/([^/]+)\/roles$/);
+  if (rolesMatch && req.method === 'GET') {
+    const everyone = { id: `${rolesMatch[1]}-everyone`, name: '@everyone', color: null, position: 0, permissions_bitmask: 0, is_default: true };
+    return send(200, [everyone, ...(roles[rolesMatch[1]] ?? [])]);
+  }
   if (path.includes('/roles')) {
     return send(200, []);
   }
 
   // Chat messages history
+  const historyMatch = path.match(/^\/api\/v1\/chat\/channels\/([^/]+)\/messages$/);
+  if (historyMatch) {
+    return send(200, { messages: messages[historyMatch[1]] ?? [] });
+  }
   if (path.includes('/messages')) {
     return send(200, { messages: [] });
   }
@@ -174,21 +283,25 @@ server.on('upgrade', (request, socket, head) => {
   });
 });
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, request) => {
+  // /api/v1/chat/channels/:channelId/ws
+  const wsChannelId = request.url?.match(/\/channels\/([^/?]+)\/ws/)?.[1] ?? '';
   ws.on('message', (message) => {
     try {
       const data = JSON.parse(message.toString());
       if (data.type === 'subscribe') {
         return;
       }
-      const response = {
-        id: `msg-${Date.now()}`,
-        content: data.content || '',
+      const channelId = data.channelId || wsChannelId;
+      const content = data.content || '';
+      const response = addMessage({
+        channelId,
         authorId: data.authorId || 'auth0|6ae25c494d4ba47b0ff49739',
-        channelId: data.channelId || '',
-        timestamp: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      };
+        content,
+        mentions: parseMentions(content, serverOfChannel(channelId)),
+      });
+      // Como Chat-Engine: enviar marca el canal leído para quien escribe
+      markRead(channelId);
       ws.send(JSON.stringify(response));
     } catch {
       // ignore

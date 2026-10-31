@@ -32,7 +32,9 @@ flowchart TD
 2. **Modo Aislado / CI (GitHub Actions en `Discordia-WebApp`):**
    - En el entorno de CI del frontend no se dispone de Docker ni de los 7 microservicios.
    - Playwright detecta el puerto 8000 libre y arranca automáticamente `node ./e2e/mock-backend.mjs`.
-   - Este mock atiende las rutas necesarias (`/api/v1/users/me`, `/api/v1/servers`, `/channels`, `/categories`, `/invites` y WebSocket de chat en tiempo real), permitiendo que **los 9 tests de interfaz corran y aprueben en ~1 minuto con 0 dependencias externas**.
+   - Este mock atiende las rutas necesarias (`/api/v1/users/me`, `/api/v1/servers`, `/channels`, `/categories`, `/invites`, roles, miembros, historial, no leídos y WebSocket de chat en tiempo real), permitiendo que **los 14 tests de interfaz corran y aprueben en ~2 minutos con 0 dependencias externas**.
+   - Imita a Chat-Engine en las menciones: calcula `mentions` al enviar (el usuario de prueba es dueño, así que tiene MENTION_EVERYONE) y cuenta `mentionCount` en `/api/v1/chat/unread`. Tiene un segundo miembro, `ana_e2e`.
+   - Endpoints solo del mock, para los tests: `GET /__test/ping` (dice que es el mock), `POST /__test/messages` (un mensaje de `ana_e2e`, con sus `mentions`) y `POST /__test/roles` (un rol en un servidor).
 
 ---
 
@@ -49,6 +51,7 @@ Los tests residen en `Discordia-WebApp/apps/web/e2e/`:
 | `user-settings.spec.ts` | **Ajustes y Logout** | Recorre secciones de ajustes de usuario y prueba el cierre de sesión seguro. |
 | `auth.spec.ts` | **UI de Acceso** | Valida campos, alternancia login/registro y alertas de error. |
 | `mi-nuevo-test.spec.ts` | **Flujo Grabado** | Prueba generada mediante `playwright codegen` tocando la pantalla. |
+| `mentions.spec.ts` | **Menciones (#46)** | Autocompletar `@` y enviar `@everyone` o un miembro (contra Kong o el mock). Recibir una mención con el badge `@1`, un `@everyone` sin permiso como texto plano y la mención de un rol: solo contra el mock, porque necesitan un segundo usuario (con Kong se saltean). |
 
 ---
 
@@ -153,7 +156,7 @@ El workflow en `.github/workflows/ci.yml` ejecuta automáticamente en cada push 
 3. `npx playwright install --with-deps chromium`.
 4. `npm run test:e2e` (pruebas E2E completas con Playwright).
    - Playwright detecta que no hay backend activo en el runner y levanta el `mock-backend.mjs`.
-   - Se ejecutan los 9 tests E2E validando flujos de login, navegación, WebSockets, modales y validaciones.
+   - Se ejecutan los 14 tests E2E validando flujos de login, navegación, WebSockets, menciones, modales y validaciones.
    - Duración: ~1 minuto. No requiere contenedores Docker ni acceso a repositorios privados del backend.
 5. Sube el reporte HTML de Playwright como artefacto descargable si hay fallos.
 
