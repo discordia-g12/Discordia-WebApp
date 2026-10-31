@@ -1,7 +1,7 @@
 import { Compass, Home, Plus, type LucideIcon } from 'lucide-react';
 import type { Server } from '../../types';
 import { Logo, ServerStrip, Skeleton } from '../../ui';
-import { serverUnreadLabel } from './unread';
+import { serverUnreadBadge, serverUnreadLabel } from './unread';
 import styles from './ServerRail.module.css';
 
 export interface ServerRailProps {
@@ -56,6 +56,7 @@ export function ServerRail({
                 server={server}
                 active={server.id === selectedServerId}
                 unread={serverUnreadLabel(server)}
+                badge={serverUnreadBadge(server)}
                 onPress={() => onSelectServer(server.id)}
               />
             </li>

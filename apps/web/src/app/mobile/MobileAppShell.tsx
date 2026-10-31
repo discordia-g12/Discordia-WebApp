@@ -20,7 +20,7 @@ import { UserMenuContent } from '../../features/profile/UserMenu';
 import { useUserPanelActions } from '../../features/profile/profileActions';
 import { useCurrentUser } from '../../features/profile/currentUserStore';
 import { userBarStatus } from '../../features/profile/userBarStatus';
-import { serverUnreadLabel } from '../../features/servers/unread';
+import { serverUnreadBadge, serverUnreadLabel } from '../../features/servers/unread';
 import styles from './MobileAppShell.module.css';
 
 export type MobileTab = 'servers' | 'messages' | 'notifications' | 'profile';
@@ -201,6 +201,7 @@ function ServerTabsRow({
               server={server}
               active={server.id === selectedServerId}
               unread={serverUnreadLabel(server)}
+              badge={serverUnreadBadge(server)}
               orientation="horizontal"
               onPress={() => onSelect(server.id)}
             />

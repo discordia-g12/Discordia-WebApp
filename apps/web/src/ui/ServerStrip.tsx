@@ -9,6 +9,8 @@ interface ServerStripProps {
   active?: boolean;
   /** Actividad nueva: "NEW ACTIVITY IN GENERAL" en la etiqueta, y una marca en la franja. */
   unread?: string | boolean;
+  /** Texto del badge de no leídos ("5", "99+", "@2"). Sin él, con unread el badge va vacío. */
+  badge?: string;
   onPress?: () => void;
   /**
    * horizontal: tira de servidores de arriba en mobile. La activa baja en lugar de correrse, y no hay
@@ -21,7 +23,7 @@ interface ServerStripProps {
  * Servidor en el rail: una franja rectangular con su imagen. Al pasar el mouse (o con foco) se despliega
  * la etiqueta negra con el nombre y la actividad.
  */
-export function ServerStrip({ server, active = false, unread, onPress, orientation = 'vertical' }: ServerStripProps) {
+export function ServerStrip({ server, active = false, unread, badge, onPress, orientation = 'vertical' }: ServerStripProps) {
   const horizontal = orientation === 'horizontal';
   // Posición de la etiqueta (fixed): el rail scrollea y una etiqueta absoluta quedaría recortada
   const [open, setOpen] = useState<{ top: number; left: number } | null>(null);
@@ -52,7 +54,11 @@ export function ServerStrip({ server, active = false, unread, onPress, orientati
         onBlur={() => setOpen(null)}
       >
         {image ? <img src={image} alt="" className={styles.image} /> : <span className={styles.placeholder} aria-hidden="true">{server.name.slice(0, 2)}</span>}
-        {unread && <span className={styles.unread} aria-hidden="true" />}
+        {unread && (
+          <span className={styles.unread} data-testid="server-unread" aria-hidden="true">
+            {badge}
+          </span>
+        )}
       </button>
       <AnimatePresence>
         {open && (

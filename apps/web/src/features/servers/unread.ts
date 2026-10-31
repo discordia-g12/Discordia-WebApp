@@ -13,6 +13,13 @@ export function serverUnreadLabel(server: Server): string | false {
   return count === 1 ? '1 mensaje nuevo' : `${formatUnreadCount(count)} mensajes nuevos`;
 }
 
+/** Texto del badge en la franja del servidor: "@2" si hay menciones, "5" si no, o undefined si no hay nada. */
+export function serverUnreadBadge(server: Server): string | undefined {
+  const count = server.unreadCount ?? 0;
+  if (count <= 0) return undefined;
+  return server.mentions ? `@${formatUnreadCount(server.mentions)}` : formatUnreadCount(count);
+}
+
 /** Lo no leído de un canal para lectores de pantalla ("3 mensajes nuevos"), o '' si no hay. */
 export function channelUnreadDescription(channel: Channel): string {
   const count = channel.unreadCount ?? 0;
