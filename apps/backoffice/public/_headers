@@ -1,0 +1,15 @@
+# Headers de Cloudflare Pages para backoffice.discordia.lol. Más estrictos que los de la web: nadie lo
+# indexa, no se puede embeber en otra página y solo carga código propio.
+# connect-src: la API (Kong) y Auth0. frame-src: Auth0 renueva el token en un iframe oculto.
+# img-src: avatares de Auth0 (Gravatar y otros) y del bucket de S3.
+
+/*
+  X-Robots-Tag: noindex, nofollow
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.discordia.lol https://*.auth0.com; frame-src https://*.auth0.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

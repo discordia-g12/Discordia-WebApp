@@ -47,8 +47,7 @@ export type AppView =
   | 'own-profile'
   | 'server-boost'
   | 'premium'
-  | 'notifications'
-  | 'admin';
+  | 'notifications';
 
 /** Diálogos modales globales que pueden desplegarse en la interfaz. */
 export type Modal =

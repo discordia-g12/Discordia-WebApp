@@ -14,6 +14,13 @@ export function openUserProfile(userId: string) {
   }
 }
 
+const BACKOFFICE_URL = import.meta.env.VITE_BACKOFFICE_URL || 'http://localhost:5174';
+
+/** Abre el backoffice en otra pestaña, sin darle acceso a esta (noopener). */
+function openBackoffice() {
+  window.open(BACKOFFICE_URL, '_blank', 'noopener,noreferrer');
+}
+
 /** Cerrar sesión. */
 export function logoutWithToast() {
   authService.logout();
@@ -34,8 +41,9 @@ export function useUserPanelActions() {
     onSaveCustomStatus: (customStatus: string) =>
       saveProfile({ ...useCurrentUserStore.getState().currentUser, customStatus }),
     onEditProfile: () => setAppView('own-profile'),
-    // Backoffice de la plataforma: solo con el rol "staff" (sin la acción, el menú no muestra el link)
-    onOpenAdmin: isStaff ? () => setAppView('admin') : undefined,
+    // Backoffice de la plataforma (app aparte, backoffice.discordia.lol): el link solo se muestra con el rol
+    // "staff". Es solo un atajo: el backoffice vuelve a verificar el rol al entrar
+    onOpenBackoffice: isStaff ? openBackoffice : undefined,
     onBuyPoints: () => setAppView('user-settings'),
     onSubscribePremium: () => setAppView('user-settings'),
     // Cerrar sesión pide confirmación

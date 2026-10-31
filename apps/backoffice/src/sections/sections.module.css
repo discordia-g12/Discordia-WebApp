@@ -1,0 +1,42 @@
+.filters {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: end;
+}
+
+@media (max-width: 767px) {
+  .filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Estado: etiqueta con borde; suspendido en bloque invertido */
+.tag {
+  padding: 0 var(--space-1);
+  font-size: var(--font-meta-size);
+  white-space: nowrap;
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.tagSuspended {
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  border-color: var(--color-inverse-background);
+}
+
+/* Servicio de la plataforma con su estado */
+.serviceName {
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}

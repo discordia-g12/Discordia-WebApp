@@ -12,8 +12,8 @@ export interface UserMenuProps {
   onSaveCustomStatus?: (customStatus: string) => void;
   onEditProfile?: () => void;
   onOpenSettings?: () => void;
-  /** Abre el backoffice de administración de la plataforma. */
-  onOpenAdmin?: () => void;
+  /** Abre el backoffice de la plataforma (otra app, en otra pestaña). Solo para el staff. */
+  onOpenBackoffice?: () => void;
   onLogout?: () => void;
 }
 
@@ -31,7 +31,7 @@ export function UserMenuContent({
   onSaveCustomStatus,
   onEditProfile,
   onOpenSettings,
-  onOpenAdmin,
+  onOpenBackoffice,
   onLogout,
   onDone,
 }: Omit<UserMenuProps, 'onClose'> & {
@@ -98,7 +98,11 @@ export function UserMenuContent({
           </ActionLink>
         )}
         {onOpenSettings && <ActionLink onPress={run(onOpenSettings)}>ajustes</ActionLink>}
-        {onOpenAdmin && <ActionLink onPress={run(onOpenAdmin)}>administración</ActionLink>}
+        {onOpenBackoffice && (
+          <ActionLink onPress={run(onOpenBackoffice)} title="Abre el backoffice en otra pestaña">
+            backoffice ↗
+          </ActionLink>
+        )}
         {onLogout && <ActionLink onPress={run(onLogout)}>cerrar sesión</ActionLink>}
       </div>
     </>
@@ -107,7 +111,7 @@ export function UserMenuContent({
 
 /**
  * Menú de la barra de usuario (rediseño): sube desde la barra, del ancho de la barra lateral. Presencia,
- * estado personalizado (se guarda en el perfil) y los atajos a editar perfil, ajustes, administración y cerrar sesión.
+ * estado personalizado (se guarda en el perfil) y los atajos a editar perfil, ajustes, backoffice (solo staff) y cerrar sesión.
  * Reemplaza al mini perfil y al selector de estado anteriores, sin puntos ni premium (no se guardan).
  * Se cierra con Escape o tocando afuera.
  */
