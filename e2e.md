@@ -58,7 +58,7 @@ Los tests residen en `Discordia-WebApp/apps/web/e2e/`:
 ## 3. Aislamiento e Idempotencia (Limpieza Automática)
 
 Cada prueba es **hermética e independiente**: no depende de corridas previas ni deja datos residuales.
-- **`beforeEach`**: Antes de iniciar cada test, se eliminan todos los servidores creados por el usuario de prueba mediante SQL en PostgreSQL (`DELETE FROM servers WHERE owner_id = 'auth0|6ae25c494d4ba47b0ff49739'`) y mediante reset HTTP al mock en caso de correr en CI (`DELETE /api/v1/servers/test-reset`). El test siempre arranca con **0 servidores**.
+- **`beforeEach`**: Antes de iniciar cada test, se eliminan todos los servidores creados por el usuario de prueba mediante SQL en PostgreSQL (en el contenedor `discordia-postgres` del compose de la raíz o en el del servicio `local-postgres` de `deploy/`; se puede forzar con `E2E_POSTGRES_CONTAINER`) (`DELETE FROM servers WHERE owner_id = 'auth0|6ae25c494d4ba47b0ff49739'`) y mediante reset HTTP al mock en caso de correr en CI (`DELETE /api/v1/servers/test-reset`). El test siempre arranca con **0 servidores**.
 - **`afterAll`**: Al finalizar la suite, se vuelven a purgar los registros de prueba, dejando tanto la base de datos como el mock completamente limpios.
 
 ---

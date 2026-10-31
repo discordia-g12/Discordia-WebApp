@@ -6,16 +6,41 @@ export const TEST_USER_PASSWORD = 'Password123!';
 export const TEST_USER_ID = 'auth0|6ae25c494d4ba47b0ff49739';
 
 /**
+ * Contenedores de Postgres donde limpiar: E2E_POSTGRES_CONTAINER si está definida; si no, los que estén
+ * corriendo del compose de la raíz del orquestador (discordia-postgres, discordia-postgres-local) o del
+ * servicio local-postgres de deploy/ (su nombre depende del proyecto de compose).
+ */
+function postgresContainers(): string[] {
+  if (process.env.E2E_POSTGRES_CONTAINER) return [process.env.E2E_POSTGRES_CONTAINER];
+  try {
+    const names = execSync(`docker ps --format '{{.Names}} {{.Label "com.docker.compose.service"}}'`, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return names
+      .split('\n')
+      .map((line) => line.trim().split(' '))
+      .filter(([name, service]) => /^discordia-postgres(-local)?$/.test(name) || service === 'local-postgres')
+      .map(([name]) => name);
+  } catch {
+    // Sin docker en este host (CI): no hay base que limpiar
+    return [];
+  }
+}
+
+/**
  * Limpia los servidores de prueba generados por el usuario para asegurar aislamiento total.
  */
 export function cleanTestServers() {
-  try {
-    execSync(
-      `docker exec discordia-postgres psql -U postgres -d server_roles_db -c "DELETE FROM servers WHERE owner_id = '${TEST_USER_ID}';"`,
-      { stdio: 'ignore' }
-    );
-  } catch {
-    // Continúa silenciosamente si docker no está en el host actual
+  for (const container of postgresContainers()) {
+    try {
+      execSync(
+        `docker exec ${container} psql -U postgres -d server_roles_db -c "DELETE FROM servers WHERE owner_id = '${TEST_USER_ID}';"`,
+        { stdio: 'ignore' }
+      );
+    } catch {
+      // Continúa silenciosamente si la base no está en ese contenedor
+    }
   }
   try {
     execSync(`curl -s -X DELETE http://localhost:8000/api/v1/servers/test-reset`, { stdio: 'ignore' });
