@@ -10,9 +10,15 @@ import {
   useServerMembersQuery,
   useUnbanMemberMutation,
   useUnmuteMemberMutation,
+  usePendingServerTransferQuery,
+  useInitiateServerTransferMutation,
+  useAcceptServerTransferMutation,
+  useRejectServerTransferMutation,
+  useCancelServerTransferMutation,
 } from '../hooks/useApi';
 import { useUserProfiles } from '../hooks/useUserProfiles';
 import { banErrorMessage, kickErrorMessage, muteErrorMessage, unbanErrorMessage } from '../api/moderation';
+import { transferErrorMessage } from '../api/serverTransfer';
 import { ApiError } from '../api/errors';
 import type { Role, ServerBan, ServerMember } from '../types';
 
@@ -30,11 +36,17 @@ export function useServerMembersAdmin(serverId: string) {
   const kickMutation = useKickMemberMutation(serverId);
   const muteMutation = useMuteMemberMutation(serverId);
   const unmuteMutation = useUnmuteMemberMutation(serverId);
+  const pendingTransferQuery = usePendingServerTransferQuery(serverId);
+  const initiateTransferMutation = useInitiateServerTransferMutation(serverId);
+  const acceptTransferMutation = useAcceptServerTransferMutation(serverId);
+  const rejectTransferMutation = useRejectServerTransferMutation(serverId);
+  const cancelTransferMutation = useCancelServerTransferMutation(serverId);
 
   const [search, setSearch] = useState('');
   const [pickerMemberId, setPickerMemberId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [transferMember, setTransferMember] = useState<ServerMember | null>(null);
   // Miembro con el panel de baneo abierto (confirmación + motivo opcional)
   const [banMemberId, setBanMemberId] = useState<string | null>(null);
   const [banReason, setBanReason] = useState('');
@@ -52,7 +64,11 @@ export function useServerMembersAdmin(serverId: string) {
     banMutation.isPending ||
     kickMutation.isPending ||
     muteMutation.isPending ||
-    unmuteMutation.isPending;
+    unmuteMutation.isPending ||
+    initiateTransferMutation.isPending ||
+    acceptTransferMutation.isPending ||
+    rejectTransferMutation.isPending ||
+    cancelTransferMutation.isPending;
 
   // Panel de expulsar o silenciar de un miembro (con motivo opcional; silenciar, además, la duración)
   const [moderationPanel, setModerationPanel] = useState<{ memberId: string; kind: 'kick' | 'mute' } | null>(null);
@@ -151,6 +167,51 @@ export function useServerMembersAdmin(serverId: string) {
     }
   };
 
+  const handleTransferOwnership = async (member: ServerMember) => {
+    setError(null);
+    setNotice(null);
+    try {
+      await initiateTransferMutation.mutateAsync(member.userId);
+      setTransferMember(null);
+      setNotice(`Se envió la solicitud de transferencia a ${displayName(member)}.`);
+    } catch (err) {
+      setError(transferErrorMessage(err));
+    }
+  };
+
+  const handleCancelTransfer = async (transferId: string) => {
+    setError(null);
+    setNotice(null);
+    try {
+      await cancelTransferMutation.mutateAsync(transferId);
+      setNotice('Se canceló la solicitud de transferencia de propiedad.');
+    } catch (err) {
+      setError(transferErrorMessage(err));
+    }
+  };
+
+  const handleAcceptTransfer = async (transferId?: string) => {
+    setError(null);
+    setNotice(null);
+    try {
+      await acceptTransferMutation.mutateAsync(transferId);
+      setNotice('Aceptaste la transferencia de propiedad. Ahora sos la dueña/el dueño del servidor.');
+    } catch (err) {
+      setError(transferErrorMessage(err));
+    }
+  };
+
+  const handleRejectTransfer = async (transferId?: string) => {
+    setError(null);
+    setNotice(null);
+    try {
+      await rejectTransferMutation.mutateAsync(transferId);
+      setNotice('Rechazaste la transferencia de propiedad.');
+    } catch (err) {
+      setError(transferErrorMessage(err));
+    }
+  };
+
   return {
     membersQuery,
     rolesQuery,
@@ -167,6 +228,18 @@ export function useServerMembersAdmin(serverId: string) {
     setBanMemberId,
     banReason,
     setBanReason,
+    transferMember,
+    setTransferMember,
+    pendingTransfer: pendingTransferQuery.data ?? null,
+    pendingTransferQuery,
+    initiateTransferMutation,
+    acceptTransferMutation,
+    rejectTransferMutation,
+    cancelTransferMutation,
+    handleTransferOwnership,
+    handleAcceptTransfer,
+    handleRejectTransfer,
+    handleCancelTransfer,
     hasNextPage,
     isFetchingNextPage,
     loadMore,

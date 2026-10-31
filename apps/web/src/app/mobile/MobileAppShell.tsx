@@ -303,6 +303,7 @@ function ProfileTab() {
         onSaveCustomStatus={actions.onSaveCustomStatus}
         onEditProfile={actions.onEditProfile}
         onOpenSettings={actions.onOpenSettings}
+        onOpenAdmin={actions.onOpenAdmin}
         onLogout={actions.onLogout}
       />
     </Screen>

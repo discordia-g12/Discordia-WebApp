@@ -8,6 +8,7 @@ export * from './auth/config';
 export * from './auth/errors';
 export * from './auth/auth0';
 export * from './auth/session';
+export * from './auth/roles';
 export * from './auth/forms';
 export * from './api/client';
 export * from './api/errors';
@@ -19,6 +20,7 @@ export * from './api/channelLayout';
 export * from './api/servers';
 export * from './api/roles';
 export * from './api/moderation';
+export * from './api/serverTransfer';
 export * from './api/messages';
 export * from './api/readStates';
 export * from './api/voice';
@@ -34,6 +36,9 @@ export * from './hooks/useChatSocket';
 export * from './admin/permissions';
 export * from './admin/roles';
 export * from './admin/members';
+
+// Backoffice de la plataforma (prototipo, sin endpoints todavía)
+export * from './admin/backoffice';
 
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';

@@ -2,6 +2,7 @@ import type { VideoTrack } from 'livekit-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MicOff, HeadphoneOff, Lock, VolumeX } from 'lucide-react';
 import { isLocalCategoryId, isVoiceChannelLocked } from '@discordia/core';
+import type { ServerOwnershipTransfer } from '@discordia/core';
 import type { Channel, Server, User } from '../../types';
 import { ActionLink, SectionLabel, Skeleton, SquareAvatar } from '../../ui';
 import { VoiceParticipantMenu } from '../voice/VoiceParticipantMenu';
@@ -73,6 +74,11 @@ export interface ChannelSidebarProps {
   /** Marca como leídos todos los canales de todos los servidores. Sin definir: no se ofrece. */
   onMarkAllRead?: () => void;
   onDeleteServer?: () => void;
+  pendingTransfer?: ServerOwnershipTransfer | null;
+  onAcceptTransfer?: () => void;
+  onRejectTransfer?: () => void;
+  onCancelTransfer?: () => void;
+  isTransferMutating?: boolean;
 }
 
 
@@ -111,12 +117,21 @@ export function ChannelSidebar({
   onDeleteServer,
   onMarkServerRead,
   onMarkAllRead,
+  pendingTransfer,
+  onAcceptTransfer,
+  onRejectTransfer,
+  onCancelTransfer,
+  isTransferMutating = false,
 }: ChannelSidebarProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [participantMenu, setParticipantMenu] = useState<{ user: User; x: number; y: number } | null>(null);
   const closeParticipantMenu = useCallback(() => setParticipantMenu(null), []);
   const dnd = useChannelDragAndDrop(server, onMoveChannel, onMoveCategory);
   const isOwner = server.ownerId === currentUser.id;
+  const isTransferRecipient =
+    Boolean(pendingTransfer && pendingTransfer.targetUserId === currentUser.id && pendingTransfer.status === 'PENDING');
+  const isTransferSender =
+    Boolean(pendingTransfer && isOwner && pendingTransfer.status === 'PENDING');
 
   /** data-drop marca dónde va a quedar lo arrastrado (ver .item[data-drop] en el CSS). */
   const dropState = (kind: DropTarget['kind'], id: string) => {
@@ -152,6 +167,31 @@ export function ChannelSidebar({
         )}
         <ServerMenu serverName={server.name} items={menuItems} />
       </div>
+
+      {isTransferRecipient && onAcceptTransfer && onRejectTransfer && (
+        <div className={styles.transferBanner}>
+          <p className={styles.transferText}>Te ofrecieron la propiedad de este servidor.</p>
+          <div className={styles.transferActions}>
+            <ActionLink onPress={onAcceptTransfer} disabled={isTransferMutating}>
+              aceptar
+            </ActionLink>
+            <ActionLink onPress={onRejectTransfer} disabled={isTransferMutating}>
+              rechazar
+            </ActionLink>
+          </div>
+        </div>
+      )}
+
+      {isTransferSender && onCancelTransfer && (
+        <div className={styles.transferBanner}>
+          <p className={styles.transferText}>Transferencia de propiedad pendiente.</p>
+          <div className={styles.transferActions}>
+            <ActionLink onPress={onCancelTransfer} disabled={isTransferMutating}>
+              cancelar solicitud
+            </ActionLink>
+          </div>
+        </div>
+      )}
 
       <div className={styles.list}>
         {isLoading ? (

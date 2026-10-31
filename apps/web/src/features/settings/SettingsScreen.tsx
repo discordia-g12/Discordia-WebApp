@@ -138,11 +138,14 @@ export function SettingsCell({
   title,
   wide = false,
   soon = false,
+  soonNote,
   children,
 }: {
   title: string;
   wide?: boolean;
   soon?: boolean;
+  /** Aclaración de la parte deshabilitada, si no es "Todavía no se guarda en el servidor." */
+  soonNote?: string;
   children: ReactNode;
 }) {
   return (
@@ -151,7 +154,7 @@ export function SettingsCell({
         {title} /{soon && <span className={styles.soonTag}>próximamente</span>}
       </h2>
       {soon ? (
-        <SoonFieldset>{children}</SoonFieldset>
+        <SoonFieldset note={soonNote}>{children}</SoonFieldset>
       ) : (
         <div className={styles.cellBody}>{children}</div>
       )}

@@ -1,3 +1,5 @@
+import type { Server } from '../types';
+import type { CreateServerRequest } from './servers';
 import type { CreateProfileRequest, UserProfile } from './users';
 
 /**
@@ -9,6 +11,8 @@ export interface ApiMock {
   upsertMyProfile(payload: CreateProfileRequest): Promise<UserProfile>;
   getUsersBulk(userIds: string[]): Promise<UserProfile[]>;
   requestPasswordReset(email: string): Promise<void>;
+  getServers?(): Promise<Server[]>;
+  createServer?(payload: CreateServerRequest): Promise<Server>;
 }
 
 let apiMock: ApiMock | null = null;

@@ -1,4 +1,5 @@
 import { api } from './client';
+import { getApiMock } from './mock';
 import { ApiError } from './errors';
 import { appendFile, imageUploadErrorMessage, UPLOAD_TIMEOUT_MS, type UploadableFile } from './images';
 import { bitmaskToPermissions } from './roles';
@@ -142,6 +143,9 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
  * Consulta la lista de servidores a los que pertenece el usuario.
  */
 export async function getServers(): Promise<Server[]> {
+  const mock = getApiMock();
+  if (mock?.getServers) return mock.getServers();
+
   const rawServers = await api.get<ServerBackendResponse[]>('/api/v1/servers');
   return (rawServers || []).map(mapServerFromBackend);
 }
@@ -150,6 +154,9 @@ export async function getServers(): Promise<Server[]> {
  * Crea un nuevo servidor en Server-Roles-Core-Service.
  */
 export async function createServer(payload: CreateServerRequest): Promise<Server> {
+  const mock = getApiMock();
+  if (mock?.createServer) return mock.createServer(payload);
+
   const formData = new FormData();
   formData.append('name', payload.name);
   if (payload.icon) {

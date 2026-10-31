@@ -4,6 +4,7 @@ import { configureClient } from '../api/client';
 import { ApiError, errorDetail, isProblemType, PROBLEM_TYPES } from '../api/errors';
 import { getMyProfile, upsertMyProfile, UserProfile } from '../api/users';
 import { AuthDenial, classifyAuthDenial } from './errors';
+import { roleFromAccessToken } from './auth0';
 
 /**
  * Sesión de Discordia: máquina de estados compartida por web y mobile. Cada plataforma registra su
@@ -31,6 +32,8 @@ export interface SessionState {
   error: SessionError | null;
   isMock: boolean;
   pendingEmail: string | null;
+  /** Rol de plataforma del usuario autenticado (claim del access token, ver auth/roles.ts); null fuera de la sesión. */
+  role: string | null;
   setStatus: (status: SessionStatus, extra?: Partial<SessionState>) => void;
 }
 
@@ -40,7 +43,10 @@ export const useSession = create<SessionState>((set) => ({
   error: null,
   isMock: false,
   pendingEmail: null,
-  setStatus: (status, extra = {}) => set((state) => ({ ...state, status, ...extra })),
+  role: null,
+  // El rol vale solo con sesión: cualquier otro estado lo borra (salvo que se pase en extra)
+  setStatus: (status, extra = {}) =>
+    set((state) => ({ ...state, role: status === 'authenticated' ? state.role : null, status, ...extra })),
 }));
 
 // Adaptador de autenticación activo y, opcionalmente, cómo resolverlo en cada arranque
@@ -127,6 +133,10 @@ function applyAuthDenial(denial: AuthDenial, email?: string | null) {
  * Acción invocada cuando el cliente HTTP sufre un 401 que no pudo renovarse en plena sesión.
  */
 export async function handleAuthFailure() {
+  if (useSession.getState().isMock) {
+    return;
+  }
+
   if (onClearQueryCache) {
     onClearQueryCache();
   }
@@ -186,8 +196,10 @@ async function runBootstrap(): Promise<void> {
     }
   }
 
+  // El rol sale del mismo access token que valida Kong: la interfaz muestra lo que el Gateway va a permitir
+  let role: string;
   try {
-    await adapter.getToken();
+    role = roleFromAccessToken(await adapter.getToken());
   } catch (err) {
     const denial = classifyAuthDenial(err);
     if (denial) {
@@ -223,7 +235,7 @@ async function runBootstrap(): Promise<void> {
 
   try {
     const profile = await getMyProfile();
-    useSession.getState().setStatus('authenticated', { profile, error: null });
+    useSession.getState().setStatus('authenticated', { profile, error: null, role });
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
       // Usuario autenticado en Auth0 sin perfil en Discordia: auto-aprovisionar con datos de registro o Auth0
@@ -246,7 +258,7 @@ async function runBootstrap(): Promise<void> {
           avatar_url: authUser?.picture,
         });
 
-        useSession.getState().setStatus('authenticated', { profile: autoProfile, error: null });
+        useSession.getState().setStatus('authenticated', { profile: autoProfile, error: null, role });
         return;
       } catch (autoErr) {
         // Segunda barrera: el backend rechaza crear el perfil si el email no está

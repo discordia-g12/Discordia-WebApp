@@ -149,4 +149,59 @@ describe('ChannelSidebar (rediseño)', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).toBeNull();
   });
+
+  it('muestra el banner de transferencia de propiedad cuando el usuario es el destinatario', () => {
+    const onAcceptTransfer = vi.fn();
+    const onRejectTransfer = vi.fn();
+    render(
+      <ChannelSidebar
+        {...base}
+        onSelectChannel={vi.fn()}
+        pendingTransfer={{
+          id: 'tr-1',
+          serverId: 's1',
+          currentOwnerId: 'other',
+          targetUserId: 'me',
+          status: 'PENDING',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        }}
+        onAcceptTransfer={onAcceptTransfer}
+        onRejectTransfer={onRejectTransfer}
+      />
+    );
+
+    expect(screen.getByText('Te ofrecieron la propiedad de este servidor.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '_aceptar' }));
+    expect(onAcceptTransfer).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '_rechazar' }));
+    expect(onRejectTransfer).toHaveBeenCalledTimes(1);
+  });
+
+  it('muestra el banner de cancelación para la dueña cuando hay una transferencia pendiente', () => {
+    const onCancelTransfer = vi.fn();
+    const ownerServer = { ...server, ownerId: 'me' } as unknown as Server;
+    render(
+      <ChannelSidebar
+        {...base}
+        server={ownerServer}
+        onSelectChannel={vi.fn()}
+        pendingTransfer={{
+          id: 'tr-2',
+          serverId: 's1',
+          currentOwnerId: 'me',
+          targetUserId: 'other',
+          status: 'PENDING',
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        }}
+        onCancelTransfer={onCancelTransfer}
+      />
+    );
+
+    expect(screen.getByText('Transferencia de propiedad pendiente.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '_cancelar solicitud' }));
+    expect(onCancelTransfer).toHaveBeenCalledTimes(1);
+  });
 });
