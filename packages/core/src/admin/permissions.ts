@@ -32,7 +32,7 @@ export const PERMISSION_CATEGORIES = [
       { id: 'SEND_MESSAGES', name: 'Enviar mensajes', desc: 'Escribir en los canales de texto.' },
       { id: 'ATTACH_FILES', name: 'Adjuntar archivos', desc: 'Subir imágenes, videos, audios y documentos.' },
       { id: 'ADD_REACTIONS', name: 'Reaccionar', desc: 'Agregar reacciones nuevas a los mensajes.' },
-      { id: 'MENTION_EVERYONE', name: 'Mencionar @everyone', desc: 'Avisar a todos con @everyone y @here.' },
+      { id: 'MENTION_EVERYONE', name: 'Mencionar @everyone', desc: 'Avisar a todos los que ven el canal con @everyone y mencionar roles.' },
       { id: 'MANAGE_MESSAGES', name: 'Gestionar mensajes', desc: 'Borrar y fijar mensajes de otros miembros.' },
     ],
   },
