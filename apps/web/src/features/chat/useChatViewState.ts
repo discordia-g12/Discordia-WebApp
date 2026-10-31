@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
-import type { Channel, DirectMessage, Message, MessageAttachment, Reaction, User } from '../../types';
+import { encodeMentions, type PickedMention } from '@discordia/core';
+import type { Channel, DirectMessage, Message, MessageAttachment, Reaction, Role, User } from '../../types';
 
 /** Emojis disponibles para reacciones rápidas y selector. */
 export const QUICK_EMOJIS = ['❤️', '👍', '😂', '🚀', '🔥', '🎉', '👏', '👀'];
@@ -16,12 +17,38 @@ export function sanitizeText(raw: string): string {
   return raw.replace(/\x00/g, '');
 }
 
+/** A quién se puede mencionar en un canal de servidor (#46). En los DMs no hay: se sugieren los usuarios conocidos. */
+export interface Mentionables {
+  /** Miembros del servidor. */
+  members: User[];
+  /** Roles del servidor, sin el por defecto (a ese se lo menciona con @everyone). */
+  roles: Role[];
+  /** MENTION_EVERYONE en el canal: solo así se ofrecen @everyone y los roles (Chat-Engine lo vuelve a validar). */
+  canMentionEveryone: boolean;
+  /** Roles propios en el servidor, para resaltar los mensajes que mencionan a uno de ellos. */
+  myRoleIds: string[];
+}
+
+export type MentionCandidate =
+  | { kind: 'user'; key: string; label: string; token: string; user: User }
+  | { kind: 'role'; key: string; label: string; token: string; role: Role }
+  | { kind: 'everyone'; key: string; label: string; token: string };
+
+/** Cómo se muestra un usuario en una mención: su username, o el nombre si todavía no llegó su perfil. */
+export function mentionLabel(user: User): string {
+  return user.username && user.username !== user.id ? user.username : user.displayName;
+}
+
+const MAX_USER_CANDIDATES = 5;
+const MAX_ROLE_CANDIDATES = 3;
+
 export interface ChatViewStateOptions {
   channel?: Channel | null;
   directMessage?: DirectMessage | null;
   messages?: Message[];
   currentUserId?: string;
   users?: Record<string, User>;
+  mentionables?: Mentionables;
   onSendMessage?: (content: string, attachment?: MessageAttachment, replyToId?: string) => void;
   onToggleReaction?: (messageId: string, emoji: string) => void;
   onDeleteMessage?: (messageId: string) => void;
@@ -40,6 +67,7 @@ export function useChatViewState({
   messages: externalMessages,
   currentUserId,
   users = {},
+  mentionables,
   onSendMessage,
   onToggleReaction,
   onDeleteMessage,
@@ -75,6 +103,9 @@ export function useChatViewState({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionCursorIndex, setMentionCursorIndex] = useState<number>(-1);
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
+  // Menciones elegidas en el autocompletado: se ven como @label y se envían como token
+  const [pickedMentions, setPickedMentions] = useState<PickedMention[]>([]);
 
   // Referencias para scroll y clicks externos
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -95,14 +126,27 @@ export function useChatViewState({
   const chatTopic = channel?.topic || directMessage?.recipient?.customStatus || 'No topic set.';
   const isDirectMessage = Boolean(directMessage);
 
-  // Filtrado de usuarios para autocompletado de menciones con @
-  const mentionCandidates = useMemo(() => {
+  // Autocompletado de @: miembros y, con MENTION_EVERYONE, roles y @everyone
+  const mentionCandidates = useMemo<MentionCandidate[]>(() => {
     if (mentionQuery === null) return [];
     const query = mentionQuery.toLowerCase();
-    return Object.values(users)
-      .filter((u) => u.username.toLowerCase().includes(query) || u.displayName.toLowerCase().includes(query))
-      .slice(0, 5);
-  }, [mentionQuery, users]);
+    const matches = (...texts: string[]) => texts.some((t) => t.toLowerCase().includes(query));
+    const people = mentionables ? mentionables.members : Object.values(users);
+    const candidates: MentionCandidate[] = people
+      .filter((u) => matches(u.username, u.displayName))
+      .slice(0, MAX_USER_CANDIDATES)
+      .map((user) => ({ kind: 'user', key: `user:${user.id}`, label: mentionLabel(user), token: `<@${user.id}>`, user }));
+    if (mentionables?.canMentionEveryone) {
+      mentionables.roles
+        .filter((role) => matches(role.name))
+        .slice(0, MAX_ROLE_CANDIDATES)
+        .forEach((role) => candidates.push({ kind: 'role', key: `role:${role.id}`, label: role.name, token: `<@&${role.id}>`, role }));
+      if ('everyone'.startsWith(query)) {
+        candidates.push({ kind: 'everyone', key: 'everyone', label: 'everyone', token: '@everyone' });
+      }
+    }
+    return candidates;
+  }, [mentionQuery, users, mentionables]);
 
   // Manejo de entrada de texto con detección de '@'
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -117,18 +161,22 @@ export function useChatViewState({
       const query = textBeforeCursor.slice(atIndex + 1);
       setMentionQuery(query);
       setMentionCursorIndex(atIndex);
+      setActiveMentionIndex(0);
     } else {
       setMentionQuery(null);
       setMentionCursorIndex(-1);
     }
   };
 
-  const handleSelectMention = (candidate: User) => {
+  const handleSelectMention = (candidate: MentionCandidate) => {
     if (mentionCursorIndex === -1) return;
     const before = inputText.slice(0, mentionCursorIndex);
     const after = inputText.slice(mentionCursorIndex + (mentionQuery?.length || 0) + 1);
-    const completed = `${before}@${candidate.username} ${after}`;
+    const completed = `${before}@${candidate.label} ${after}`;
     setInputText(completed);
+    if (candidate.kind !== 'everyone') {
+      setPickedMentions((prev) => [...prev, { label: candidate.label, token: candidate.token }]);
+    }
     setMentionQuery(null);
     setMentionCursorIndex(-1);
     composerInputRef.current?.focus();
@@ -136,7 +184,9 @@ export function useChatViewState({
 
   // Envío de mensaje
   const handleSend = () => {
-    const sanitized = sanitizeText(inputText.trim());
+    // Lo elegido en el autocompletado y, si se escribió a mano, el @username de un miembro
+    const typed = (mentionables?.members ?? []).map((u) => ({ label: mentionLabel(u), token: `<@${u.id}>` }));
+    const sanitized = encodeMentions(sanitizeText(inputText.trim()), [...pickedMentions, ...typed]);
     if (!sanitized && !attachment) return;
 
     if (onSendMessage) {
@@ -167,6 +217,7 @@ export function useChatViewState({
     }
 
     setInputText('');
+    setPickedMentions([]);
     setAttachment(null);
     setReplyingTo(null);
     setIsEmojiPickerOpen(false);
@@ -174,6 +225,20 @@ export function useChatViewState({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    // Con el autocompletado abierto: flechas para moverse, Enter o Tab para elegir
+    if (mentionCandidates.length > 0) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        setActiveMentionIndex((i) => (i + step + mentionCandidates.length) % mentionCandidates.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        handleSelectMention(mentionCandidates[Math.min(activeMentionIndex, mentionCandidates.length - 1)]);
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -337,6 +402,7 @@ export function useChatViewState({
     mentionQuery,
     setMentionQuery,
     mentionCandidates,
+    activeMentionIndex,
     messagesEndRef,
     composerInputRef,
     pinnedMessages,

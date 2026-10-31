@@ -186,11 +186,11 @@ export default function MobileShell() {
   )
   const voicePresence = useVoicePresence(serverVoiceChannelIds)
 
-  // IDs (LiveKit, presencia o autores de mensajes) -> nombre y avatar; los que la app no conoce se piden al backend
+  // IDs (LiveKit, presencia, autores o mencionados) -> nombre y avatar; los que la app no conoce se piden al backend
   const describeUser = useUserDisplay([
     ...voice.participants.map(p => p.id),
     ...Object.values(voicePresence).flat(),
-    ...channelMessages.map(m => m.authorId),
+    ...channelMessages.flatMap(m => [m.authorId, ...(m.mentions?.users ?? [])]),
   ])
 
   const voiceParticipants: VoiceScreenParticipant[] = voice.participants.map(p => ({

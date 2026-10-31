@@ -2,10 +2,27 @@ import { Fragment, useCallback, useLayoutEffect, useRef, type ReactNode, type Re
 import { motion, useReducedMotion } from 'motion/react';
 import { Paperclip, Smile } from 'lucide-react';
 import { distances } from '@discordia/tokens';
-import { formatDayLabel, formatMessageHour, formatMessageTime, placeMessage } from '@discordia/core';
-import type { Channel, DirectMessage, Message, MessageAttachment, User } from '../../types';
+import {
+  formatDayLabel,
+  formatMessageHour,
+  formatMessageTime,
+  mentionsToText,
+  mentionsUser,
+  placeMessage,
+  splitMentions,
+  type MessageMentions,
+} from '@discordia/core';
+import type { Channel, DirectMessage, Message, MessageAttachment, Role, User } from '../../types';
 import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
-import { POPULAR_EMOJIS, QUICK_EMOJIS, sanitizeText, useChatViewState, type ChatViewState } from './useChatViewState';
+import {
+  POPULAR_EMOJIS,
+  QUICK_EMOJIS,
+  mentionLabel,
+  sanitizeText,
+  useChatViewState,
+  type ChatViewState,
+  type Mentionables,
+} from './useChatViewState';
 import styles from './ChatView.module.css';
 
 export interface ChatViewProps {
@@ -19,6 +36,8 @@ export interface ChatViewProps {
   currentUserId?: string;
   /** Directorio de usuarios para resolver autores y menciones. */
   users?: Record<string, User>;
+  /** Canal de servidor: a quién se puede mencionar y los roles propios. Sin esto (DMs) no hay roles ni @everyone. */
+  mentionables?: Mentionables;
   /** Indica si los mensajes se están cargando desde el servidor. */
   isLoading?: boolean;
   /** Callback al despachar un nuevo mensaje de texto o adjunto. */
@@ -56,6 +75,19 @@ export interface ChatViewProps {
 
 
 const UNKNOWN_USER = { username: 'desconocido', displayName: 'Desconocido', status: 'offline' } as const;
+
+/** Cómo se nombran las menciones de un mensaje: usuarios del directorio y roles del servidor. */
+interface MentionNames {
+  user: (id: string) => string;
+  role: (id: string) => string;
+}
+
+function useMentionNames(users: Record<string, User>, roles: Role[] = []): MentionNames {
+  return {
+    user: (id) => (users[id] ? mentionLabel(users[id]) : 'usuario-desconocido'),
+    role: (id) => roles.find((r) => r.id === id)?.name ?? 'rol-eliminado',
+  };
+}
 
 /**
  * Ids de los mensajes que ya estaban al abrir la conversación, más los anteriores que se cargan después:
@@ -150,7 +182,8 @@ export function ChatView(props: ChatViewProps) {
     isLoadingOlder,
     onLoadOlder,
   });
-  const currentUsername = users[currentUserId ?? '']?.username;
+  const names = useMentionNames(users, props.mentionables?.roles);
+  const myRoleIds = props.mentionables?.myRoleIds;
 
   return (
     <div className={styles.chat}>
@@ -184,7 +217,7 @@ export function ChatView(props: ChatViewProps) {
         </nav>
       </header>
 
-      {chat.isPinnedPanelOpen && <PinnedPanel chat={chat} users={users} />}
+      {chat.isPinnedPanelOpen && <PinnedPanel chat={chat} users={users} names={names} />}
 
       <div
         ref={scrollRef}
@@ -237,7 +270,8 @@ export function ChatView(props: ChatViewProps) {
                     chat={chat}
                     users={users}
                     currentUserId={currentUserId}
-                    currentUsername={currentUsername}
+                    myRoleIds={myRoleIds}
+                    names={names}
                     consecutive={consecutive}
                     isNew={!history.has(msg.id)}
                     onOpenUserProfile={onOpenUserProfile}
@@ -272,7 +306,8 @@ function MessageRow({
   chat,
   users,
   currentUserId,
-  currentUsername,
+  myRoleIds,
+  names,
   consecutive,
   isNew,
   onOpenUserProfile,
@@ -281,7 +316,8 @@ function MessageRow({
   chat: ChatViewState;
   users: Record<string, User>;
   currentUserId?: string;
-  currentUsername?: string;
+  myRoleIds?: string[];
+  names: MentionNames;
   consecutive: boolean;
   isNew: boolean;
   onOpenUserProfile?: (userId: string) => void;
@@ -315,7 +351,8 @@ function MessageRow({
 
   const author = msg.author || users[msg.authorId] || { id: msg.authorId, ...UNKNOWN_USER };
   const isAuthor = msg.authorId === (currentUserId || '');
-  const mentionsMe = Boolean(currentUsername && msg.content.includes(`@${currentUsername}`));
+  // Lo que dice Chat-Engine que notificó: un @everyone sin permiso no resalta
+  const mentionsMe = !isAuthor && mentionsUser(msg.mentions, currentUserId ?? '', myRoleIds);
   const isEditing = chat.editingMessageId === msg.id;
   const isReplying = chat.replyingTo?.id === msg.id;
   const menuOpen = chat.activeContextMenuMessageId === msg.id;
@@ -348,7 +385,7 @@ function MessageRow({
           <p className={styles.reply}>
             <span className={styles.replyLine} aria-hidden="true" />
             <span className={styles.replyText}>
-              @{authorName(msg.replyTo, users)} {msg.replyTo.content}
+              @{authorName(msg.replyTo, users)} {mentionsToText(msg.replyTo.content, names)}
             </span>
           </p>
         )}
@@ -369,7 +406,13 @@ function MessageRow({
           <EditBox chat={chat} messageId={msg.id} />
         ) : (
           <p className={styles.content}>
-            <FormattedContent content={msg.content} users={users} onOpenUserProfile={onOpenUserProfile} />
+            <FormattedContent
+              content={msg.content}
+              mentions={msg.mentions}
+              users={users}
+              names={names}
+              onOpenUserProfile={onOpenUserProfile}
+            />
             {msg.editedTimestamp && <span className={styles.edited}> (editado)</span>}
           </p>
         )}
@@ -452,7 +495,7 @@ function MessageRow({
         <Popover className={styles.messagePopover} label="Más acciones" onClose={() => chat.setActiveContextMenuMessageId(null)}>
           <ul className={styles.menu}>
             <li>
-              <button type="button" onClick={() => chat.handleCopyText(msg.content, msg.id)}>
+              <button type="button" onClick={() => chat.handleCopyText(mentionsToText(msg.content, names), msg.id)}>
                 {chat.copiedMessageId === msg.id ? 'copiado/' : 'copiar texto'}
               </button>
             </li>
@@ -473,34 +516,59 @@ function MessageRow({
   );
 }
 
-/** Menciones (@usuario), negritas (**texto**) y enlaces. */
+/**
+ * Menciones, negritas (**texto**) y enlaces. Las menciones salen de los tokens (`<@id>`, `<@&rol>`,
+ * `@everyone`); @everyone y los roles solo se resaltan si notificaron (`mentions`), si no son texto.
+ */
 function FormattedContent({
   content,
+  mentions,
   users,
+  names,
   onOpenUserProfile,
 }: {
   content: string;
+  mentions?: MessageMentions;
   users: Record<string, User>;
+  names: MentionNames;
   onOpenUserProfile?: (userId: string) => void;
 }) {
-  const parts = sanitizeText(content).split(/(\*\*[^*]+\*\*|@[\w\d_-]+|https?:\/\/[^\s]+)/g);
+  return (
+    <>
+      {splitMentions(sanitizeText(content), mentions).map((segment, index) => {
+        if (segment.type === 'text') return <InlineText key={index} text={segment.text} />;
+        if (segment.type === 'user') {
+          return users[segment.id] ? (
+            <button key={index} type="button" className={styles.mention} onClick={() => onOpenUserProfile?.(segment.id)}>
+              @{names.user(segment.id)}
+            </button>
+          ) : (
+            <span key={index} className={styles.mention}>
+              @{names.user(segment.id)}
+            </span>
+          );
+        }
+        const label = segment.type === 'role' ? `@${names.role(segment.id)}` : '@everyone';
+        return segment.active ? (
+          <span key={index} className={styles.mention}>
+            {label}
+          </span>
+        ) : (
+          <Fragment key={index}>{label}</Fragment>
+        );
+      })}
+    </>
+  );
+}
+
+/** Negritas (**texto**) y enlaces. */
+function InlineText({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s]+)/g);
   return (
     <>
       {parts.map((part, index) => {
         if (!part) return null;
         if (part.startsWith('**') && part.endsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>;
-        if (part.startsWith('@')) {
-          const candidate = Object.values(users).find((u) => u.username.toLowerCase() === part.slice(1).toLowerCase());
-          return candidate ? (
-            <button key={index} type="button" className={styles.mention} onClick={() => onOpenUserProfile?.(candidate.id)}>
-              {part}
-            </button>
-          ) : (
-            <span key={index} className={styles.mention}>
-              {part}
-            </span>
-          );
-        }
         if (/^https?:\/\//.test(part)) {
           return (
             <a key={index} href={part} target="_blank" rel="noopener noreferrer" className={styles.link}>
@@ -536,7 +604,7 @@ function EditBox({ chat, messageId }: { chat: ChatViewState; messageId: string }
   );
 }
 
-function PinnedPanel({ chat, users }: { chat: ChatViewState; users: Record<string, User> }) {
+function PinnedPanel({ chat, users, names }: { chat: ChatViewState; users: Record<string, User>; names: MentionNames }) {
   return (
     <Popover className={styles.pinned} label="Mensajes fijados" onClose={() => chat.setIsPinnedPanelOpen(false)}>
       <p className={styles.popoverTitle}>Mensajes fijados /</p>
@@ -550,7 +618,7 @@ function PinnedPanel({ chat, users }: { chat: ChatViewState; users: Record<strin
                 <strong>{(msg.author || users[msg.authorId])?.displayName || 'Usuario'}</strong>{' '}
                 <span className={styles.time}>{formatMessageTime(msg.timestamp)}</span>
               </p>
-              <p className={styles.pinnedText}>{msg.content}</p>
+              <p className={styles.pinnedText}>{mentionsToText(msg.content, names)}</p>
             </li>
           ))}
         </ul>
@@ -599,20 +667,34 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
       )}
 
       {chat.mentionCandidates.length > 0 && (
-        <div className={styles.composerPopover} role="listbox" aria-label={`Miembros que coinciden con @${chat.mentionQuery}`}>
-          <p className={styles.popoverTitle}>Miembros @{chat.mentionQuery} /</p>
-          {chat.mentionCandidates.map((candidate) => (
+        <div
+          id="mention-candidates"
+          className={styles.composerPopover}
+          role="listbox"
+          aria-label={`Menciones que coinciden con @${chat.mentionQuery}`}
+        >
+          <p className={styles.popoverTitle}>Mencionar @{chat.mentionQuery} /</p>
+          {chat.mentionCandidates.map((candidate, index) => (
             <button
-              key={candidate.id}
+              key={candidate.key}
+              id={`mention-${index}`}
               type="button"
               role="option"
-              aria-selected={false}
+              aria-selected={index === chat.activeMentionIndex}
               className={styles.mentionOption}
+              // mousedown: que el input no pierda el foco antes de elegir
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => chat.handleSelectMention(candidate)}
             >
-              <SquareAvatar user={candidate} size="sm" />
-              <strong>{candidate.displayName}</strong>
-              <span className={styles.time}>@{candidate.username}</span>
+              {candidate.kind === 'user' && <SquareAvatar user={candidate.user} size="sm" />}
+              <strong>@{candidate.label}</strong>
+              <span className={styles.time}>
+                {candidate.kind === 'user'
+                  ? candidate.user.displayName
+                  : candidate.kind === 'role'
+                    ? 'rol'
+                    : 'todos los que ven el canal'}
+              </span>
             </button>
           ))}
         </div>
@@ -646,6 +728,11 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
           placeholder={placeholder}
           aria-label={placeholder}
           value={chat.inputText}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={chat.mentionCandidates.length > 0}
+          aria-controls={chat.mentionCandidates.length > 0 ? 'mention-candidates' : undefined}
+          aria-activedescendant={chat.mentionCandidates.length > 0 ? `mention-${chat.activeMentionIndex}` : undefined}
           onChange={chat.handleInputChange}
           // Enter no envía mientras no se pueda escribir (el botón ya está deshabilitado)
           onKeyDown={chat.handleKeyDown}

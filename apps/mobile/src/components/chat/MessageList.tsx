@@ -132,6 +132,7 @@ export default function MessageList({
           <MessageItem
             message={item.message}
             author={describeUser(item.message.authorId)}
+            mentionName={id => describeUser(id).name}
             grouped={item.grouped}
             animate={new Date(item.message.timestamp).getTime() > openedAt.current - NEW_WINDOW_MS}
             sent={item.message.status === 'pending'}

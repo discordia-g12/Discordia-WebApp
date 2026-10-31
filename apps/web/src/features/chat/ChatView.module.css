@@ -524,6 +524,11 @@
   left: var(--space-5);
 }
 
+.mentionOption[aria-selected='true'] {
+  box-shadow: inset var(--line-accent) 0 0 var(--color-inverse-background);
+  padding-left: var(--space-2);
+}
+
 .mentionOption {
   display: flex;
   align-items: center;

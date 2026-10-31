@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Animated, View } from 'react-native'
-import { formatMessageTime } from '@discordia/core'
+import { formatMessageTime, mentionsToText } from '@discordia/core'
 import { makeStyles } from '../../theme'
 import { SquareAvatar, Text, distance, useReducedMotion, useRise } from '../../ui'
 import type { Message } from '../../types'
@@ -15,13 +15,15 @@ interface MessageItemProps {
   animate?: boolean
   /** Lo acaba de enviar quien mira: entra desde más abajo y más despacio, como si saliera de la barra de escritura. */
   sent?: boolean
+  /** Nombre de un usuario mencionado. Las menciones se muestran como texto (`@nombre`, `@rol`). */
+  mentionName?: (userId: string) => string
 }
 
 /**
  * Mensaje del chat (PDF, pág. 7): avatar cuadrado, autor en negrita y la fecha chica (20/10/25, 13:25),
  * y el texto grande. Los seguidos de una misma persona van agrupados.
  */
-function MessageItem({ message, author, grouped = false, animate = false, sent = false }: MessageItemProps) {
+function MessageItem({ message, author, grouped = false, animate = false, sent = false, mentionName }: MessageItemProps) {
   const styles = useStyles()
   const reduce = useReducedMotion()
   // Se fija al montarse: al confirmarse deja de estar pendiente y la entrada no tiene que cambiar a mitad de camino
@@ -62,7 +64,7 @@ function MessageItem({ message, author, grouped = false, animate = false, sent =
           </View>
         )}
         <Text tone={deleted ? 'muted' : 'default'} style={deleted && styles.deleted}>
-          {message.content}
+          {mentionsToText(message.content, { user: mentionName ?? (() => 'usuario'), role: () => 'rol' })}
           {message.edited && (
             <Text variant="meta" tone="muted">
               {' '}(editado)

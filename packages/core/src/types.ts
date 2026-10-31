@@ -4,6 +4,8 @@
  * quedan en cada app.
  */
 
+import type { MessageMentions } from './chat/mentions';
+
 /** Estados de presencia y disponibilidad de un usuario. */
 export type Status = 'online' | 'idle' | 'dnd' | 'offline' | 'invisible';
 
@@ -299,13 +301,13 @@ export interface Message {
   reactions?: Reaction[];
   attachments?: MessageAttachment[];
   embeds?: MessageEmbed[];
-  mentions?: string[];
+  /** Menciones que notifican, según Chat-Engine (#46). Los mensajes anteriores las traen vacías. */
+  mentions?: MessageMentions;
   replyToId?: string | null;
   replyTo?: Message | null;
   isPinned?: boolean;
   fileAttachment?: { name: string; size: string; type?: string };
   imageUrl?: string;
-  hasMention?: boolean;
   isNew?: boolean;
 }
 

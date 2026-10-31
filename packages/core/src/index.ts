@@ -42,6 +42,7 @@ export * from './admin/backoffice';
 
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';
+export * from './chat/mentions';
 export * from './realtime/chatSocket';
 
 // Voz: la sala y la presencia son las mismas en web y mobile; cada app registra su VoicePlatform
