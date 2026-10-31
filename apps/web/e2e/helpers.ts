@@ -1,8 +1,17 @@
 import { Page, expect } from '@playwright/test';
 import { execSync } from 'child_process';
 
-export const TEST_USER_EMAIL = 'discordia.chat.service@gmail.com';
-export const TEST_USER_PASSWORD = 'Password123!';
+export const TEST_USER_EMAIL = process.env.E2E_EMAIL ?? 'discordia.chat.service@gmail.com';
+/** Sin valor por defecto: en local va en apps/web/.env.e2e.local, en el CI en el secret E2E_PASSWORD. */
+export const TEST_USER_PASSWORD = process.env.E2E_PASSWORD ?? '';
+
+/** La contraseña del usuario de prueba, o un error que dice de dónde sacarla. */
+export function testUserPassword(): string {
+  if (!TEST_USER_PASSWORD) {
+    throw new Error('Falta E2E_PASSWORD: ponela en apps/web/.env.e2e.local (ver e2e.md) o en el entorno');
+  }
+  return TEST_USER_PASSWORD;
+}
 export const TEST_USER_ID = 'auth0|6ae25c494d4ba47b0ff49739';
 
 /**
@@ -59,7 +68,7 @@ export async function loginWithTestUser(page: Page) {
   await expect(loginButton).toBeEnabled({ timeout: 10000 });
 
   await page.getByRole('textbox', { name: 'correo electrónico' }).fill(TEST_USER_EMAIL);
-  await page.getByRole('textbox', { name: 'contraseña' }).fill(TEST_USER_PASSWORD);
+  await page.getByRole('textbox', { name: 'contraseña' }).fill(testUserPassword());
   await loginButton.click();
 
   const serverRail = page.getByRole('navigation', { name: 'Servidores y mensajes directos' });

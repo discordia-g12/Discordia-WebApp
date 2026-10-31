@@ -67,8 +67,11 @@ Cada prueba es **hermética e independiente**: no depende de corridas previas ni
 
 Para no depender de mails personales ni exponer cuentas privadas, se utiliza un usuario de servicio verificado:
 
-- **Email**: `discordia.chat.service@gmail.com`
-- **Contraseña**: `Password123!`
+- **Email**: `discordia.chat.service@gmail.com` (se puede cambiar con `E2E_EMAIL`)
+- **Contraseña**: no está en el repo. Va en la variable `E2E_PASSWORD`:
+  - **En local**: en `apps/web/.env.e2e.local` (no se commitea, lo cubre `.env*.local`), con una línea `E2E_PASSWORD=...`. La config de Playwright lo carga sola. Pedísela a quien administre Auth0.
+  - **En el CI**: el secret `E2E_PASSWORD` del repo (Settings → Secrets and variables → Actions).
+  - Sin la variable, los tests que inician sesión fallan con "Falta E2E_PASSWORD".
 - **Auth0 ID**: `auth0|6ae25c494d4ba47b0ff49739`
 - **Estado**: Email verificado en Auth0 y perfil sincronizado en `auth_db`.
 

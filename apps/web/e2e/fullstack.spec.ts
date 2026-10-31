@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { cleanTestServers } from './helpers';
+import { TEST_USER_EMAIL, cleanTestServers, testUserPassword } from './helpers';
 
 test.describe('E2E Full-Stack con Backend Real y Base de Datos', () => {
   test.beforeEach(() => {
@@ -20,8 +20,8 @@ test.describe('E2E Full-Stack con Backend Real y Base de Datos', () => {
 
     await expect(loginButton).toBeEnabled({ timeout: 10000 });
 
-    await emailInput.fill('discordia.chat.service@gmail.com');
-    await passwordInput.fill('Password123!');
+    await emailInput.fill(TEST_USER_EMAIL);
+    await passwordInput.fill(testUserPassword());
     await loginButton.click();
 
     // 2. Esperar a ingresar a la aplicación a través del Gateway
