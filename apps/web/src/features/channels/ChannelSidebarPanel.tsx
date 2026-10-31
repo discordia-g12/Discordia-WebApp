@@ -2,6 +2,8 @@ import {
   errorMessageFor,
   moveCategory,
   moveChannel,
+  useMarkAllReadMutation,
+  useMarkChannelReadMutation,
   transferErrorMessage,
   useAcceptServerTransferMutation,
   useCancelServerTransferMutation,
@@ -35,7 +37,9 @@ const reorderErrorMessage = (err: unknown) =>
  * el layout). onChannelOpened avisa que se eligió un canal (mobile pasa de la lista al canal).
  */
 export function ChannelSidebarPanel({ onChannelOpened }: { onChannelOpened?: () => void }) {
-  const { currentServer, isLoadingServers, allServerChannels } = useCurrentServer();
+  const { servers, currentServer, isLoadingServers, allServerChannels } = useCurrentServer();
+  const markChannelRead = useMarkChannelReadMutation();
+  const markAllRead = useMarkAllReadMutation();
   const currentUser = useCurrentUser();
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
   const ui = useUIStore.getState;
@@ -70,6 +74,12 @@ export function ChannelSidebarPanel({ onChannelOpened }: { onChannelOpened?: () 
     }
     onChannelOpened?.();
   };
+
+  const markReadError = () => showToast('No se pudo marcar como leído', 'danger');
+  const unreadChannels = allServerChannels.filter((ch) => (ch.unreadCount ?? 0) > 0);
+  const handleMarkServerRead = () =>
+    unreadChannels.forEach((ch) => markChannelRead.mutate({ channelId: ch.id }, { onError: markReadError }));
+  const handleMarkAllRead = () => markAllRead.mutate(undefined, { onError: markReadError });
 
   const handleMoveChannel = (channelId: string, targetCategoryId: string, beforeChannelId: string | null) => {
     const categories = moveChannel(currentServer.categories, channelId, targetCategoryId, beforeChannelId);
@@ -153,6 +163,8 @@ export function ChannelSidebarPanel({ onChannelOpened }: { onChannelOpened?: () 
       onOpenServerProfile={() => ui().setAppView('server-settings')}
       onLeaveServer={() => ui().openConfirm('leave-server', currentServer.name)}
       onDeleteServer={() => ui().openConfirm('delete-server', currentServer.name)}
+      onMarkServerRead={unreadChannels.length > 0 ? handleMarkServerRead : undefined}
+      onMarkAllRead={servers.some((s) => s.unread) ? handleMarkAllRead : undefined}
     />
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { useServerMembersQuery, useServersQuery } from '@discordia/core';
+import { applyUnread, useServerMembersQuery, useServersQuery, useUnreadQuery } from '@discordia/core';
 import type { Server, Status, User } from '../../types';
 import { useUIStore } from '../../app/uiStore';
 
@@ -21,14 +21,19 @@ export function placeholderUser(userId: string): User {
 }
 
 /**
- * Servidores del usuario y el servidor / canal seleccionados (los datos vienen de React Query; la
- * selección, de useUIStore).
+ * Servidores del usuario, con lo no leído de cada canal, y el servidor / canal seleccionados (los datos
+ * vienen de React Query; la selección, de useUIStore).
  */
 export function useCurrentServer() {
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
+  const readingChannelId = useUIStore((s) => s.readingChannelId);
   const { data, isLoading: isLoadingServers } = useServersQuery();
-  const servers = data ?? NO_SERVERS;
+  const { data: unread } = useUnreadQuery();
+  const servers = useMemo(
+    () => applyUnread(data ?? NO_SERVERS, unread, readingChannelId),
+    [data, unread, readingChannelId]
+  );
 
   const currentServer = useMemo(() => {
     if (selectedServerId === 'home') return null;

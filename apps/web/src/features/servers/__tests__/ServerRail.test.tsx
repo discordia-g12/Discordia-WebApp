@@ -12,18 +12,44 @@ describe('ServerRail (rediseño)', () => {
     render(<ServerRail servers={servers} selectedServerId="s1" onSelectServer={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: 'Servidor torton' }).getAttribute('aria-current')).toBe('true');
-    expect(screen.getByRole('button', { name: 'Servidor ibars' }).getAttribute('aria-current')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Servidor ibars, 3 mensajes nuevos' }).getAttribute('aria-current')).toBeNull();
     expect(screen.getByRole('button', { name: 'Mensajes directos' }).getAttribute('aria-current')).toBeNull();
   });
 
   it('al pasar el mouse despliega la etiqueta con el nombre y la actividad nueva', () => {
     render(<ServerRail servers={servers} selectedServerId="home" onSelectServer={vi.fn()} />);
 
-    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Servidor ibars' }).parentElement!);
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Servidor ibars, 3 mensajes nuevos' }).parentElement!);
 
     const label = screen.getByRole('tooltip');
     expect(label.textContent).toContain(': ibars');
     expect(label.textContent).toContain('3 mensajes nuevos');
+  });
+
+  it('las menciones sin leer se anuncian en lugar de los mensajes', () => {
+    const mentioned = { ...server('s3', 'menciones', 5), mentions: 2 } as Server;
+    render(<ServerRail servers={[mentioned]} selectedServerId="home" onSelectServer={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Servidor menciones, 2 menciones' })).toBeTruthy();
+  });
+
+  it('el badge de no leídos muestra el número, también con el servidor abierto', () => {
+    const badgeOf = (name: string) => screen.getByRole('button', { name }).querySelector('[data-testid="server-unread"]');
+    const { rerender } = render(<ServerRail servers={servers} selectedServerId="home" onSelectServer={vi.fn()} />);
+
+    expect(badgeOf('Servidor torton')).toBeNull();
+    expect(badgeOf('Servidor ibars, 3 mensajes nuevos')?.textContent).toBe('3');
+
+    rerender(<ServerRail servers={servers} selectedServerId="s2" onSelectServer={vi.fn()} />);
+    expect(badgeOf('Servidor ibars, 3 mensajes nuevos')?.textContent).toBe('3');
+  });
+
+  it('el badge muestra las menciones con "@" y pasa a "99+" desde 100', () => {
+    const list = [{ ...server('s3', 'menciones', 5), mentions: 2 } as Server, server('s4', 'mucho', 150)];
+    render(<ServerRail servers={list} selectedServerId="home" onSelectServer={vi.fn()} />);
+
+    const badges = screen.getAllByTestId('server-unread').map((b) => b.textContent);
+    expect(badges).toEqual(['@2', '99+']);
   });
 
   it('selecciona servidores e inicio, y abre crear y explorar', () => {

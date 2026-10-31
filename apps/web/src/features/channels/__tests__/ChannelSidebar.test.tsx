@@ -35,7 +35,49 @@ describe('ChannelSidebar (rediseño)', () => {
 
     expect(screen.getByRole('button', { name: /Canal de texto \// })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Canal general' }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getByRole('button', { name: 'Canal boludeces' }).textContent).toBe('•boludeces3');
+    // El contador se ve y se anuncia
+    expect(screen.getByRole('button', { name: 'Canal boludeces, 3 mensajes nuevos' }).textContent).toBe('•boludeces3');
+  });
+
+  it('una mención sin leer se distingue del resto, y más de 99 se muestra como 99+', () => {
+    const withCounts = {
+      ...server,
+      categories: [
+        {
+          id: 'k1',
+          name: 'Canal de texto',
+          channels: [
+            { id: 'c1', name: 'general', type: 'text', unreadCount: 100 },
+            { id: 'c2', name: 'boludeces', type: 'text', unreadCount: 4, mentions: 2 },
+          ],
+        },
+      ],
+    } as unknown as Server;
+    render(<ChannelSidebar {...base} server={withCounts} activeChannelId={null} onSelectChannel={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Canal general, 99+ mensajes nuevos' }).textContent).toBe('•general99+');
+    const mentioned = screen.getByRole('button', { name: 'Canal boludeces, 4 mensajes nuevos, con menciones' });
+    expect(mentioned.textContent).toBe('•boludeces@2');
+  });
+
+  it('el menú ofrece marcar como leído solo si hay algo sin leer', () => {
+    const onMarkServerRead = vi.fn();
+    const onMarkAllRead = vi.fn();
+    const { rerender } = render(<ChannelSidebar {...base} onSelectChannel={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menú del servidor torton' }));
+    expect(screen.queryByRole('menuitem', { name: 'Marcar como leído' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Marcar todo como leído' })).toBeNull();
+
+    rerender(
+      <ChannelSidebar {...base} onSelectChannel={vi.fn()} onMarkServerRead={onMarkServerRead} onMarkAllRead={onMarkAllRead} />
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Marcar como leído' }));
+    expect(onMarkServerRead).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menú del servidor torton' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Marcar todo como leído' }));
+    expect(onMarkAllRead).toHaveBeenCalled();
   });
 
   it('colapsa y abre una categoría', () => {

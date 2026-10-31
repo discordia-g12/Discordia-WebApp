@@ -1,5 +1,7 @@
-import { useChannelMessagesQuery } from '@discordia/core';
+import { useEffect } from 'react';
+import { useAutoMarkChannelRead, useChannelMessagesQuery } from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
+import { usePageVisible } from '../../app/usePageVisible';
 import { useUsers } from '../../app/usersContext';
 import { useCurrentServer } from '../servers/useCurrentServer';
 import { useCurrentUser } from '../profile/currentUserStore';
@@ -21,9 +23,16 @@ export function ChatPanel() {
   const voice = useVoice();
   const actions = useMessageActions();
   const writeBlock = useChatWriteBlock();
-  const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder } = useChannelMessagesQuery(
-    selectedServerId !== 'home' ? selectedChannelId : null
-  );
+  const channelId = selectedServerId !== 'home' ? selectedChannelId : null;
+  const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder } = useChannelMessagesQuery(channelId);
+
+  // Mientras el chat está en pantalla, el canal no muestra no leídos y se marca leído con cada mensaje
+  const pageVisible = usePageVisible();
+  useEffect(() => {
+    useUIStore.getState().setReadingChannelId(channelId);
+    return () => useUIStore.getState().setReadingChannelId(null);
+  }, [channelId]);
+  useAutoMarkChannelRead(channelId, realMessages?.[realMessages.length - 1]?.id, { enabled: pageVisible });
 
   return (
     <ChatView

@@ -7,6 +7,7 @@ import type { Channel, Server, User } from '../../types';
 import { ActionLink, SectionLabel, Skeleton, SquareAvatar } from '../../ui';
 import { VoiceParticipantMenu } from '../voice/VoiceParticipantMenu';
 import { useChannelDragAndDrop, type DropTarget } from './useChannelDragAndDrop';
+import { channelUnreadDescription, formatUnreadCount } from '../servers/unread';
 import styles from './ChannelSidebar.module.css';
 
 export interface VoiceParticipant {
@@ -68,6 +69,10 @@ export interface ChannelSidebarProps {
   onOpenServerProfile?: () => void;
   onToggleHideMutedChannels?: () => void;
   onLeaveServer?: () => void;
+  /** Marca como leídos los canales de este servidor. Sin definir (nada sin leer): no se ofrece. */
+  onMarkServerRead?: () => void;
+  /** Marca como leídos todos los canales de todos los servidores. Sin definir: no se ofrece. */
+  onMarkAllRead?: () => void;
   onDeleteServer?: () => void;
   pendingTransfer?: ServerOwnershipTransfer | null;
   onAcceptTransfer?: () => void;
@@ -110,6 +115,8 @@ export function ChannelSidebar({
   onToggleHideMutedChannels,
   onLeaveServer,
   onDeleteServer,
+  onMarkServerRead,
+  onMarkAllRead,
   pendingTransfer,
   onAcceptTransfer,
   onRejectTransfer,
@@ -134,6 +141,8 @@ export function ChannelSidebar({
   };
 
   const menuItems: MenuItem[] = [
+    { label: 'Marcar como leído', onSelect: onMarkServerRead },
+    { label: 'Marcar todo como leído', onSelect: onMarkAllRead },
     { label: 'Invitar personas', onSelect: onInvitePeople },
     { label: 'Ajustes del servidor', onSelect: onOpenServerSettings },
     { label: 'Crear canal', onSelect: onCreateChannel ? () => onCreateChannel() : undefined },
@@ -320,6 +329,8 @@ function ChannelRow({
   onEdit?: () => void;
 }) {
   const unread = channel.unreadCount ?? 0;
+  const mentions = channel.mentions ?? 0;
+  const unreadDescription = channelUnreadDescription(channel);
   return (
     <div className={`${styles.channel} ${active ? styles.active : ''} ${unread > 0 ? styles.unread : ''}`}>
       <button
@@ -328,7 +339,11 @@ function ChannelRow({
         onClick={onSelect}
         disabled={locked}
         title={locked ? 'No tenés permiso para conectarte a este canal' : undefined}
-        aria-label={locked ? `Canal ${channel.name}, sin permiso para conectarte` : `Canal ${channel.name}`}
+        aria-label={
+          locked
+            ? `Canal ${channel.name}, sin permiso para conectarte`
+            : `Canal ${channel.name}${unreadDescription ? `, ${unreadDescription}` : ''}`
+        }
         aria-current={active ? 'page' : undefined}
       >
         •{channel.name}
@@ -341,7 +356,12 @@ function ChannelRow({
             {participants.length}/{channel.userLimit}
           </span>
         ) : null}
-        {unread > 0 && <span className={styles.badge}>{unread}</span>}
+        {unread > 0 && (
+          // Con menciones se distingue: "@" y el contador de menciones
+          <span className={`${styles.badge} ${mentions > 0 ? styles.mentionBadge : ''}`} aria-hidden="true">
+            {mentions > 0 ? `@${formatUnreadCount(mentions)}` : formatUnreadCount(unread)}
+          </span>
+        )}
       </button>
       {onEdit && (
         <ActionLink className={styles.edit} onPress={onEdit} aria-label={`Editar ${channel.name}`}>

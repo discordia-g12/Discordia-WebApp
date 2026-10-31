@@ -40,6 +40,8 @@ export interface UIState {
   selectedDmId: string | null;
   appView: AppView;
   isMemberListOpen: boolean;
+  /** Canal de texto que está en pantalla (el chat montado): no muestra no leídos y se marca al leerlo. */
+  readingChannelId: string | null;
 
   // ── Modales ──
   activeModal: Modal;
@@ -62,6 +64,7 @@ export interface UIState {
   setSelectedDmId: (id: string | null) => void;
   setAppView: (view: AppView) => void;
   toggleMemberList: () => void;
+  setReadingChannelId: (id: string | null) => void;
 
   setActiveModal: (modal: Modal) => void;
   setSelectedProfileUserId: (id: string | null) => void;
@@ -94,6 +97,7 @@ export const useUIStore = create<UIState>((set) => ({
   selectedDmId: null,
   appView: 'chat',
   isMemberListOpen: true,
+  readingChannelId: null,
 
   activeModal: null,
   selectedProfileUserId: null,
@@ -110,6 +114,7 @@ export const useUIStore = create<UIState>((set) => ({
   setSelectedDmId: (selectedDmId) => set({ selectedDmId }),
   setAppView: (appView) => set({ appView }),
   toggleMemberList: () => set((s) => ({ isMemberListOpen: !s.isMemberListOpen })),
+  setReadingChannelId: (readingChannelId) => set({ readingChannelId }),
 
   setActiveModal: (activeModal) => set({ activeModal }),
   setSelectedProfileUserId: (selectedProfileUserId) => set({ selectedProfileUserId }),
