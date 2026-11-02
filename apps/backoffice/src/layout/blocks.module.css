@@ -1,0 +1,176 @@
+/* ── Listados: filas entre líneas finas, como Miembros en los ajustes del servidor ── */
+
+.tableWrap {
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-body-small-size);
+}
+
+.table th {
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  font-size: var(--font-label-size);
+  font-weight: var(--font-label-weight);
+  letter-spacing: var(--font-label-letter-spacing);
+  text-align: left;
+  text-transform: var(--font-label-transform);
+  white-space: nowrap;
+  border-top: var(--line-hairline) solid var(--color-line);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.table td {
+  padding: var(--space-3) var(--space-3) var(--space-3) 0;
+  vertical-align: middle;
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
+
+.table td.emptyCell {
+  padding: var(--space-6) 0;
+}
+
+/* ── Cifras ── */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-5);
+  margin: 0;
+}
+
+.stats dt {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-size: var(--font-display-size);
+  line-height: var(--font-display-line-height);
+  letter-spacing: var(--font-display-letter-spacing);
+}
+
+/* ── Ficha ── */
+
+.fields {
+  margin: 0;
+  border-top: var(--line-hairline) solid var(--color-line);
+}
+
+.fields > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  font-size: var(--font-body-small-size);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
+
+.fields dt {
+  color: var(--color-text-muted);
+}
+
+.fields dd {
+  margin: 0;
+  text-align: right;
+}
+
+/* ── Links y comandos ── */
+
+.externalLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  align-self: flex-start;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.externalLink:hover {
+  color: var(--color-text-muted);
+}
+
+.command {
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: var(--font-meta-size);
+  line-height: 1.5;
+  white-space: pre;
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+/* ── Formularios ── */
+
+.checkList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--font-body-small-size);
+}
+
+.checkList legend {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.checkList label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checkList input {
+  accent-color: var(--color-text);
+}
+
+.textArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.textArea textarea {
+  padding: var(--space-1) 0;
+  font-size: var(--font-body-size);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+  outline: none;
+  resize: vertical;
+}
+
+.textArea textarea:focus-visible {
+  border-bottom-width: var(--line-focus);
+}
+
+.textArea textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

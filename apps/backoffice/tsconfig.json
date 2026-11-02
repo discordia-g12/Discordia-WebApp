@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    // Catálogo de componentes de la web (apps/web/src/ui): misma estética sin copiarlo. El alias es el mismo
+    // en vite.config.ts
+    "paths": {
+      "@web/*": ["../web/src/*"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["src/**/__tests__/*", "src/**/*.test.ts", "src/**/*.test.tsx"]
+}

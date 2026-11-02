@@ -59,6 +59,10 @@ jobs:
       - name: Build web
         run: npm run build
 
+      # Lo mismo que compila el proyecto discordia-backoffice de Pages
+      - name: Build backoffice
+        run: npm run build:backoffice
+
       # Que Metro pueda armar el bundle que cargan Expo Go y el APK
       - name: Bundle mobile
         working-directory: apps/mobile

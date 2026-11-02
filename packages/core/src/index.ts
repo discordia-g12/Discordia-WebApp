@@ -37,9 +37,6 @@ export * from './admin/permissions';
 export * from './admin/roles';
 export * from './admin/members';
 
-// Backoffice de la plataforma (prototipo, sin endpoints todavía)
-export * from './admin/backoffice';
-
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';
 export * from './chat/mentions';

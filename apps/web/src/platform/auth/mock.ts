@@ -1,7 +1,7 @@
 import { PLATFORM_STAFF_ROLE, ROLE_CLAIM, retryBootstrap, type AuthUser } from '@discordia/core';
 import type { WebAuthAdapter } from './auth0';
 
-// JWT sin firma con el rol staff: así se puede recorrer el backoffice sin Auth0. Solo existe con VITE_USE_MOCK en
+// JWT sin firma con el rol staff: así se ve el link al backoffice sin Auth0. Solo existe con VITE_USE_MOCK en
 // desarrollo (el build de producción no lo incluye) y no abre nada: en este modo no hay backend.
 const MOCK_TOKEN = ['e30', btoa(JSON.stringify({ sub: 'mock|u0', [ROLE_CLAIM]: PLATFORM_STAFF_ROLE })), 'mock'].join('.');
 

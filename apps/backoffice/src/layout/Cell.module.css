@@ -1,0 +1,126 @@
+/* Celdas de la grilla: las mismas que SettingsCell de la web (SettingsScreen.module.css) */
+
+.cell {
+  min-width: 0;
+  padding: var(--space-5) var(--space-5) var(--space-6);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+  animation: enter var(--motion-duration-slow) var(--motion-ease-enter) both;
+}
+
+/* Línea entre las dos columnas */
+.cell:not(.wide):nth-child(odd) {
+  border-right: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.cell:nth-child(2) { animation-delay: 60ms; }
+.cell:nth-child(3) { animation-delay: 120ms; }
+.cell:nth-child(4) { animation-delay: 180ms; }
+.cell:nth-child(n + 5) { animation-delay: 240ms; }
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--space-3)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell {
+    animation-delay: 0ms !important;
+  }
+}
+
+.title {
+  margin: 0 0 var(--space-5);
+  font-size: var(--font-body-size);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.soonTag {
+  margin-left: var(--space-3);
+  padding: 0 var(--space-1);
+  vertical-align: middle;
+  font-size: var(--font-meta-size);
+  text-transform: none;
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+/* Lo que todavía no funciona: deshabilitado y atenuado (texto en el gris que llega a AA) */
+.soon {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-5);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--color-text-muted);
+}
+
+.soon > :not(legend) {
+  opacity: 0.6;
+}
+
+.soon > button {
+  align-self: flex-start;
+}
+
+.soonNote {
+  padding: 0;
+  font-size: var(--font-meta-size);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-5);
+}
+
+.body > button {
+  align-self: flex-start;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.rowText {
+  min-width: 0;
+}
+
+.rowTitle {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+}
+
+.rowDescription {
+  margin: 2px 0 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.rowControl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  flex-shrink: 0;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}

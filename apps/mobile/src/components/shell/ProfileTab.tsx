@@ -34,8 +34,6 @@ interface ProfileTabProps {
   inCall: boolean
   onEditProfile: () => void
   onOpenSettings?: () => void
-  /** Backoffice de la plataforma: solo llega si el usuario es admin (sin él, no hay link). */
-  onOpenAdmin?: () => void
   onLogout: () => void
 }
 
@@ -43,7 +41,7 @@ interface ProfileTabProps {
  * Perfil (el menú de la barra de usuario del escritorio): quién sos, presencia (solo para esta sesión,
  * como en la web), estado personalizado (se guarda en el perfil) y los atajos.
  */
-export function ProfileTab({ user, inCall, onEditProfile, onOpenSettings, onOpenAdmin, onLogout }: ProfileTabProps) {
+export function ProfileTab({ user, inCall, onEditProfile, onOpenSettings, onLogout }: ProfileTabProps) {
   const styles = useStyles()
   const { userProfile, updateUserProfile } = useAuth()
   const { showToast } = useUI()
@@ -132,11 +130,6 @@ export function ProfileTab({ user, inCall, onEditProfile, onOpenSettings, onOpen
         {onOpenSettings && (
           <ActionLink size="bodySmall" onPress={onOpenSettings}>
             ajustes
-          </ActionLink>
-        )}
-        {onOpenAdmin && (
-          <ActionLink size="bodySmall" onPress={onOpenAdmin}>
-            administración
           </ActionLink>
         )}
         <ActionLink size="bodySmall" onPress={onLogout}>
