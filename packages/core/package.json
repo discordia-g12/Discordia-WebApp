@@ -16,7 +16,7 @@
     "jsdom": "^26.0.0",
     "livekit-client": "^2.22.3",
     "react-dom": "19.3.0",
-    "typescript": "~6.0.3",
+    "typescript": "~7.0.2",
     "vitest": "^5.0.1"
   },
   "dependencies": {
