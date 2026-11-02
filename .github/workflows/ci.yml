@@ -38,9 +38,30 @@ jobs:
       - name: Run tests
         run: npm test
 
+      # Pruebas End-to-End con Playwright
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        env:
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
       # Lo mismo que compila Cloudflare Pages al publicar main
       - name: Build web
         run: npm run build
+
+      # Lo mismo que compila el proyecto discordia-backoffice de Pages
+      - name: Build backoffice
+        run: npm run build:backoffice
 
       # Que Metro pueda armar el bundle que cargan Expo Go y el APK
       - name: Bundle mobile

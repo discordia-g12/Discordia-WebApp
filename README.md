@@ -1,13 +1,14 @@
 # Discordia-WebApp
 
-Clientes de Discordia: la web (React + Vite) y la app mobile (Expo / React Native), en un monorepo con
-npm workspaces.
+Clientes de Discordia: la web (React + Vite), el backoffice del staff (React + Vite) y la app mobile
+(Expo / React Native), en un monorepo con npm workspaces.
 
 ![Servidor y chat en la web](docs/capturas/web-servidor-chat-claro.jpg)
 
 ```text
 apps/
 ├── web/        cliente web (Cloudflare Pages en producción)
+├── backoffice/ backoffice de la plataforma, solo staff (backoffice.discordia.lol, ver apps/backoffice/README.md)
 └── mobile/     app mobile (Expo, ver apps/mobile/README.md)
 packages/
 ├── core/       lógica compartida: API, tipos, sesión y auth, hooks de datos, chat en tiempo real, voz
@@ -54,15 +55,32 @@ Variables de `apps/web/.env` (Vite las toma al arrancar `npm run dev`):
 | `VITE_API_URL` | `http://localhost:8000` | API Gateway (Kong). La URL de los WebSockets de chat y de voz sale de esta (`http` → `ws`), así también pasan por Kong |
 | `VITE_AUTH0_DOMAIN` / `VITE_AUTH0_CLIENT_ID` / `VITE_AUTH0_AUDIENCE` | tenant de desarrollo | Auth0. Los defaults están en `apps/web/src/platform/auth/auth0.ts`; el client ID de una SPA es público |
 | `VITE_USE_MOCK` | `false` | `true`: sin backend, con datos de ejemplo. El build de producción lo ignora |
+| `VITE_BACKOFFICE_URL` | `http://localhost:5174` | Backoffice, para el link del menú de usuario (solo lo ve el staff) |
 
 En producción, Cloudflare Pages compila con `VITE_API_URL=https://api.discordia.lol` y los valores de Auth0
 (Terraform del orquestador, `infra/terraform/pages.tf`).
+
+## Backoffice
+
+```bash
+npm run dev:backoffice                          # http://localhost:5174
+VITE_USE_MOCK=true npm run dev:backoffice       # sin Auth0 ni backend, entra como staff
+npm run build:backoffice                        # deja el build en apps/backoffice/dist
+```
+
+Login, rol staff, configuración de Auth0 y estado de cada sección: [`apps/backoffice/README.md`](apps/backoffice/README.md).
 
 ## Mobile
 
 ```bash
 npm run mobile        # = expo start --go, desde la raíz
+npm run mobile -- -c  # lo mismo, limpiando el cache de Metro
 ```
+
+**No correr `npx expo start` en la raíz.** La raíz no es un proyecto de Expo: Expo la toma como tal, cae en
+`node_modules/expo/AppEntry.js` y falla con `Unable to resolve module ../../App`. De paso deja un
+`tsconfig.json` y un `.expo/` sueltos en la raíz (borrarlos). `npm run mobile` corre Expo adentro de
+`apps/mobile`. Si ya pasó, arrancar de nuevo con `npm run mobile -- -c`.
 
 Sin configurar nada, la app usa la IP de la máquina que corre Metro, puerto 8000 (el Kong del backend
 local). Para apuntar a producción, `EXPO_PUBLIC_API_URL=https://api.discordia.lol` en `apps/mobile/.env`
@@ -135,10 +153,10 @@ como contexto e instalan solo las dependencias de la web. Los usa el `docker-com
 ## CI
 
 `.github/workflows/ci.yml` corre en cada push y pull request a `main` y `develop`, con Node 22 (`.nvmrc`):
-typecheck y lint de los cuatro workspaces, `npm audit` (informativo, no bloquea), tests, build de la web (lo mismo que compila
-Cloudflare Pages), bundle de mobile con Metro y build de la imagen de Docker (no se publica).
+typecheck y lint de los cinco workspaces, `npm audit` (informativo, no bloquea), tests, build de la web y del
+backoffice (lo mismo que compila Cloudflare Pages), bundle de mobile con Metro y build de la imagen de Docker (no se publica).
 
-No hay deploy desde el CI: Cloudflare Pages publica la web sola en cada push a `main`. La app mobile se
+No hay deploy desde el CI: Cloudflare Pages publica la web y el backoffice solos en cada push a `main`. La app mobile se
 compila con EAS (ver `apps/mobile/README.md`).
 
 El lint usa una sola configuración para todo el monorepo (`eslint.config.mjs`) y falla solo con errores. Las

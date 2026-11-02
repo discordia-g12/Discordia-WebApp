@@ -1,6 +1,7 @@
 import { Compass, Home, Plus, type LucideIcon } from 'lucide-react';
 import type { Server } from '../../types';
 import { Logo, ServerStrip, Skeleton } from '../../ui';
+import { serverUnreadBadge, serverUnreadLabel } from './unread';
 import styles from './ServerRail.module.css';
 
 export interface ServerRailProps {
@@ -54,7 +55,8 @@ export function ServerRail({
               <ServerStrip
                 server={server}
                 active={server.id === selectedServerId}
-                unread={unreadLabel(server)}
+                unread={serverUnreadLabel(server)}
+                badge={serverUnreadBadge(server)}
                 onPress={() => onSelectServer(server.id)}
               />
             </li>
@@ -75,12 +77,6 @@ export function ServerRail({
       </div>
     </nav>
   );
-}
-
-function unreadLabel(server: Server): string | false {
-  const count = server.unreadCount ?? 0;
-  if (count <= 0) return false;
-  return count === 1 ? '1 mensaje nuevo' : `${count > 99 ? '99+' : count} mensajes nuevos`;
 }
 
 /** Acción al pie del rail: ícono de línea fina, con la misma etiqueta negra que las franjas al pasar el mouse. */

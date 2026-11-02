@@ -22,11 +22,13 @@ export * from './api/roles';
 export * from './api/moderation';
 export * from './api/serverTransfer';
 export * from './api/messages';
+export * from './api/readStates';
 export * from './api/voice';
 
 // Hooks de React (React Query y perfiles), los mismos en web y mobile
 export * from './hooks/useApi';
 export * from './hooks/messageCache';
+export * from './hooks/useUnread';
 export * from './hooks/useUserProfiles';
 export * from './hooks/useChatSocket';
 
@@ -35,11 +37,9 @@ export * from './admin/permissions';
 export * from './admin/roles';
 export * from './admin/members';
 
-// Backoffice de la plataforma (prototipo, sin endpoints todavía)
-export * from './admin/backoffice';
-
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';
+export * from './chat/mentions';
 export * from './realtime/chatSocket';
 
 // Voz: la sala y la presencia son las mismas en web y mobile; cada app registra su VoicePlatform

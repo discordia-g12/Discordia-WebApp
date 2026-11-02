@@ -41,7 +41,7 @@ export default defineConfig([
 
   // Web: Vite recarga los módulos en caliente solo si exportan componentes
   {
-    files: ['apps/web/**/*.{ts,tsx}'],
+    files: ['apps/web/**/*.{ts,tsx}', 'apps/backoffice/**/*.{ts,tsx}'],
     extends: [reactRefresh.configs.vite],
   },
 

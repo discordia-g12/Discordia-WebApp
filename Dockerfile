@@ -3,16 +3,15 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 ARG VITE_API_URL
-ARG VITE_WS_URL
 
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_WS_URL=$VITE_WS_URL
 
 # Monorepo (npm workspaces): npm ci valida el lockfile contra el package.json de cada workspace, pero solo
-# instala las dependencias de la web y de los paquetes compartidos (no las de la app mobile)
+# instala las dependencias de la web y de los paquetes compartidos (no las de mobile ni las del backoffice)
 COPY package.json package-lock.json .npmrc ./
 COPY apps/web/package.json apps/web/
 COPY apps/mobile/package.json apps/mobile/
+COPY apps/backoffice/package.json apps/backoffice/
 COPY packages/core/package.json packages/core/
 COPY packages/tokens/package.json packages/tokens/
 RUN npm ci --workspace=@discordia/web --include-workspace-root

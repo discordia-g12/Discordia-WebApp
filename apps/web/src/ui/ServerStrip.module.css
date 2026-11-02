@@ -44,14 +44,30 @@
   transform: translateY(var(--space-1));
 }
 
+/*
+ * Badge de no leídos, dentro de la franja: afuera lo recortaba el rail (scrollea, así que no deja
+ * desbordar), y con la franja activa corrida quedaba tapado. El borde claro lo separa de la imagen.
+ */
 .unread {
   position: absolute;
-  right: -1px;
+  right: var(--space-1);
   top: 50%;
-  width: var(--space-1);
-  height: var(--space-1);
+  min-width: var(--space-4);
+  height: var(--space-4);
+  padding: 0 var(--space-1);
   transform: translateY(-50%);
+  font-size: var(--font-meta-size);
+  font-weight: 700;
+  line-height: var(--space-4);
+  text-align: center;
+  color: var(--color-inverse-text);
   background: var(--color-inverse-background);
+  box-shadow: 0 0 0 1px var(--color-inverse-text);
+}
+
+/* La franja activa se corre --space-2 y el rail recorta lo que sobra: el badge se corre lo mismo */
+.active:not(.horizontal) .unread {
+  right: calc(var(--space-2) + var(--space-1));
 }
 
 /* Etiqueta negra desplegada (PDF, pág. 8): fixed, con la posición de la franja (ver ServerStrip) */

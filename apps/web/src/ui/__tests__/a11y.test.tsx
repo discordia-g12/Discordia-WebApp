@@ -24,12 +24,13 @@ describe('ServerStrip', () => {
   it('con foco despliega la etiqueta con el nombre y la actividad, y la saca al perderlo', async () => {
     render(<ServerStrip server={{ name: 'Torton' }} unread="Actividad en general" />);
 
-    fireEvent.focus(screen.getByRole('button', { name: 'Servidor Torton' }));
+    // La actividad también va en el nombre: sin el mouse (lector de pantalla, táctil) no se ve la etiqueta
+    fireEvent.focus(screen.getByRole('button', { name: 'Servidor Torton, actividad en general' }));
     const label = screen.getByRole('tooltip');
     expect(label.textContent).toContain('Torton');
     expect(label.textContent).toContain('Actividad en general');
 
-    fireEvent.blur(screen.getByRole('button', { name: 'Servidor Torton' }));
+    fireEvent.blur(screen.getByRole('button', { name: 'Servidor Torton, actividad en general' }));
     await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
   });
 

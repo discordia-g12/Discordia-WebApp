@@ -2,11 +2,12 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
-  readonly VITE_WS_URL: string;
   readonly VITE_AUTH0_DOMAIN: string;
   readonly VITE_AUTH0_CLIENT_ID: string;
   readonly VITE_AUTH0_AUDIENCE: string;
   readonly VITE_USE_MOCK?: string;
+  /** Backoffice de la plataforma (apps/backoffice), para el link del menú de usuario del staff. */
+  readonly VITE_BACKOFFICE_URL?: string;
 }
 
 interface ImportMeta {

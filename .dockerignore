@@ -13,4 +13,7 @@ coverage
 **/node_modules
 apps/mobile/*
 !apps/mobile/package.json
+# El backoffice tiene su propio deploy (Pages): a la imagen de la web solo le hace falta su package.json
+apps/backoffice/*
+!apps/backoffice/package.json
 svg

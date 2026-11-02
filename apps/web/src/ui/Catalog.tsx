@@ -77,8 +77,9 @@ export function Catalog() {
         </Section>
         <Section title="ServerStrip">
           <div className={styles.rail}>
-            <ServerStrip server={{ name: 'torton' }} active />
-            <ServerStrip server={{ name: 'flor' }} unread="new activity in general" />
+            <ServerStrip server={{ name: 'torton' }} active unread="3 mensajes nuevos" badge="3" />
+            <ServerStrip server={{ name: 'flor' }} unread="12 mensajes nuevos" badge="12" />
+            <ServerStrip server={{ name: 'ibars' }} unread="2 menciones" badge="@2" />
             <ServerStrip server={{ name: 'delfín' }} />
           </div>
         </Section>

@@ -133,6 +133,10 @@ function applyAuthDenial(denial: AuthDenial, email?: string | null) {
  * Acción invocada cuando el cliente HTTP sufre un 401 que no pudo renovarse en plena sesión.
  */
 export async function handleAuthFailure() {
+  if (useSession.getState().isMock) {
+    return;
+  }
+
   if (onClearQueryCache) {
     onClearQueryCache();
   }

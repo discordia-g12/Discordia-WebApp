@@ -35,7 +35,8 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "extraProguardRules": "# WebRTC (LiveKit): la parte nativa busca estas clases por nombre en JNI_OnLoad (livekit.org.jni_zero.JniZero, entre otras; las reglas del paquete solo cubren org.jni_zero sin prefijo); R8 no las puede renombrar ni borrar\n-keep class livekit.org.webrtc.** { *; }\n-keep class livekit.org.jni_zero.** { *; }\n-keep class com.oney.WebRTCModule.** { *; }\n-dontwarn livekit.org.webrtc.**\n-dontwarn livekit.org.jni_zero.**"
           }
         }
       ],

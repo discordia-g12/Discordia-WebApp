@@ -23,7 +23,6 @@ import {
   type ServerSettingsSection,
 } from './settings/server/ServerSettingsScreen'
 import { UserSettingsScreen } from './settings/user/UserSettingsScreen'
-import { AdminScreen } from './admin/AdminScreen'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
 import { BottomTabs, type ShellTab } from './shell/BottomTabs'
@@ -33,6 +32,7 @@ import { ServerMenu } from './shell/ServerMenu'
 import { ServerTabsRow } from './shell/ServerTabsRow'
 import { Padded, Pane, Screen } from './shell/ShellScreen'
 import { useUserDisplay } from '../hooks/useUserProfiles'
+import { useAppActive } from '../hooks/useAppActive'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
 import {
@@ -50,7 +50,11 @@ import {
   canSeeSettingsSection,
   isVoiceChannelLocked,
   voiceDisconnectMessage,
-  useIsPlatformStaff,
+  applyUnread,
+  useAutoMarkChannelRead,
+  useMarkAllReadMutation,
+  useMarkChannelReadMutation,
+  useUnreadQuery,
 } from '@discordia/core'
 
 /** Lo que se ve en Servidores: la lista de canales, o un canal abierto a pantalla completa. */
@@ -81,7 +85,7 @@ export default function MobileShell() {
   const { logout } = useAuth()
   const {
     users,
-    servers,
+    servers: loadedServers,
     serversLoaded,
     messages,
     currentUserId,
@@ -103,6 +107,17 @@ export default function MobileShell() {
   const [tab, setTab] = useState<ShellTab>('servers')
   const [screen, setScreen] = useState<MobileScreen>('channels')
   const keyboardVisible = useKeyboardVisible()
+  const appActive = useAppActive()
+
+  // No leídos de cada canal y servidor. El chat abierto no cuenta: ya se está leyendo
+  const { data: unread } = useUnreadQuery()
+  const readingChannelId = tab === 'servers' && screen === 'chat' ? selectedChannelId : null
+  const servers = useMemo(
+    () => applyUnread(loadedServers, unread, readingChannelId),
+    [loadedServers, unread, readingChannelId],
+  )
+  const markChannelRead = useMarkChannelReadMutation()
+  const markAllRead = useMarkAllReadMutation()
 
   // Voz (LiveKit). Si la conexión se corta sola, volver a la lista de canales
   const voice = useVoiceRoom({
@@ -133,9 +148,6 @@ export default function MobileShell() {
   const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [userSettingsOpen, setUserSettingsOpen] = useState(false)
-  // Backoffice de la plataforma: solo con el rol "staff" (claim del access token, ver core/auth/roles.ts)
-  const isPlatformStaff = useIsPlatformStaff()
-  const [adminOpen, setAdminOpen] = useState(false)
   // Canal de voz al que se quiere pasar estando conectado a otro (pide confirmación)
   const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
   // Participante sobre el que se mantuvo presionado (menú para silenciarlo solo para vos)
@@ -169,11 +181,11 @@ export default function MobileShell() {
   )
   const voicePresence = useVoicePresence(serverVoiceChannelIds)
 
-  // IDs (LiveKit, presencia o autores de mensajes) -> nombre y avatar; los que la app no conoce se piden al backend
+  // IDs (LiveKit, presencia, autores o mencionados) -> nombre y avatar; los que la app no conoce se piden al backend
   const describeUser = useUserDisplay([
     ...voice.participants.map(p => p.id),
     ...Object.values(voicePresence).flat(),
-    ...channelMessages.map(m => m.authorId),
+    ...channelMessages.flatMap(m => [m.authorId, ...(m.mentions?.users ?? [])]),
   ])
 
   const voiceParticipants: VoiceScreenParticipant[] = voice.participants.map(p => ({
@@ -208,6 +220,9 @@ export default function MobileShell() {
     }
     return undefined
   }, [channelMessages])
+
+  // Con el chat a la vista se marca leído al abrirlo y con cada mensaje; en segundo plano, no
+  useAutoMarkChannelRead(readingChannelId, lastMessageId, { enabled: appActive })
 
   const activeSocketChannelId =
     channel && channel.type !== 'voice' ? channel.id : null
@@ -453,8 +468,22 @@ export default function MobileShell() {
   }
 
   const firstSettingsSection = SERVER_SETTINGS_SECTIONS.find(canOpenSettingsSection)
+  const markReadError = () => showToast('No se pudo marcar como leído', 'error')
+  const unreadChannels = allChannels.filter(c => (c.unreadCount ?? 0) > 0)
   const serverMenuItems = server
     ? [
+        {
+          label: 'Marcar como leído',
+          onSelect: unreadChannels.length
+            ? () => unreadChannels.forEach(c => markChannelRead.mutate({ channelId: c.id }, { onError: markReadError }))
+            : undefined,
+        },
+        {
+          label: 'Marcar todo como leído',
+          onSelect: servers.some(s => s.unread)
+            ? () => markAllRead.mutate(undefined, { onError: markReadError })
+            : undefined,
+        },
         { label: 'Invitar personas', onSelect: canInvite ? () => setInviteModalOpen(true) : undefined },
         {
           label: 'Ajustes del servidor',
@@ -639,7 +668,6 @@ export default function MobileShell() {
               inCall={!!voice.channelId}
               onEditProfile={() => setEditProfileOpen(true)}
               onOpenSettings={() => setUserSettingsOpen(true)}
-              onOpenAdmin={isPlatformStaff ? () => setAdminOpen(true) : undefined}
               onLogout={() => setLogoutConfirmOpen(true)}
             />
           )}
@@ -726,7 +754,6 @@ export default function MobileShell() {
           setLogoutConfirmOpen(true)
         }}
       />
-      <AdminScreen visible={adminOpen && isPlatformStaff} onClose={() => setAdminOpen(false)} />
       <EditProfileModal visible={editProfileOpen} onClose={() => setEditProfileOpen(false)} />
       <InviteModal visible={inviteModalOpen} server={server || undefined} onClose={() => setInviteModalOpen(false)} />
 

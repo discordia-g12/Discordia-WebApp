@@ -4,6 +4,7 @@ import { Lock } from 'lucide-react-native'
 import { makeStyles, useTheme } from '../../theme'
 import { Text } from '../../ui'
 import type { Channel } from '../../types'
+import { formatUnreadCount } from '../../utils/unread'
 
 interface ChannelRowProps {
   channel: Channel
@@ -15,11 +16,18 @@ interface ChannelRowProps {
   locked?: boolean
 }
 
-/** Canal: "•nombre"; el activo en negrita con una barra negra a la izquierda; los no leídos, con el número en bloque negro. */
+/**
+ * Canal: "•nombre"; el activo en negrita con una barra negra a la izquierda; los no leídos, con el número en
+ * bloque negro, y las menciones, con "@" y solo el borde (se distinguen del resto, como en la web).
+ */
 export default function ChannelRow({ channel, active, onPress, onLongPress, locked = false }: ChannelRowProps) {
   const styles = useStyles()
   const { colors } = useTheme()
-  const count = channel.mentions || channel.unread || 0
+  const count = channel.unreadCount ?? 0
+  const mentions = channel.mentions ?? 0
+  const unreadDescription = count
+    ? `, ${count === 1 ? '1 mensaje nuevo' : `${formatUnreadCount(count)} mensajes nuevos`}${mentions ? ', con menciones' : ''}`
+    : ''
 
   return (
     <Pressable
@@ -28,7 +36,7 @@ export default function ChannelRow({ channel, active, onPress, onLongPress, lock
       onLongPress={() => onLongPress(channel)}
       delayLongPress={350}
       accessibilityRole="button"
-      accessibilityLabel={`${channel.type === 'voice' ? 'Canal de voz' : 'Canal'} ${channel.name}${count ? `, ${count} sin leer` : ''}${locked ? ', sin permiso para conectarte' : ''}`}
+      accessibilityLabel={`${channel.type === 'voice' ? 'Canal de voz' : 'Canal'} ${channel.name}${unreadDescription}${locked ? ', sin permiso para conectarte' : ''}`}
       accessibilityState={{ selected: active, disabled: locked }}
       accessibilityHint="Mantené presionado para editarlo"
     >
@@ -38,9 +46,9 @@ export default function ChannelRow({ channel, active, onPress, onLongPress, lock
       </Text>
       {locked && <Lock color={colors.textMuted} size={12} strokeWidth={1.5} />}
       {count > 0 && (
-        <View style={styles.badge}>
-          <Text variant="meta" tone="inverse" bold>
-            {count}
+        <View style={[styles.badge, mentions > 0 && styles.mentionBadge]}>
+          <Text variant="meta" tone={mentions > 0 ? 'default' : 'inverse'} bold>
+            {mentions > 0 ? `@${formatUnreadCount(mentions)}` : formatUnreadCount(count)}
           </Text>
         </View>
       )}
@@ -54,4 +62,5 @@ const useStyles = makeStyles(t => ({
   bar: { position: 'absolute', left: 0, top: 6, bottom: 6, width: t.lines.accent, backgroundColor: t.colors.inverseBackground },
   name: { flex: 1 },
   badge: { marginLeft: t.space[2], paddingHorizontal: t.space[1], backgroundColor: t.colors.inverseBackground },
+  mentionBadge: { backgroundColor: 'transparent', borderWidth: t.lines.accent, borderColor: t.colors.inverseBackground },
 }))

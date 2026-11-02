@@ -42,3 +42,6 @@ Con el monorepo hay una sola copia de React (19) y la lógica compartida vive en
 * La decisión 5 queda reemplazada: `useVoiceRoom` y `useVoicePresence` son los de `@discordia/core`, iguales en web y mobile. Lo que cambia por plataforma (cargar LiveKit con `require`, abrir la sesión de audio, pedir el permiso de micrófono en Android, reproducir el audio en la web con `<audio>`) lo aporta un adaptador `VoicePlatform`; el de mobile está en `apps/mobile/src/utils/voice.ts`. Las decisiones 1 a 4 (development build, detección del módulo nativo, `require` en tiempo de ejecución, `expo start --go`) siguen vigentes.
 * La decisión 6 queda reemplazada: los perfiles se piden con `getUsersBulk` de core, el mismo que usa la web.
 * Ya no hay lógica de voz duplicada. Sigue pendiente recordar mute/deafen en mobile: `VoicePlatform.prefs` lo soporta, pero necesita un storage síncrono y `AsyncStorage` no lo es.
+
+**Actualización (31/10/2026):**
+La app pasó a Expo SDK 58 y React Native 0.88 (`apps/mobile/package.json`). Las referencias a SDK 57 de este ADR describen el estado al momento de la decisión. Las decisiones 1 a 4 siguen vigentes. Lo de `Constants.executionEnvironment` (decisión 2) se comprobó en SDK 57 y no se volvió a revisar en 58: la detección por `NativeModules.WebRTCModule` no depende de eso.

@@ -1,0 +1,57 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { defineConfig, devices } from '@playwright/test';
+
+// Credenciales del usuario de prueba (E2E_PASSWORD) en local: apps/web/.env.e2e.local, que no se commitea.
+// Se busca desde la raíz del monorepo y desde apps/web, según dónde se corra Playwright. En el CI vienen
+// del entorno (secret).
+for (const file of [resolve('apps/web/.env.e2e.local'), resolve('.env.e2e.local')]) {
+  if (existsSync(file)) {
+    process.loadEnvFile(file);
+    break;
+  }
+}
+
+/**
+ * Configuración de Playwright para pruebas E2E en @discordia/web.
+ *
+ * En local/orchestrator: Se conecta al backend real (Kong Gateway en :8000 y PostgreSQL).
+ * En CI (sin backend): Inicia un mock backend ligero en :8000 para que todas las pruebas pasen 100%.
+ */
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: false,
+  forbidOnly: !!process.env.CI,
+  retries: 0,
+  workers: 1,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  use: {
+    baseURL: 'http://localhost:5173',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+  },
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+  webServer: [
+    {
+      command: 'node ./e2e/mock-backend.mjs',
+      url: 'http://localhost:8000/livez',
+      reuseExistingServer: true,
+      timeout: 15 * 1000,
+    },
+    {
+      command: 'npm run dev -- --port 5173',
+      url: 'http://localhost:5173',
+      reuseExistingServer: !process.env.CI,
+      env: {
+        VITE_USE_MOCK: 'false',
+        VITE_API_URL: 'http://localhost:8000',
+      },
+      timeout: 60 * 1000,
+    },
+  ],
+});

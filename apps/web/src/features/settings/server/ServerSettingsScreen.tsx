@@ -928,8 +928,8 @@ function NotificationsSection({ s }: { s: ServerSettingsState }) {
           value={s.notifPreference}
           onChange={s.setNotifPreference}
         />
-        <SettingsRow title="Ignorar @everyone y @here" description="No avisar por las menciones a todos.">
-          <Switch label="Ignorar @everyone y @here" checked={s.suppressEveryone} onChange={s.setSuppressEveryone} />
+        <SettingsRow title="Ignorar @everyone" description="No avisar por las menciones a todos los del canal.">
+          <Switch label="Ignorar @everyone" checked={s.suppressEveryone} onChange={s.setSuppressEveryone} />
         </SettingsRow>
       </SettingsCell>
       <SettingsCell title="Silenciar servidor" soon>

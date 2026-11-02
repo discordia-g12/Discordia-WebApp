@@ -20,6 +20,7 @@ import { UserMenuContent } from '../../features/profile/UserMenu';
 import { useUserPanelActions } from '../../features/profile/profileActions';
 import { useCurrentUser } from '../../features/profile/currentUserStore';
 import { userBarStatus } from '../../features/profile/userBarStatus';
+import { serverUnreadBadge, serverUnreadLabel } from '../../features/servers/unread';
 import styles from './MobileAppShell.module.css';
 
 export type MobileTab = 'servers' | 'messages' | 'notifications' | 'profile';
@@ -196,7 +197,14 @@ function ServerTabsRow({
       <ul className={styles.stripList} aria-busy={isLoading || undefined}>
         {servers.map((server) => (
           <li key={server.id}>
-            <ServerStrip server={server} active={server.id === selectedServerId} orientation="horizontal" onPress={() => onSelect(server.id)} />
+            <ServerStrip
+              server={server}
+              active={server.id === selectedServerId}
+              unread={serverUnreadLabel(server)}
+              badge={serverUnreadBadge(server)}
+              orientation="horizontal"
+              onPress={() => onSelect(server.id)}
+            />
           </li>
         ))}
       </ul>
@@ -295,7 +303,7 @@ function ProfileTab() {
         onSaveCustomStatus={actions.onSaveCustomStatus}
         onEditProfile={actions.onEditProfile}
         onOpenSettings={actions.onOpenSettings}
-        onOpenAdmin={actions.onOpenAdmin}
+        onOpenBackoffice={actions.onOpenBackoffice}
         onLogout={actions.onLogout}
       />
     </Screen>
