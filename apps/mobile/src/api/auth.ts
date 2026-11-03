@@ -1,7 +1,11 @@
+import * as Linking from 'expo-linking'
 import {
   configureAuth,
   databaseSignup,
+  decodeJwtPayload,
   passwordRealmLogin,
+  backToLogin,
+  retryBootstrap,
   type AuthAdapter,
   type AuthUser,
   type UserProfile,
@@ -58,4 +62,68 @@ export const mobileAuthAdapter: AuthAdapter = {
   async logout() {
     session = null
   },
+}
+
+/** Inicia el flujo federado de Google en el navegador móvil mediante deep linking. */
+export async function loginWithGoogle(): Promise<void> {
+  const redirectUrl = Linking.createURL('callback')
+  const authUrl =
+    `https://${AUTH0_DOMAIN}/authorize?` +
+    `client_id=${AUTH0_CLIENT_ID}&` +
+    `response_type=token&` +
+    `connection=google-oauth2&` +
+    `audience=${encodeURIComponent(AUTH0_AUDIENCE)}&` +
+    `scope=openid%20profile%20email&` +
+    `redirect_uri=${encodeURIComponent(redirectUrl)}`
+
+  await Linking.openURL(authUrl)
+}
+
+export function handleAuthUrl(url: string | null) {
+  if (!url) return
+  if (url.includes('error=')) {
+    return
+  }
+  const hashPart = url.split('#')[1] || url.split('?')[1] || ''
+  const params = new URLSearchParams(hashPart)
+  const token = params.get('access_token')
+  if (token) {
+    const claims = decodeJwtPayload(token)
+    const email =
+      (claims?.['https://discordia.app/email'] as string) ||
+      (claims?.email as string) ||
+      ''
+    const nickname =
+      (claims?.['https://discordia.app/username'] as string) ||
+      (claims?.nickname as string) ||
+      (email ? email.split('@')[0] : '') ||
+      `user_${Date.now().toString().slice(-4)}`
+    const user: AuthUser = {
+      sub: claims?.sub as string,
+      email,
+      nickname,
+      name: (claims?.name as string) || nickname,
+      picture: claims?.picture as string,
+    }
+    session = { token, user }
+    retryBootstrap()
+  }
+}
+
+// Escuchar retorno del navegador
+Linking.addEventListener('url', event => {
+  handleAuthUrl(event.url)
+})
+
+Linking.getInitialURL().then(url => {
+  if (url) handleAuthUrl(url)
+})
+
+export const mobileAuthService = {
+  loginWithCredentials: mobileAuthAdapter.loginWithCredentials,
+  signupWithCredentials: mobileAuthAdapter.signupWithCredentials,
+  logout: mobileAuthAdapter.logout,
+  backToLogin,
+  retryBootstrap,
+  loginWithGoogle,
 }

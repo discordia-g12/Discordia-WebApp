@@ -9,6 +9,7 @@ import {
   bitmaskToPermissions,
   createRole,
   deleteRole,
+  reorderRoles,
   getRoleMembers,
   getRoles,
   mapRoleFromBackend,
@@ -371,5 +372,28 @@ describe('API de roles', () => {
       .mockResolvedValue(jsonResponse({ detail: 'Cannot delete the default server role.' }, 400));
 
     await expect(deleteRole('srv-1', 'role-0')).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('reorderRoles hace PUT a /roles/order y devuelve la lista de roles ordenados', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse([
+        backendRole({ id: 'role-2', position: 0 }),
+        backendRole({ id: 'role-1', position: 1 }),
+      ])
+    );
+    globalThis.fetch = fetchMock;
+
+    const result = await reorderRoles('srv-1', ['role-2', 'role-1']);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe('role-2');
+    expect(result[0].position).toBe(0);
+    expect(result[1].id).toBe('role-1');
+    expect(result[1].position).toBe(1);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/roles/order');
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body as string)).toEqual({ role_ids: ['role-2', 'role-1'] });
   });
 });

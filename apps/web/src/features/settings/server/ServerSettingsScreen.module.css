@@ -144,6 +144,46 @@
   cursor: pointer;
 }
 
+.roleRowItem {
+  display: flex;
+  align-items: center;
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
+
+.roleRowItem .roleItem {
+  border-bottom: 0;
+  flex: 1;
+}
+
+.roleOrderButtons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-right: var(--space-2);
+}
+
+.orderButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  background: none;
+  border: var(--line-hairline) solid var(--color-line);
+  color: var(--color-text);
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.orderButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.orderButton:hover:not(:disabled) {
+  border-color: var(--color-line-strong);
+  background: var(--color-accent-subtle, rgba(255, 255, 255, 0.05));
+}
+
 .roleItemActive {
   font-weight: 700;
   box-shadow: inset var(--line-accent) 0 0 var(--color-inverse-background);

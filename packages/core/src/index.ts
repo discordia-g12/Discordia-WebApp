@@ -37,6 +37,9 @@ export * from './admin/permissions';
 export * from './admin/roles';
 export * from './admin/members';
 
+// Backoffice de staff: estado de la plataforma (health checks agregados por el backend)
+export * from './admin/platformStatus';
+
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';
 export * from './chat/mentions';

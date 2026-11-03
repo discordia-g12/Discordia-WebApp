@@ -40,3 +40,52 @@
 .muted {
   color: var(--color-text-muted);
 }
+
+/* Estado de la plataforma: color y texto, nunca solo color */
+.statusHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.statusSummary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.statusError {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.health {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-1);
+  font-size: var(--font-meta-size);
+  white-space: nowrap;
+  border: var(--line-hairline) solid currentColor;
+}
+
+.healthDot {
+  width: 0.5em;
+  height: 0.5em;
+  background: currentColor;
+}
+
+.healthOperational {
+  color: var(--color-speaking);
+}
+
+.healthDegraded {
+  color: var(--color-danger);
+}
+
+.healthUnknown {
+  color: var(--color-text-muted);
+}

@@ -252,10 +252,38 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Roles (GET: los del servidor, con el por defecto primero)
+  const rolesOrderMatch = path.match(/^\/api\/v1\/servers\/([^/]+)\/roles\/order$/);
+  if (rolesOrderMatch && req.method === 'PUT') {
+    const serverId = rolesOrderMatch[1];
+    const roleIds = json.role_ids || json.roles || [];
+    const serverRoles = roles[serverId] ?? [];
+    const everyone = { id: `${serverId}-everyone`, name: '@everyone', color: null, position: 0, permissions_bitmask: 0, is_default: true };
+    const all = [everyone, ...serverRoles];
+    const reordered = roleIds.map((id, idx) => {
+      const match = all.find((r) => r.id === id);
+      return match ? { ...match, position: idx } : null;
+    }).filter(Boolean);
+    roles[serverId] = reordered.filter((r) => !r.is_default);
+    return send(200, reordered);
+  }
+
   const rolesMatch = path.match(/^\/api\/v1\/servers\/([^/]+)\/roles$/);
   if (rolesMatch && req.method === 'GET') {
     const everyone = { id: `${rolesMatch[1]}-everyone`, name: '@everyone', color: null, position: 0, permissions_bitmask: 0, is_default: true };
     return send(200, [everyone, ...(roles[rolesMatch[1]] ?? [])]);
+  }
+  if (rolesMatch && req.method === 'POST') {
+    const serverId = rolesMatch[1];
+    const role = {
+      id: `role-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: json.name || 'rol',
+      color: json.color || null,
+      position: (roles[serverId]?.length ?? 0) + 1,
+      permissions_bitmask: 0,
+      is_default: false,
+    };
+    (roles[serverId] ??= []).push(role);
+    return send(201, role);
   }
   if (path.includes('/roles')) {
     return send(200, []);

@@ -39,8 +39,10 @@ setAuthAdapterResolver(async () => {
 });
 
 export const authService = {
-  login: (opts?: { signup?: boolean; returnTo?: string; loginHint?: string }) =>
+  login: (opts?: { signup?: boolean; returnTo?: string; loginHint?: string; connection?: string }) =>
     (getAuthAdapter() as WebAuthAdapter).loginRedirect(opts),
+  loginWithGoogle: () =>
+    (getAuthAdapter() as WebAuthAdapter).loginRedirect({ connection: 'google-oauth2' }),
   loginWithCredentials,
   signupWithCredentials,
   logout,

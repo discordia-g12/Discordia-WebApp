@@ -17,7 +17,7 @@ Las decisiones de seguridad están en [`Gateway/docs/ADR-002-Rol-Staff-Backoffic
 | Servidores | `/servidores` | Listado, suspender (y levantar), eliminar | Próximamente |
 | Expedientes | `/expedientes` | Expediente de usuario o servidor | Próximamente |
 | Métricas | `/metricas` | Métricas globales de la plataforma | Próximamente |
-| Estado | `/estado` | Estado de la plataforma e incidentes | Próximamente |
+| Estado | `/estado` | Estado de la plataforma e incidentes | Estado de los servicios funciona (`GET /api/v1/admin/status`, cada 30 s); incidentes, próximamente |
 | Observabilidad | `/observabilidad` | Links a Grafana | Funciona |
 
 Cada pantalla ya tiene su forma final (filtros, columnas, confirmaciones), deshabilitada con "próximamente" hasta que exista su endpoint de staff. El estado de cada función está en [`src/features.ts`](src/features.ts). Para habilitar una:
