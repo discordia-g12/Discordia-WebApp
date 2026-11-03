@@ -35,4 +35,33 @@ describe('mensajes', () => {
     const sent = await sendMessage('c1', 'chau', 'key-1');
     expect(sent.timestamp).toBe('2026-10-22T10:00:00Z');
   });
+
+  it('normaliza las URLs relativas de los adjuntos en los mensajes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        messages: [
+          {
+            id: 'm3',
+            content: '',
+            authorId: 'u1',
+            channelId: 'c1',
+            createdAt: '2026-10-22T10:00:00Z',
+            attachments: [
+              {
+                id: 'att-1',
+                name: 'screenshot.png',
+                url: '/api/v1/chat/uploads/attachments/c1/att-1-screenshot.png',
+                size: 1024,
+                contentType: 'image/png',
+              },
+            ],
+          },
+        ],
+      })
+    );
+    const [msg] = await getMessages('c1');
+    expect(msg.attachments?.[0].url).toBe(
+      'http://api.test/api/v1/chat/uploads/attachments/c1/att-1-screenshot.png'
+    );
+  });
 });

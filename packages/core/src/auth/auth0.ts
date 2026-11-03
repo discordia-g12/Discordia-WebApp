@@ -22,6 +22,12 @@ export function roleFromAccessToken(token: unknown): string {
   return typeof role === 'string' && role ? role : 'user';
 }
 
+/** Subject (sub) del access token; coincide con el X-User-ID que inyecta Kong. */
+export function subFromAccessToken(token: unknown): string {
+  const sub = decodeJwtPayload(token)?.sub;
+  return typeof sub === 'string' && sub ? sub : '';
+}
+
 export interface PasswordLoginResult {
   accessToken: string;
   /** Segundos de validez del access token. */

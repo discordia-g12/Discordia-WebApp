@@ -7,6 +7,7 @@ export type {
   Channel,
   ChannelBackendResponse,
   ChannelType,
+  MessageAttachment,
   MessageBackendPayload,
   MessageType,
   Role,
