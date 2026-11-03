@@ -1,32 +1,30 @@
 import { useState } from 'react';
 import { BlockButton, Choice, EmptyState, UnderlineInput } from '@web/ui';
+import type { PlatformServiceId } from '@discordia/core';
 import { Cell, Note } from '../layout/Cell';
-import { CheckList, DataTable, TextArea, type Column } from '../layout/blocks';
-import styles from './sections.module.css';
-
-type ServiceId = 'gateway' | 'auth-user' | 'server-roles' | 'chat' | 'voice' | 'notification-audit' | 'payments';
+import { CheckList, TextArea } from '../layout/blocks';
+import { grafanaLinks } from './grafana';
+import { PlatformStatusPanel } from './PlatformStatusPanel';
 
 type IncidentKind = 'degraded' | 'maintenance';
 
-/** Los servicios que exponen /livez y /readyz (Requisitos No Funcionales): los afectados de un incidente. */
-const SERVICES: { value: ServiceId; label: string }[] = [
+/**
+ * Los servicios que exponen /livez y /readyz (Requisitos No Funcionales): los afectados de un incidente.
+ * Con los mismos ids que GET /api/v1/admin/status.
+ */
+const SERVICES: { value: PlatformServiceId; label: string }[] = [
   { value: 'gateway', label: 'API Gateway' },
-  { value: 'auth-user', label: 'Usuarios y autenticación' },
+  { value: 'auth', label: 'Usuarios y autenticación' },
   { value: 'server-roles', label: 'Servidores, roles y moderación' },
   { value: 'chat', label: 'Mensajería' },
   { value: 'voice', label: 'Voz' },
-  { value: 'notification-audit', label: 'Notificaciones, auditoría y métricas' },
+  { value: 'notification', label: 'Notificaciones, auditoría y métricas' },
   { value: 'payments', label: 'Pagos y monetización' },
 ];
 
 const KIND_OPTIONS: { value: IncidentKind; label: string }[] = [
   { value: 'degraded', label: 'degradación' },
   { value: 'maintenance', label: 'mantenimiento' },
-];
-
-const SERVICE_COLUMNS: Column<(typeof SERVICES)[number]>[] = [
-  { key: 'name', label: 'servicio', render: (s) => <span className={styles.serviceName}>{s.label}</span> },
-  { key: 'state', label: 'estado', render: () => <span className={styles.muted}>—</span> },
 ];
 
 /**
@@ -38,20 +36,11 @@ export function StatusSection() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [kind, setKind] = useState<IncidentKind>('degraded');
-  const [affected, setAffected] = useState<ServiceId[]>([]);
+  const [affected, setAffected] = useState<PlatformServiceId[]>([]);
 
   return (
     <>
-      <Cell title="Estado de los servicios" feature="status.incidents" wide>
-        <DataTable
-          caption="Estado de los servicios"
-          columns={SERVICE_COLUMNS}
-          rows={SERVICES}
-          rowKey={(s) => s.value}
-          empty={{ title: 'sin servicios' }}
-        />
-        <Note>Cuando un servicio informe degradación en su health check, acá se va a sugerir publicar un incidente.</Note>
-      </Cell>
+      <PlatformStatusPanel grafanaUrl={grafanaLinks().home} />
 
       <Cell title="Publicar incidente" feature="status.incidents">
         <UnderlineInput label="título" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="por ejemplo, demoras en la voz" />

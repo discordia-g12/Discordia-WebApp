@@ -18,7 +18,8 @@ const FEATURES = {
   'cases.user': 'soon', // Ver expediente de investigación de un usuario
   'cases.server': 'soon', // Ver expediente de investigación de un servidor
   'metrics.global': 'soon', // Ver métricas globales de la plataforma (Notification-Audit-Metrics)
-  'status.incidents': 'soon', // Estado de la plataforma e incidentes
+  'status.services': 'ready', // Estado de cada servicio (GET /api/v1/admin/status, Notification)
+  'status.incidents': 'soon', // Publicar y resolver incidentes
   'observability.grafana': 'ready', // Links a Grafana: no dependen de ningún endpoint
 } satisfies Record<string, FeatureStatus>;
 
