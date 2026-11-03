@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ApiError, errorDetail } from '../api/errors';
 import { requestPasswordReset } from '../api/passwordReset';
 import { upsertMyProfile } from '../api/users';
@@ -18,6 +18,7 @@ export interface AuthFormActions {
   logout: typeof logout;
   backToLogin: typeof backToLogin;
   retryBootstrap: typeof retryBootstrap;
+  loginWithGoogle?: () => Promise<void>;
 }
 
 const sessionActions: AuthFormActions = { loginWithCredentials, signupWithCredentials, logout, backToLogin, retryBootstrap };
@@ -58,7 +59,7 @@ function describePasswordResetError(err: unknown): string {
 }
 
 export function useAuthForms(authService: AuthFormActions = sessionActions) {
-  const { pendingEmail } = useSession();
+  const { pendingEmail, error: sessionError } = useSession();
 
   // Tab activo: 'login', 'register' o 'forgot' (recupero de contraseña)
   const [activeTab, setActiveTab] = useState<AuthTab>('login');
@@ -79,8 +80,16 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
 
   // Estados de carga y error del formulario
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingGoogle, setIsSubmittingGoogle] = useState(false);
   const [formError, setFormErrorState] = useState<string | null>(null);
   const [errorField, setErrorField] = useState<AuthField | null>(null);
+
+  // CA 3: Reflejar errores de sesión (ej: proveedor externo no disponible tras callback)
+  useEffect(() => {
+    if (sessionError?.message) {
+      setFormErrorState(sessionError.message);
+    }
+  }, [sessionError?.message]);
 
   // Estados locales para el caso de resolución de conflicto de username (needs_profile)
   const [conflictUsername, setConflictUsername] = useState('');
@@ -293,6 +302,22 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
     await authService.logout();
   };
 
+  /** Inicia login federado con Google (CA 1, CA 2). Si falla, informa el error y ofrece email/password (CA 3). */
+  const handleGoogleLogin = async () => {
+    setFormError(null);
+    setIsSubmittingGoogle(true);
+    try {
+      if (authService.loginWithGoogle) {
+        await authService.loginWithGoogle();
+      } else {
+        throw new Error('Federated login not available');
+      }
+    } catch {
+      setFormError('El proveedor externo no está disponible o no respondió. Podés iniciar sesión con correo y contraseña.');
+      setIsSubmittingGoogle(false);
+    }
+  };
+
   return {
     activeTab,
     switchTab,
@@ -320,6 +345,7 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
       error: conflictError,
     },
     isSubmitting,
+    isSubmittingGoogle,
     formError,
     errorField,
     handleLoginSubmit,
@@ -328,6 +354,7 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
     handleConflictSubmit,
     handleVerifiedRetry,
     handleUseOtherAccount,
+    handleGoogleLogin,
   };
 }
 

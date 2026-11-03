@@ -80,4 +80,41 @@ test.describe('Flujo de Autenticación y Acceso al Dashboard', () => {
     await expect(page.getByRole('complementary', { name: 'Mensajes directos' })).toBeVisible();
     await expect(page.getByRole('main')).toBeVisible();
   });
+
+  test('CA 1 & CA 2: debe mostrar el botón "Continuar con Google" en Login y Registro', async ({ page }) => {
+    await page.goto('/');
+
+    const googleLoginBtn = page.getByTestId('btn-login-google');
+    await expect(googleLoginBtn).toBeVisible();
+    await expect(googleLoginBtn).toContainText(/continuar con google/i);
+
+    // Cambiar a registro
+    await page.getByTestId('tab-register').click();
+    const googleRegisterBtn = page.getByTestId('btn-register-google');
+    await expect(googleRegisterBtn).toBeVisible();
+    await expect(googleRegisterBtn).toContainText(/continuar con google/i);
+  });
+
+  test('CA 3: si el proveedor externo no está disponible tras redirección, informa el error y ofrece email y contraseña', async ({ page }) => {
+    // Simular que el proveedor externo falló y Auth0 redirigió a /callback con error
+    await page.goto('/callback?error=server_error&error_description=External+identity+provider+failed+to+respond');
+
+    // Debe mostrar la alerta con el mensaje explicativo
+    const alert = page.getByRole('alert');
+    await expect(alert).toBeVisible({ timeout: 10000 });
+    await expect(alert).toContainText(/el proveedor externo no está disponible o no respondió/i);
+    await expect(alert).toContainText(/podés iniciar sesión con correo y contraseña/i);
+
+    // Los campos de email y contraseña deben estar disponibles como alternativa
+    const emailInput = page.getByPlaceholder('ejemplo@discordia.com');
+    const passwordInput = page.getByPlaceholder('tu contraseña');
+    const loginButton = page.getByTestId('btn-submit-login');
+
+    await expect(emailInput).toBeVisible();
+    await expect(emailInput).toBeEnabled();
+    await expect(passwordInput).toBeVisible();
+    await expect(passwordInput).toBeEnabled();
+    await expect(loginButton).toBeVisible();
+    await expect(loginButton).toBeEnabled();
+  });
 });

@@ -191,7 +191,14 @@ async function runBootstrap(): Promise<void> {
         return;
       }
 
-      useSession.getState().setStatus('unauthenticated', { profile: null });
+      // CA 3: Proveedor externo no disponible - el sistema informa el error y ofrece email/contraseña
+      useSession.getState().setStatus('unauthenticated', {
+        profile: null,
+        error: {
+          title: 'Proveedor no disponible',
+          message: 'El proveedor externo no está disponible o no respondió. Podés iniciar sesión con correo y contraseña.',
+        },
+      });
       return;
     }
   }
@@ -245,16 +252,20 @@ async function runBootstrap(): Promise<void> {
         const pending = pendingProfileStore(adapter).take();
 
         // Prioridad: username elegido al registrarse (claim del ID token, sobrevive a
-        // verificar el mail en otra pestaña/dispositivo) > el guardado localmente > derivados.
-        const rawUsername = authUser?.username || pending.username || authUser?.nickname || authUser?.email?.split('@')[0] || `user_${Date.now().toString().slice(-4)}`;
-        const cleanUsername = rawUsername.toLowerCase().replace(/[^a-zA-Z0-9_.-]/g, '_').padEnd(3, '0').slice(0, 32);
+        // verificar el mail en otra pestaña/dispositivo) > el guardado localmente.
+        // Si no eligió un username (ej. primer ingreso con proveedor federado como Google),
+        // se muestra la pantalla "ELEGÍ TU USUARIO" para que elija su username y nombre visible.
+        const chosenUsername = authUser?.username || pending.username;
+        if (!chosenUsername) {
+          useSession.getState().setStatus('needs_profile', { profile: null, error: null });
+          return;
+        }
 
-        // En cuentas usuario/contraseña Auth0 completa `name` con el email: no sirve como nombre visible
-        const idpName = authUser?.name && authUser.name !== authUser.email ? authUser.name : undefined;
+        const cleanUsername = chosenUsername.toLowerCase().replace(/[^a-zA-Z0-9_.-]/g, '_').padEnd(3, '0').slice(0, 32);
 
         const autoProfile = await upsertMyProfile({
           username: cleanUsername,
-          display_name: pending.displayName || idpName || cleanUsername,
+          display_name: pending.displayName || cleanUsername,
           avatar_url: authUser?.picture,
         });
 
