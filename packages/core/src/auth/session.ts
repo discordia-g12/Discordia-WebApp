@@ -213,7 +213,7 @@ async function runBootstrap(): Promise<void> {
 
   // El rol y el sub salen del mismo access token que valida Kong: la interfaz usa el mismo X-User-ID que el Gateway
   let role: string;
-  let tokenSub = '';
+  let tokenSub: string;
   try {
     const token = await adapter.getToken();
     role = roleFromAccessToken(token);
