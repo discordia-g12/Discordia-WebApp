@@ -5,8 +5,10 @@ import {
   configureAuth,
   databaseSignup,
   getAuthConfig,
+  getTwoFactorStatus,
   passwordRealmLogin,
   PendingProfileStore,
+  TwoFactorRequiredError,
   USERNAME_CLAIM,
   useSession,
 } from '@discordia/core';
@@ -19,8 +21,33 @@ configureAuth({
 });
 
 const SESSION_STORAGE_KEY = 'discordia_auth_session';
+const PENDING_TWO_FACTOR_KEY = 'discordia_pending_2fa';
 const PENDING_USERNAME_KEY = 'discordia_pending_username';
 const PENDING_DISPLAY_NAME_KEY = 'discordia_pending_display_name';
+
+export function savePendingTwoFactor(data: { token: string; user: AuthUser; expiresIn?: number }) {
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(PENDING_TWO_FACTOR_KEY, JSON.stringify(data));
+  }
+  useSession.setState({ pendingTwoFactor: data });
+}
+
+export function getPendingTwoFactor(): { token: string; user: AuthUser; expiresIn?: number } | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(PENDING_TWO_FACTOR_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingTwoFactor() {
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.removeItem(PENDING_TWO_FACTOR_KEY);
+  }
+  useSession.setState({ pendingTwoFactor: null });
+}
 
 /** Adaptador web: además del contrato común, el flujo de redirección de Universal Login. */
 export interface WebAuthAdapter extends AuthAdapter {
@@ -106,6 +133,7 @@ function loadSession(): boolean {
  * sesión que probablemente exista.
  */
 export function hasStoredSession(): boolean {
+  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(PENDING_TWO_FACTOR_KEY)) return false;
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/callback')) return true;
   if (typeof sessionStorage === 'undefined') return false;
   try {
@@ -151,6 +179,10 @@ export const sessionStoragePendingProfile: PendingProfileStore = {
 
 export const auth0Provider: WebAuthAdapter = {
   async getToken(opts?: { forceRefresh?: boolean }): Promise<string> {
+    if (getPendingTwoFactor()) {
+      throw new Error('login_required');
+    }
+
     // 1. Verificar token en memoria o sessionStorage si no se pide refresco forzado
     if (!opts?.forceRefresh) {
       if (currentAccessToken && Date.now() < tokenExpiresAt - 15000) {
@@ -177,6 +209,25 @@ export const auth0Provider: WebAuthAdapter = {
         } catch {
           // Si no se pueden leer claims, expMs queda en default (24h)
         }
+
+        // Si entramos a la app con cookie de Auth0 pero sin sesión en sessionStorage, verificar si tiene 2FA
+        if (!loadSession()) {
+          try {
+            const status = await getTwoFactorStatus(token);
+            if (status.enabled) {
+              const claimsUser = await auth0Provider.getUser();
+              const userObj = claimsUser || ({} as AuthUser);
+              savePendingTwoFactor({ token, user: userObj, expiresIn: Math.max(60, Math.floor((expMs - Date.now()) / 1000)) });
+              clearSession();
+              throw new Error('login_required');
+            }
+          } catch (statusErr) {
+            if ((statusErr as Error)?.message === 'login_required') {
+              throw statusErr;
+            }
+          }
+        }
+
         currentAccessToken = token;
         tokenExpiresAt = expMs;
         const user = await auth0Provider.getUser();
@@ -185,7 +236,10 @@ export const auth0Provider: WebAuthAdapter = {
         }
         return token;
       }
-    } catch {
+    } catch (silentErr) {
+      if ((silentErr as Error)?.message === 'login_required') {
+        throw silentErr;
+      }
       // Ignorar fallback silencioso si falla
     }
 
@@ -226,6 +280,17 @@ export const auth0Provider: WebAuthAdapter = {
       const expSeconds = claims?.exp ? Math.max(60, claims.exp - Math.floor(Date.now() / 1000)) : 86400;
       const user = await auth0Provider.getUser();
       if (token && user) {
+        // Si el usuario tiene 2FA activo, exigir verificación antes de otorgar sesión (CA 2)
+        try {
+          const status = await getTwoFactorStatus(token);
+          if (status.enabled) {
+            savePendingTwoFactor({ token, user, expiresIn: expSeconds });
+            clearSession();
+            return { returnTo: '/login' };
+          }
+        } catch {
+          // Si falla la consulta de status, continuar normalmente
+        }
         saveSession(token, user, expSeconds);
       }
     } catch {
@@ -255,7 +320,25 @@ export const auth0Provider: WebAuthAdapter = {
     // el perfil nuevo a nombre de la cuenta anterior.
     clearSession();
     const { accessToken, user, expiresIn } = await passwordRealmLogin(credentials);
+
+    // Si el usuario tiene 2FA activo, requerir el segundo factor antes de otorgar la sesión (CA 2, CA 3, CA 4)
+    try {
+      const status = await getTwoFactorStatus(accessToken);
+      if (status.enabled) {
+        throw new TwoFactorRequiredError(accessToken, user, expiresIn);
+      }
+    } catch (err) {
+      if (err instanceof TwoFactorRequiredError) {
+        throw err;
+      }
+    }
+
     saveSession(accessToken, user, expiresIn);
+  },
+
+  async completeTwoFactorSession(token: string, user: AuthUser, expiresInSeconds: number = 86400): Promise<void> {
+    clearPendingTwoFactor();
+    saveSession(token, user, expiresInSeconds);
   },
 
   async signupWithCredentials(signupData: {
@@ -279,6 +362,7 @@ export const auth0Provider: WebAuthAdapter = {
   },
 
   async logout(): Promise<void> {
+    clearPendingTwoFactor();
     clearSession();
     try {
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -297,7 +381,8 @@ export const auth0Provider: WebAuthAdapter = {
     if (currentPath().pathname !== '/callback') return;
     try {
       const { returnTo } = await auth0Provider.handleCallback();
-      const target = returnTo || '/';
+      const pending2fa = getPendingTwoFactor();
+      const target = pending2fa ? '/login' : (returnTo || '/');
       if (typeof window !== 'undefined') {
         window.history.replaceState({}, '', target);
       }

@@ -1,5 +1,13 @@
 import type { Server } from '../types';
 import type { CreateServerRequest } from './servers';
+import type {
+  TwoFactorActivateResponse,
+  TwoFactorDisableResponse,
+  TwoFactorRegenerateResponse,
+  TwoFactorSetupResponse,
+  TwoFactorStatusResponse,
+  TwoFactorVerifyResponse,
+} from './twoFactor';
 import type { CreateProfileRequest, UserProfile } from './users';
 
 /**
@@ -13,6 +21,12 @@ export interface ApiMock {
   requestPasswordReset(email: string): Promise<void>;
   getServers?(): Promise<Server[]>;
   createServer?(payload: CreateServerRequest): Promise<Server>;
+  getTwoFactorStatus?(): Promise<TwoFactorStatusResponse>;
+  setupTwoFactor?(): Promise<TwoFactorSetupResponse>;
+  activateTwoFactor?(code: string): Promise<TwoFactorActivateResponse>;
+  verifyTwoFactor?(code: string): Promise<TwoFactorVerifyResponse>;
+  disableTwoFactor?(password: string): Promise<TwoFactorDisableResponse>;
+  regenerateRecoveryCodes?(): Promise<TwoFactorRegenerateResponse>;
 }
 
 let apiMock: ApiMock | null = null;

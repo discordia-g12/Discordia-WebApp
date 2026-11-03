@@ -57,6 +57,9 @@ export interface AuthAdapter {
   /** Cierra la sesión en la aplicación y en el proveedor de identidad. */
   logout(): Promise<void>;
 
+  /** Guarda la sesión de un usuario que acaba de completar la verificación 2FA (CA 2, CA 4). */
+  completeTwoFactorSession?(token: string, user: AuthUser, expiresInSeconds?: number): Promise<void>;
+
   /**
    * Primer paso del arranque, antes de pedir el token (web: procesar el /callback de Universal Login).
    * Si lanza, el arranque lo trata como rechazo del IdP o como sesión inexistente.

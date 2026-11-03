@@ -5,7 +5,7 @@ import { showToast } from '../../app/uiStore';
 
 function fromProfile(p: UserProfile | null): User {
   return {
-    id: p?.id || 'temp_id',
+    id: p?.id || p?.user_id || 'temp_id',
     username: p?.username || 'user',
     displayName: p?.displayName || p?.display_name || p?.username || 'User',
     avatar: p?.avatar || p?.avatar_url || '',
@@ -39,6 +39,7 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
       currentUser: {
         ...s.currentUser,
         ...profile,
+        id: profile.id || profile.user_id || s.currentUser.id,
         displayName: profile.displayName || profile.display_name || profile.username,
         avatar: profile.avatar || profile.avatar_url || s.currentUser.avatar,
       },
