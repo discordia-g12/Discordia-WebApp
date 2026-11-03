@@ -26,6 +26,7 @@ import {
   updateRolePermissions,
   updateRoleInfo,
   setDefaultRole,
+  reorderRoles,
   CreateRoleRequest,
   UpdateRoleInfoRequest,
 } from '../api/roles';
@@ -381,6 +382,19 @@ export function useDeleteRoleMutation(serverId: string) {
   return useMutation({
     mutationFn: (roleId: string) => deleteRole(serverId, roleId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles', serverId] });
+    },
+  });
+}
+
+export function useReorderRolesMutation(serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (roleIds: string[]) => reorderRoles(serverId, roleIds),
+    onSuccess: (updatedRoles) => {
+      queryClient.setQueryData<Role[]>(['roles', serverId], updatedRoles);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['roles', serverId] });
     },
   });
