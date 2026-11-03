@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { useChannelMessagesQuery, useUserProfiles } from '@discordia/core';
+import { useChannelMessagesQuery, useSession, useUserProfiles } from '@discordia/core';
 import type { User } from '../types';
 import { useUIStore } from './uiStore';
 import { useCurrentUser } from '../features/profile/currentUserStore';
@@ -14,6 +14,7 @@ import { placeholderUser, useServerMemberUsers } from '../features/servers/useCu
  */
 export function UsersProvider({ children }: { children: ReactNode }) {
   const currentUser = useCurrentUser();
+  const linkedUserId = useSession((s) => s.profile?.user_id);
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
   const directMessages = useDmStore((s) => s.directMessages);
@@ -28,7 +29,7 @@ export function UsersProvider({ children }: { children: ReactNode }) {
       ...(realMessages ?? []).map((msg) => msg.authorId),
       ...room.participants.map((p) => p.id),
       ...Object.values(presence).flat(),
-    ].filter((id) => id !== currentUser.id)
+    ].filter((id) => id !== currentUser.id && id !== linkedUserId)
   );
 
   const usersMap = useMemo(() => {
@@ -42,8 +43,11 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     });
 
     map[currentUser.id] = currentUser;
+    if (linkedUserId) {
+      map[linkedUserId] = currentUser;
+    }
     return map;
-  }, [fetchedUsers, memberUsers, currentUser]);
+  }, [fetchedUsers, memberUsers, currentUser, linkedUserId]);
 
   const value = useMemo(
     () => ({ usersMap, userOrFallback: (id: string) => usersMap[id] || placeholderUser(id) }),

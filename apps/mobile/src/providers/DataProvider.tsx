@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react'
 import { AppState } from 'react-native'
-import type { User, Server, Category, Channel, Message, MessageBackendPayload } from '../types'
+import type { User, Server, Category, Channel, Message, MessageAttachment, MessageBackendPayload } from '../types'
 import { useAuth } from './AuthProvider'
 import {
   getMessages,
@@ -67,8 +67,8 @@ interface DataContextValue {
   deleteServer: (serverId: string) => Promise<void>
 
   // Mutaciones y sincronización
-  sendMessage: (channelId: string, content: string) => void
-  addOptimisticMessage: (channelId: string, content: string) => string
+  sendMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => void
+  addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
   failOptimisticMessage: (channelId: string) => void
   fetchChannelMessages: (channelId: string) => Promise<void>
@@ -111,6 +111,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setUsers(prev => ({
       ...prev,
       [userProfile.id]: profileUser,
+      ...(userProfile.user_id ? { [userProfile.user_id]: profileUser } : {}),
     }))
   }, [userProfile])
 
@@ -347,7 +348,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   )
 
   const addOptimisticMessage = useCallback(
-    (channelId: string, content: string): string => {
+    (channelId: string, content: string, attachments?: MessageAttachment[]): string => {
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
       const now = new Date().toISOString()
       const newMessage: Message = {
@@ -359,6 +360,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: now,
         type: 'normal',
         status: 'pending',
+        attachments,
       }
       setMessages(prev => ({
         ...prev,
@@ -443,9 +445,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Envío por REST (el normal es por el WebSocket del canal): se muestra al instante y queda enviado o fallido
   const sendMessage = useCallback(
-    (channelId: string, content: string) => {
-      const tempId = addOptimisticMessage(channelId, content)
-      apiSendMessage(channelId, content, tempId)
+    (channelId: string, content: string, attachments?: MessageAttachment[]) => {
+      const tempId = addOptimisticMessage(channelId, content, attachments)
+      apiSendMessage(channelId, content, tempId, attachments)
         .then(sent => confirmOptimisticMessage(channelId, { ...sent, createdAt: sent.createdAt ?? sent.timestamp }))
         .catch(() => failOptimisticMessage(channelId))
     },

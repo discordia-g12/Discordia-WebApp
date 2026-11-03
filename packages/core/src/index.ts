@@ -22,6 +22,7 @@ export * from './api/roles';
 export * from './api/moderation';
 export * from './api/serverTransfer';
 export * from './api/messages';
+export * from './api/attachments';
 export * from './api/readStates';
 export * from './api/voice';
 export * from './api/twoFactor';

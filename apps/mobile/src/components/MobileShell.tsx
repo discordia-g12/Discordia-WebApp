@@ -7,8 +7,9 @@ import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink, keyboar
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
+import * as ImagePicker from 'expo-image-picker'
 import ChatHeader from './chat/ChatHeader'
-import Composer from './chat/Composer'
+import Composer, { type PendingAttachment } from './chat/Composer'
 import ConfirmModal from './shared/ConfirmModal'
 import InviteModal from './servers/InviteModal'
 import CreateChannelModal from './channels/CreateChannelModal'
@@ -55,6 +56,9 @@ import {
   useMarkAllReadMutation,
   useMarkChannelReadMutation,
   useUnreadQuery,
+  validateAttachmentFile,
+  uploadAttachment,
+  type MessageAttachment,
 } from '@discordia/core'
 
 /** Lo que se ve en Servidores: la lista de canales, o un canal abierto a pantalla completa. */
@@ -128,6 +132,8 @@ export default function MobileShell() {
   })
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [draft, setDraft] = useState('')
+  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null)
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
   const [createServerMode, setCreateServerMode] = useState<'create' | 'join'>('create')
   const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
@@ -391,12 +397,44 @@ export default function MobileShell() {
     setCreateChannelModalOpen(true)
   }
 
-  const handleSend = () => {
-    if (!channel) return
+  const handlePickAttachment = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 1,
+      })
+
+      if (result.canceled || !result.assets || !result.assets[0]) return
+
+      const asset = result.assets[0]
+      const name = asset.fileName || `imagen-${Date.now()}.jpg`
+      const type = asset.mimeType || 'image/jpeg'
+      const size = asset.fileSize
+
+      const error = validateAttachmentFile({ name, type, size })
+      if (error) {
+        showToast(error, 'error')
+        return
+      }
+
+      setPendingAttachment({
+        uri: asset.uri,
+        name,
+        type,
+        size,
+      })
+    } catch {
+      showToast('No se pudo seleccionar la imagen', 'error')
+    }
+  }
+
+  const handleSend = async () => {
+    if (!channel || isUploadingAttachment) return
     const trimmed = draft.trim()
 
-    // CA 2: Evitar envío si está vacío (o si no puede escribir: el input ya está deshabilitado)
-    if (!trimmed || chatBlockedMessage) return
+    // CA 2: Evitar envío si está vacío y sin adjunto (o si no puede escribir: el input ya está deshabilitado)
+    if ((!trimmed && !pendingAttachment) || chatBlockedMessage) return
 
     // CA 4: Bloquear o advertir si supera los 2000 caracteres
     if (trimmed.length > 2000) {
@@ -404,18 +442,42 @@ export default function MobileShell() {
       return
     }
 
+    let attachmentPayload: MessageAttachment | undefined
+
+    if (pendingAttachment) {
+      try {
+        setIsUploadingAttachment(true)
+        const uploaded = await uploadAttachment(channel.id, {
+          uri: pendingAttachment.uri,
+          name: pendingAttachment.name,
+          type: pendingAttachment.type,
+        })
+        attachmentPayload = uploaded
+      } catch (err: unknown) {
+        setIsUploadingAttachment(false)
+        const msg = (err instanceof Error && err.message) || 'No se pudo subir el archivo.'
+        showToast(msg, 'error')
+        return
+      } finally {
+        setIsUploadingAttachment(false)
+      }
+    }
+
+    const attachmentsList = attachmentPayload ? [attachmentPayload] : undefined
+
     // CA 1: Actualización optimista
-    addOptimisticMessage(channel.id, trimmed)
+    addOptimisticMessage(channel.id, trimmed, attachmentsList)
     setDraft('')
+    setPendingAttachment(null)
 
     // Envío por WebSocket si es un canal activo, o fallback
     if (activeSocketChannelId) {
-      socket.sendMessage(trimmed).catch(() => {
+      socket.sendMessage(trimmed, attachmentsList).catch(() => {
         failOptimisticMessage(channel.id)
         showToast('No se pudo enviar el mensaje por WebSocket.', 'error')
       })
     } else {
-      sendMessage(channel.id, trimmed)
+      sendMessage(channel.id, trimmed, attachmentsList)
     }
   }
 
@@ -585,6 +647,10 @@ export default function MobileShell() {
             onChangeText={setDraft}
             onSend={handleSend}
             blockedMessage={chatBlockedMessage}
+            attachment={pendingAttachment}
+            onAttach={handlePickAttachment}
+            onRemoveAttachment={() => setPendingAttachment(null)}
+            isUploading={isUploadingAttachment}
           />
         </Pane>
       )

@@ -33,7 +33,7 @@ export function useMessageActions() {
       if (!selectedChannelId) return;
       const send = async () => {
         try {
-          await sendMessageWs(content);
+          await sendMessageWs(content, attachment ? [attachment] : undefined);
         } catch {
           showToast('No se pudo enviar el mensaje', 'danger', { label: 'reintentar', onPress: send });
         }
@@ -54,6 +54,7 @@ export function useMessageActions() {
       timestamp: new Date().toISOString(),
       type: 'normal',
       replyToId: replyToId || null,
+      attachments: attachment ? [attachment] : undefined,
       fileAttachment: attachment
         ? {
           name: attachment.name,

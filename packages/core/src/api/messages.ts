@@ -1,5 +1,6 @@
 import { api } from './client';
-import { Message } from '../types';
+import { resolveAttachmentUrl } from './attachments';
+import { Message, MessageAttachment } from '../types';
 
 /**
  * Chat-Engine manda solo createdAt (historial, envío y WebSocket); la interfaz ordena, agrupa y muestra la
@@ -7,7 +8,18 @@ import { Message } from '../types';
  */
 export function normalizeMessage(message: Message): Message {
   const time = message.timestamp ?? message.createdAt ?? '';
-  return { ...message, timestamp: time, createdAt: message.createdAt ?? time };
+  const attachments = message.attachments?.map((att) => ({
+    ...att,
+    url: resolveAttachmentUrl(att.url),
+    type: att.type ?? att.contentType,
+    contentType: att.contentType ?? att.type,
+  }));
+  return {
+    ...message,
+    timestamp: time,
+    createdAt: message.createdAt ?? time,
+    ...(attachments ? { attachments } : {}),
+  };
 }
 
 export interface GetMessagesOptions {
@@ -36,12 +48,17 @@ export async function getMessages(
 export async function sendMessage(
   channelId: string,
   content: string,
-  clientMessageId?: string
+  clientMessageId?: string,
+  attachments?: MessageAttachment[]
 ): Promise<Message> {
-  const idempotencyKey = clientMessageId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `msg-${Date.now()}`);
+  const idempotencyKey =
+    clientMessageId ||
+    (typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `msg-${Date.now()}`);
   const sent = await api.post<Message>(
     `/api/v1/chat/channels/${channelId}/messages`,
-    { content, clientMessageId: idempotencyKey },
+    { content, clientMessageId: idempotencyKey, ...(attachments?.length ? { attachments } : {}) },
     { idempotencyKey }
   );
   return normalizeMessage(sent);

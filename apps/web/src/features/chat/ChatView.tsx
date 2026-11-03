@@ -10,6 +10,8 @@ import {
   mentionsUser,
   placeMessage,
   splitMentions,
+  ATTACHMENT_ACCEPT,
+  formatAttachmentSize,
   type MessageMentions,
 } from '@discordia/core';
 import type { Channel, DirectMessage, Message, MessageAttachment, Role, User } from '../../types';
@@ -418,7 +420,10 @@ function MessageRow({
         )}
 
         {msg.attachments?.map((att) => {
-          const isImage = att.type?.startsWith('image/') || /\.(jpe?g|png|webp|gif)$/i.test(att.url);
+          const isImage =
+            att.type?.startsWith('image/') ||
+            att.contentType?.startsWith('image/') ||
+            /\.(jpe?g|png|webp|gif)$/i.test(att.name || att.url);
           if (isImage && att.url) {
             return (
               <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className={styles.image}>
@@ -429,7 +434,7 @@ function MessageRow({
           return (
             <p key={att.id} className={styles.file}>
               <span className={styles.fileName}>{att.name}</span>
-              <span className={styles.time}>{att.size ? String(att.size) : 'tamaño desconocido'}</span>
+              <span className={styles.time}>{formatAttachmentSize(att.size) || 'archivo'}</span>
               {att.url && (
                 <a href={att.url} target="_blank" rel="noopener noreferrer" className={styles.fileLink}>
                   _descargar
@@ -637,7 +642,7 @@ const authorName = (msg: Message, users: Record<string, User>) =>
 
 function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Record<string, User>; writeBlock: string | null }) {
   const placeholder = chat.isDirectMessage ? `Enviar mensaje a @${chat.chatTitle}` : `Enviar mensaje a ${chat.chatTitle}`;
-  const canSend = Boolean(chat.inputText.trim() || chat.attachment);
+  const canSend = Boolean(chat.inputText.trim() || chat.attachment) && !chat.isUploading;
 
   // Silenciado, sin permiso o fuera del servidor: en lugar de la barra, solo el aviso. Vuelve cuando el chat
   // avisa que puede escribir (vence o se levanta el mute)
@@ -661,8 +666,11 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
       )}
       {chat.attachment && (
         <p className={styles.composerNote}>
-          adjunto: <strong>{chat.attachment.name}</strong> {chat.attachment.size ? `(${chat.attachment.size})` : ''}{' '}
-          <ActionLink onPress={() => chat.setAttachment(null)}>quitar</ActionLink>
+          adjunto: <strong>{chat.attachment.name}</strong>{' '}
+          {chat.attachment.size
+            ? `(${typeof chat.attachment.size === 'number' ? `${(chat.attachment.size / 1024).toFixed(1)} KB` : chat.attachment.size})`
+            : ''}{' '}
+          <ActionLink onPress={chat.handleRemoveAttachment}>quitar</ActionLink>
         </p>
       )}
 
@@ -716,12 +724,20 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
         <button
           type="button"
           className={styles.composerIcon}
-          onClick={chat.handleAttachMock}
+          onClick={chat.handleAttachClick}
           aria-label="Adjuntar archivo"
           title="Adjuntar archivo"
+          disabled={chat.isUploading}
         >
           <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>
+        <input
+          type="file"
+          ref={chat.fileInputRef}
+          style={{ display: 'none' }}
+          accept={ATTACHMENT_ACCEPT}
+          onChange={chat.handleFileChange}
+        />
         <input
           ref={chat.composerInputRef}
           className={styles.composerInput}
@@ -748,7 +764,7 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
           <Smile size={16} strokeWidth={1.5} aria-hidden="true" />
         </button>
         <button type="button" className={styles.send} onClick={chat.handleSend} disabled={!canSend}>
-          enviar /
+          {chat.isUploading ? 'subiendo...' : 'enviar /'}
         </button>
       </div>
     </div>

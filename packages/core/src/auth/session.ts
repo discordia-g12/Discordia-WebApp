@@ -4,7 +4,7 @@ import { configureClient } from '../api/client';
 import { ApiError, errorDetail, isProblemType, PROBLEM_TYPES } from '../api/errors';
 import { getMyProfile, upsertMyProfile, UserProfile } from '../api/users';
 import { AuthDenial, classifyAuthDenial } from './errors';
-import { roleFromAccessToken } from './auth0';
+import { roleFromAccessToken, subFromAccessToken } from './auth0';
 
 /**
  * Sesión de Discordia: máquina de estados compartida por web y mobile. Cada plataforma registra su
@@ -211,10 +211,13 @@ async function runBootstrap(): Promise<void> {
     }
   }
 
-  // El rol sale del mismo access token que valida Kong: la interfaz muestra lo que el Gateway va a permitir
+  // El rol y el sub salen del mismo access token que valida Kong: la interfaz usa el mismo X-User-ID que el Gateway
   let role: string;
+  let tokenSub: string;
   try {
-    role = roleFromAccessToken(await adapter.getToken());
+    const token = await adapter.getToken();
+    role = roleFromAccessToken(token);
+    tokenSub = subFromAccessToken(token);
   } catch (err) {
     const denial = classifyAuthDenial(err);
     if (denial) {
@@ -249,7 +252,11 @@ async function runBootstrap(): Promise<void> {
   }
 
   try {
-    const profile = await getMyProfile();
+    const rawProfile = await getMyProfile();
+    const profile: UserProfile =
+      tokenSub && tokenSub !== rawProfile.id
+        ? { ...rawProfile, id: tokenSub, user_id: rawProfile.user_id || rawProfile.id }
+        : rawProfile;
     useSession.getState().setStatus('authenticated', { profile, error: null, role });
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
@@ -271,11 +278,15 @@ async function runBootstrap(): Promise<void> {
 
         const cleanUsername = chosenUsername.toLowerCase().replace(/[^a-zA-Z0-9_.-]/g, '_').padEnd(3, '0').slice(0, 32);
 
-        const autoProfile = await upsertMyProfile({
+        const rawAutoProfile = await upsertMyProfile({
           username: cleanUsername,
           display_name: pending.displayName || cleanUsername,
           avatar_url: authUser?.picture,
         });
+        const autoProfile: UserProfile =
+          tokenSub && tokenSub !== rawAutoProfile.id
+            ? { ...rawAutoProfile, id: tokenSub, user_id: rawAutoProfile.user_id || rawAutoProfile.id }
+            : rawAutoProfile;
 
         useSession.getState().setStatus('authenticated', { profile: autoProfile, error: null, role });
         return;
