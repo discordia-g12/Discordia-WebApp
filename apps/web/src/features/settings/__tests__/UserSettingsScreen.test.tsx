@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { setApiMock } from '@discordia/core';
 import { UserSettingsScreen } from '../user/UserSettingsScreen';
 import type { User } from '../../../types';
 
@@ -95,5 +96,68 @@ describe('UserSettingsScreen (rediseño)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
     expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it('desactivación de 2FA para usuario con contraseña pide contraseña actual', async () => {
+    setApiMock({
+      getMyProfile: vi.fn(),
+      upsertMyProfile: vi.fn(),
+      getUsersBulk: vi.fn(),
+      requestPasswordReset: vi.fn(),
+      getTwoFactorStatus: vi.fn().mockResolvedValue({ enabled: true, has_recovery_codes: true, remaining_recovery_codes: 8 }),
+      disableTwoFactor: vi.fn().mockResolvedValue({ success: true }),
+    });
+
+    renderSettings({ currentUser: { id: 'auth0|123', username: 'mar', displayName: 'Mar', status: 'online', bio: '' } as unknown as User });
+
+    await waitFor(() => {
+      expect(screen.getByText('activada/')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '_desactivar 2fa' }));
+
+    const tfaSection = screen.getByRole('region', { name: 'Autenticación de dos factores' });
+    expect(within(tfaSection).getByLabelText(/contraseña actual/i)).toBeTruthy();
+    expect(within(tfaSection).queryByLabelText(/código de verificación o recuperación/i)).toBeNull();
+  });
+
+  it('desactivación de 2FA para usuario de Google OAuth pide código de verificación o recuperación sin contraseña', async () => {
+    const disableTwoFactorMock = vi.fn().mockResolvedValue({ success: true });
+    setApiMock({
+      getMyProfile: vi.fn(),
+      upsertMyProfile: vi.fn(),
+      getUsersBulk: vi.fn(),
+      requestPasswordReset: vi.fn(),
+      getTwoFactorStatus: vi.fn().mockResolvedValue({ enabled: true, has_recovery_codes: true, remaining_recovery_codes: 8 }),
+      disableTwoFactor: disableTwoFactorMock,
+    });
+
+    renderSettings({ currentUser: { id: 'google-oauth2|101677372773846085321', username: 'santi', displayName: 'Santi', status: 'online', bio: '' } as unknown as User });
+
+    await waitFor(() => {
+      expect(screen.getByText('activada/')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '_desactivar 2fa' }));
+
+    const tfaSection = screen.getByRole('region', { name: 'Autenticación de dos factores' });
+    // No debe pedir contraseña en la sección de 2FA
+    expect(within(tfaSection).queryByLabelText(/contraseña actual/i)).toBeNull();
+    // Debe pedir código de verificación o recuperación
+    const codeInput = within(tfaSection).getByLabelText(/código de verificación o recuperación/i);
+    expect(codeInput).toBeTruthy();
+    expect(within(tfaSection).getByText(/Al haber ingresado con Google tu cuenta no usa contraseña/i)).toBeTruthy();
+
+    // Validar código vacío
+    fireEvent.click(within(tfaSection).getByRole('button', { name: 'Confirmar desactivación /' }));
+    expect(within(tfaSection).getByText(/Ingresá el código de verificación o de recuperación/i)).toBeTruthy();
+
+    // Confirmar con código
+    fireEvent.change(codeInput, { target: { value: '123456' } });
+    fireEvent.click(within(tfaSection).getByRole('button', { name: 'Confirmar desactivación /' }));
+
+    await waitFor(() => {
+      expect(disableTwoFactorMock).toHaveBeenCalledWith('123456');
+    });
   });
 });

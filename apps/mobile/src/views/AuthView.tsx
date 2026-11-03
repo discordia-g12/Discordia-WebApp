@@ -62,6 +62,8 @@ function renderPanel(view: AuthViewName, forms: AuthForms): React.ReactNode {
       return <RegisterForm forms={forms} />
     case 'forgot':
       return <ForgotForm forms={forms} />
+    case '2fa':
+      return <TwoFactorForm forms={forms} />
     case 'error':
       return <ErrorPanel />
     case 'suspended':
@@ -116,6 +118,7 @@ const HEADINGS: Partial<Record<AuthViewName, string>> = {
   suspended: 'Cuenta suspendida',
   email_unverified: 'Verificá tu email',
   needs_profile: 'Elegí tu usuario',
+  '2fa': 'Dos factores',
 }
 
 // ==========================================
@@ -175,9 +178,9 @@ const generalError = (forms: AuthForms) => (forms.errorField ? null : forms.form
 /** Mientras la sesión arranca el formulario ya se ve y se puede completar, pero no enviar. */
 const useSessionStarting = () => useSession(s => s.status === 'bootstrapping')
 
-function GoogleSvgIcon() {
+function GoogleSvgIcon({ size = 20 }: { size?: number }) {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24">
+    <Svg width={size} height={size} viewBox="0 0 24 24">
       <Path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
         fill="#4285F4"
@@ -216,15 +219,12 @@ function GoogleButton({
       accessibilityLabel="Continuar con Google"
       testID={testID}
       style={({ pressed }) => [
-        styles.googleButton,
+        styles.googleSquareButton,
         disabled && styles.disabledButton,
         pressed && styles.pressed,
       ]}
     >
-      <GoogleSvgIcon />
-      <Text variant="body" bold style={styles.googleButtonText}>
-        Continuar con Google /
-      </Text>
+      <GoogleSvgIcon size={24} />
     </Pressable>
   )
 }
@@ -281,21 +281,24 @@ function LoginForm({ forms }: { forms: AuthForms }) {
         </Pressable>
       </View>
       {generalError(forms) ? <FormError>{generalError(forms)!}</FormError> : null}
-      <BlockButton size="large" loading={isSubmitting} disabled={starting || forms.isSubmittingGoogle} onPress={submit} testID="btn-submit-login">
-        Iniciar sesión
-      </BlockButton>
+      <View style={styles.actionsRow}>
+        <BlockButton
+          size="large"
+          loading={isSubmitting}
+          disabled={starting || forms.isSubmittingGoogle}
+          onPress={submit}
+          style={styles.submitButton}
+          testID="btn-submit-login"
+        >
+          Iniciar sesión
+        </BlockButton>
 
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <Text variant="bodySmall" tone="muted" style={styles.dividerText}>o</Text>
-        <View style={styles.dividerLine} />
+        <GoogleButton
+          disabled={starting || isSubmitting || forms.isSubmittingGoogle}
+          onPress={forms.handleGoogleLogin}
+          testID="btn-login-google"
+        />
       </View>
-
-      <GoogleButton
-        disabled={starting || isSubmitting || forms.isSubmittingGoogle}
-        onPress={forms.handleGoogleLogin}
-        testID="btn-login-google"
-      />
     </Form>
   )
 }
@@ -386,27 +389,24 @@ function RegisterForm({ forms }: { forms: AuthForms }) {
         disabled={isSubmitting || forms.isSubmittingGoogle}
       />
       {generalError(forms) ? <FormError>{generalError(forms)!}</FormError> : null}
-      <BlockButton
-        size="large"
-        loading={isSubmitting}
-        disabled={starting || forms.isSubmittingGoogle}
-        onPress={() => forms.handleRegisterSubmit()}
-        testID="btn-submit-register"
-      >
-        Crear cuenta
-      </BlockButton>
+      <View style={styles.actionsRow}>
+        <BlockButton
+          size="large"
+          loading={isSubmitting}
+          disabled={starting || forms.isSubmittingGoogle}
+          onPress={() => forms.handleRegisterSubmit()}
+          style={styles.submitButton}
+          testID="btn-submit-register"
+        >
+          Crear cuenta
+        </BlockButton>
 
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <Text variant="bodySmall" tone="muted" style={styles.dividerText}>o</Text>
-        <View style={styles.dividerLine} />
+        <GoogleButton
+          disabled={starting || isSubmitting || forms.isSubmittingGoogle}
+          onPress={forms.handleGoogleLogin}
+          testID="btn-register-google"
+        />
       </View>
-
-      <GoogleButton
-        disabled={starting || isSubmitting || forms.isSubmittingGoogle}
-        onPress={forms.handleGoogleLogin}
-        testID="btn-register-google"
-      />
     </Form>
   )
 }
@@ -493,6 +493,56 @@ function NeedsProfileForm({ forms }: { forms: AuthForms }) {
       <BlockButton size="large" loading={conflict.isSubmitting} onPress={() => forms.handleConflictSubmit()}>
         Entrar a Discordia
       </BlockButton>
+    </Form>
+  )
+}
+
+function TwoFactorForm({ forms }: { forms: AuthForms }) {
+  const { twoFactor } = forms
+
+  return (
+    <Form>
+      <Rise index={0}>
+        <Text>
+          Tu cuenta tiene activada la autenticación en dos factores. Ingresá el código de 6 dígitos de tu aplicación autenticadora o un código de recuperación.
+        </Text>
+      </Rise>
+      <Rise index={1}>
+        <UnderlineInput
+          size="large"
+          label="código de verificación"
+          required
+          value={twoFactor.code}
+          onChangeText={twoFactor.setCode}
+          placeholder="ej: 123456 o A1B2-C3D4"
+          error={twoFactor.error ?? undefined}
+          autoCapitalize="none"
+          disabled={twoFactor.isSubmitting}
+          autoFocus
+        />
+      </Rise>
+      {twoFactor.recoveryCodeNotice ? (
+        <Rise index={2}>
+          <Text>
+            / Usaste un código de recuperación. Te recomendamos regenerar la lista de códigos desde tus Ajustes de Usuario.
+          </Text>
+        </Rise>
+      ) : null}
+      {twoFactor.error ? (
+        <Rise index={3}>
+          <FormError>{twoFactor.error}</FormError>
+        </Rise>
+      ) : null}
+      <Rise index={4}>
+        <Actions>
+          <BlockButton size="large" loading={twoFactor.isSubmitting} onPress={() => forms.handleTwoFactorSubmit()}>
+            Verificar código
+          </BlockButton>
+          <SecondaryButton onPress={twoFactor.cancel} disabled={twoFactor.isSubmitting}>
+            Volver
+          </SecondaryButton>
+        </Actions>
+      </Rise>
     </Form>
   )
 }
@@ -600,36 +650,27 @@ const useStyles = makeStyles(t => ({
   secondary: { paddingVertical: t.space[4] },
   secondaryText: { letterSpacing: 0.3 },
   underline: { textDecorationLine: 'underline' },
-  divider: {
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: t.space[1],
     gap: t.space[3],
+    width: '100%',
   },
-  dividerLine: {
+  submitButton: {
     flex: 1,
-    height: 1,
-    backgroundColor: t.colors.line,
-  },
-  dividerText: {
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  googleButton: {
-    flexDirection: 'row',
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: t.space[3],
-    paddingVertical: t.space[4],
-    paddingHorizontal: t.space[6],
+  },
+  googleSquareButton: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: t.colors.line,
     backgroundColor: 'transparent',
-    alignSelf: 'flex-start',
     borderRadius: t.radius,
-  },
-  googleButtonText: {
-    letterSpacing: 0.3,
   },
   disabledButton: {
     opacity: 0.5,

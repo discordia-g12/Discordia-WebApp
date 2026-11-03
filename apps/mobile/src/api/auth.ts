@@ -3,9 +3,12 @@ import {
   configureAuth,
   databaseSignup,
   decodeJwtPayload,
+  getTwoFactorStatus,
   passwordRealmLogin,
   backToLogin,
   retryBootstrap,
+  useSession,
+  TwoFactorRequiredError,
   type AuthAdapter,
   type AuthUser,
   type UserProfile,
@@ -25,6 +28,7 @@ export type BackendProfile = UserProfile
 
 // La sesión vive en memoria: al cerrar la app hay que volver a iniciar sesión.
 let session: { token: string; user: AuthUser } | null = null
+let pendingTwoFactorData: { token: string; user: AuthUser; expiresIn?: number } | null = null
 
 /** Token de la sesión actual. Lo usan los WebSockets (van con el token en la URL). */
 export function getCurrentToken(): string | null {
@@ -49,7 +53,26 @@ export const mobileAuthAdapter: AuthAdapter = {
     // Sin la sesión anterior: si este login falla, no tiene que quedar el token de otra cuenta
     session = null
     const { accessToken, user } = await passwordRealmLogin(credentials)
+
+    // Si el usuario tiene 2FA activo, requerir el segundo factor antes de otorgar la sesión (CA 2, CA 3, CA 4)
+    try {
+      const status = await getTwoFactorStatus(accessToken)
+      if (status.enabled) {
+        throw new TwoFactorRequiredError(accessToken, user)
+      }
+    } catch (err) {
+      if (err instanceof TwoFactorRequiredError) {
+        throw err
+      }
+    }
+
     session = { token: accessToken, user }
+  },
+
+  async completeTwoFactorSession(token: string, user: AuthUser) {
+    session = { token, user }
+    pendingTwoFactorData = null
+    useSession.setState({ pendingTwoFactor: null })
   },
 
   async signupWithCredentials(data) {
@@ -79,9 +102,10 @@ export async function loginWithGoogle(): Promise<void> {
   await Linking.openURL(authUrl)
 }
 
-export function handleAuthUrl(url: string | null) {
+export async function handleAuthUrl(url: string | null) {
   if (!url) return
   if (url.includes('error=')) {
+    useSession.setState({ pendingTwoFactor: null })
     return
   }
   const hashPart = url.split('#')[1] || url.split('?')[1] || ''
@@ -105,6 +129,22 @@ export function handleAuthUrl(url: string | null) {
       name: (claims?.name as string) || nickname,
       picture: claims?.picture as string,
     }
+
+    try {
+      const status = await getTwoFactorStatus(token)
+      if (status.enabled) {
+        pendingTwoFactorData = { token, user }
+        useSession.setState({
+          status: 'unauthenticated',
+          pendingEmail: email,
+          pendingTwoFactor: { token, user },
+        })
+        return
+      }
+    } catch {
+      // Si falla verificar el estado de 2FA, continuar normalmente
+    }
+
     session = { token, user }
     retryBootstrap()
   }
@@ -112,11 +152,11 @@ export function handleAuthUrl(url: string | null) {
 
 // Escuchar retorno del navegador
 Linking.addEventListener('url', event => {
-  handleAuthUrl(event.url)
+  void handleAuthUrl(event.url)
 })
 
 Linking.getInitialURL().then(url => {
-  if (url) handleAuthUrl(url)
+  if (url) void handleAuthUrl(url)
 })
 
 export const mobileAuthService = {
@@ -126,4 +166,13 @@ export const mobileAuthService = {
   backToLogin,
   retryBootstrap,
   loginWithGoogle,
+  savePendingTwoFactor: (data: { token: string; user: AuthUser; expiresIn?: number }) => {
+    pendingTwoFactorData = data
+    useSession.setState({ pendingTwoFactor: data })
+  },
+  getPendingTwoFactor: () => pendingTwoFactorData,
+  clearPendingTwoFactor: () => {
+    pendingTwoFactorData = null
+    useSession.setState({ pendingTwoFactor: null })
+  },
 }

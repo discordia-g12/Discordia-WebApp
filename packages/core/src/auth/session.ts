@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AuthAdapter, PendingProfile, PendingProfileStore } from './adapter';
+import type { AuthAdapter, AuthUser, PendingProfile, PendingProfileStore } from './adapter';
 import { configureClient } from '../api/client';
 import { ApiError, errorDetail, isProblemType, PROBLEM_TYPES } from '../api/errors';
 import { getMyProfile, upsertMyProfile, UserProfile } from '../api/users';
@@ -32,6 +32,7 @@ export interface SessionState {
   error: SessionError | null;
   isMock: boolean;
   pendingEmail: string | null;
+  pendingTwoFactor: { token: string; user: AuthUser; expiresIn?: number } | null;
   /** Rol de plataforma del usuario autenticado (claim del access token, ver auth/roles.ts); null fuera de la sesión. */
   role: string | null;
   setStatus: (status: SessionStatus, extra?: Partial<SessionState>) => void;
@@ -43,10 +44,17 @@ export const useSession = create<SessionState>((set) => ({
   error: null,
   isMock: false,
   pendingEmail: null,
+  pendingTwoFactor: null,
   role: null,
   // El rol vale solo con sesión: cualquier otro estado lo borra (salvo que se pase en extra)
   setStatus: (status, extra = {}) =>
-    set((state) => ({ ...state, role: status === 'authenticated' ? state.role : null, status, ...extra })),
+    set((state) => ({
+      ...state,
+      role: status === 'authenticated' ? state.role : null,
+      pendingTwoFactor: status === 'authenticated' ? null : (extra.pendingTwoFactor !== undefined ? extra.pendingTwoFactor : state.pendingTwoFactor),
+      status,
+      ...extra,
+    })),
 }));
 
 // Adaptador de autenticación activo y, opcionalmente, cómo resolverlo en cada arranque
@@ -323,6 +331,21 @@ export async function loginWithCredentials(credentials: { email: string; passwor
       return;
     }
     throw err;
+  }
+  await retryBootstrap();
+}
+
+/**
+ * Completa la sesión una vez validado el segundo factor (CA 2, CA 4).
+ */
+export async function completeTwoFactorSession(
+  token: string,
+  user: AuthUser,
+  expiresInSeconds?: number
+): Promise<void> {
+  const adapter = await resolveAdapter();
+  if (adapter.completeTwoFactorSession) {
+    await adapter.completeTwoFactorSession(token, user, expiresInSeconds);
   }
   await retryBootstrap();
 }
