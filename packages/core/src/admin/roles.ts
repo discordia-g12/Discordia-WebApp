@@ -7,6 +7,7 @@ import {
   useSetDefaultRoleMutation,
   useUpdateRoleInfoMutation,
   useUpdateRolePermissionsMutation,
+  useReorderRolesMutation,
 } from '../hooks/useApi';
 import { useUserProfiles } from '../hooks/useUserProfiles';
 import { DEFAULT_ROLE_COLOR } from '../api/roles';
@@ -32,6 +33,7 @@ export function useRolesAdmin(serverId: string, { confirm }: RolesAdminOptions =
   const updatePermissionsMutation = useUpdateRolePermissionsMutation(serverId);
   const updateInfoMutation = useUpdateRoleInfoMutation(serverId);
   const setDefaultRoleMutation = useSetDefaultRoleMutation(serverId);
+  const reorderRolesMutation = useReorderRolesMutation(serverId);
   const isSavingRole = updatePermissionsMutation.isPending || updateInfoMutation.isPending;
   const roles: Role[] = rolesQuery.data ?? [];
 
@@ -151,6 +153,24 @@ export function useRolesAdmin(serverId: string, { confirm }: RolesAdminOptions =
     }
   };
 
+  const handleMoveRole = async (roleId: string, direction: -1 | 1) => {
+    setRoleError(null);
+    const index = roles.findIndex((r) => r.id === roleId);
+    if (index === -1) return;
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= roles.length) return;
+
+    const nextRoles = [...roles];
+    const [moved] = nextRoles.splice(index, 1);
+    nextRoles.splice(targetIndex, 0, moved);
+
+    try {
+      await reorderRolesMutation.mutateAsync(nextRoles.map((r) => r.id));
+    } catch (err) {
+      setRoleError(err instanceof Error ? err.message : 'No se pudo reordenar los roles.');
+    }
+  };
+
   return {
     rolesQuery,
     createRoleMutation,
@@ -158,6 +178,7 @@ export function useRolesAdmin(serverId: string, { confirm }: RolesAdminOptions =
     updatePermissionsMutation,
     updateInfoMutation,
     setDefaultRoleMutation,
+    reorderRolesMutation,
     isSavingRole,
     roles,
     activeRoleId,
@@ -197,6 +218,7 @@ export function useRolesAdmin(serverId: string, { confirm }: RolesAdminOptions =
     handleSaveRole,
     handleSetDefaultRole,
     handleDeleteRole,
+    handleMoveRole,
   };
 }
 

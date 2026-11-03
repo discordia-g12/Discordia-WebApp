@@ -1,7 +1,8 @@
 import React from 'react'
 import { Pressable, View } from 'react-native'
+import { ArrowDown, ArrowUp } from 'lucide-react-native'
 import { PERMISSION_CATEGORIES, PRESET_ROLE_COLORS, hasBackendBit, type RolesAdminState } from '@discordia/core'
-import { makeStyles } from '../../../theme'
+import { makeStyles, useTheme } from '../../../theme'
 import { ActionLink, BlockButton, Skeleton, Text, UnderlineInput } from '../../../ui'
 import { Feedback, SettingsCell, SettingsRow, Switch } from '../SettingsScreen'
 
@@ -42,6 +43,7 @@ interface RolesSectionProps {
 /** ROLES: crear (con color), la lista, editar el elegido (nombre, color, por defecto, borrar, miembros) y sus permisos. */
 export function RolesSection({ roles: r, onConfirm }: RolesSectionProps) {
   const styles = useStyles()
+  const { colors } = useTheme()
   const role = r.activeRole
 
   if (r.rolesQuery.isLoading) {
@@ -72,32 +74,63 @@ export function RolesSection({ roles: r, onConfirm }: RolesSectionProps) {
       </SettingsCell>
 
       <SettingsCell title="Roles" index={1}>
+        {r.roleError && <Feedback tone="error">{r.roleError}</Feedback>}
         {r.roles.length === 0 ? (
           <Text variant="meta" tone="muted">
             / Este servidor todavía no tiene roles.
           </Text>
         ) : (
-          r.roles.map(item => {
+          r.roles.map((item, index) => {
             const active = item.id === role?.id
             return (
-              <Pressable
-                key={item.id}
-                onPress={() => r.setActiveRoleId(item.id)}
-                style={styles.roleRow}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-              >
-                {active && <View style={styles.activeBar} />}
-                <RoleSwatch color={item.color} />
-                <Text variant="bodySmall" bold={active} style={styles.flex} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                {item.isDefault && (
-                  <Text variant="meta" tone="muted">
-                    por defecto/
+              <View key={item.id} style={styles.roleRowContainer}>
+                <Pressable
+                  onPress={() => r.setActiveRoleId(item.id)}
+                  style={[styles.roleRow, styles.flex]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  {active && <View style={styles.activeBar} />}
+                  <RoleSwatch color={item.color} />
+                  <Text variant="bodySmall" bold={active} style={styles.flex} numberOfLines={1}>
+                    {item.name}
                   </Text>
-                )}
-              </Pressable>
+                  {item.isDefault && (
+                    <Text variant="meta" tone="muted">
+                      por defecto/
+                    </Text>
+                  )}
+                </Pressable>
+                <View style={styles.shiftButtons}>
+                  <Pressable
+                    style={[styles.iconButton, (index === 0 || r.reorderRolesMutation.isPending) && styles.disabledButton]}
+                    onPress={() => r.handleMoveRole(item.id, -1)}
+                    disabled={index === 0 || r.reorderRolesMutation.isPending}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Subir ${item.name}`}
+                  >
+                    <ArrowUp color={index === 0 ? colors.textMuted : colors.text} size={16} strokeWidth={1.5} />
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.iconButton,
+                      (index === r.roles.length - 1 || r.reorderRolesMutation.isPending) && styles.disabledButton,
+                    ]}
+                    onPress={() => r.handleMoveRole(item.id, 1)}
+                    disabled={index === r.roles.length - 1 || r.reorderRolesMutation.isPending}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Bajar ${item.name}`}
+                  >
+                    <ArrowDown
+                      color={index === r.roles.length - 1 ? colors.textMuted : colors.text}
+                      size={16}
+                      strokeWidth={1.5}
+                    />
+                  </Pressable>
+                </View>
+              </View>
             )
           })
         )}
@@ -232,6 +265,25 @@ const useStyles = makeStyles(t => ({
   colorOption: { padding: 3, borderWidth: t.lines.focus, borderColor: 'transparent' },
   colorActive: { borderColor: t.colors.lineStrong },
   roleRow: { flexDirection: 'row', alignItems: 'center', gap: t.space[2], minHeight: 36, paddingLeft: t.space[3] },
+  roleRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: t.lines.hairline,
+    borderBottomColor: t.colors.line,
+  },
+  shiftButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: t.space[1],
+    paddingRight: t.space[2],
+  },
+  iconButton: {
+    padding: t.space[1],
+  },
+  disabledButton: {
+    opacity: 0.3,
+  },
   activeBar: { position: 'absolute', left: 0, top: 6, bottom: 6, width: t.lines.accent, backgroundColor: t.colors.inverseBackground },
   flex: { flex: 1 },
   links: { flexDirection: 'row', flexWrap: 'wrap', columnGap: t.space[5], rowGap: t.space[2] },

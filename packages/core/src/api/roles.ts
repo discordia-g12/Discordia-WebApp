@@ -171,3 +171,13 @@ export async function removeRoleFromMember(serverId: string, roleId: string, use
 export async function deleteRole(serverId: string, roleId: string): Promise<void> {
   await api.delete(`/api/v1/servers/${serverId}/roles/${roleId}`);
 }
+
+/**
+ * Reordena los roles de un servidor según la lista de roleIds (de menor a mayor posición).
+ */
+export async function reorderRoles(serverId: string, roleIds: string[]): Promise<Role[]> {
+  const raw = await api.put<RoleBackendResponse[]>(`/api/v1/servers/${serverId}/roles/order`, {
+    role_ids: roleIds,
+  });
+  return (raw || []).map(mapRoleFromBackend);
+}

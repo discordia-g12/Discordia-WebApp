@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import {
   BAN_REASON_MAX_LENGTH,
   IMAGE_UPLOAD_ACCEPT,
@@ -253,19 +254,48 @@ function RolesSection({ s }: { s: ServerSettingsState }) {
             / No se pudieron cargar los roles. <ActionLink onPress={() => s.rolesQuery.refetch()}>reintentar</ActionLink>
           </Feedback>
         )}
-        <ul className={styles.roleList}>
-          {s.roles.map((r) => (
-            <li key={r.id}>
+        <ul className={styles.roleList} data-testid="role-list">
+          {s.roles.map((r, idx) => (
+            <li key={r.id} className={styles.roleRowItem}>
               <button
                 type="button"
                 className={`${styles.roleItem} ${role?.id === r.id ? styles.roleItemActive : ''}`}
                 onClick={() => s.setActiveRoleId(r.id)}
                 aria-current={role?.id === r.id ? 'true' : undefined}
+                data-testid={`role-item-${r.name}`}
               >
                 <span className={styles.roleColor} style={{ background: r.color || 'transparent' }} aria-hidden="true" />
                 {r.name}
                 {r.isDefault && <span className={styles.meta}> por defecto</span>}
               </button>
+              <div className={styles.roleOrderButtons}>
+                <button
+                  type="button"
+                  aria-label={`Subir ${r.name}`}
+                  disabled={idx === 0 || s.reorderRolesMutation.isPending}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    s.handleMoveRole(r.id, -1);
+                  }}
+                  className={styles.orderButton}
+                  data-testid={`role-up-${r.name}`}
+                >
+                  <ArrowUp size={14} />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Bajar ${r.name}`}
+                  disabled={idx === s.roles.length - 1 || s.reorderRolesMutation.isPending}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    s.handleMoveRole(r.id, 1);
+                  }}
+                  className={styles.orderButton}
+                  data-testid={`role-down-${r.name}`}
+                >
+                  <ArrowDown size={14} />
+                </button>
+              </div>
             </li>
           ))}
         </ul>

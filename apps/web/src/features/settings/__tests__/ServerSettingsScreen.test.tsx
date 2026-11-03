@@ -219,6 +219,42 @@ describe('ServerSettingsScreen (rediseño)', () => {
     expect((screen.getByRole('button', { name: 'Crear rol /' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('ROLES permite reordenar roles hacia arriba y hacia abajo llamando al endpoint', async () => {
+    const rolesList = [
+      { id: 'r0', name: '@everyone', color: null, position: 0, permissions_bitmask: 0, is_default: true },
+      { id: 'r1', name: 'Moderador', color: '#ff0000', position: 1, permissions_bitmask: 4, is_default: false },
+      { id: 'r2', name: 'VIP', color: '#00ff00', position: 2, permissions_bitmask: 0, is_default: false },
+    ];
+
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/servers/s1/roles')) {
+        return json(rolesList);
+      }
+      if (url.endsWith('/servers/s1/roles/order') && init?.method === 'PUT') {
+        const body = JSON.parse(init.body as string);
+        return json(body.role_ids.map((id: string, idx: number) => ({ id, position: idx })));
+      }
+      return json([]);
+    });
+
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Roles' }));
+
+    expect(await screen.findByRole('region', { name: 'Roles — 3' })).toBeTruthy();
+
+    const upModerador = screen.getByRole('button', { name: 'Subir Moderador' });
+    fireEvent.click(upModerador);
+
+    await waitFor(() => {
+      const orderCall = fetchMock.mock.calls.find(
+        ([u, i]) => String(u).endsWith('/servers/s1/roles/order') && i?.method === 'PUT'
+      );
+      expect(orderCall).toBeTruthy();
+      expect(JSON.parse(orderCall![1].body)).toEqual({ role_ids: ['r1', 'r0', 'r2'] });
+    });
+  });
+
   it('MIEMBROS: dueña puede iniciar transferencia de propiedad pidiendo confirmación', async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
