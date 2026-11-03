@@ -337,4 +337,89 @@ describe('AuthView - Criterios de Aceptación', () => {
       expect(screen.queryByText(/detalle interno/i)).toBeNull();
     });
   });
+
+  describe('Login con Proveedor Federado (Google) - Criterios de Aceptación', () => {
+    it('CA 1 & CA 2: el botón "Continuar con Google" está presente en Login e inicia el flujo de autenticación federada', async () => {
+      const googleSpy = vi.spyOn(authService, 'loginWithGoogle').mockResolvedValue();
+
+      render(<AuthView />);
+
+      const googleBtn = screen.getByTestId('btn-login-google');
+      expect(googleBtn).toBeTruthy();
+      expect(googleBtn.textContent).toMatch(/continuar con google/i);
+
+      fireEvent.click(googleBtn);
+
+      await waitFor(() => {
+        expect(googleSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('CA 1: el botón "Continuar con Google" está disponible también en la pestaña de Registro', async () => {
+      const googleSpy = vi.spyOn(authService, 'loginWithGoogle').mockResolvedValue();
+
+      render(<AuthView />);
+
+      fireEvent.click(screen.getByTestId('tab-register'));
+
+      const googleBtn = screen.getByTestId('btn-register-google');
+      expect(googleBtn).toBeTruthy();
+      expect(googleBtn.textContent).toMatch(/continuar con google/i);
+
+      fireEvent.click(googleBtn);
+
+      await waitFor(() => {
+        expect(googleSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('CA 3: proveedor externo no disponible al iniciar login - informa el error y ofrece email y contraseña como alternativa', async () => {
+      vi.spyOn(authService, 'loginWithGoogle').mockRejectedValue(new Error('Connection timeout to Google IdP'));
+
+      render(<AuthView />);
+
+      const googleBtn = screen.getByTestId('btn-login-google');
+      fireEvent.click(googleBtn);
+
+      // Informa el error al usuario
+      const errorAlert = await screen.findByRole('alert');
+      expect(errorAlert.textContent).toMatch(/el proveedor externo no está disponible o no respondió/i);
+      expect(errorAlert.textContent).toMatch(/podés iniciar sesión con correo y contraseña/i);
+
+      // Ofrece el login con email y contraseña como alternativa activa
+      const emailInput = screen.getByPlaceholderText(/ejemplo@discordia.com/i) as HTMLInputElement;
+      const passInput = screen.getByPlaceholderText(/tu contraseña/i) as HTMLInputElement;
+      const submitBtn = screen.getByTestId('btn-submit-login');
+
+      expect(emailInput).toBeTruthy();
+      expect(passInput).toBeTruthy();
+      expect(submitBtn).toBeTruthy();
+      expect(emailInput.disabled).toBe(false);
+      expect(passInput.disabled).toBe(false);
+      expect(submitBtn.hasAttribute('disabled')).toBe(false);
+    });
+
+    it('CA 3: proveedor externo no disponible tras retorno de redirección - el sistema informa el error y mantiene el formulario de email y contraseña', async () => {
+      // Simula que la redirección regresó con error de proveedor no disponible
+      useSession.setState({
+        status: 'unauthenticated',
+        error: {
+          title: 'Proveedor no disponible',
+          message: 'El proveedor externo no está disponible o no respondió. Podés iniciar sesión con correo y contraseña.',
+        },
+      });
+
+      render(<AuthView />);
+
+      const errorAlert = await screen.findByRole('alert');
+      expect(errorAlert.textContent).toMatch(/el proveedor externo no está disponible o no respondió/i);
+      expect(errorAlert.textContent).toMatch(/podés iniciar sesión con correo y contraseña/i);
+
+      // El usuario puede usar email y contraseña como alternativa
+      const emailInput = screen.getByPlaceholderText(/ejemplo@discordia.com/i);
+      const passInput = screen.getByPlaceholderText(/tu contraseña/i);
+      expect(emailInput).toBeTruthy();
+      expect(passInput).toBeTruthy();
+    });
+  });
 });

@@ -44,7 +44,7 @@ export const mockProvider: WebAuthAdapter = {
     return { returnTo: '/' };
   },
 
-  async loginRedirect(opts?: { signup?: boolean; returnTo?: string; silent?: boolean }): Promise<void> {
+  async loginRedirect(opts?: { signup?: boolean; returnTo?: string; silent?: boolean; connection?: string }): Promise<void> {
     mockAuthenticated = true;
     mockNeedsProfile = Boolean(opts?.signup);
     await retryBootstrap();

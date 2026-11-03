@@ -36,8 +36,9 @@ export interface WebAuthAdapter extends AuthAdapter {
    * - silent: true para fallback C (prompt=none).
    * - returnTo: ruta a la que volver tras la autenticación.
    * - loginHint: email del usuario para precargar en Auth0.
+   * - connection: nombre de la conexión (ej. 'google-oauth2' para login federado).
    */
-  loginRedirect(opts?: { signup?: boolean; returnTo?: string; silent?: boolean; loginHint?: string }): Promise<void>;
+  loginRedirect(opts?: { signup?: boolean; returnTo?: string; silent?: boolean; loginHint?: string; connection?: string }): Promise<void>;
 }
 
 let client: Auth0Client | null = null;
@@ -160,24 +161,38 @@ export const auth0Provider: WebAuthAdapter = {
       }
     }
 
-    // 2. Si el token de sesión expiró
-    if (currentAccessToken && Date.now() >= tokenExpiresAt) {
-      clearSession();
-      throw new Error('session_expired: Tu sesión ha expirado.');
-    }
-
-    // 3. Fallback a getTokenSilently de Auth0 SPA SDK
+    // 2. Intentar obtener/renovar el token con el SDK de Auth0
     try {
       const token = await auth0Client().getTokenSilently({
         cacheMode: opts?.forceRefresh ? 'off' : 'on',
         timeoutInSeconds: 8,
       });
       if (token) {
+        let expMs = Date.now() + 86400 * 1000;
+        try {
+          const claims = await auth0Client().getIdTokenClaims();
+          if (claims?.exp) {
+            expMs = claims.exp * 1000;
+          }
+        } catch {
+          // Si no se pueden leer claims, expMs queda en default (24h)
+        }
         currentAccessToken = token;
+        tokenExpiresAt = expMs;
+        const user = await auth0Provider.getUser();
+        if (user) {
+          saveSession(token, user, Math.max(60, Math.floor((expMs - Date.now()) / 1000)));
+        }
         return token;
       }
     } catch {
       // Ignorar fallback silencioso si falla
+    }
+
+    // 3. Si teníamos token de sesión previo pero ya expiró y no se pudo renovar
+    if (currentAccessToken && Date.now() >= tokenExpiresAt) {
+      clearSession();
+      throw new Error('session_expired: Tu sesión ha expirado.');
     }
 
     throw new Error('login_required');
@@ -195,7 +210,9 @@ export const auth0Provider: WebAuthAdapter = {
       const claims = (await auth0Client().getUser()) as (AuthUser & Record<string, unknown>) | undefined;
       if (!claims) return undefined;
       const username = claims[USERNAME_CLAIM];
-      return { ...claims, username: typeof username === 'string' ? username : claims.username };
+      const user = { ...claims, username: typeof username === 'string' ? username : claims.username };
+      currentAuthUser = user;
+      return user;
     } catch {
       return undefined;
     }
@@ -203,15 +220,28 @@ export const auth0Provider: WebAuthAdapter = {
 
   async handleCallback(): Promise<{ returnTo?: string }> {
     const result = await auth0Client().handleRedirectCallback();
+    try {
+      const token = await auth0Client().getTokenSilently();
+      const claims = await auth0Client().getIdTokenClaims();
+      const expSeconds = claims?.exp ? Math.max(60, claims.exp - Math.floor(Date.now() / 1000)) : 86400;
+      const user = await auth0Provider.getUser();
+      if (token && user) {
+        saveSession(token, user, expSeconds);
+      }
+    } catch {
+      // Ignorar fallo de precarga; bootstrap lo resolverá en getToken
+    }
     return {
       returnTo: (result.appState as { returnTo?: string } | undefined)?.returnTo,
     };
   },
 
-  async loginRedirect(opts?: { signup?: boolean; returnTo?: string; silent?: boolean; loginHint?: string }): Promise<void> {
+  async loginRedirect(opts?: { signup?: boolean; returnTo?: string; silent?: boolean; loginHint?: string; connection?: string }): Promise<void> {
+    clearSession();
     await auth0Client().loginWithRedirect({
       appState: { returnTo: opts?.returnTo },
       authorizationParams: {
+        ...(opts?.connection ? { connection: opts.connection } : {}),
         ...(opts?.signup ? { screen_hint: 'signup' } : {}),
         ...(opts?.silent ? { prompt: 'none' } : {}),
         ...(opts?.loginHint ? { login_hint: opts.loginHint } : {}),

@@ -76,10 +76,31 @@ describe('Session Store & Bootstrap State Machine', () => {
     expect(useSession.getState().status).toBe('suspended');
   });
 
-  it('auto-aprovisiona el perfil si el backend responde 404 en getMyProfile', async () => {
+  it('pasa a needs_profile si el backend responde 404 y el usuario no eligió un username (ej. primer login con Google)', async () => {
     vi.spyOn(adapter, 'getToken').mockResolvedValue('valid-token');
     vi.spyOn(adapter, 'getUser').mockResolvedValue({
       nickname: 'newuser',
+      name: 'Santiago Lorido',
+      email: 'new@example.com',
+      picture: 'https://pic.com/avatar.png',
+    });
+    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(
+      new ApiError({ status: 404, detail: 'User profile not found' })
+    );
+    const upsertSpy = vi.spyOn(usersApi, 'upsertMyProfile');
+
+    await retryBootstrap();
+
+    expect(upsertSpy).not.toHaveBeenCalled();
+    expect(useSession.getState().status).toBe('needs_profile');
+  });
+
+  it('auto-aprovisiona el perfil si el backend responde 404 y el usuario eligió username al registrarse', async () => {
+    vi.spyOn(adapter, 'getToken').mockResolvedValue('valid-token');
+    vi.spyOn(adapter, 'getUser').mockResolvedValue({
+      username: 'newuser',
+      nickname: 'other',
+      name: 'new@example.com',
       email: 'new@example.com',
       picture: 'https://pic.com/avatar.png',
     });
@@ -105,31 +126,9 @@ describe('Session Store & Bootstrap State Machine', () => {
     expect(useSession.getState().profile?.username).toBe('newuser');
   });
 
-  it('no usa el name de Auth0 como nombre visible cuando es el email (cuentas usuario/contraseña)', async () => {
-    vi.spyOn(adapter, 'getToken').mockResolvedValue('valid-token');
-    vi.spyOn(adapter, 'getUser').mockResolvedValue({
-      nickname: 'newuser',
-      name: 'new@example.com',
-      email: 'new@example.com',
-    });
-    vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(
-      new ApiError({ status: 404, detail: 'User profile not found' })
-    );
-    const upsertSpy = vi.spyOn(usersApi, 'upsertMyProfile').mockResolvedValue({
-      id: 'u-auto',
-      username: 'newuser',
-      displayName: 'newuser',
-      status: 'online',
-    });
-
-    await retryBootstrap();
-
-    expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'newuser' }));
-  });
-
   it('pasa a needs_profile si el auto-aprovisionamiento tiene conflicto 409', async () => {
     vi.spyOn(adapter, 'getToken').mockResolvedValue('valid-token');
-    vi.spyOn(adapter, 'getUser').mockResolvedValue({ nickname: 'taken' });
+    vi.spyOn(adapter, 'getUser').mockResolvedValue({ username: 'taken', nickname: 'taken' });
     vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(
       new ApiError({ status: 404, detail: 'User profile not found' })
     );
@@ -302,7 +301,7 @@ describe('Verificación de email (Auth0 Action deny: email_not_verified)', () =>
 
   it('segunda barrera: 403 email-not-verified del backend al crear el perfil -> email_unverified', async () => {
     vi.spyOn(adapter, 'getToken').mockResolvedValue('token-viejo');
-    vi.spyOn(adapter, 'getUser').mockResolvedValue({ email: 'viejo@discordia.com', nickname: 'viejo' });
+    vi.spyOn(adapter, 'getUser').mockResolvedValue({ email: 'viejo@discordia.com', username: 'viejo', nickname: 'viejo' });
     vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
     vi.spyOn(usersApi, 'upsertMyProfile').mockRejectedValue(
       new ApiError({ status: 403, type: PROBLEM_TYPES.EMAIL_NOT_VERIFIED, detail: 'Email address must be verified' }),
@@ -316,7 +315,7 @@ describe('Verificación de email (Auth0 Action deny: email_not_verified)', () =>
 
   it('un 403 genérico del backend al crear el perfil NO se confunde con verificación pendiente', async () => {
     vi.spyOn(adapter, 'getToken').mockResolvedValue('token-123');
-    vi.spyOn(adapter, 'getUser').mockResolvedValue({ email: 'x@discordia.com', nickname: 'x_user' });
+    vi.spyOn(adapter, 'getUser').mockResolvedValue({ email: 'x@discordia.com', username: 'x_user', nickname: 'x_user' });
     vi.spyOn(usersApi, 'getMyProfile').mockRejectedValue(new ApiError({ status: 404 }));
     vi.spyOn(usersApi, 'upsertMyProfile').mockRejectedValue(
       new ApiError({ status: 403, type: 'about:blank', detail: 'Forbidden' }),
@@ -325,6 +324,22 @@ describe('Verificación de email (Auth0 Action deny: email_not_verified)', () =>
     await retryBootstrap();
 
     expect(useSession.getState().status).toBe('error');
+  });
+
+  it('CA 3: si completeRedirect falla (proveedor externo no responde), queda unauthenticated e informa el error para ofrecer email/contraseña', async () => {
+    const redirectAdapter: AuthAdapter = {
+      ...adapter,
+      completeRedirect: async () => {
+        throw new Error('IdentityProviderTimeout: Google IdP did not respond');
+      },
+    };
+    setAuthAdapter(redirectAdapter);
+
+    await retryBootstrap();
+
+    expect(useSession.getState().status).toBe('unauthenticated');
+    expect(useSession.getState().error?.message).toMatch(/el proveedor externo no está disponible o no respondió/i);
+    expect(useSession.getState().error?.message).toMatch(/podés iniciar sesión con correo y contraseña/i);
   });
 
   it('backToLogin conserva pendingEmail; logout lo limpia', async () => {

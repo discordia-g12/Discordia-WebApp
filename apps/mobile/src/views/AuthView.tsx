@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Animated, KeyboardAvoidingView, Pressable, ScrollView, View, type TextInputInstance } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import Svg, { Path } from 'react-native-svg'
 import {
   PASSWORD_RESET_SENT_MESSAGE,
   logout,
@@ -12,6 +13,7 @@ import {
   type AuthForms,
   type SessionStatus,
 } from '@discordia/core'
+import { mobileAuthService } from '../api/auth'
 import { makeStyles } from '../theme'
 import { Background, BlockButton, DisplayText, Text, UnderlineInput, keyboardAvoidingBehavior, useRise } from '../ui'
 
@@ -28,7 +30,7 @@ import { Background, BlockButton, DisplayText, Text, UnderlineInput, keyboardAvo
  */
 export default function AuthView() {
   const styles = useStyles()
-  const forms = useAuthForms()
+  const forms = useAuthForms(mobileAuthService)
   const status = useSession(s => s.status)
   const view: AuthViewName = status === 'unauthenticated' || status === 'bootstrapping' ? forms.activeTab : status
 
@@ -173,6 +175,60 @@ const generalError = (forms: AuthForms) => (forms.errorField ? null : forms.form
 /** Mientras la sesión arranca el formulario ya se ve y se puede completar, pero no enviar. */
 const useSessionStarting = () => useSession(s => s.status === 'bootstrapping')
 
+function GoogleSvgIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24">
+      <Path
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+        fill="#4285F4"
+      />
+      <Path
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+        fill="#34A853"
+      />
+      <Path
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+        fill="#FBBC05"
+      />
+      <Path
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+        fill="#EA4335"
+      />
+    </Svg>
+  )
+}
+
+function GoogleButton({
+  disabled,
+  onPress,
+  testID,
+}: {
+  disabled?: boolean
+  onPress?: () => void
+  testID?: string
+}) {
+  const styles = useStyles()
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel="Continuar con Google"
+      testID={testID}
+      style={({ pressed }) => [
+        styles.googleButton,
+        disabled && styles.disabledButton,
+        pressed && styles.pressed,
+      ]}
+    >
+      <GoogleSvgIcon />
+      <Text variant="body" bold style={styles.googleButtonText}>
+        Continuar con Google /
+      </Text>
+    </Pressable>
+  )
+}
+
 function LoginForm({ forms }: { forms: AuthForms }) {
   const styles = useStyles()
   const { login, isSubmitting } = forms
@@ -194,7 +250,7 @@ function LoginForm({ forms }: { forms: AuthForms }) {
         textContentType="emailAddress"
         returnKeyType="next"
         onSubmitEditing={() => passwordRef.current?.focus()}
-        disabled={isSubmitting}
+        disabled={isSubmitting || forms.isSubmittingGoogle}
       />
       <View style={styles.fieldWithLink}>
         <UnderlineInput
@@ -210,24 +266,36 @@ function LoginForm({ forms }: { forms: AuthForms }) {
           textContentType="password"
           returnKeyType="go"
           onSubmitEditing={() => !starting && submit()}
-          disabled={isSubmitting}
+          disabled={isSubmitting || forms.isSubmittingGoogle}
         />
         <Pressable
           onPress={() => forms.openForgot(login.email.trim())}
-          disabled={isSubmitting}
+          disabled={isSubmitting || forms.isSubmittingGoogle}
           accessibilityRole="link"
           hitSlop={8}
           testID="link-forgot-password"
         >
-          <Text variant="bodySmall" tone={isSubmitting ? 'muted' : 'default'}>
+          <Text variant="bodySmall" tone={isSubmitting || forms.isSubmittingGoogle ? 'muted' : 'default'}>
             ¿Olvidaste tu contraseña?
           </Text>
         </Pressable>
       </View>
       {generalError(forms) ? <FormError>{generalError(forms)!}</FormError> : null}
-      <BlockButton size="large" loading={isSubmitting} disabled={starting} onPress={submit} testID="btn-submit-login">
+      <BlockButton size="large" loading={isSubmitting} disabled={starting || forms.isSubmittingGoogle} onPress={submit} testID="btn-submit-login">
         Iniciar sesión
       </BlockButton>
+
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text variant="bodySmall" tone="muted" style={styles.dividerText}>o</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <GoogleButton
+        disabled={starting || isSubmitting || forms.isSubmittingGoogle}
+        onPress={forms.handleGoogleLogin}
+        testID="btn-login-google"
+      />
     </Form>
   )
 }
@@ -258,7 +326,7 @@ function RegisterForm({ forms }: { forms: AuthForms }) {
         autoCapitalize="none"
         autoComplete="username"
         maxLength={32}
-        disabled={isSubmitting}
+        disabled={isSubmitting || forms.isSubmittingGoogle}
       />
       <UnderlineInput
         size="large"
@@ -272,7 +340,7 @@ function RegisterForm({ forms }: { forms: AuthForms }) {
         keyboardType="email-address"
         autoCapitalize="none"
         autoComplete="email"
-        disabled={isSubmitting}
+        disabled={isSubmitting || forms.isSubmittingGoogle}
       />
       <View>
         <UnderlineInput
@@ -287,7 +355,7 @@ function RegisterForm({ forms }: { forms: AuthForms }) {
           error={fieldError(forms, 'password')}
           autoComplete="new-password"
           textContentType="newPassword"
-          disabled={isSubmitting}
+          disabled={isSubmitting || forms.isSubmittingGoogle}
         />
         {/* Requisitos (CA 4): se marcan a medida que se cumplen */}
         <View style={styles.rules} accessibilityLabel="Requisitos de la contraseña">
@@ -315,18 +383,30 @@ function RegisterForm({ forms }: { forms: AuthForms }) {
         error={fieldError(forms, 'confirm')}
         autoComplete="new-password"
         textContentType="newPassword"
-        disabled={isSubmitting}
+        disabled={isSubmitting || forms.isSubmittingGoogle}
       />
       {generalError(forms) ? <FormError>{generalError(forms)!}</FormError> : null}
       <BlockButton
         size="large"
         loading={isSubmitting}
-        disabled={starting}
+        disabled={starting || forms.isSubmittingGoogle}
         onPress={() => forms.handleRegisterSubmit()}
         testID="btn-submit-register"
       >
         Crear cuenta
       </BlockButton>
+
+      <View style={styles.divider}>
+        <View style={styles.dividerLine} />
+        <Text variant="bodySmall" tone="muted" style={styles.dividerText}>o</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <GoogleButton
+        disabled={starting || isSubmitting || forms.isSubmittingGoogle}
+        onPress={forms.handleGoogleLogin}
+        testID="btn-register-google"
+      />
     </Form>
   )
 }
@@ -387,7 +467,7 @@ function NeedsProfileForm({ forms }: { forms: AuthForms }) {
 
   return (
     <Form>
-      <Text>Tu cuenta fue autenticada, pero el nombre de usuario ya está en uso. Elegí uno disponible.</Text>
+      <Text>Tu cuenta fue autenticada. Elegí tu nombre de usuario y tu nombre visible para entrar a Discordia.</Text>
       <UnderlineInput
         size="large"
         ref={fieldRef('username')}
@@ -520,4 +600,41 @@ const useStyles = makeStyles(t => ({
   secondary: { paddingVertical: t.space[4] },
   secondaryText: { letterSpacing: 0.3 },
   underline: { textDecorationLine: 'underline' },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: t.space[1],
+    gap: t.space[3],
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: t.colors.line,
+  },
+  dividerText: {
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: t.space[3],
+    paddingVertical: t.space[4],
+    paddingHorizontal: t.space[6],
+    borderWidth: 1,
+    borderColor: t.colors.line,
+    backgroundColor: 'transparent',
+    alignSelf: 'flex-start',
+    borderRadius: t.radius,
+  },
+  googleButtonText: {
+    letterSpacing: 0.3,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  pressed: {
+    opacity: 0.8,
+  },
 }))
