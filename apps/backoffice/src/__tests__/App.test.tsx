@@ -100,4 +100,28 @@ describe('backoffice', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Reintentar/ }));
     expect(await screen.findByRole('navigation', { name: 'Secciones del backoffice' })).toBeTruthy();
   });
+
+  it('salir pide confirmación: cancelar no cierra la sesión, confirmar sí', async () => {
+    let logouts = 0;
+    setAuthDriver({
+      ...fakeDriver(async () => tokenWith('staff')),
+      logout: async () => {
+        logouts += 1;
+        return 'done';
+      },
+    });
+    render(<App />);
+    await screen.findByRole('navigation', { name: 'Secciones del backoffice' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Salir/ }));
+    expect(await screen.findByRole('alertdialog', { name: '¿Cerrar sesión?' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /cancelar/ }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(logouts).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /Salir/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Cerrar sesión/ }));
+    await waitFor(() => expect(logouts).toBe(1));
+    expect(await screen.findByRole('button', { name: /^Entrar/ })).toBeTruthy();
+  });
 });

@@ -1,4 +1,5 @@
-import type { ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
+import { ConfirmDialog } from '@web/ui';
 import { logout } from './auth/session';
 import type { StaffUser } from './auth/driver';
 import { BackofficeLayout } from './layout/BackofficeLayout';
@@ -19,14 +20,20 @@ const SECTION_CONTENT: Record<SectionId, ComponentType> = {
   observabilidad: ObservabilitySection,
 };
 
-/** El backoffice con sesión de staff: la sección sale de la URL. */
+/** El backoffice con sesión de staff: la sección sale de la URL. Salir pide confirmación, como en la web. */
 export function Backoffice({ user }: { user: StaffUser }) {
   const [section, setSection] = useSection();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
   const Content = SECTION_CONTENT[section];
 
   return (
-    <BackofficeLayout user={user} sections={SECTIONS} active={section} onSelect={setSection} onLogout={() => void logout()}>
-      <Content />
-    </BackofficeLayout>
+    <>
+      <BackofficeLayout user={user} sections={SECTIONS} active={section} onSelect={setSection} onLogout={() => setConfirmingLogout(true)}>
+        <Content />
+      </BackofficeLayout>
+      {confirmingLogout && (
+        <ConfirmDialog action="logout" targetName={user.name} onConfirm={logout} onCancel={() => setConfirmingLogout(false)} />
+      )}
+    </>
   );
 }
