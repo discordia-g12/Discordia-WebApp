@@ -2,18 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AuthView, PASSWORD_RESET_SENT_MESSAGE } from '../AuthView';
 import { useSession, authService } from '../../../platform/auth/session';
-import { AccountSuspendedError, SignupConflictError } from '@discordia/core';
+import { AccountSuspendedError, SignupConflictError, TwoFactorRequiredError, ApiError } from '@discordia/core';
 
 // Criterios de aceptación del acceso (lo propio del diseño está en AuthScreen.test.tsx)
 describe('AuthView - Criterios de Aceptación', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    sessionStorage.clear();
+    authService.clearPendingTwoFactor?.();
     useSession.setState({
       status: 'unauthenticated',
       profile: null,
       error: null,
       isMock: false,
       pendingEmail: null,
+      pendingTwoFactor: null,
     });
   });
 
@@ -420,6 +423,123 @@ describe('AuthView - Criterios de Aceptación', () => {
       const passInput = screen.getByPlaceholderText(/tu contraseña/i);
       expect(emailInput).toBeTruthy();
       expect(passInput).toBeTruthy();
+    });
+  });
+
+  describe('Autenticación 2FA - Criterios de Aceptación', () => {
+    it('CA 2: Login federado (Google) con 2FA activo - al retornar de redirección solicita código de autenticación', async () => {
+      authService.savePendingTwoFactor?.({
+        token: 'google-token-2fa',
+        user: { email: 'googleuser@gmail.com', username: 'googleuser' },
+        expiresIn: 3600,
+      });
+
+      render(<AuthView />);
+
+      const codeInput = await screen.findByTestId('input-2fa-code');
+      expect(codeInput).toBeTruthy();
+      expect(screen.getByText(/autenticación en dos factores/i)).toBeTruthy();
+    });
+
+    it('CA 2: Login con 2FA activo - solicita código de autenticación y completa el login al ingresarlo correctamente', async () => {
+      vi.spyOn(authService, 'loginWithCredentials').mockRejectedValue(
+        new TwoFactorRequiredError('mock-token-2fa', { email: 'user2fa@discordia.com', nickname: 'user2fa' })
+      );
+      const completeSpy = vi.spyOn(authService, 'completeTwoFactorSession').mockResolvedValue();
+      const verifySpy = vi.spyOn(authService, 'verifyTwoFactor').mockResolvedValue({
+        valid: true,
+        recovery_code_used: false,
+        remaining_codes: 8,
+      });
+
+      render(<AuthView />);
+
+      // Ingresar email y contraseña correctos
+      fireEvent.change(screen.getByPlaceholderText(/ejemplo@discordia.com/i), {
+        target: { value: 'user2fa@discordia.com' },
+      });
+      fireEvent.change(screen.getByPlaceholderText(/tu contraseña/i), {
+        target: { value: 'Password123!' },
+      });
+      fireEvent.click(screen.getByTestId('btn-submit-login'));
+
+      // Debe solicitar el código de la app autenticadora
+      const codeInput = await screen.findByTestId('input-2fa-code');
+      expect(codeInput).toBeTruthy();
+      expect(screen.getByText(/autenticación en dos factores/i)).toBeTruthy();
+
+      // Ingresar código TOTP correcto
+      fireEvent.change(codeInput, { target: { value: '123456' } });
+      fireEvent.click(screen.getByTestId('btn-submit-2fa'));
+
+      await waitFor(() => {
+        expect(verifySpy).toHaveBeenCalledWith('123456', 'mock-token-2fa');
+        expect(completeSpy).toHaveBeenCalledWith(
+          'mock-token-2fa',
+          expect.objectContaining({ email: 'user2fa@discordia.com' }),
+          86400
+        );
+      });
+    });
+
+    it('CA 3: Código de 2FA incorrecto - rechaza el login y no otorga sesión', async () => {
+      vi.spyOn(authService, 'loginWithCredentials').mockRejectedValue(
+        new TwoFactorRequiredError('mock-token-2fa', { email: 'user2fa@discordia.com' })
+      );
+      const completeSpy = vi.spyOn(authService, 'completeTwoFactorSession').mockResolvedValue();
+      vi.spyOn(authService, 'verifyTwoFactor').mockRejectedValue(
+        new ApiError({ status: 400, detail: 'Código de verificación incorrecto o expirado.' })
+      );
+
+      render(<AuthView />);
+
+      fireEvent.change(screen.getByPlaceholderText(/ejemplo@discordia.com/i), {
+        target: { value: 'user2fa@discordia.com' },
+      });
+      fireEvent.change(screen.getByPlaceholderText(/tu contraseña/i), {
+        target: { value: 'Password123!' },
+      });
+      fireEvent.click(screen.getByTestId('btn-submit-login'));
+
+      const codeInput = await screen.findByTestId('input-2fa-code');
+      fireEvent.change(codeInput, { target: { value: '000000' } });
+      fireEvent.click(screen.getByTestId('btn-submit-2fa'));
+
+      const errorMsgs = await screen.findAllByText(/código de verificación incorrecto o expirado/i);
+      expect(errorMsgs.length).toBeGreaterThan(0);
+      expect(completeSpy).not.toHaveBeenCalled();
+      expect(useSession.getState().status).not.toBe('authenticated');
+    });
+
+    it('CA 4: Uso de código de recuperación - completa el login e informa recomendación de regenerar la lista', async () => {
+      vi.spyOn(authService, 'loginWithCredentials').mockRejectedValue(
+        new TwoFactorRequiredError('mock-token-2fa', { email: 'user2fa@discordia.com' })
+      );
+      const completeSpy = vi.spyOn(authService, 'completeTwoFactorSession').mockResolvedValue();
+      const verifySpy = vi.spyOn(authService, 'verifyTwoFactor').mockResolvedValue({
+        valid: true,
+        recovery_code_used: true,
+        remaining_codes: 7,
+      });
+
+      render(<AuthView />);
+
+      fireEvent.change(screen.getByPlaceholderText(/ejemplo@discordia.com/i), {
+        target: { value: 'user2fa@discordia.com' },
+      });
+      fireEvent.change(screen.getByPlaceholderText(/tu contraseña/i), {
+        target: { value: 'Password123!' },
+      });
+      fireEvent.click(screen.getByTestId('btn-submit-login'));
+
+      const codeInput = await screen.findByTestId('input-2fa-code');
+      fireEvent.change(codeInput, { target: { value: 'A1B2-C3D4' } });
+      fireEvent.click(screen.getByTestId('btn-submit-2fa'));
+
+      await waitFor(() => {
+        expect(verifySpy).toHaveBeenCalledWith('A1B2-C3D4', 'mock-token-2fa');
+        expect(completeSpy).toHaveBeenCalled();
+      });
     });
   });
 });

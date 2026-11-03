@@ -1,14 +1,24 @@
 import { useEffect, useState } from 'react';
 import { ApiError, errorDetail } from '../api/errors';
 import { requestPasswordReset } from '../api/passwordReset';
+import { verifyTwoFactor } from '../api/twoFactor';
 import { upsertMyProfile } from '../api/users';
-import { AccountSuspendedError, SignupConflictError } from './errors';
-import { backToLogin, loginWithCredentials, logout, retryBootstrap, signupWithCredentials, useSession } from './session';
+import type { AuthUser } from './adapter';
+import { AccountSuspendedError, SignupConflictError, TwoFactorRequiredError } from './errors';
+import {
+  backToLogin,
+  completeTwoFactorSession,
+  loginWithCredentials,
+  logout,
+  retryBootstrap,
+  signupWithCredentials,
+  useSession,
+} from './session';
 
 /**
- * Estado y reglas de los formularios de acceso (login, registro, recupero de contraseña y elección de
- * nombre de usuario). Lo usan la web (AuthScreen y la vista anterior) y mobile, así las validaciones y
- * los mensajes son los mismos en todas.
+ * Estado y reglas de los formularios de acceso (login, registro, recupero de contraseña, elección de
+ * nombre de usuario y verificación 2FA). Lo usan la web (AuthScreen y la vista anterior) y mobile, así
+ * las validaciones y los mensajes son los mismos en todas.
  */
 
 /** Acciones de la sesión que usan los formularios. La web pasa su authService (los tests lo espían). */
@@ -19,9 +29,22 @@ export interface AuthFormActions {
   backToLogin: typeof backToLogin;
   retryBootstrap: typeof retryBootstrap;
   loginWithGoogle?: () => Promise<void>;
+  completeTwoFactorSession?: typeof completeTwoFactorSession;
+  verifyTwoFactor?: typeof verifyTwoFactor;
+  getPendingTwoFactor?: () => { token: string; user: AuthUser; expiresIn?: number } | null;
+  savePendingTwoFactor?: (data: { token: string; user: AuthUser; expiresIn?: number }) => void;
+  clearPendingTwoFactor?: () => void;
 }
 
-const sessionActions: AuthFormActions = { loginWithCredentials, signupWithCredentials, logout, backToLogin, retryBootstrap };
+const sessionActions: AuthFormActions = {
+  loginWithCredentials,
+  signupWithCredentials,
+  logout,
+  backToLogin,
+  retryBootstrap,
+  completeTwoFactorSession,
+  verifyTwoFactor,
+};
 
 /** Lo que llega a los handlers: el evento del <form> en la web; nada en mobile. */
 type FormSubmit = { preventDefault(): void } | undefined;
@@ -29,7 +52,7 @@ type FormSubmit = { preventDefault(): void } | undefined;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,32}$/;
 
-export type AuthTab = 'login' | 'register' | 'forgot';
+export type AuthTab = 'login' | 'register' | 'forgot' | '2fa';
 
 /** Campo al que corresponde el error; sin campo, el error es del formulario (p. ej. credenciales). */
 export type AuthField = 'username' | 'email' | 'password' | 'confirm';
@@ -59,10 +82,12 @@ function describePasswordResetError(err: unknown): string {
 }
 
 export function useAuthForms(authService: AuthFormActions = sessionActions) {
-  const { pendingEmail, error: sessionError } = useSession();
+  const { pendingEmail, error: sessionError, pendingTwoFactor: sessionPendingTwoFactor } = useSession();
 
-  // Tab activo: 'login', 'register' o 'forgot' (recupero de contraseña)
-  const [activeTab, setActiveTab] = useState<AuthTab>('login');
+  // Tab activo: 'login', 'register' o 'forgot' (recupero de contraseña) o '2fa' (segundo factor)
+  const [activeTab, setActiveTab] = useState<AuthTab>(() => {
+    return (sessionPendingTwoFactor || authService.getPendingTwoFactor?.()) ? '2fa' : 'login';
+  });
 
   // Campos de Iniciar Sesión
   const [loginEmail, setLoginEmail] = useState('');
@@ -97,6 +122,30 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
   const [isSubmittingConflict, setIsSubmittingConflict] = useState(false);
   const [conflictError, setConflictErrorState] = useState<string | null>(null);
 
+  // Estados para verificación de segundo factor (2FA) (CA 2, CA 3, CA 4)
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
+  const [isSubmittingTwoFactor, setIsSubmittingTwoFactor] = useState(false);
+  const [recoveryCodeNotice, setRecoveryCodeNotice] = useState(false);
+  const [pendingTwoFactor, setPendingTwoFactor] = useState<{
+    token: string;
+    user: AuthUser;
+    expiresIn?: number;
+  } | null>(() => {
+    return sessionPendingTwoFactor ?? authService.getPendingTwoFactor?.() ?? null;
+  });
+
+  useEffect(() => {
+    const pending = sessionPendingTwoFactor || authService.getPendingTwoFactor?.();
+    if (pending) {
+      setPendingTwoFactor(pending);
+      setActiveTab('2fa');
+      setTwoFactorError(null);
+      setIsSubmittingGoogle(false);
+      setIsSubmitting(false);
+    }
+  }, [sessionPendingTwoFactor, authService]);
+
   const setFormError = (message: string | null, field: AuthField | null = null) => {
     setFormErrorState(message);
     setErrorField(message ? field : null);
@@ -130,6 +179,13 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
   const backToLoginTab = () => {
     setActiveTab('login');
     setFormError(null);
+    setTwoFactorError(null);
+    setTwoFactorCode('');
+    setPendingTwoFactor(null);
+    setIsSubmittingGoogle(false);
+    setIsSubmitting(false);
+    useSession.setState({ pendingTwoFactor: null });
+    authService.clearPendingTwoFactor?.();
   };
 
   const handleForgotSubmit = async (e?: FormSubmit) => {
@@ -174,6 +230,22 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
         password,
       });
     } catch (err) {
+      if (err instanceof TwoFactorRequiredError) {
+        const pending = {
+          token: err.pendingToken,
+          user: err.pendingUser as AuthUser,
+          expiresIn: err.pendingExpiresIn,
+        };
+        authService.savePendingTwoFactor?.(pending);
+        useSession.setState({ pendingTwoFactor: pending });
+        setPendingTwoFactor(pending);
+        setActiveTab('2fa');
+        setTwoFactorCode('');
+        setTwoFactorError(null);
+        setIsSubmittingGoogle(false);
+        setIsSubmitting(false);
+        return;
+      }
       const msg = err instanceof Error ? err.message : '';
       if (err instanceof AccountSuspendedError || msg.includes('access_denied')) {
         setFormError('Tu cuenta se encuentra suspendida.');
@@ -183,6 +255,46 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  /** Envía el código TOTP o código de recuperación para completar el login 2FA (CA 2, CA 3, CA 4). */
+  const handleTwoFactorSubmit = async (e?: FormSubmit) => {
+    e?.preventDefault();
+    setTwoFactorError(null);
+
+    const cleanCode = twoFactorCode.trim();
+    if (!cleanCode) {
+      setTwoFactorError('Ingresá el código de verificación.');
+      return;
+    }
+
+    if (!pendingTwoFactor) {
+      setTwoFactorError('La sesión expiró. Volvé a ingresar tus credenciales.');
+      return;
+    }
+
+    setIsSubmittingTwoFactor(true);
+    try {
+      const verifyFn = authService.verifyTwoFactor || verifyTwoFactor;
+      const result = await verifyFn(cleanCode, pendingTwoFactor.token);
+      if (result.valid) {
+        if (result.recovery_code_used) {
+          setRecoveryCodeNotice(true);
+        }
+        authService.clearPendingTwoFactor?.();
+        useSession.setState({ pendingTwoFactor: null });
+        const fn = authService.completeTwoFactorSession || completeTwoFactorSession;
+        await fn(pendingTwoFactor.token, pendingTwoFactor.user, pendingTwoFactor.expiresIn);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 400) {
+        setTwoFactorError('Código de verificación incorrecto o expirado.');
+      } else {
+        setTwoFactorError(errorDetail(err) || 'Código de verificación incorrecto o expirado.');
+      }
+    } finally {
+      setIsSubmittingTwoFactor(false);
     }
   };
 
@@ -314,6 +426,7 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
       }
     } catch {
       setFormError('El proveedor externo no está disponible o no respondió. Podés iniciar sesión con correo y contraseña.');
+    } finally {
       setIsSubmittingGoogle(false);
     }
   };
@@ -344,11 +457,20 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
       isSubmitting: isSubmittingConflict,
       error: conflictError,
     },
+    twoFactor: {
+      code: twoFactorCode,
+      setCode: setTwoFactorCode,
+      error: twoFactorError,
+      isSubmitting: isSubmittingTwoFactor,
+      recoveryCodeNotice,
+      cancel: backToLoginTab,
+    },
     isSubmitting,
     isSubmittingGoogle,
     formError,
     errorField,
     handleLoginSubmit,
+    handleTwoFactorSubmit,
     handleRegisterSubmit,
     handleForgotSubmit,
     handleConflictSubmit,

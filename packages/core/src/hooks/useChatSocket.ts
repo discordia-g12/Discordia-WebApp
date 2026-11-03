@@ -6,7 +6,7 @@ import {
   type ChatSocketConnection,
   type ChatSocketStatus,
 } from '../realtime/chatSocket';
-import type { Message, MessageBackendPayload } from '../types';
+import type { Message, MessageAttachment, MessageBackendPayload } from '../types';
 import { normalizeMessage } from '../api/messages';
 import { appendMessage, messagesQueryKey, type MessagePages } from './messageCache';
 
@@ -33,7 +33,7 @@ export interface UseChatSocketResult {
   /** Distinto de null si lo sacaron del servidor: la conexión quedó cerrada para siempre. */
   removedReason: ChatRemovalReason | null;
   /** Envía un mensaje; rechaza si no hay conexión (espera si está conectando). */
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: MessageAttachment[]) => Promise<void>;
   /** Reconecta ya, sin esperar el backoff. */
   reconnect: () => void;
 }
@@ -94,10 +94,10 @@ export function useChatSocket({
   }, [channelId, userId]);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, attachments?: MessageAttachment[]) => {
       const connection = connectionRef.current;
       if (!connection) throw new Error('WebSocket not initialized');
-      await connection.send(content, userId);
+      await connection.send(content, userId, attachments);
     },
     [userId]
   );

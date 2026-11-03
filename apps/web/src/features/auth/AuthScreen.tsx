@@ -55,6 +55,8 @@ function renderPanel(view: View, forms: AuthForms): ReactNode {
       return <RegisterForm forms={forms} />;
     case 'forgot':
       return <ForgotForm forms={forms} />;
+    case '2fa':
+      return <TwoFactorForm forms={forms} />;
     case 'resuming':
       return (
         <p className={styles.srOnly} role="status">
@@ -119,6 +121,7 @@ const HEADINGS: Partial<Record<View, string>> = {
   suspended: 'Cuenta suspendida',
   email_unverified: 'Verificá tu email',
   needs_profile: 'Elegí tu usuario',
+  '2fa': 'Dos factores',
 };
 
 // ==========================================
@@ -159,7 +162,7 @@ const useSessionStarting = () => useSession((s) => s.status === 'bootstrapping')
 
 function GoogleIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={styles.googleIcon}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={styles.googleIcon}>
       <path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
         fill="#4285F4"
@@ -219,25 +222,29 @@ function LoginForm({ forms }: { forms: AuthForms }) {
         </button>
       </div>
       <FormError>{generalError(forms)}</FormError>
-      <div className={styles.authActions}>
-        <BlockButton size="large" type="submit" loading={isSubmitting} disabled={starting || isSubmittingGoogle} data-testid="btn-submit-login">
+      <div className={styles.authActionsRow}>
+        <BlockButton
+          size="large"
+          type="submit"
+          loading={isSubmitting}
+          disabled={starting || isSubmittingGoogle}
+          className={styles.submitButton}
+          data-testid="btn-submit-login"
+        >
           Iniciar sesión
         </BlockButton>
 
-        <div className={styles.divider}>
-          <span>o</span>
-        </div>
-
         <button
           type="button"
-          className={styles.googleButton}
+          className={styles.googleSquareButton}
           onClick={handleGoogleLogin}
           disabled={starting || isSubmitting || isSubmittingGoogle}
           data-testid="btn-login-google"
           aria-label="Continuar con Google"
+          title="Continuar con Google"
         >
           <GoogleIcon />
-          <span>Continuar con Google</span>
+          <span className={styles.srOnly}>Continuar con Google</span>
           {isSubmittingGoogle && <span className={styles.googleProgress} aria-hidden="true" />}
         </button>
       </div>
@@ -322,25 +329,29 @@ function RegisterForm({ forms }: { forms: AuthForms }) {
         disabled={isSubmitting || isSubmittingGoogle}
       />
       <FormError>{generalError(forms)}</FormError>
-      <div className={styles.authActions}>
-        <BlockButton size="large" type="submit" loading={isSubmitting} disabled={starting || isSubmittingGoogle} data-testid="btn-submit-register">
+      <div className={styles.authActionsRow}>
+        <BlockButton
+          size="large"
+          type="submit"
+          loading={isSubmitting}
+          disabled={starting || isSubmittingGoogle}
+          className={styles.submitButton}
+          data-testid="btn-submit-register"
+        >
           Crear cuenta
         </BlockButton>
 
-        <div className={styles.divider}>
-          <span>o</span>
-        </div>
-
         <button
           type="button"
-          className={styles.googleButton}
+          className={styles.googleSquareButton}
           onClick={handleGoogleLogin}
           disabled={starting || isSubmitting || isSubmittingGoogle}
           data-testid="btn-register-google"
-          aria-label="Registrarse con Google"
+          aria-label="Continuar con Google"
+          title="Continuar con Google"
         >
           <GoogleIcon />
-          <span>Continuar con Google</span>
+          <span className={styles.srOnly}>Continuar con Google</span>
           {isSubmittingGoogle && <span className={styles.googleProgress} aria-hidden="true" />}
         </button>
       </div>
@@ -430,6 +441,45 @@ function NeedsProfileForm({ forms }: { forms: AuthForms }) {
       <BlockButton size="large" type="submit" loading={conflict.isSubmitting}>
         Entrar a Discordia
       </BlockButton>
+    </form>
+  );
+}
+
+function TwoFactorForm({ forms }: { forms: AuthForms }) {
+  const { twoFactor } = forms;
+
+  return (
+    <form className={styles.form} onSubmit={forms.handleTwoFactorSubmit} noValidate>
+      <p className={styles.lead}>
+        Tu cuenta tiene activada la autenticación en dos factores. Ingresá el código de 6 dígitos de tu aplicación autenticadora o un código de recuperación.
+      </p>
+      <UnderlineInput
+        size="large"
+        label="código de verificación"
+        required
+        value={twoFactor.code}
+        onChange={(e) => twoFactor.setCode(e.target.value)}
+        placeholder="ej: 123456 o A1B2-C3D4"
+        error={twoFactor.error ?? undefined}
+        disabled={twoFactor.isSubmitting}
+        autoFocus
+        autoComplete="one-time-code"
+        data-testid="input-2fa-code"
+      />
+      {twoFactor.recoveryCodeNotice && (
+        <p className={styles.lead}>
+          / Usaste un código de recuperación. Te recomendamos regenerar la lista de códigos desde tus Ajustes de Usuario.
+        </p>
+      )}
+      <FormError>{twoFactor.error}</FormError>
+      <div className={styles.actions}>
+        <BlockButton size="large" type="submit" loading={twoFactor.isSubmitting} data-testid="btn-submit-2fa">
+          Verificar código
+        </BlockButton>
+        <SecondaryButton onPress={twoFactor.cancel} data-testid="btn-cancel-2fa">
+          Volver
+        </SecondaryButton>
+      </div>
     </form>
   );
 }

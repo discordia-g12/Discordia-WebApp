@@ -3,6 +3,13 @@ import { Pressable, TextInput, View } from 'react-native'
 import { makeStyles, useTheme } from '../../theme'
 import { Text, noWebOutline } from '../../ui'
 
+export interface PendingAttachment {
+  uri: string
+  name: string
+  type: string
+  size?: number
+}
+
 interface ComposerProps {
   channelName: string
   value: string
@@ -13,13 +20,27 @@ interface ComposerProps {
    * de la barra. null o sin definir: se puede escribir.
    */
   blockedMessage?: string | null
+  attachment?: PendingAttachment | null
+  onAttach?: () => void
+  onRemoveAttachment?: () => void
+  isUploading?: boolean
 }
 
-/** Barra de escritura de una línea, entre líneas finas, con "ENVIAR /" a la derecha. */
-export default function Composer({ channelName, value, onChangeText, onSend, blockedMessage = null }: ComposerProps) {
+/** Barra de escritura de una línea, entre líneas finas, con "+" a la izquierda y "ENVIAR /" a la derecha. */
+export default function Composer({
+  channelName,
+  value,
+  onChangeText,
+  onSend,
+  blockedMessage = null,
+  attachment = null,
+  onAttach,
+  onRemoveAttachment,
+  isUploading = false,
+}: ComposerProps) {
   const styles = useStyles()
   const { colors } = useTheme()
-  const canSend = !!value.trim()
+  const canSend = (!!value.trim() || !!attachment) && !isUploading
 
   // En lugar de la barra, solo el aviso. Vuelve cuando el chat avisa que puede escribir (vence o se levanta el mute)
   if (blockedMessage !== null) {
@@ -34,7 +55,38 @@ export default function Composer({ channelName, value, onChangeText, onSend, blo
 
   return (
     <View>
+      {attachment && (
+        <View style={styles.attachmentBar}>
+          <Text variant="meta" bold numberOfLines={1} style={styles.attachmentName}>
+            adjunto: {attachment.name} {attachment.size ? `(${(attachment.size / 1024).toFixed(1)} KB)` : ''}
+          </Text>
+          <Pressable
+            onPress={onRemoveAttachment}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Quitar archivo adjunto"
+          >
+            <Text variant="meta" bold tone="muted">
+              [QUITAR]
+            </Text>
+          </Pressable>
+        </View>
+      )}
       <View style={styles.composer}>
+        {onAttach && (
+          <Pressable
+            style={styles.attach}
+            onPress={onAttach}
+            disabled={isUploading}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Adjuntar archivo o imagen"
+          >
+            <Text variant="bodySmall" bold tone={isUploading ? 'muted' : 'default'}>
+              +
+            </Text>
+          </Pressable>
+        )}
         <TextInput
           style={styles.input}
           placeholder={`Enviar mensaje a •${channelName}`}
@@ -56,7 +108,7 @@ export default function Composer({ channelName, value, onChangeText, onSend, blo
           accessibilityState={{ disabled: !canSend }}
         >
           <Text variant="bodySmall" bold tone={canSend ? 'default' : 'muted'}>
-            ENVIAR /
+            {isUploading ? 'SUBIENDO/' : 'ENVIAR /'}
           </Text>
         </Pressable>
       </View>
@@ -65,6 +117,27 @@ export default function Composer({ channelName, value, onChangeText, onSend, blo
 }
 
 const useStyles = makeStyles(t => ({
+  attachmentBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: t.space[2],
+    paddingHorizontal: t.space[4],
+    backgroundColor: t.colors.background,
+    borderTopWidth: t.lines.hairline,
+    borderTopColor: t.colors.lineStrong,
+  },
+  attachmentName: {
+    flex: 1,
+    marginRight: t.space[2],
+  },
+  attach: {
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    paddingHorizontal: t.space[3],
+    borderRightWidth: t.lines.hairline,
+    borderRightColor: t.colors.line,
+  },
   // Va adentro de la barra (que ya tiene la línea de arriba), en lugar del input
   blocked: {
     flex: 1,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
-import { encodeMentions, type PickedMention } from '@discordia/core';
+import { encodeMentions, validateAttachmentFile, uploadAttachment, type PickedMention } from '@discordia/core';
 import type { Channel, DirectMessage, Message, MessageAttachment, Reaction, Role, User } from '../../types';
+import { showToast } from '../../app/uiStore';
 
 /** Emojis disponibles para reacciones rápidas y selector. */
 export const QUICK_EMOJIS = ['❤️', '👍', '😂', '🚀', '🔥', '🎉', '👏', '👀'];
@@ -93,6 +94,9 @@ export function useChatViewState({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [attachment, setAttachment] = useState<MessageAttachment | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Menús flotantes e interactivos
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -183,14 +187,32 @@ export function useChatViewState({
   };
 
   // Envío de mensaje
-  const handleSend = () => {
+  const handleSend = async () => {
+    if (isUploading) return;
     // Lo elegido en el autocompletado y, si se escribió a mano, el @username de un miembro
     const typed = (mentionables?.members ?? []).map((u) => ({ label: mentionLabel(u), token: `<@${u.id}>` }));
     const sanitized = encodeMentions(sanitizeText(inputText.trim()), [...pickedMentions, ...typed]);
-    if (!sanitized && !attachment) return;
+    if (!sanitized && !attachment && !pendingFile) return;
+
+    let finalAttachment = attachment;
+
+    if (pendingFile && channel?.id) {
+      try {
+        setIsUploading(true);
+        const uploaded = await uploadAttachment(channel.id, pendingFile);
+        finalAttachment = uploaded;
+      } catch (err: unknown) {
+        setIsUploading(false);
+        const msg = (err instanceof Error && err.message) || 'No se pudo subir el archivo.';
+        showToast(msg, 'danger');
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
 
     if (onSendMessage) {
-      onSendMessage(sanitized, attachment || undefined, replyingTo?.id);
+      onSendMessage(sanitized, finalAttachment || undefined, replyingTo?.id);
     } else {
       const authorUser = users[currentUserId || ''] || {
         id: currentUserId,
@@ -208,7 +230,7 @@ export function useChatViewState({
         timestamp: new Date().toISOString(),
         type: 'normal',
         reactions: [],
-        attachments: attachment ? [attachment] : undefined,
+        attachments: finalAttachment ? [finalAttachment] : undefined,
         replyToId: replyingTo?.id || null,
         replyTo: replyingTo || null,
       };
@@ -218,7 +240,9 @@ export function useChatViewState({
 
     setInputText('');
     setPickedMentions([]);
+    setPendingFile(null);
     setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setReplyingTo(null);
     setIsEmojiPickerOpen(false);
     setMentionQuery(null);
@@ -357,6 +381,42 @@ export function useChatViewState({
     setActiveContextMenuMessageId(null);
   };
 
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const error = validateAttachmentFile({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
+
+    if (error) {
+      showToast(error, 'danger');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setPendingFile(file);
+    setAttachment({
+      id: `preview-${Date.now()}`,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      url: URL.createObjectURL(file),
+    });
+  };
+
+  const handleRemoveAttachment = () => {
+    setPendingFile(null);
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   // Simular adjuntar archivo
   const handleAttachMock = () => {
     const mockAtt: MessageAttachment = {
@@ -371,7 +431,6 @@ export function useChatViewState({
 
   // Mensajes fijados
   const pinnedMessages = useMemo(() => localMessages.filter((m) => m.isPinned), [localMessages]);
-
 
   return {
     localMessages,
@@ -388,6 +447,9 @@ export function useChatViewState({
     setEditContent,
     attachment,
     setAttachment,
+    pendingFile,
+    isUploading,
+    fileInputRef,
     isEmojiPickerOpen,
     setIsEmojiPickerOpen,
     isPinnedPanelOpen,
@@ -417,6 +479,9 @@ export function useChatViewState({
     handleTogglePin,
     handleCopyText,
     handleAttachMock,
+    handleAttachClick,
+    handleFileChange,
+    handleRemoveAttachment,
   };
 }
 

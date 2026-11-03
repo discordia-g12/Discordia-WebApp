@@ -1,6 +1,7 @@
 import {
   backToLogin,
   bootstrap,
+  completeTwoFactorSession,
   getAuthAdapter,
   loginWithCredentials,
   logout,
@@ -10,9 +11,16 @@ import {
   setAuthAdapterResolver,
   signupWithCredentials,
   useSession,
+  verifyTwoFactor,
 } from '@discordia/core';
-import { auth0Provider, WebAuthAdapter } from './auth0';
-export { hasStoredSession } from './auth0';
+import {
+  auth0Provider,
+  clearPendingTwoFactor,
+  getPendingTwoFactor,
+  savePendingTwoFactor,
+  WebAuthAdapter,
+} from './auth0';
+export { hasStoredSession, savePendingTwoFactor, getPendingTwoFactor, clearPendingTwoFactor } from './auth0';
 
 /**
  * Sesión del cliente web: la máquina de estados es la de @discordia/core; acá se elige el adaptador
@@ -45,8 +53,13 @@ export const authService = {
     (getAuthAdapter() as WebAuthAdapter).loginRedirect({ connection: 'google-oauth2' }),
   loginWithCredentials,
   signupWithCredentials,
+  completeTwoFactorSession,
+  verifyTwoFactor,
   logout,
   backToLogin,
   bootstrap,
   retryBootstrap,
+  savePendingTwoFactor,
+  getPendingTwoFactor,
+  clearPendingTwoFactor,
 };

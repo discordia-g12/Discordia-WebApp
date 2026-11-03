@@ -60,6 +60,39 @@
   border-bottom: var(--line-hairline) solid var(--color-line);
 }
 
+.qrBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--line-hairline) solid var(--color-line);
+  background: var(--color-surface, #121214);
+}
+
+.qrImage {
+  width: 160px;
+  height: 160px;
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.secretText {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+  word-break: break-all;
+  user-select: all;
+}
+
+.setupActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
 /* Campos de voz: etiqueta en negrita y el control entre líneas, como UnderlineInput */
 .field {
   display: flex;

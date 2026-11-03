@@ -1,5 +1,5 @@
 import { getClientConfig, getWsBaseUrl } from '../api/client';
-import type { MessageBackendPayload } from '../types';
+import type { MessageAttachment, MessageBackendPayload } from '../types';
 
 // Mismo backoff que la presencia de voz: 1 s, 2 s, 4 s… hasta 15 s entre intentos
 const RECONNECT_BASE_MS = 1000;
@@ -52,7 +52,7 @@ export interface ChatSocketOptions {
 
 export interface ChatSocketConnection {
   /** Envía un mensaje. Si el socket está conectando, espera a que abra; si está cerrado, rechaza. */
-  send: (content: string, authorId: string) => Promise<void>;
+  send: (content: string, authorId: string, attachments?: MessageAttachment[]) => Promise<void>;
   /** Corta la conexión actual y reconecta ya, sin esperar el backoff. */
   reconnect: () => void;
   /** Cierra la conexión sin reconectar. */
@@ -135,7 +135,7 @@ export function openChatSocket(
           return;
         }
 
-        if (data.id && typeof data.content === 'string') {
+        if (data.id && (typeof data.content === 'string' || Array.isArray(data.attachments))) {
           lastReceivedId = data.id;
           handlers.onMessage(data as MessageBackendPayload);
         }
@@ -172,11 +172,18 @@ export function openChatSocket(
   connect();
 
   return {
-    send(content, authorId) {
+    send(content, authorId, attachments) {
       const ws = socket;
       if (!ws) return Promise.reject(new Error('WebSocket not initialized'));
 
-      const sendPayload = () => ws.send(JSON.stringify({ authorId, content }));
+      const sendPayload = () =>
+        ws.send(
+          JSON.stringify({
+            authorId,
+            content,
+            ...(attachments?.length ? { attachments } : {}),
+          })
+        );
 
       if (ws.readyState === WebSocket.OPEN) {
         sendPayload();

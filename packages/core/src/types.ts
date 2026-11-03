@@ -22,6 +22,7 @@ export interface MessageAttachment {
   url: string;
   size?: string | number;
   type?: string;
+  contentType?: string;
 }
 
 /** Previsualización incrustada de enlaces o contenido externo. */
@@ -226,6 +227,7 @@ export interface MessageBackendPayload {
   authorId: string;
   channelId: string;
   createdAt: string;
+  attachments?: MessageAttachment[];
 }
 
 /** Canal individual perteneciente a una categoría de servidor. */

@@ -35,6 +35,21 @@ export class AccountSuspendedError extends Error {
   }
 }
 
+/** La cuenta tiene 2FA activo: se requiere el código TOTP o de recuperación antes de otorgar la sesión (CA 2). */
+export class TwoFactorRequiredError extends Error {
+  readonly pendingToken: string;
+  readonly pendingUser: unknown;
+  readonly pendingExpiresIn: number;
+
+  constructor(pendingToken: string, pendingUser: unknown, pendingExpiresIn: number = 86400) {
+    super('two_factor_required');
+    this.name = 'TwoFactorRequiredError';
+    this.pendingToken = pendingToken;
+    this.pendingUser = pendingUser;
+    this.pendingExpiresIn = pendingExpiresIn;
+  }
+}
+
 /**
  * Auth0 rechazó el registro porque el email o el username ya existen (/dbconnections/signup).
  * `field` dice cuál: Auth0 responde `user_exists` para el email y `username_exists` para el

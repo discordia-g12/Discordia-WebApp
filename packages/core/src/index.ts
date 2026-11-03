@@ -22,8 +22,10 @@ export * from './api/roles';
 export * from './api/moderation';
 export * from './api/serverTransfer';
 export * from './api/messages';
+export * from './api/attachments';
 export * from './api/readStates';
 export * from './api/voice';
+export * from './api/twoFactor';
 
 // Hooks de React (React Query y perfiles), los mismos en web y mobile
 export * from './hooks/useApi';

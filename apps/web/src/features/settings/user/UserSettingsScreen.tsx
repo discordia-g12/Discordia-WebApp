@@ -4,7 +4,6 @@ import { ActionLink, BlockButton, SquareAvatar, UnderlineInput } from '../../../
 import { getThemePreference, setThemePreference, type ThemePreference } from '../../../ui/theme';
 import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen';
 import type { UserSettingsProps } from './useUserSettingsState';
-import { BACKUP_CODES } from './shared';
 import { useUserSettingsState, type UserSettingsState } from './useUserSettingsState';
 import styles from './UserSettingsScreen.module.css';
 
@@ -122,22 +121,107 @@ function AccountSection({ s }: { s: UserSettingsState }) {
         </form>
       </SettingsCell>
 
-      <SettingsCell title="Autenticación de dos factores" soon>
-        <SettingsRow title="activada/" description="Tu cuenta pide un código además de la contraseña.">
-          <ActionLink onPress={() => s.setShowBackupCodes(!s.showBackupCodes)} aria-expanded={s.showBackupCodes}>
-            {s.showBackupCodes ? 'ocultar códigos' : 'mostrar códigos'}
-          </ActionLink>
-        </SettingsRow>
-        {s.showBackupCodes && (
+      <SettingsCell title="Autenticación de dos factores">
+        {s.isSettingUpTwoFactor && s.twoFactorSetupData ? (
+          <form className={styles.form} onSubmit={s.handleConfirmSetup} noValidate>
+            <div className={styles.qrBox}>
+              <img src={s.twoFactorSetupData.qrCode} alt="Código QR 2FA" className={styles.qrImage} />
+              <span className={styles.secretText}>Clave manual: {s.twoFactorSetupData.secret}</span>
+            </div>
+            <UnderlineInput
+              label="código de 6 dígitos"
+              value={s.setupCode}
+              onChange={(e) => s.setSetupCode(e.target.value)}
+              placeholder="ej: 123456"
+              maxLength={6}
+              autoFocus
+              required
+            />
+            {s.setupError && <Feedback tone="error">/ {s.setupError}</Feedback>}
+            <div className={styles.setupActions}>
+              <BlockButton type="submit" loading={s.isActivating}>
+                Confirmar y activar
+              </BlockButton>
+              <ActionLink onPress={s.handleCancelSetup}>cancelar</ActionLink>
+            </div>
+          </form>
+        ) : s.showDisableConfirm ? (
+          <form className={styles.form} onSubmit={s.handleConfirmDisable} noValidate>
+            {s.isGoogleUser ? (
+              <>
+                <p className={styles.note}>
+                  / Al haber ingresado con Google tu cuenta no usa contraseña. Confirmá la desactivación con el código de tu app autenticadora o un código de recuperación.
+                </p>
+                <UnderlineInput
+                  label="código de verificación o recuperación"
+                  value={s.disablePassword}
+                  onChange={(e) => s.setDisablePassword(e.target.value)}
+                  placeholder="ej: 123456 o A1B2-C3D4"
+                  autoFocus
+                  required
+                />
+              </>
+            ) : (
+              <>
+                <p className={styles.note}>
+                  / Confirmá la desactivación con tu contraseña actual, tu código de 6 dígitos o un código de recuperación.
+                </p>
+                <UnderlineInput
+                  label="contraseña actual"
+                  secret
+                  value={s.disablePassword}
+                  onChange={(e) => s.setDisablePassword(e.target.value)}
+                  placeholder="contraseña o código A1B2-C3D4"
+                  autoComplete="current-password"
+                  autoFocus
+                  required
+                />
+              </>
+            )}
+            {s.disableError && <Feedback tone="error">/ {s.disableError}</Feedback>}
+            <div className={styles.setupActions}>
+              <BlockButton type="submit" loading={s.isDisabling}>
+                Confirmar desactivación
+              </BlockButton>
+              <ActionLink onPress={s.handleCancelDisable}>cancelar</ActionLink>
+            </div>
+          </form>
+        ) : s.twoFactorEnabled ? (
           <>
-            <p className={styles.note}>/ Guardá estos códigos de un solo uso por si perdés el acceso a tu app de autenticación.</p>
-            <ul className={styles.codes}>
-              {BACKUP_CODES.map((code) => (
-                <li key={code}>{code}</li>
-              ))}
-            </ul>
-            <ActionLink onPress={s.copyBackupCodesToClipboard}>{s.copiedCode ? 'copiados' : 'copiar todos'}</ActionLink>
+            <SettingsRow title="activada/" description="Tu cuenta pide un código además de la contraseña.">
+              <ActionLink onPress={s.handleStartDisable}>desactivar 2fa</ActionLink>
+            </SettingsRow>
+            <SettingsRow title="códigos de recuperación" description="Códigos de un solo uso por si perdés tu app de autenticación.">
+              <ActionLink onPress={() => s.setShowBackupCodes(!s.showBackupCodes)} aria-expanded={s.showBackupCodes}>
+                {s.showBackupCodes ? 'ocultar códigos' : 'mostrar códigos'}
+              </ActionLink>
+            </SettingsRow>
+            {s.showBackupCodes && (
+              <>
+                {s.backupCodes.length > 0 ? (
+                  <>
+                    <ul className={styles.codes}>
+                      {s.backupCodes.map((code) => (
+                        <li key={code}>{code}</li>
+                      ))}
+                    </ul>
+                    <div className={styles.setupActions}>
+                      <ActionLink onPress={s.copyBackupCodesToClipboard}>{s.copiedCode ? 'copiados' : 'copiar todos'}</ActionLink>
+                      <ActionLink onPress={s.handleRegenerateCodes}>regenerar lista</ActionLink>
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.setupActions}>
+                    <ActionLink onPress={s.handleRegenerateCodes}>regenerar lista</ActionLink>
+                  </div>
+                )}
+              </>
+            )}
           </>
+        ) : (
+          <SettingsRow title="desactivada/" description="Protegé tu cuenta requiriendo un código de tu aplicación autenticadora al iniciar sesión.">
+            <BlockButton onPress={s.handleStartSetup}>Activar 2FA</BlockButton>
+          </SettingsRow>
         )}
       </SettingsCell>
     </>
