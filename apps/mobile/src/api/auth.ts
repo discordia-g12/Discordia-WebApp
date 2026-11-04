@@ -6,7 +6,10 @@ import {
   getTwoFactorStatus,
   passwordRealmLogin,
   backToLogin,
+  loginWithCredentials,
+  logout,
   retryBootstrap,
+  signupWithCredentials,
   useSession,
   TwoFactorRequiredError,
   type AuthAdapter,
@@ -159,10 +162,12 @@ Linking.getInitialURL().then(url => {
   if (url) void handleAuthUrl(url)
 })
 
+// Las acciones de sesión son las de core (no las del adaptador): además de llamar al adaptador,
+// arrancan la sesión con retryBootstrap y manejan el email sin verificar.
 export const mobileAuthService = {
-  loginWithCredentials: mobileAuthAdapter.loginWithCredentials,
-  signupWithCredentials: mobileAuthAdapter.signupWithCredentials,
-  logout: mobileAuthAdapter.logout,
+  loginWithCredentials,
+  signupWithCredentials,
+  logout,
   backToLogin,
   retryBootstrap,
   loginWithGoogle,
