@@ -20,8 +20,10 @@ export function authErrorMessage(err: unknown): string {
   return authErrorDescription(err) || field(err, 'message') || 'Error desconocido';
 }
 
-// Sin sesión en Auth0, o vencida: hay que entrar de nuevo. No es un error
-const SIGNED_OUT_CODES = new Set(['login_required', 'consent_required', 'interaction_required', 'missing_refresh_token']);
+// Sin sesión en Auth0, o vencida: hay que entrar de nuevo. No es un error. "timeout": el iframe oculto de
+// Auth0 no respondió (cookies de terceros bloqueadas, o Auth0 rechazó el pedido con una página de error):
+// también se resuelve entrando con la redirección
+const SIGNED_OUT_CODES = new Set(['login_required', 'consent_required', 'interaction_required', 'missing_refresh_token', 'timeout']);
 
 export function isSignedOutError(err: unknown): boolean {
   return SIGNED_OUT_CODES.has(authErrorCode(err));

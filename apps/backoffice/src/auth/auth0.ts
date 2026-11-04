@@ -24,6 +24,9 @@ function auth0Client(): Auth0Client {
     clientId: config.auth0.clientId,
     cacheLocation: 'memory',
     useRefreshTokens: false,
+    // El iframe oculto espera 60 s por defecto: con la sesión de Auth0 responde en menos de uno. Si no
+    // responde, mejor mostrar "entrar" enseguida que dejar "verificando tu sesión" un minuto
+    authorizeTimeoutInSeconds: 8,
     authorizationParams: {
       audience: config.auth0.audience,
       redirect_uri: `${window.location.origin}/callback`,
