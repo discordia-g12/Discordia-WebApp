@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../client';
-import { getMessages, sendMessage } from '../messages';
+import { editMessage, getMessages, sendMessage } from '../messages';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -63,5 +63,51 @@ describe('mensajes', () => {
     expect(msg.attachments?.[0].url).toBe(
       'http://api.test/api/v1/chat/uploads/attachments/c1/att-1-screenshot.png'
     );
+  });
+
+  it('editMessage llama a PATCH con el nuevo contenido y devuelve el mensaje normalizado', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        id: 'm1',
+        content: 'contenido editado',
+        authorId: 'u1',
+        channelId: 'c1',
+        createdAt: '2026-10-20T10:00:00Z',
+        edited: true,
+        editedAt: '2026-10-20T10:05:00Z',
+      })
+    );
+
+    const updated = await editMessage('c1', 'm1', 'contenido editado');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://api.test/api/v1/chat/channels/c1/messages/m1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ content: 'contenido editado' }),
+      })
+    );
+    expect(updated.id).toBe('m1');
+    expect(updated.content).toBe('contenido editado');
+    expect(updated.edited).toBe(true);
+    expect(updated.editedTimestamp).toBe('2026-10-20T10:05:00Z');
+  });
+
+  it('normaliza mensajes con editedAt asignando edited: true y editedTimestamp', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse([
+        {
+          id: 'm1',
+          content: 'editado',
+          authorId: 'u1',
+          channelId: 'c1',
+          createdAt: '2026-10-20T10:00:00Z',
+          edited: true,
+          editedAt: '2026-10-20T10:05:00Z',
+        },
+      ])
+    );
+    const [msg] = await getMessages('c1');
+    expect(msg.edited).toBe(true);
+    expect(msg.editedTimestamp).toBe('2026-10-20T10:05:00Z');
   });
 });

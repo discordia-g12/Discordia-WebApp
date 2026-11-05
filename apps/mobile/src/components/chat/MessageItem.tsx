@@ -17,13 +17,15 @@ interface MessageItemProps {
   sent?: boolean
   /** Nombre de un usuario mencionado. Las menciones se muestran como texto (`@nombre`, `@rol`). */
   mentionName?: (userId: string) => string
+  /** Mantener presionado: acciones sobre el mensaje (editar). */
+  onLongPress?: () => void
 }
 
 /**
  * Mensaje del chat (PDF, pág. 7): avatar cuadrado, autor en negrita y la fecha chica (20/10/25, 13:25),
  * y el texto grande. Los seguidos de una misma persona van agrupados.
  */
-function MessageItem({ message, author, grouped = false, animate = false, sent = false, mentionName }: MessageItemProps) {
+function MessageItem({ message, author, grouped = false, animate = false, sent = false, mentionName, onLongPress }: MessageItemProps) {
   const styles = useStyles()
   const reduce = useReducedMotion()
   // Se fija al montarse: al confirmarse deja de estar pendiente y la entrada no tiene que cambiar a mitad de camino
@@ -52,7 +54,7 @@ function MessageItem({ message, author, grouped = false, animate = false, sent =
       <View style={styles.gutter}>
         {!grouped && <SquareAvatar user={{ username: name, avatar: author?.avatar }} size="md" />}
       </View>
-      <View style={styles.body}>
+      <Pressable style={styles.body} onLongPress={onLongPress} delayLongPress={250}>
         {!grouped && (
           <View style={styles.meta}>
             <Text variant="meta" bold numberOfLines={1} style={styles.author}>
@@ -65,7 +67,7 @@ function MessageItem({ message, author, grouped = false, animate = false, sent =
         )}
         <Text tone={deleted ? 'muted' : 'default'} style={deleted && styles.deleted}>
           {mentionsToText(message.content, { user: mentionName ?? (() => 'usuario'), role: () => 'rol' })}
-          {message.edited && (
+          {(message.edited || message.editedTimestamp) && (
             <Text variant="meta" tone="muted">
               {' '}(editado)
             </Text>
@@ -127,7 +129,7 @@ function MessageItem({ message, author, grouped = false, animate = false, sent =
             ))}
           </View>
         )}
-      </View>
+      </Pressable>
     </Animated.View>
   )
 }

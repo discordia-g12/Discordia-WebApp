@@ -415,7 +415,7 @@ function MessageRow({
               names={names}
               onOpenUserProfile={onOpenUserProfile}
             />
-            {msg.editedTimestamp && <span className={styles.edited}> (editado)</span>}
+            {(msg.editedTimestamp || msg.edited) && <span className={styles.edited}> (editado)</span>}
           </p>
         )}
 

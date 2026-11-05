@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { updateCachedMessages } from '@discordia/core';
+import { editMessage as apiEditMessage, updateCachedMessages } from '@discordia/core';
 import type { Message, MessageAttachment, Reaction } from '../../types';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { useCurrentUser } from '../profile/currentUserStore';
@@ -142,21 +142,57 @@ export function useMessageActions() {
   };
 
   // Editar mensaje
-  const editMessage = (messageId: string, newContent: string) => {
+  const editMessage = async (messageId: string, newContent: string) => {
     const key = activeKey;
     if (!key) return;
 
-    const applyEdit = (list: Message[]) =>
-      list.map((m) => (m.id === messageId ? { ...m, content: newContent, edited: true } : m));
-
     if (!isHome) {
-      updateChannelMessages(key, applyEdit);
-      showToast('Backend editing not implemented yet', 'info');
+      let previousContent = '';
+      let previousEdited = false;
+      let previousEditedTimestamp: string | null | undefined = null;
+
+      // 1. Actualización optimista
+      updateChannelMessages(key, (list) =>
+        list.map((m) => {
+          if (m.id === messageId) {
+            previousContent = m.content;
+            previousEdited = m.edited ?? false;
+            previousEditedTimestamp = m.editedTimestamp;
+            return { ...m, content: newContent, edited: true };
+          }
+          return m;
+        })
+      );
+
+      // 2. Llamada al backend
+      try {
+        const updated = await apiEditMessage(key, messageId, newContent);
+        updateChannelMessages(key, (list) =>
+          list.map((m) => (m.id === messageId ? { ...m, ...updated } : m))
+        );
+      } catch (err: unknown) {
+        // Rollback en caso de error
+        updateChannelMessages(key, (list) =>
+          list.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  content: previousContent,
+                  edited: previousEdited,
+                  editedTimestamp: previousEditedTimestamp,
+                }
+              : m
+          )
+        );
+        const message = err instanceof Error ? err.message : 'No se pudo editar el mensaje';
+        showToast(message, 'danger');
+      }
       return;
     }
 
-    updateDmMessages(key, applyEdit);
-    showToast('Mensaje editado', 'success');
+    updateDmMessages(key, (list) =>
+      list.map((m) => (m.id === messageId ? { ...m, content: newContent, edited: true } : m))
+    );
   };
 
   return { sendMessage, toggleReaction, deleteMessage, editMessage };

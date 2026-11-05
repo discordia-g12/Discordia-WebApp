@@ -16,6 +16,8 @@ import CreateChannelModal from './channels/CreateChannelModal'
 import CreateCategoryModal from './channels/CreateCategoryModal'
 import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
+import MessageActionsModal from './chat/MessageActionsModal'
+import EditMessageModal from './chat/EditMessageModal'
 import EditProfileModal from './profile/EditProfileModal'
 import Toast from './shared/Toast'
 import {
@@ -153,6 +155,8 @@ export default function MobileShell() {
   const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
   const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
   const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [actionTargetMessage, setActionTargetMessage] = useState<Message | null>(null)
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
   const [userSettingsOpen, setUserSettingsOpen] = useState(false)
   // Canal de voz al que se quiere pasar estando conectado a otro (pide confirmación)
   const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
@@ -238,6 +242,11 @@ export default function MobileShell() {
     userId: currentUserId,
     lastMessageIdSeen: lastMessageId,
     onMessage: payload => {
+      if (channel) {
+        confirmOptimisticMessage(channel.id, payload)
+      }
+    },
+    onMessageUpdated: payload => {
       if (channel) {
         confirmOptimisticMessage(channel.id, payload)
       }
@@ -640,6 +649,7 @@ export default function MobileShell() {
                 showToast('No se pudieron cargar los mensajes anteriores', 'error'),
               )
             }}
+            onLongPressMessage={setActionTargetMessage}
           />
           <Composer
             channelName={channel.name}
@@ -821,6 +831,28 @@ export default function MobileShell() {
         }}
       />
       <EditProfileModal visible={editProfileOpen} onClose={() => setEditProfileOpen(false)} />
+      <MessageActionsModal
+        visible={!!actionTargetMessage}
+        message={actionTargetMessage}
+        isAuthor={actionTargetMessage?.authorId === currentUserId}
+        onEdit={() => {
+          if (actionTargetMessage) setEditingMessage(actionTargetMessage)
+        }}
+        onReply={() => {
+          if (actionTargetMessage) {
+            const authorUser = users[actionTargetMessage.authorId]
+            const name = authorUser?.displayName || authorUser?.username || 'usuario'
+            setDraft(prev => (prev ? `${prev} @${name} ` : `@${name} `))
+          }
+        }}
+        onClose={() => setActionTargetMessage(null)}
+      />
+      <EditMessageModal
+        visible={!!editingMessage}
+        message={editingMessage}
+        channelId={channel?.id}
+        onClose={() => setEditingMessage(null)}
+      />
       <InviteModal visible={inviteModalOpen} server={server || undefined} onClose={() => setInviteModalOpen(false)} />
 
       {channelActionModals}

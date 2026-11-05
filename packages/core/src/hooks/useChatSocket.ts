@@ -8,7 +8,12 @@ import {
 } from '../realtime/chatSocket';
 import type { Message, MessageAttachment, MessageBackendPayload } from '../types';
 import { normalizeMessage } from '../api/messages';
-import { appendMessage, messagesQueryKey, type MessagePages } from './messageCache';
+import {
+  appendMessage,
+  updateCachedMessages,
+  messagesQueryKey,
+  type MessagePages,
+} from './messageCache';
 
 export interface UseChatSocketOptions {
   /** Canal al que conectarse; null para no conectar (p. ej. DMs, que todavía no van por el backend). */
@@ -17,6 +22,8 @@ export interface UseChatSocketOptions {
   /** Último mensaje que la app ya tiene; el servidor reenvía los posteriores al (re)conectar. */
   lastMessageIdSeen?: string;
   onMessage: (message: MessageBackendPayload) => void;
+  /** Un mensaje existente fue editado en este canal. */
+  onMessageUpdated?: (message: MessageBackendPayload) => void;
   onError?: (message: string) => void;
   onReconnect?: () => void;
   /** El usuario ya no está en el servidor (ban o expulsión). La conexión no se reintenta. */
@@ -47,6 +54,7 @@ export function useChatSocket({
   userId,
   lastMessageIdSeen,
   onMessage,
+  onMessageUpdated,
   onError,
   onReconnect,
   onRemoved,
@@ -57,8 +65,8 @@ export function useChatSocket({
   const connectionRef = useRef<ChatSocketConnection | null>(null);
 
   // Callbacks y último id en refs: cambiarlos no debe reconectar
-  const handlersRef = useRef({ onMessage, onError, onReconnect, onRemoved });
-  handlersRef.current = { onMessage, onError, onReconnect, onRemoved };
+  const handlersRef = useRef({ onMessage, onMessageUpdated, onError, onReconnect, onRemoved });
+  handlersRef.current = { onMessage, onMessageUpdated, onError, onReconnect, onRemoved };
   const lastMessageIdRef = useRef(lastMessageIdSeen);
   lastMessageIdRef.current = lastMessageIdSeen;
 
@@ -72,6 +80,7 @@ export function useChatSocket({
       channelId,
       {
         onMessage: (message) => handlersRef.current.onMessage(message),
+        onMessageUpdated: (message) => handlersRef.current.onMessageUpdated?.(message),
         onError: handlersRef.current.onError
           ? (message) => handlersRef.current.onError?.(message)
           : undefined,
@@ -140,6 +149,14 @@ export function useChatWebSocket(
       queryClient.setQueryData<MessagePages>(messagesQueryKey(channelId), (old) =>
         appendMessage(old, normalizeMessage(data as unknown as Message))
       );
+    },
+    onMessageUpdated: (data) => {
+      const normalized = normalizeMessage(data as unknown as Message);
+      if (channelId) {
+        updateCachedMessages(queryClient, channelId, (list) =>
+          list.map((m) => (m.id === normalized.id ? { ...m, ...normalized } : m))
+        );
+      }
     },
     onReconnect: () => {
       // Reconexión: los mensajes enviados durante el corte no llegaron por el socket

@@ -27,6 +27,8 @@ const CLOSE_CODE_REMOVAL: Record<number, ChatRemovalReason> = {
 
 export interface ChatSocketHandlers {
   onMessage: (message: MessageBackendPayload) => void;
+  /** Un mensaje existente fue editado en este canal. */
+  onMessageUpdated?: (message: MessageBackendPayload) => void;
   /** Error informado por el servidor (p. ej. sin permiso para escribir). Sin handler, se loguea. */
   onError?: (message: string) => void;
   /** La conexión volvió después de un corte: los mensajes del corte llegan por last_message_id_seen. */
@@ -123,6 +125,15 @@ export function openChatSocket(
         if (data.type === 'PERMISSIONS_UPDATED') {
           if (typeof data.canSend === 'boolean' && (!data.channelId || data.channelId === channelId)) {
             handlers.onPermissionsChange?.(data.canSend);
+          }
+          return;
+        }
+
+        if (data.type === 'MESSAGE_UPDATED') {
+          if (handlers.onMessageUpdated) {
+            handlers.onMessageUpdated(data as MessageBackendPayload);
+          } else {
+            handlers.onMessage(data as MessageBackendPayload);
           }
           return;
         }

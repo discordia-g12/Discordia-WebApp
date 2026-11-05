@@ -15,6 +15,7 @@ import {
   MESSAGES_PAGE_SIZE,
   getServers,
   sendMessage as apiSendMessage,
+  editMessage as apiEditMessage,
   createServer as apiCreateServer,
   updateServerIcon as apiUpdateServerIcon,
   removeServerIcon as apiRemoveServerIcon,
@@ -68,6 +69,7 @@ interface DataContextValue {
 
   // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => void
+  editMessage: (channelId: string, messageId: string, content: string) => Promise<Message>
   addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
   failOptimisticMessage: (channelId: string) => void
@@ -383,6 +385,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             ...updated[existingIndex],
             status: 'sent',
             content: payload.content,
+            edited: payload.edited ?? (payload.editedTimestamp ? true : updated[existingIndex].edited),
+            editedTimestamp: payload.editedTimestamp ?? updated[existingIndex].editedTimestamp,
           }
           return { ...prev, [channelId]: updated }
         }
@@ -454,6 +458,61 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [addOptimisticMessage, confirmOptimisticMessage, failOptimisticMessage],
   )
 
+  const editMessage = useCallback(
+    async (channelId: string, messageId: string, newContent: string): Promise<Message> => {
+      let previousContent = ''
+      let previousEdited = false
+      let previousEditedTimestamp: string | null | undefined = null
+
+      setMessages(prev => {
+        const list = prev[channelId] ?? []
+        return {
+          ...prev,
+          [channelId]: list.map(m => {
+            if (m.id === messageId) {
+              previousContent = m.content
+              previousEdited = m.edited ?? false
+              previousEditedTimestamp = m.editedTimestamp
+              return {
+                ...m,
+                content: newContent,
+                edited: true,
+                editedTimestamp: new Date().toISOString(),
+              }
+            }
+            return m
+          }),
+        }
+      })
+
+      try {
+        const updated = await apiEditMessage(channelId, messageId, newContent)
+        setMessages(prev => {
+          const list = prev[channelId] ?? []
+          return {
+            ...prev,
+            [channelId]: list.map(m => (m.id === messageId ? updated : m)),
+          }
+        })
+        return updated
+      } catch (err) {
+        setMessages(prev => {
+          const list = prev[channelId] ?? []
+          return {
+            ...prev,
+            [channelId]: list.map(m =>
+              m.id === messageId
+                ? { ...m, content: previousContent, edited: previousEdited, editedTimestamp: previousEditedTimestamp }
+                : m
+            ),
+          }
+        })
+        throw err
+      }
+    },
+    []
+  )
+
   const setServerIcon = useCallback(async (serverId: string, icon: UploadableFile | null): Promise<void> => {
     const updated = icon ? await apiUpdateServerIcon(serverId, icon) : await apiRemoveServerIcon(serverId)
     // Solo el ícono: el resto del servidor (canales, categorías) ya está al día en la lista
@@ -481,6 +540,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       leaveServer,
       deleteServer,
       sendMessage,
+      editMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,
@@ -507,6 +567,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       leaveServer,
       deleteServer,
       sendMessage,
+      editMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,

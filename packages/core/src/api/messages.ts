@@ -8,6 +8,9 @@ import { Message, MessageAttachment } from '../types';
  */
 export function normalizeMessage(message: Message): Message {
   const time = message.timestamp ?? message.createdAt ?? '';
+  const editedAt = (message as { editedAt?: string }).editedAt;
+  const editedTimestamp = message.editedTimestamp ?? (editedAt ? String(editedAt) : null);
+  const edited = message.edited ?? Boolean(editedTimestamp);
   const attachments = message.attachments?.map((att) => ({
     ...att,
     url: resolveAttachmentUrl(att.url),
@@ -18,6 +21,9 @@ export function normalizeMessage(message: Message): Message {
     ...message,
     timestamp: time,
     createdAt: message.createdAt ?? time,
+    edited,
+    editedTimestamp,
+    ...(editedAt ? { editedAt: String(editedAt) } : {}),
     ...(attachments ? { attachments } : {}),
   };
 }
@@ -62,4 +68,19 @@ export async function sendMessage(
     { idempotencyKey }
   );
   return normalizeMessage(sent);
+}
+
+/**
+ * Modifica el contenido de un mensaje existente vía PATCH.
+ */
+export async function editMessage(
+  channelId: string,
+  messageId: string,
+  content: string
+): Promise<Message> {
+  const updated = await api.patch<Message>(
+    `/api/v1/chat/channels/${channelId}/messages/${messageId}`,
+    { content }
+  );
+  return normalizeMessage(updated);
 }

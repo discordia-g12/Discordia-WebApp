@@ -16,6 +16,8 @@ interface MessageListProps {
   loadingOlder?: boolean
   /** Pide la página anterior del historial (al llegar arriba o con el enlace). */
   onLoadOlder?: () => void
+  /** Mantener presionado: acciones sobre el mensaje (editar). */
+  onLongPressMessage?: (message: Message) => void
 }
 
 type Row =
@@ -38,6 +40,7 @@ export default function MessageList({
   hasOlder = false,
   loadingOlder = false,
   onLoadOlder,
+  onLongPressMessage,
 }: MessageListProps) {
   const styles = useStyles()
   const listRef = useRef<FlatList<Row>>(null)
@@ -136,6 +139,7 @@ export default function MessageList({
             grouped={item.grouped}
             animate={new Date(item.message.timestamp).getTime() > openedAt.current - NEW_WINDOW_MS}
             sent={item.message.status === 'pending'}
+            onLongPress={onLongPressMessage ? () => onLongPressMessage(item.message) : undefined}
           />
         )
       }
