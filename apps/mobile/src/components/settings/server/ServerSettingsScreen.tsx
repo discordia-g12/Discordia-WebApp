@@ -45,6 +45,8 @@ interface ServerSettingsScreenProps {
   /** ELIMINAR (si es tuyo) o ABANDONAR en el menú: abren la confirmación de la app. */
   onDeleteServer?: () => void
   onLeaveServer?: () => void
+  /** Tocar a un miembro: abre su perfil público. */
+  onOpenProfile?: (userId: string) => void
 }
 
 type PendingConfirm = {
@@ -60,7 +62,7 @@ type PendingConfirm = {
  * BANEOS, con INVITAR y ELIMINAR / ABANDONAR en el menú. El estado y las reglas de roles, miembros y
  * baneos son de core (useRolesAdmin, useServerMembersAdmin, useServerBansAdmin), los mismos que la web.
  */
-export function ServerSettingsScreen({ visible, initialSection = 'overview', server, currentUserId, onClose, onInvite, onDeleteServer, onLeaveServer }: ServerSettingsScreenProps) {
+export function ServerSettingsScreen({ visible, initialSection = 'overview', server, currentUserId, onClose, onInvite, onDeleteServer, onLeaveServer, onOpenProfile }: ServerSettingsScreenProps) {
   const styles = useStyles()
   const [section, setSection] = useState<Section>('overview')
   const [pending, setPending] = useState<PendingConfirm | null>(null)
@@ -128,7 +130,7 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
 
       {section === 'roles' && <RolesSection roles={roles} onConfirm={(copy, action) => setPending({ ...copy, action })} />}
 
-      {section === 'members' && <MembersSection members={members} ownerId={server.ownerId} currentUserId={currentUserId} actions={memberActions} />}
+      {section === 'members' && <MembersSection members={members} ownerId={server.ownerId} currentUserId={currentUserId} actions={memberActions} onOpenProfile={onOpenProfile} />}
 
       {section === 'bans' && <BansSection bans={bans} />}
 

@@ -9,6 +9,9 @@ import MessageItem from './MessageItem'
 
 interface MessageListProps {
   channelName: string
+  /** El comienzo de la lista. Por defecto, el del canal. */
+  welcomeTitle?: string
+  welcomeHint?: string
   messages: Message[]
   describeUser: (userId: string) => UserDisplay
   /** Hay mensajes anteriores a los cargados: arriba se ofrece cargarlos en vez del comienzo del canal. */
@@ -16,6 +19,8 @@ interface MessageListProps {
   loadingOlder?: boolean
   /** Pide la página anterior del historial (al llegar arriba o con el enlace). */
   onLoadOlder?: () => void
+  /** Tocar el autor de un mensaje. */
+  onPressAuthor?: (userId: string) => void
 }
 
 type Row =
@@ -33,11 +38,14 @@ const NEW_WINDOW_MS = 10_000
  */
 export default function MessageList({
   channelName,
+  welcomeTitle,
+  welcomeHint,
   messages,
   describeUser,
   hasOlder = false,
   loadingOlder = false,
   onLoadOlder,
+  onPressAuthor,
 }: MessageListProps) {
   const styles = useStyles()
   const listRef = useRef<FlatList<Row>>(null)
@@ -88,10 +96,10 @@ export default function MessageList({
   const welcome = (
     <View style={styles.welcome}>
       <Text variant="display" style={styles.welcomeTitle}>
-        •{channelName}
+        {welcomeTitle ?? `•${channelName}`}
       </Text>
       <Text variant="meta" tone="muted">
-        / este es el comienzo del canal •{channelName}.
+        / {welcomeHint ?? `este es el comienzo del canal •${channelName}.`}
       </Text>
       {messages.length === 0 && <EmptyState title="todavía no hay mensajes" hint="escribí el primero" />}
     </View>
@@ -136,6 +144,7 @@ export default function MessageList({
             grouped={item.grouped}
             animate={new Date(item.message.timestamp).getTime() > openedAt.current - NEW_WINDOW_MS}
             sent={item.message.status === 'pending'}
+            onPressAuthor={onPressAuthor}
           />
         )
       }

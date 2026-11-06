@@ -17,7 +17,16 @@ const TABS: { id: ShellTab; label: string; icon: LucideIcon }[] = [
 ]
 
 /** Barra inferior: cuatro secciones separadas por líneas; la activa, en bloque invertido. */
-export function BottomTabs({ value, onChange }: { value: ShellTab; onChange: (tab: ShellTab) => void }) {
+export function BottomTabs({
+  value,
+  onChange,
+  unread,
+}: {
+  value: ShellTab
+  onChange: (tab: ShellTab) => void
+  /** Pestañas con algo sin leer: un cuadrado sobre el ícono. */
+  unread?: Partial<Record<ShellTab, boolean>>
+}) {
   const styles = useStyles()
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()
@@ -31,10 +40,13 @@ export function BottomTabs({ value, onChange }: { value: ShellTab; onChange: (ta
             style={[styles.tab, i > 0 && styles.divider, active && styles.active]}
             onPress={() => onChange(id)}
             accessibilityRole="tab"
-            accessibilityLabel={label}
+            accessibilityLabel={unread?.[id] ? `${label}, hay novedades` : label}
             accessibilityState={{ selected: active }}
           >
-            <Icon color={active ? colors.inverseText : colors.textMuted} size={18} strokeWidth={1.5} />
+            <View>
+              <Icon color={active ? colors.inverseText : colors.textMuted} size={18} strokeWidth={1.5} />
+              {unread?.[id] && <View style={[styles.dot, active && styles.dotActive]} />}
+            </View>
             <Text variant="meta" tone={active ? 'inverse' : 'muted'} bold={active} style={styles.label}>
               {label.toUpperCase()}
             </Text>
@@ -51,4 +63,6 @@ const useStyles = makeStyles(t => ({
   divider: { borderLeftWidth: t.lines.hairline, borderLeftColor: t.colors.line },
   active: { backgroundColor: t.colors.inverseBackground },
   label: { letterSpacing: 0.2 },
+  dot: { position: 'absolute', top: -2, right: -4, width: t.space[2], height: t.space[2], backgroundColor: t.colors.text },
+  dotActive: { backgroundColor: t.colors.inverseText },
 }))
