@@ -11,7 +11,7 @@ import { normalizeMessage } from '../api/messages';
 import { appendMessage, messagesQueryKey, type MessagePages } from './messageCache';
 
 export interface UseChatSocketOptions {
-  /** Canal al que conectarse; null para no conectar (p. ej. DMs, que todavía no van por el backend). */
+  /** Canal o conversación (`dm-…`) al que conectarse; null para no conectar. */
   channelId: string | null;
   userId: string;
   /** Último mensaje que la app ya tiene; el servidor reenvía los posteriores al (re)conectar. */

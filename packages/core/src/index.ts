@@ -26,6 +26,10 @@ export * from './api/attachments';
 export * from './api/readStates';
 export * from './api/voice';
 export * from './api/twoFactor';
+export * from './api/friends';
+export * from './api/blocks';
+export * from './api/conversations';
+export * from './api/presence';
 
 // Hooks de React (React Query y perfiles), los mismos en web y mobile
 export * from './hooks/useApi';
@@ -33,6 +37,10 @@ export * from './hooks/messageCache';
 export * from './hooks/useUnread';
 export * from './hooks/useUserProfiles';
 export * from './hooks/useChatSocket';
+export * from './hooks/inboxCache';
+export * from './hooks/useFriends';
+export * from './hooks/useConversations';
+export * from './hooks/useInbox';
 
 // Ajustes del servidor: roles, miembros y baneos (estado y reglas compartidos)
 export * from './admin/permissions';
@@ -46,6 +54,13 @@ export * from './admin/platformStatus';
 export * from './chat/format';
 export * from './chat/mentions';
 export * from './realtime/chatSocket';
+export * from './realtime/inboxSocket';
+
+// Mensajes directos: las reglas de producto, iguales en web y mobile
+export * from './dm/inboxList';
+export * from './dm/actions';
+export * from './dm/errors';
+export * from './dm/friendRequestJoke';
 
 // Voz: la sala y la presencia son las mismas en web y mobile; cada app registra su VoicePlatform
 export * from './voice/platform';

@@ -1,4 +1,18 @@
-import type { Server } from '../types';
+import type { InboxEvent } from '../realtime/inboxSocket';
+import type {
+  Conversation,
+  FriendRequest,
+  FriendRequests,
+  Message,
+  MessageAttachment,
+  MutualServer,
+  PublicProfile,
+  Server,
+} from '../types';
+import type { ConversationWith, StartConversationRequest, StartConversationResponse } from './conversations';
+import type { SendFriendRequestPayload } from './friends';
+import type { GetMessagesOptions } from './messages';
+import type { PresenceMap } from './presence';
 import type { CreateServerRequest } from './servers';
 import type {
   TwoFactorActivateResponse,
@@ -27,6 +41,29 @@ export interface ApiMock {
   verifyTwoFactor?(code: string): Promise<TwoFactorVerifyResponse>;
   disableTwoFactor?(password: string): Promise<TwoFactorDisableResponse>;
   regenerateRecoveryCodes?(): Promise<TwoFactorRegenerateResponse>;
+  getPublicProfile?(userId: string): Promise<PublicProfile>;
+  getMutualServers?(userId: string): Promise<MutualServer[]>;
+  getFriends?(): Promise<PublicProfile[]>;
+  removeFriend?(userId: string): Promise<void>;
+  getFriendRequests?(): Promise<FriendRequests>;
+  sendFriendRequest?(payload: SendFriendRequestPayload): Promise<FriendRequest | null>;
+  acceptFriendRequest?(requestId: string): Promise<PublicProfile>;
+  declineFriendRequest?(requestId: string): Promise<void>;
+  cancelFriendRequest?(requestId: string): Promise<void>;
+  getBlocks?(): Promise<PublicProfile[]>;
+  blockUser?(userId: string): Promise<void>;
+  unblockUser?(userId: string): Promise<void>;
+  getConversations?(): Promise<Conversation[]>;
+  getConversationWith?(userId: string): Promise<ConversationWith>;
+  startConversation?(payload: StartConversationRequest): Promise<StartConversationResponse>;
+  acceptConversation?(conversationId: string): Promise<Conversation>;
+  declineConversation?(conversationId: string): Promise<void>;
+  getPresence?(userIds: string[]): Promise<PresenceMap>;
+  getMessages?(channelId: string, options?: GetMessagesOptions): Promise<Message[]>;
+  sendMessage?(channelId: string, content: string, attachments?: MessageAttachment[]): Promise<Message>;
+  markChannelRead?(channelId: string): Promise<void>;
+  /** Reemplaza al socket inbox: el mock le entrega los eventos a `onEvent`. Devuelve cómo desuscribirse. */
+  subscribeInbox?(onEvent: (event: InboxEvent) => void): () => void;
 }
 
 let apiMock: ApiMock | null = null;

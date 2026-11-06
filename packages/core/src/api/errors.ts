@@ -31,6 +31,8 @@ export interface InvalidParam {
 export class ApiError extends Error {
   readonly status: number;
   readonly type?: string;
+  /** Código de error de negocio (extensión de RFC 7807), p. ej. DM_PENDING. */
+  readonly code?: string;
   readonly title?: string;
   readonly detail?: string;
   readonly invalidParams?: InvalidParam[];
@@ -40,6 +42,7 @@ export class ApiError extends Error {
   constructor(opts: {
     status: number;
     type?: string;
+    code?: string;
     title?: string;
     detail?: string;
     invalidParams?: InvalidParam[];
@@ -51,6 +54,7 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.status = opts.status;
     this.type = opts.type;
+    this.code = opts.code;
     this.title = opts.title;
     this.detail = opts.detail;
     this.invalidParams = opts.invalidParams;
@@ -77,6 +81,7 @@ export async function parseErrorResponse(
 ): Promise<ApiError> {
   const contentType = response.headers.get('content-type') || '';
   let type: string | undefined;
+  let code: string | undefined;
   let title: string | undefined;
   let detail: string | undefined;
   let invalidParams: InvalidParam[] | undefined;
@@ -84,6 +89,7 @@ export async function parseErrorResponse(
   if (contentType.includes('json')) {
     try {
       const data = await response.json();
+      if (typeof data.code === 'string') code = data.code;
 
       // Formato 1: RFC 7807 Problem Details (Kong)
       if (data.title || data.type || data.status) {
@@ -125,6 +131,7 @@ export async function parseErrorResponse(
   return new ApiError({
     status: response.status,
     type,
+    code,
     title: title || `Error HTTP ${response.status}`,
     detail: detail || response.statusText,
     invalidParams,
