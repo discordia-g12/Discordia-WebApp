@@ -148,7 +148,7 @@ export function selectServer(serverId: string | 'home', servers: Server[]) {
   ui.setSelectedServerId(serverId);
   if (serverId === 'home') {
     ui.setAppView('home');
-    ui.setSelectedDmId(null);
+    ui.setSelectedDm(null);
   } else {
     const srv = servers.find((s) => s.id === serverId);
     if (srv) {

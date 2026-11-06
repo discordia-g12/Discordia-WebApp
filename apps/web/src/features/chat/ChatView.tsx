@@ -14,7 +14,7 @@ import {
   formatAttachmentSize,
   type MessageMentions,
 } from '@discordia/core';
-import type { Channel, DirectMessage, Message, MessageAttachment, Role, User } from '../../types';
+import type { Channel, Message, MessageAttachment, Role, User } from '../../types';
 import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
 import {
   POPULAR_EMOJIS,
@@ -23,6 +23,7 @@ import {
   sanitizeText,
   useChatViewState,
   type ChatViewState,
+  type DirectChat,
   type Mentionables,
 } from './useChatViewState';
 import styles from './ChatView.module.css';
@@ -30,8 +31,10 @@ import styles from './ChatView.module.css';
 export interface ChatViewProps {
   /** Canal activo si la vista corresponde a un servidor. */
   channel?: Channel | null;
-  /** Conversación directa activa si la vista corresponde a un DM. */
-  directMessage?: DirectMessage | null;
+  /** Chat directo activo si la vista corresponde a un DM. */
+  directChat?: DirectChat | null;
+  /** Enlaces del encabezado de un DM, después de _perfil: agregar amigo, bloquear... */
+  directActions?: { label: string; onPress: () => void }[];
   /** Lista opcional de mensajes. Si no se provee, usa los datos mock. */
   messages?: Message[];
   /** ID del usuario actualmente autenticado. */
@@ -58,10 +61,6 @@ export interface ChatViewProps {
   onToggleMemberList?: () => void;
   /** Estado de visibilidad de la barra lateral de miembros. */
   isMemberListOpen?: boolean;
-  /** Callback para iniciar llamada de voz directa. */
-  onStartVoiceCall?: () => void;
-  /** Callback para iniciar videollamada directa. */
-  onStartVideoCall?: () => void;
   /**
    * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: el input queda
    * deshabilitado y se muestra esto. null o sin definir: se puede escribir.
@@ -162,7 +161,8 @@ function useLoadOlder(
 export function ChatView(props: ChatViewProps) {
   const {
     channel,
-    directMessage,
+    directChat,
+    directActions = [],
     messages,
     isLoading = false,
     currentUserId,
@@ -170,14 +170,12 @@ export function ChatView(props: ChatViewProps) {
     onOpenUserProfile,
     onToggleMemberList,
     isMemberListOpen = true,
-    onStartVoiceCall,
-    onStartVideoCall,
     hasOlderMessages = false,
     isLoadingOlder = false,
     onLoadOlder,
   } = props;
   const chat = useChatViewState({ ...props, messages });
-  const history = useHistoryIds(channel?.id ?? directMessage?.id ?? 'chat', chat.localMessages, isLoading);
+  const history = useHistoryIds(channel?.id ?? directChat?.conversationId ?? directChat?.user.id ?? 'chat', chat.localMessages, isLoading);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const older = useLoadOlder(scrollRef, chat.localMessages[0]?.id, {
     hasOlder: hasOlderMessages && !isLoading,
@@ -197,11 +195,12 @@ export function ChatView(props: ChatViewProps) {
         <nav className={styles.links} aria-label="Acciones del chat">
           {chat.isDirectMessage ? (
             <>
-              {directMessage?.recipientId && (
-                <HeaderLink onPress={() => onOpenUserProfile?.(directMessage.recipientId)}>perfil</HeaderLink>
-              )}
-              <HeaderLink onPress={onStartVoiceCall}>llamar</HeaderLink>
-              <HeaderLink onPress={onStartVideoCall}>videollamada</HeaderLink>
+              {directChat && <HeaderLink onPress={() => onOpenUserProfile?.(directChat.user.id)}>perfil</HeaderLink>}
+              {directActions.map(({ label, onPress }) => (
+                <HeaderLink key={label} onPress={onPress}>
+                  {label}
+                </HeaderLink>
+              ))}
             </>
           ) : (
             <HeaderLink pressed={chat.isNotificationsMuted} onPress={() => chat.setIsNotificationsMuted((v) => !v)}>
@@ -721,23 +720,27 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
       )}
 
       <div className={styles.composerRow}>
-        <button
-          type="button"
-          className={styles.composerIcon}
-          onClick={chat.handleAttachClick}
-          aria-label="Adjuntar archivo"
-          title="Adjuntar archivo"
-          disabled={chat.isUploading}
-        >
-          <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
-        </button>
-        <input
-          type="file"
-          ref={chat.fileInputRef}
-          style={{ display: 'none' }}
-          accept={ATTACHMENT_ACCEPT}
-          onChange={chat.handleFileChange}
-        />
+        {chat.canAttach && (
+          <>
+            <button
+              type="button"
+              className={styles.composerIcon}
+              onClick={chat.handleAttachClick}
+              aria-label="Adjuntar archivo"
+              title="Adjuntar archivo"
+              disabled={chat.isUploading}
+            >
+              <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+            <input
+              type="file"
+              ref={chat.fileInputRef}
+              style={{ display: 'none' }}
+              accept={ATTACHMENT_ACCEPT}
+              onChange={chat.handleFileChange}
+            />
+          </>
+        )}
         <input
           ref={chat.composerInputRef}
           className={styles.composerInput}

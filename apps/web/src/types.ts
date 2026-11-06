@@ -10,7 +10,6 @@ export type {
   Channel,
   ChannelBackendResponse,
   ChannelType,
-  DirectMessage,
   Message,
   MessageAttachment,
   MessageBackendPayload,
@@ -55,7 +54,6 @@ export type Modal =
   | 'join-server'
   | 'user-profile'
   | 'invite'
-  | 'incoming-call'
   | 'confirm-action'
   | 'search'
   | 'edit-message'
@@ -75,6 +73,8 @@ export type ConfirmAction =
   | 'switch-voice-channel'
   | 'delete-category'
   | 'logout'
+  | 'block-user'
+  | 'remove-friend'
   | null;
 
 /** Errores de validación durante la edición del perfil de usuario. */

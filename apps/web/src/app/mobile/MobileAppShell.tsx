@@ -42,7 +42,7 @@ const TABS: { id: MobileTab; label: string; icon: LucideIcon }[] = [
 export function MobileAppShell() {
   const { servers, currentServer, currentChannel, isLoadingServers } = useCurrentServer();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
-  const selectedDmId = useUIStore((s) => s.selectedDmId);
+  const selectedDm = useUIStore((s) => s.selectedDm);
   const appView = useUIStore((s) => s.appView);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
   const voice = useVoice();
@@ -60,10 +60,15 @@ export function MobileAppShell() {
 
   // En Servidores siempre hay un servidor elegido: el último, o el primero de la lista
   useEffect(() => {
-    if (tab !== 'servers' || selectedServerId !== 'home' || servers.length === 0) return;
+    if (tab !== 'servers' || selectedServerId !== 'home' || selectedDm || servers.length === 0) return;
     const target = servers.find((s) => s.id === lastServerId.current) ?? servers[0];
     selectServer(target.id, servers);
-  }, [tab, selectedServerId, servers]);
+  }, [tab, selectedServerId, selectedDm, servers]);
+
+  // Un DM que se abre desde otra pestaña (el perfil de un miembro, por ejemplo) se ve en Mensajes
+  useEffect(() => {
+    if (selectedDm) setTab('messages');
+  }, [selectedDm]);
 
   // Una llamada que se abre desde los controles (o al confirmar el cambio de canal) se ve en Servidores
   useEffect(() => {
@@ -75,6 +80,7 @@ export function MobileAppShell() {
 
   const goTo = (next: MobileTab) => {
     if (next === 'messages') selectServer('home', servers);
+    else useUIStore.getState().setSelectedDm(null);
     if (next !== tab) setChannelOpen(false);
     setTab(next);
   };
@@ -132,12 +138,12 @@ export function MobileAppShell() {
             </Screen>
           ))}
 
-        {tab === 'messages' && <MessagesTab dmOpen={selectedDmId !== null} />}
+        {tab === 'messages' && <MessagesTab dmOpen={selectedDm !== null} />}
 
         {tab === 'notifications' && (
           <Screen title="Avisos">
             <div className={styles.padded}>
-              <EmptyState title="por ahora no hay avisos" hint="próximamente: menciones, invitaciones y solicitudes de amistad" />
+              <EmptyState title="por ahora no hay avisos" hint="próximamente: menciones e invitaciones" />
             </div>
           </Screen>
         )}
@@ -263,7 +269,7 @@ function MessagesTab({ dmOpen }: { dmOpen: boolean }) {
 
   if (dmOpen) {
     return (
-      <Pane backLabel="Mensajes" onBack={() => useUIStore.getState().setSelectedDmId(null)}>
+      <Pane backLabel="Mensajes" onBack={() => useUIStore.getState().setSelectedDm(null)}>
         {/* Sin lugar para la lista: HomePanel muestra el chat del DM */}
         <HomePanel sidebarContainer={null} />
       </Pane>

@@ -143,6 +143,13 @@
   padding: var(--space-3) var(--space-5);
 }
 
+.emptyActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
 /* ── Contenido: amigos | activo ahora ── */
 
 .friends {

@@ -1,0 +1,93 @@
+/* Tarjetas de solicitud: ocupan el lugar del chat, con su misma fila de encabezado */
+.panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  color: var(--color-text);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  flex-shrink: 0;
+  height: var(--space-7);
+  padding: 0 var(--space-5);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.headerName {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  max-width: 560px;
+  padding: var(--space-6) var(--space-5);
+  overflow-y: auto;
+  animation: enter var(--motion-duration-base) var(--motion-ease-enter) both;
+}
+
+.avatar {
+  display: flex;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-heading-size);
+  line-height: var(--font-heading-line-height);
+  font-weight: var(--font-heading-weight);
+}
+
+/* La descripción o el mensaje, con la línea de las respuestas del chat */
+.quote {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: var(--line-accent) solid var(--color-inverse-background);
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+/* Carga y error del chat, antes de saber qué mostrar */
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-5);
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-rise));
+  }
+}

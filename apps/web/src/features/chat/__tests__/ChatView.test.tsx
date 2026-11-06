@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { ChatView } from '../ChatView';
-import type { Channel, DirectMessage, Message, User } from '../../../types';
+import type { Channel, Message, User } from '../../../types';
 
 const users: Record<string, User> = {
   me: { id: 'me', username: 'mar', displayName: 'Mar', status: 'online' } as User,
@@ -147,19 +147,36 @@ describe('ChatView (rediseño)', () => {
     expect(screen.getByRole('dialog', { name: 'Mensajes fijados' }).textContent).toContain('todavía no hay mensajes fijados');
   });
 
-  it('en un DM el encabezado tiene _perfil, _llamar y videollamada, sin lista de miembros', () => {
+  it('en un DM el encabezado tiene _perfil y sus acciones, sin llamadas ni lista de miembros', () => {
     const onOpenUserProfile = vi.fn();
-    const onStartVoiceCall = vi.fn();
-    const dm = { id: 'd1', recipientId: 'u2', recipient: users.u2 } as DirectMessage;
+    const onBlock = vi.fn();
     render(
-      <ChatView directMessage={dm} messages={[]} users={users} currentUserId="me" onOpenUserProfile={onOpenUserProfile} onStartVoiceCall={onStartVoiceCall} onToggleMemberList={vi.fn()} />
+      <ChatView
+        directChat={{ conversationId: 'dm-1', user: users.u2 }}
+        directActions={[{ label: 'bloquear', onPress: onBlock }]}
+        messages={[]}
+        users={users}
+        currentUserId="me"
+        onOpenUserProfile={onOpenUserProfile}
+        onToggleMemberList={vi.fn()}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'perfil' }));
-    fireEvent.click(screen.getByRole('button', { name: 'llamar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'bloquear' }));
     expect(onOpenUserProfile).toHaveBeenCalledWith('u2');
-    expect(onStartVoiceCall).toHaveBeenCalledTimes(1);
+    expect(onBlock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'llamar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'videollamada' })).toBeNull();
     expect(screen.queryByRole('button', { name: /lista de miembros/ })).toBeNull();
+    expect(screen.getByPlaceholderText('Enviar mensaje a @lbars')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Adjuntar archivo' })).toBeTruthy();
+  });
+
+  it('en un chat sin conversación no ofrece adjuntar: el primer mensaje es solo texto', () => {
+    render(<ChatView directChat={{ conversationId: null, user: users.u2 }} messages={[]} users={users} currentUserId="me" />);
+
+    expect(screen.queryByRole('button', { name: 'Adjuntar archivo' })).toBeNull();
     expect(screen.getByPlaceholderText('Enviar mensaje a @lbars')).toBeTruthy();
   });
 

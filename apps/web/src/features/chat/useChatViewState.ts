@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { encodeMentions, validateAttachmentFile, uploadAttachment, type PickedMention } from '@discordia/core';
-import type { Channel, DirectMessage, Message, MessageAttachment, Reaction, Role, User } from '../../types';
+import type { Channel, Message, MessageAttachment, Reaction, Role, User } from '../../types';
 import { showToast } from '../../app/uiStore';
 
 /** Emojis disponibles para reacciones rápidas y selector. */
@@ -30,6 +30,12 @@ export interface Mentionables {
   myRoleIds: string[];
 }
 
+/** Chat directo: con quién, y el id de la conversación. null: todavía no existe, nace con el primer mensaje. */
+export interface DirectChat {
+  conversationId: string | null;
+  user: User;
+}
+
 export type MentionCandidate =
   | { kind: 'user'; key: string; label: string; token: string; user: User }
   | { kind: 'role'; key: string; label: string; token: string; role: Role }
@@ -45,7 +51,7 @@ const MAX_ROLE_CANDIDATES = 3;
 
 export interface ChatViewStateOptions {
   channel?: Channel | null;
-  directMessage?: DirectMessage | null;
+  directChat?: DirectChat | null;
   messages?: Message[];
   currentUserId?: string;
   users?: Record<string, User>;
@@ -64,7 +70,7 @@ export interface ChatViewStateOptions {
  */
 export function useChatViewState({
   channel,
-  directMessage,
+  directChat,
   messages: externalMessages,
   currentUserId,
   users = {},
@@ -126,9 +132,11 @@ export function useChatViewState({
   }, [lastMessageId]);
 
   // Título e información de cabecera
-  const chatTitle = channel ? channel.name : directMessage?.recipient?.displayName || 'Chat';
-  const chatTopic = channel?.topic || directMessage?.recipient?.customStatus || 'No topic set.';
-  const isDirectMessage = Boolean(directMessage);
+  const chatTitle = channel ? channel.name : directChat?.user.displayName || 'Chat';
+  const chatTopic = channel?.topic || directChat?.user.customStatus || 'No topic set.';
+  const isDirectMessage = Boolean(directChat);
+  // Subir un adjunto exige el id de un canal o conversación: el primer mensaje de un DM es solo texto
+  const attachmentChannelId = channel?.id ?? directChat?.conversationId ?? null;
 
   // Autocompletado de @: miembros y, con MENTION_EVERYONE, roles y @everyone
   const mentionCandidates = useMemo<MentionCandidate[]>(() => {
@@ -196,10 +204,10 @@ export function useChatViewState({
 
     let finalAttachment = attachment;
 
-    if (pendingFile && channel?.id) {
+    if (pendingFile && attachmentChannelId) {
       try {
         setIsUploading(true);
-        const uploaded = await uploadAttachment(channel.id, pendingFile);
+        const uploaded = await uploadAttachment(attachmentChannelId, pendingFile);
         finalAttachment = uploaded;
       } catch (err: unknown) {
         setIsUploading(false);
@@ -223,7 +231,7 @@ export function useChatViewState({
 
       const newMsg: Message = {
         id: `msg-${Date.now()}`,
-        channelId: channel?.id || directMessage?.id || 'ch-custom',
+        channelId: attachmentChannelId || 'ch-custom',
         authorId: currentUserId || '',
         author: authorUser,
         content: sanitized,
@@ -437,6 +445,7 @@ export function useChatViewState({
     chatTitle,
     chatTopic,
     isDirectMessage,
+    canAttach: attachmentChannelId !== null,
     inputText,
     setInputText,
     replyingTo,

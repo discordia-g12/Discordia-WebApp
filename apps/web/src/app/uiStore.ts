@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { durations } from '@discordia/tokens';
-import type { AppView, Channel, ConfirmAction, Modal, User } from '../types';
+import type { AppView, Channel, ConfirmAction, Modal } from '../types';
 
 export type ToastType = 'success' | 'danger' | 'info';
 
@@ -23,6 +23,12 @@ const TOAST_MS = durations.toast;
 
 let lastToastId = 0;
 
+/**
+ * Qué está abierto en el inicio: el chat con un usuario (exista o no la conversación todavía) o la tarjeta
+ * de una solicitud de amistad recibida.
+ */
+export type DmTarget = { type: 'chat'; userId: string } | { type: 'friend-request'; requestId: string };
+
 interface ConfirmState {
   action: ConfirmAction;
   /** Nombre de lo que se confirma (servidor, canal de voz destino). */
@@ -37,10 +43,10 @@ export interface UIState {
   // ── Navegación ──
   selectedServerId: string | 'home';
   selectedChannelId: string | null;
-  selectedDmId: string | null;
+  selectedDm: DmTarget | null;
   appView: AppView;
   isMemberListOpen: boolean;
-  /** Canal de texto que está en pantalla (el chat montado): no muestra no leídos y se marca al leerlo. */
+  /** Canal de texto o conversación en pantalla (el chat montado): no suma no leídos y se marca al leerlo. */
   readingChannelId: string | null;
 
   // ── Modales ──
@@ -53,15 +59,13 @@ export interface UIState {
   channelModalCategoryId: string | undefined;
   /** Canal que se está editando. */
   targetChannelForAction: Channel | null;
-  /** Llamada entrante simulada (todavía no hay llamadas directas en el backend). */
-  incomingCaller: User | null;
 
   // ── Avisos ──
   toast: ToastState | null;
 
   setSelectedServerId: (id: string | 'home') => void;
   setSelectedChannelId: (id: string | null) => void;
-  setSelectedDmId: (id: string | null) => void;
+  setSelectedDm: (target: DmTarget | null) => void;
   setAppView: (view: AppView) => void;
   toggleMemberList: () => void;
   setReadingChannelId: (id: string | null) => void;
@@ -81,7 +85,6 @@ export interface UIState {
   openCreateChannel: (categoryId?: string) => void;
   /** Abre el modal de editar un canal. */
   openEditChannel: (channel: Channel) => void;
-  setIncomingCaller: (user: User | null) => void;
 
   showToast: (message: string, type?: ToastType, action?: ToastAction) => void;
   dismissToast: () => void;
@@ -94,7 +97,7 @@ export interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   selectedServerId: 'home',
   selectedChannelId: null,
-  selectedDmId: null,
+  selectedDm: null,
   appView: 'chat',
   isMemberListOpen: true,
   readingChannelId: null,
@@ -105,13 +108,12 @@ export const useUIStore = create<UIState>((set) => ({
   pendingVoiceChannelId: null,
   channelModalCategoryId: undefined,
   targetChannelForAction: null,
-  incomingCaller: null,
 
   toast: null,
 
   setSelectedServerId: (selectedServerId) => set({ selectedServerId }),
   setSelectedChannelId: (selectedChannelId) => set({ selectedChannelId }),
-  setSelectedDmId: (selectedDmId) => set({ selectedDmId }),
+  setSelectedDm: (selectedDm) => set({ selectedDm }),
   setAppView: (appView) => set({ appView }),
   toggleMemberList: () => set((s) => ({ isMemberListOpen: !s.isMemberListOpen })),
   setReadingChannelId: (readingChannelId) => set({ readingChannelId }),
@@ -124,7 +126,6 @@ export const useUIStore = create<UIState>((set) => ({
   setPendingVoiceChannelId: (pendingVoiceChannelId) => set({ pendingVoiceChannelId }),
   openCreateChannel: (channelModalCategoryId) => set({ channelModalCategoryId, activeModal: 'create-channel' }),
   openEditChannel: (targetChannelForAction) => set({ targetChannelForAction, activeModal: 'edit-channel' }),
-  setIncomingCaller: (incomingCaller) => set({ incomingCaller }),
 
   showToast: (message, type = 'info', action) => {
     const id = ++lastToastId;
