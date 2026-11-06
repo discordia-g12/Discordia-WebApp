@@ -18,3 +18,8 @@ export function friendRequestJoke(id: string): string {
 export function friendRequestTitle(displayName: string): string {
   return `${displayName} quiere ser tu amigo`;
 }
+
+/** El título de la tarjeta de una solicitud de mensaje. */
+export function messageRequestTitle(displayName: string): string {
+  return `${displayName} quiere hablar con vos`;
+}

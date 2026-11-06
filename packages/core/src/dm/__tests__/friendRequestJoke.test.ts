@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { friendRequestJoke, friendRequestTitle } from '../friendRequestJoke';
+import { friendRequestJoke, friendRequestTitle, messageRequestTitle } from '../friendRequestJoke';
 
 describe('friendRequestJoke', () => {
   it('es determinístico', () => {
@@ -12,6 +12,12 @@ describe('friendRequestJoke', () => {
     expect(jokes.size).toBeGreaterThan(1);
     expect(friendRequestJoke('')).toEqual(expect.any(String));
     for (const joke of jokes) expect(joke).toEqual(expect.any(String));
+  });
+});
+
+describe('messageRequestTitle', () => {
+  it('nombra a quien escribió', () => {
+    expect(messageRequestTitle('Sofía')).toBe('Sofía quiere hablar con vos');
   });
 });
 
