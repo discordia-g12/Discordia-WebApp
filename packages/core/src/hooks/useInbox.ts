@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { isConversationId } from '../api/conversations';
 import { normalizeMessage } from '../api/messages';
 import { useSession } from '../auth/session';
 import {
@@ -75,7 +76,13 @@ export function useInbox({ activeConversationId = null, enabled = true }: UseInb
       onStatusChange: (next) => {
         setStatus(next);
         if (next !== 'open') return;
-        if (hasOpenedRef.current) queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
+        if (hasOpenedRef.current) {
+          queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
+          // Lo que llegó durante el corte no pasó por el socket: el historial de los DMs ya cargados quedó viejo
+          queryClient.invalidateQueries({
+            predicate: ({ queryKey: [scope, id] }) => scope === 'messages' && isConversationId(id as string),
+          });
+        }
         hasOpenedRef.current = true;
       },
     });

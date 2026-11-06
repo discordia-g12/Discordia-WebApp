@@ -159,6 +159,21 @@ describe('useInbox', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: conversationsQueryKey });
   });
 
+  it('al volver la conexión refresca el historial de los DMs, no el de los canales', () => {
+    const { queryClient, wrapper } = setup();
+    const pages: MessagePages = { pages: [[]], pageParams: [undefined] };
+    queryClient.setQueryData(messagesQueryKey('dm-1'), pages);
+    queryClient.setQueryData(messagesQueryKey('channel-1'), pages);
+    renderHook(() => useInbox(), { wrapper });
+
+    emitStatus('open');
+    emitStatus('reconnecting');
+    emitStatus('open');
+
+    expect(queryClient.getQueryState(messagesQueryKey('dm-1'))?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(messagesQueryKey('channel-1'))?.isInvalidated).toBe(false);
+  });
+
   it('con enabled en false suelta la conexión y al volver refresca', () => {
     const { wrapper, invalidate } = setup();
     const { rerender } = renderHook(({ enabled }) => useInbox({ enabled }), {
