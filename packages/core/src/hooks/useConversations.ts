@@ -22,6 +22,9 @@ import {
 /** Cada cuánto se pide la presencia. Menos que los 60 s que dura en Chat-Engine. */
 export const PRESENCE_POLL_MS = 30_000;
 
+/** Cada cuánto se revisa un chat al que no se puede escribir: a quien desbloquean nadie le avisa. */
+export const UNDELIVERABLE_POLL_MS = 30_000;
+
 export function presenceQueryKey(userIds: string[]) {
   return ['presence', userIds] as const;
 }
@@ -45,6 +48,8 @@ export function useConversationWithQuery(userId: string | null) {
     queryKey: conversationWithQueryKey(userId),
     queryFn: () => getConversationWith(userId as string),
     enabled: status === 'authenticated' && Boolean(userId),
+    refetchInterval: (query) => (query.state.data?.canMessage === false ? UNDELIVERABLE_POLL_MS : false),
+    refetchOnWindowFocus: true,
   });
 }
 
