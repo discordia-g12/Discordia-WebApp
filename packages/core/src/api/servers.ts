@@ -15,6 +15,7 @@ import {
   Server,
   Category,
   Channel,
+  MutualServer,
   ServerBackendResponse,
   ChannelBackendResponse,
   CategoryBackendResponse,
@@ -148,6 +149,17 @@ export async function getServers(): Promise<Server[]> {
 
   const rawServers = await api.get<ServerBackendResponse[]>('/api/v1/servers');
   return (rawServers || []).map(mapServerFromBackend);
+}
+
+/** Servidores del usuario autenticado donde también está `userId`. */
+export async function getMutualServers(userId: string): Promise<MutualServer[]> {
+  const mock = getApiMock();
+  if (mock?.getMutualServers) return mock.getMutualServers(userId);
+
+  const raw = await api.get<{ id: string; name: string; icon_url?: string | null }[]>(
+    `/api/v1/servers/mutual/${encodeURIComponent(userId)}`
+  );
+  return (raw || []).map(({ id, name, icon_url }) => ({ id, name, ...(icon_url ? { iconUrl: icon_url } : {}) }));
 }
 
 /**

@@ -2,3 +2,4 @@
 // (@discordia/core/testing) para que nunca entre al bundle de producción por el import principal.
 export * from './data';
 export * from './apiMock';
+export * from './dmMock';

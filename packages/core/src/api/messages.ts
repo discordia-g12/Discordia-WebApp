@@ -1,5 +1,6 @@
 import { api } from './client';
 import { resolveAttachmentUrl } from './attachments';
+import { getApiMock } from './mock';
 import { Message, MessageAttachment } from '../types';
 
 /**
@@ -40,6 +41,9 @@ export async function getMessages(
   channelId: string,
   options: GetMessagesOptions = {}
 ): Promise<Message[]> {
+  const mock = getApiMock();
+  if (mock?.getMessages) return mock.getMessages(channelId, options);
+
   const { before, limit = 50 } = options;
   const response = await api.get<{ messages: Message[] } | Message[]>(`/api/v1/chat/channels/${channelId}/messages`, {
     query: { before, limit },
@@ -57,6 +61,9 @@ export async function sendMessage(
   clientMessageId?: string,
   attachments?: MessageAttachment[]
 ): Promise<Message> {
+  const mock = getApiMock();
+  if (mock?.sendMessage) return mock.sendMessage(channelId, content, attachments);
+
   const idempotencyKey =
     clientMessageId ||
     (typeof crypto !== 'undefined' && crypto.randomUUID

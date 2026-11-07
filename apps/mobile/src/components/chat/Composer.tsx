@@ -12,6 +12,8 @@ export interface PendingAttachment {
 
 interface ComposerProps {
   channelName: string
+  /** Por defecto, "Enviar mensaje a •canal". */
+  placeholder?: string
   value: string
   onChangeText: (text: string) => void
   onSend: () => void
@@ -29,6 +31,7 @@ interface ComposerProps {
 /** Barra de escritura de una línea, entre líneas finas, con "+" a la izquierda y "ENVIAR /" a la derecha. */
 export default function Composer({
   channelName,
+  placeholder,
   value,
   onChangeText,
   onSend,
@@ -89,7 +92,7 @@ export default function Composer({
         )}
         <TextInput
           style={styles.input}
-          placeholder={`Enviar mensaje a •${channelName}`}
+          placeholder={placeholder ?? `Enviar mensaje a •${channelName}`}
           placeholderTextColor={colors.textMuted}
           selectionColor={colors.text}
           value={value}

@@ -2,7 +2,7 @@ import { api } from './client';
 import { ApiError } from './errors';
 import { getApiMock } from './mock';
 import { appendFile, UPLOAD_TIMEOUT_MS, type UploadableFile } from './images';
-import { Status, User } from '../types';
+import { PublicProfile, PublicProfileBackendResponse, Status, User } from '../types';
 
 /** Perfil de Auth-User-Service: el modelo de dominio más los campos crudos del backend (snake_case). */
 export interface UserProfile extends User {
@@ -38,6 +38,20 @@ function toUserProfile(res: UserBackendResponse): UserProfile {
     display_name: res.display_name || res.username,
     avatar: res.avatar_url || res.avatar,
     status: (res.activity_status === 'offline' ? 'offline' : (res.activity_status || 'online')) as Status,
+  };
+}
+
+export function mapPublicProfileFromBackend(raw: PublicProfileBackendResponse): PublicProfile {
+  return {
+    id: raw.user_id,
+    username: raw.username,
+    displayName: raw.display_name || raw.username,
+    avatarUrl: raw.avatar_url,
+    bio: raw.bio,
+    customStatus: raw.custom_status,
+    createdAt: raw.created_at,
+    relationship: raw.relationship,
+    ...(raw.friend_request_id ? { friendRequestId: raw.friend_request_id } : {}),
   };
 }
 
@@ -159,4 +173,22 @@ export async function getUsersBulk(userIds: string[]): Promise<UserProfile[]> {
   );
 
   return responses.flat().map(toUserProfile);
+}
+
+/**
+ * Perfil público de un usuario. Si está suspendido o no existe responde 404: la interfaz muestra "perfil
+ * no disponible" (ver isProfileUnavailable).
+ */
+export async function getPublicProfile(userId: string): Promise<PublicProfile> {
+  const mock = getApiMock();
+  if (mock?.getPublicProfile) return mock.getPublicProfile(userId);
+
+  return mapPublicProfileFromBackend(
+    await api.get<PublicProfileBackendResponse>(`/api/v1/users/${encodeURIComponent(userId)}/profile`)
+  );
+}
+
+/** true si el error de getPublicProfile significa "perfil no disponible" (suspendido o inexistente). */
+export function isProfileUnavailable(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 404;
 }

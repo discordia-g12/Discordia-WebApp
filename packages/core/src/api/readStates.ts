@@ -1,4 +1,5 @@
 import { api } from './client';
+import { getApiMock } from './mock';
 
 /** Lo no leído de un canal (Chat-Engine solo devuelve los que tienen algo). */
 export interface ChannelUnread {
@@ -20,6 +21,9 @@ export async function getUnread(): Promise<ChannelUnread[]> {
 
 /** Marca el canal como leído hasta `messageId`, o hasta el último mensaje si no viene. Nunca retrocede. */
 export async function markChannelRead(channelId: string, messageId?: string): Promise<void> {
+  const mock = getApiMock();
+  if (mock?.markChannelRead) return mock.markChannelRead(channelId);
+
   await api.post<void>(`/api/v1/chat/channels/${channelId}/read`, messageId ? { messageId } : undefined);
 }
 

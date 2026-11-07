@@ -1,9 +1,15 @@
 import { getClientConfig, getWsBaseUrl } from '../api/client';
+import { isConversationId } from '../api/conversations';
 import type { MessageAttachment, MessageBackendPayload } from '../types';
 
 // Mismo backoff que la presencia de voz: 1 s, 2 s, 4 s… hasta 15 s entre intentos
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
+
+/** Espera antes del reintento número `attempts` (desde 0). */
+export function reconnectDelayMs(attempts: number): number {
+  return Math.min(RECONNECT_BASE_MS * 2 ** attempts, RECONNECT_MAX_MS);
+}
 
 /**
  * connecting: primer intento. reconnecting: estuvo abierta, se cortó y está volviendo (la interfaz lo
@@ -82,7 +88,7 @@ export function openChatSocket(
 
   const scheduleReconnect = () => {
     if (disposed) return;
-    const delay = Math.min(RECONNECT_BASE_MS * 2 ** attempts, RECONNECT_MAX_MS);
+    const delay = reconnectDelayMs(attempts);
     attempts += 1;
     reconnectTimer = setTimeout(connect, delay);
   };
@@ -139,8 +145,9 @@ export function openChatSocket(
         }
 
         if (data.error) {
-          // Un 403 al enviar es que ya no puede escribir (por si el aviso de permisos no llegó)
-          if (data.status === 403) handlers.onPermissionsChange?.(false);
+          // Un 403 al enviar es que ya no puede escribir (por si el aviso de permisos no llegó). En un DM
+          // solo rechaza ese mensaje: el bloqueo se revisa en cada envío y la interfaz no dice "silenciado"
+          if (data.status === 403 && !isConversationId(channelId)) handlers.onPermissionsChange?.(false);
           if (handlers.onError) handlers.onError(String(data.error));
           else console.error('[WS] Server Error:', data.error);
           return;

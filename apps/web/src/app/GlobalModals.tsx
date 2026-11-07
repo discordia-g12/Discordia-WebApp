@@ -16,14 +16,12 @@ import { JoinServerModal } from '../features/servers/JoinServerModal';
 import { InviteModal } from '../features/servers/InviteModal';
 import { CreateCategoryModal, CreateChannelModal, EditChannelModal } from '../features/channels/ChannelModals';
 import { UserProfileModal } from '../features/profile/UserProfileModal';
-import { IncomingCallModal } from '../features/voice/IncomingCallModal';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
 import { clearInviteFromUrl, useCreateServer, useJoinServer } from '../features/servers/serverActions';
 import { useCurrentUser } from '../features/profile/currentUserStore';
 import { logoutWithToast } from '../features/profile/profileActions';
 import { useVoice } from '../features/voice/voiceContext';
 import { useUIStore } from './uiStore';
-import { useUsers } from './usersContext';
 
 /**
  * Modales de la app (escritorio y mobile web): cuál está abierto lo decide useUIStore. Entran y salen como
@@ -34,7 +32,6 @@ export function GlobalModals() {
   const ui = useUIStore();
   const { currentServer } = useCurrentServer();
   const currentUser = useCurrentUser();
-  const { usersMap } = useUsers();
   const voice = useVoice();
   const createServer = useCreateServer();
   const joinServer = useJoinServer();
@@ -122,20 +119,6 @@ export function GlobalModals() {
     await createCategoryMutation.mutateAsync({ serverId: currentServer!.id, payload: { name } });
   };
 
-  const acceptCall = () => {
-    const caller = ui.incomingCaller!;
-    ui.setIncomingCaller(null);
-    voice.join('dm-call');
-    ui.setAppView('voice');
-    ui.showToast(`Llamada con ${caller.displayName || caller.name} iniciada`, 'success');
-  };
-
-  const declineCall = () => {
-    ui.setIncomingCaller(null);
-    ui.showToast('Llamada rechazada', 'info');
-  };
-
-  const profileUser = ui.selectedProfileUserId ? usersMap[ui.selectedProfileUserId] : undefined;
   const modal = ui.activeModal;
 
   return (
@@ -160,11 +143,11 @@ export function GlobalModals() {
         />
       )}
       {modal === 'invite' && currentServer && <InviteModal key="invite" server={currentServer} onClose={close} />}
-      {modal === 'user-profile' && profileUser && (
+      {modal === 'user-profile' && ui.selectedProfileUserId && (
         <UserProfileModal
           key="user-profile"
-          user={profileUser}
-          currentUser={currentUser}
+          userId={ui.selectedProfileUserId}
+          currentUserId={currentUser.id}
           onClose={closeProfile}
           onEditProfile={() => {
             closeProfile();
@@ -197,9 +180,6 @@ export function GlobalModals() {
       )}
       {modal === 'create-category' && currentServer && (
         <CreateCategoryModal key="create-category" onClose={close} onCreate={createCategory} />
-      )}
-      {ui.incomingCaller && (
-        <IncomingCallModal key="incoming-call" caller={ui.incomingCaller} onAccept={acceptCall} onDecline={declineCall} />
       )}
     </AnimatePresence>
   );

@@ -143,6 +143,13 @@
   padding: var(--space-3) var(--space-5);
 }
 
+.emptyActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
 /* ── Contenido: amigos | activo ahora ── */
 
 .friends {
@@ -179,12 +186,29 @@
   text-transform: uppercase;
 }
 
-/* Las pestañas apoyadas sobre la línea: el subrayado activo se superpone a ella */
+/*
+ * Las pestañas apoyadas sobre la línea: el subrayado activo se superpone a ella. Si no entran a lo ancho
+ * (pantalla chica, o una notebook con la barra lateral abierta) se deslizan de costado en una sola fila:
+ * partidas en dos, la fila de 48 px cortaba la de arriba. El borde derecho se desvanece para que se note
+ * que hay más; el degradé ocupa el padding, así que al llegar al final la última pestaña se ve entera.
+ */
 .tabs {
+  --tabs-gutter: var(--space-6);
   display: flex;
   align-items: flex-end;
-  padding: 0 var(--space-6) var(--space-2);
+  padding: 0 var(--tabs-gutter) var(--space-2);
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--tabs-gutter)), transparent);
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs [role='tablist'] {
+  flex-wrap: nowrap;
 }
 
 .friendsMain {
@@ -389,20 +413,8 @@ button.friendIdentity:hover .friendName {
     width: auto;
   }
 
-  /* Las pestañas se deslizan de costado */
   .tabs {
+    --tabs-gutter: var(--space-4);
     flex: 1;
-    padding: 0 var(--space-4) var(--space-2);
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .tabs::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* En una sola fila (el contenedor se desliza); si se parten, la fila de 48 px corta las de arriba */
-  .tabs [role='tablist'] {
-    flex-wrap: nowrap;
   }
 }

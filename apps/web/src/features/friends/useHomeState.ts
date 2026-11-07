@@ -1,38 +1,36 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import type { DirectMessage, User } from '../../types';
+import {
+  buildDmList,
+  useBlocksQuery,
+  useConversationsQuery,
+  useFriendRequestsQuery,
+  useFriendsQuery,
+  usePresenceQuery,
+  useSendFriendRequestMutation,
+  type DmListItem,
+} from '@discordia/core';
+import type { User } from '../../types';
+import { useUsers } from '../../app/usersContext';
+import { profileToUser } from './profileUser';
+import { friendRequestErrorMessage } from './useRelationshipActions';
 
 /** Pestañas disponibles dentro de la sección de Amigos. */
 export type FriendsTab = 'online' | 'all' | 'pending' | 'blocked' | 'add-friend';
 
-/** Solicitud de amistad simulada para la pestaña Pendiente. */
-export interface FriendRequest {
-  id: string;
-  user: User;
-  type: 'incoming' | 'outgoing';
-}
+/** Una fila de la lista de chats: lo que dice core más el usuario que se muestra. */
+export type DmRow = DmListItem & { user: User };
 
-export interface HomeStateOptions {
-  currentUserId?: string;
-  directMessages?: DirectMessage[];
-  /** DM activo controlado desde afuera (null: amigos). Sin definir, lo maneja el hook. */
-  activeDirectMessageId?: string | null;
-  onSelectDirectMessage?: (dmId: string | null) => void;
-}
+const matches = (user: User, query: string) =>
+  user.displayName.toLowerCase().includes(query) || user.username.toLowerCase().includes(query);
 
-/**
- * Estado del inicio (mensajes directos y amigos), compartido por la vista del rediseño (HomeView) y la
- * anterior (legacy/LegacyHomeView). Todavía no hay backend de amigos: la lista sale vacía y las
- * solicitudes y bloqueos son locales.
- */
-export function useHomeState({
-  currentUserId,
-  directMessages = [],
-  activeDirectMessageId: externalActiveDmId,
-  onSelectDirectMessage,
-}: HomeStateOptions) {
-  // Estado local para DM seleccionado si no es controlado exteriormente
-  const [internalActiveDmId, setInternalActiveDmId] = useState<string | null>(null);
-  const activeDmId = externalActiveDmId !== undefined ? externalActiveDmId : internalActiveDmId;
+/** Lista de chats y sección Amigos del inicio. Lo que viene del backend está en los hooks de core. */
+export function useHomeState() {
+  const { userOrFallback } = useUsers();
+  const conversations = useConversationsQuery();
+  const friendRequests = useFriendRequestsQuery();
+  const friends = useFriendsQuery();
+  const blocks = useBlocksQuery();
+  const sendRequest = useSendFriendRequestMutation();
 
   // Estado de pestañas de amigos
   const [activeTab, setActiveTab] = useState<FriendsTab>('online');
@@ -40,116 +38,94 @@ export function useHomeState({
   const [dmSearchQuery, setDmSearchQuery] = useState('');
 
   // Formulario "Añadir Amigo"
-  const [addFriendInput, setAddFriendInput] = useState('');
+  const [addFriendTarget, setAddFriendTarget] = useState('');
+  const [addFriendMessage, setAddFriendMessage] = useState('');
   const [addFriendSuccess, setAddFriendSuccess] = useState<string | null>(null);
+  const [addFriendError, setAddFriendError] = useState<string | null>(null);
 
-  // Lista local de solicitudes pendientes
-  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
+  const dmList = useMemo(
+    () => buildDmList(conversations.data, friendRequests.data?.incoming),
+    [conversations.data, friendRequests.data]
+  );
 
-  // Lista de usuarios bloqueados simulados
-  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const presenceIds = useMemo(
+    () => [...dmList.map((item) => item.userId), ...(friends.data ?? []).map((friend) => friend.id)],
+    [dmList, friends.data]
+  );
+  const { data: presence } = usePresenceQuery(presenceIds);
 
-  // Directorio de todos los amigos (excluyendo al usuario actual)
-  const allFriends = useMemo(() => {
-    return ([] as User[]).filter((u) => u.id !== currentUserId);
-  }, [currentUserId]);
+  // Las conversaciones traen solo el id: el nombre sale de los perfiles de la app
+  const dmRows = useMemo<DmRow[]>(
+    () =>
+      dmList.map((item) => ({
+        ...item,
+        user:
+          item.kind === 'friend_request'
+            ? profileToUser(item.friendRequest.user, presence)
+            : { ...userOrFallback(item.userId), status: presence?.[item.userId] ?? 'offline' },
+      })),
+    [dmList, presence, userOrFallback]
+  );
 
-  // Amigos conectados (status != offline)
-  const onlineFriends = useMemo(() => {
-    return allFriends.filter(
-      (u) => u.status !== 'offline' && u.status !== 'invisible' && !blockedUserIds.includes(u.id)
-    );
-  }, [allFriends, blockedUserIds]);
-
-  // Filtrado de DMs en la barra lateral
   const filteredDms = useMemo(() => {
-    if (!dmSearchQuery.trim()) return directMessages;
-    const q = dmSearchQuery.toLowerCase();
-    return directMessages.filter((dm) => {
-      const name = dm.recipient?.displayName.toLowerCase() || '';
-      const user = dm.recipient?.username.toLowerCase() || '';
-      return name.includes(q) || user.includes(q);
-    });
-  }, [directMessages, dmSearchQuery]);
+    const query = dmSearchQuery.trim().toLowerCase();
+    return query ? dmRows.filter((row) => matches(row.user, query)) : dmRows;
+  }, [dmRows, dmSearchQuery]);
 
-  // DM activo actual
-  const activeDm = useMemo(() => {
-    if (!activeDmId) return null;
-    return directMessages.find((dm) => dm.id === activeDmId) || null;
-  }, [activeDmId, directMessages]);
-
-  const selectDm = (dmId: string | null) => {
-    if (onSelectDirectMessage) {
-      onSelectDirectMessage(dmId);
-    } else {
-      setInternalActiveDmId(dmId);
-    }
-  };
-
-  /** Abre el DM con un amigo (el existente, o uno nuevo con su id). */
-  const messageFriend = (friendId: string) => {
-    const existingDm = directMessages.find((dm) => dm.recipientId === friendId);
-    selectDm(existingDm ? existingDm.id : `dm-${friendId}`);
-  };
-
-  const handleAcceptRequest = (reqId: string) => {
-    setPendingRequests((prev) => prev.filter((r) => r.id !== reqId));
-  };
-
-  const handleDeclineRequest = (reqId: string) => {
-    setPendingRequests((prev) => prev.filter((r) => r.id !== reqId));
-  };
-
-  const handleUnblock = (userId: string) => {
-    setBlockedUserIds((prev) => prev.filter((id) => id !== userId));
-  };
-
-  const handleSendFriendRequest = (e: FormEvent) => {
-    e.preventDefault();
-    if (!addFriendInput.trim()) return;
-    setAddFriendSuccess(`¡Éxito! Tu solicitud de amistad a ${addFriendInput} fue enviada.`);
-    setAddFriendInput('');
-    setTimeout(() => setAddFriendSuccess(null), 4000);
-  };
+  const allFriends = useMemo(() => (friends.data ?? []).map((friend) => profileToUser(friend, presence)), [friends.data, presence]);
+  const onlineFriends = useMemo(() => allFriends.filter((friend) => friend.status === 'online'), [allFriends]);
+  const blockedUsers = useMemo(() => (blocks.data ?? []).map((user) => profileToUser(user)), [blocks.data]);
 
   // Filtrado de amigos según pestaña y búsqueda
   const displayedFriends = useMemo(() => {
-    let list: User[] = [];
-    if (activeTab === 'online') {
-      list = onlineFriends;
-    } else if (activeTab === 'all') {
-      list = allFriends.filter((u) => !blockedUserIds.includes(u.id));
-    } else if (activeTab === 'blocked') {
-      list = allFriends.filter((u) => blockedUserIds.includes(u.id));
-    }
+    const list = activeTab === 'online' ? onlineFriends : activeTab === 'all' ? allFriends : activeTab === 'blocked' ? blockedUsers : [];
+    const query = friendsSearchQuery.trim().toLowerCase();
+    return query ? list.filter((user) => matches(user, query)) : list;
+  }, [activeTab, onlineFriends, allFriends, blockedUsers, friendsSearchQuery]);
 
-    if (!friendsSearchQuery.trim()) return list;
-    const q = friendsSearchQuery.toLowerCase();
-    return list.filter((u) => u.displayName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q));
-  }, [activeTab, onlineFriends, allFriends, blockedUserIds, friendsSearchQuery]);
+  const handleSendFriendRequest = async (e: FormEvent) => {
+    e.preventDefault();
+    const target = addFriendTarget.trim();
+    if (!target || sendRequest.isPending) return;
+    setAddFriendSuccess(null);
+    setAddFriendError(null);
+    try {
+      await sendRequest.mutateAsync({ target, message: addFriendMessage.trim() || undefined });
+    } catch (err) {
+      setAddFriendError(friendRequestErrorMessage(err, target));
+      return;
+    }
+    // Igual con 201 y con 202: nunca confirma si el email existe ni si hay un bloqueo
+    setAddFriendSuccess(`¡Éxito! Tu solicitud de amistad a ${target} fue enviada.`);
+    setAddFriendTarget('');
+    setAddFriendMessage('');
+    setTimeout(() => setAddFriendSuccess(null), 4000);
+  };
 
   return {
-    activeDmId,
-    activeDm,
-    selectDm,
-    messageFriend,
+    conversations,
+    friendRequests,
+    friends,
+    blocks,
+    incomingRequests: friendRequests.data?.incoming ?? [],
+    outgoingRequests: friendRequests.data?.outgoing ?? [],
     activeTab,
     setActiveTab,
     friendsSearchQuery,
     setFriendsSearchQuery,
     dmSearchQuery,
     setDmSearchQuery,
-    addFriendInput,
-    setAddFriendInput,
+    addFriendTarget,
+    setAddFriendTarget,
+    addFriendMessage,
+    setAddFriendMessage,
     addFriendSuccess,
-    pendingRequests,
+    addFriendError,
+    isSendingFriendRequest: sendRequest.isPending,
     allFriends,
     onlineFriends,
     filteredDms,
     displayedFriends,
-    handleAcceptRequest,
-    handleDeclineRequest,
-    handleUnblock,
     handleSendFriendRequest,
   };
 }

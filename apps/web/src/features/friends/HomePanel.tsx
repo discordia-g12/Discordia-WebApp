@@ -1,8 +1,6 @@
 import { useUIStore } from '../../app/uiStore';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
-import { useMessageActions } from '../chat/useMessageActions';
-import { useDmStore } from './dmStore';
 import { HomeView } from './HomeView';
 
 /**
@@ -11,20 +9,16 @@ import { HomeView } from './HomeView';
  */
 export function HomePanel({ sidebarContainer }: { sidebarContainer: HTMLElement | null }) {
   const currentUser = useCurrentUser();
-  const directMessages = useDmStore((s) => s.directMessages);
-  const selectedDmId = useUIStore((s) => s.selectedDmId);
-  const setSelectedDmId = useUIStore((s) => s.setSelectedDmId);
-  const { sendMessage } = useMessageActions();
+  const selected = useUIStore((s) => s.selectedDm);
+  const setSelected = useUIStore((s) => s.setSelectedDm);
 
   return (
     <HomeView
       sidebarContainer={sidebarContainer}
       currentUserId={currentUser.id}
-      directMessages={directMessages}
-      activeDirectMessageId={selectedDmId}
-      onSelectDirectMessage={(id: string | null) => setSelectedDmId(id)}
+      selected={selected}
+      onSelect={setSelected}
       onOpenUserProfile={openUserProfile}
-      onSendMessage={(_dmId: string, text: string) => sendMessage(text, undefined, undefined)}
     />
   );
 }

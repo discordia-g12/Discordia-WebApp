@@ -43,6 +43,10 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Cerrar sesión?', text: 'Vas a salir de Discordia en este navegador.', confirm: 'Cerrar sesión', danger: false };
     case 'transfer-ownership':
       return { title: '¿Transferir el servidor?', text: `El servidor pasa a ser de @${name} y perdés el control total sobre él.`, confirm: 'Transferir', danger: true };
+    case 'block-user':
+      return { title: '¿Bloquear?', text: `No van a poder escribirse con ${name} hasta que lo desbloquees. El historial se conserva y, si eran amigos, dejan de serlo.`, confirm: 'Bloquear', danger: true };
+    case 'remove-friend':
+      return { title: '¿Eliminar amigo?', text: `${name} deja de ser tu amigo. La conversación y el historial se conservan.`, confirm: 'Eliminar', danger: true };
   }
 }
 

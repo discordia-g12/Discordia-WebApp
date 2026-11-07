@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { ChatView } from '../ChatView';
-import type { Channel, DirectMessage, Message, User } from '../../../types';
+import type { Channel, Message, User } from '../../../types';
 
 const users: Record<string, User> = {
   me: { id: 'me', username: 'mar', displayName: 'Mar', status: 'online' } as User,
@@ -24,9 +24,30 @@ const MESSAGES = [
 ];
 
 describe('ChatView (rediseño)', () => {
-  beforeEach(() => {
-    // jsdom no implementa scroll: el chat baja al último mensaje con scrollIntoView
-    Element.prototype.scrollIntoView = vi.fn();
+  it('queda abajo mientras se está abajo, se suelta al subir a leer y vuelve abajo al enviar', () => {
+    const { rerender } = render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" />);
+    // jsdom no calcula alturas: un historial de 1000 px en una ventana de 400
+    const log = screen.getByRole('log');
+    let top = 0;
+    Object.defineProperty(log, 'scrollHeight', { configurable: true, get: () => 1000 });
+    Object.defineProperty(log, 'clientHeight', { configurable: true, get: () => 400 });
+    Object.defineProperty(log, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => (top = v) });
+    const withMessage = (m: Message) => (
+      <ChatView channel={channel} messages={[...MESSAGES, m]} users={users} currentUserId="me" />
+    );
+
+    rerender(withMessage(msg('m4', 'u2', 'llegó uno', '2025-10-21T17:00:00')));
+    expect(top).toBe(1000);
+
+    // Sube a leer: lo que llega de otros no lo mueve
+    top = 200;
+    fireEvent.scroll(log);
+    rerender(withMessage(msg('m5', 'u2', 'otro más', '2025-10-21T17:01:00')));
+    expect(top).toBe(200);
+
+    // Lo que envía uno mismo sí baja
+    rerender(withMessage(msg('m6', 'me', 'respondo', '2025-10-21T17:02:00')));
+    expect(top).toBe(1000);
   });
 
   it('muestra los mensajes con autor, fecha y separadores por día', () => {
@@ -147,19 +168,36 @@ describe('ChatView (rediseño)', () => {
     expect(screen.getByRole('dialog', { name: 'Mensajes fijados' }).textContent).toContain('todavía no hay mensajes fijados');
   });
 
-  it('en un DM el encabezado tiene _perfil, _llamar y videollamada, sin lista de miembros', () => {
+  it('en un DM el encabezado tiene _perfil y sus acciones, sin llamadas ni lista de miembros', () => {
     const onOpenUserProfile = vi.fn();
-    const onStartVoiceCall = vi.fn();
-    const dm = { id: 'd1', recipientId: 'u2', recipient: users.u2 } as DirectMessage;
+    const onBlock = vi.fn();
     render(
-      <ChatView directMessage={dm} messages={[]} users={users} currentUserId="me" onOpenUserProfile={onOpenUserProfile} onStartVoiceCall={onStartVoiceCall} onToggleMemberList={vi.fn()} />
+      <ChatView
+        directChat={{ conversationId: 'dm-1', user: users.u2 }}
+        directActions={[{ label: 'bloquear', onPress: onBlock }]}
+        messages={[]}
+        users={users}
+        currentUserId="me"
+        onOpenUserProfile={onOpenUserProfile}
+        onToggleMemberList={vi.fn()}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'perfil' }));
-    fireEvent.click(screen.getByRole('button', { name: 'llamar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'bloquear' }));
     expect(onOpenUserProfile).toHaveBeenCalledWith('u2');
-    expect(onStartVoiceCall).toHaveBeenCalledTimes(1);
+    expect(onBlock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'llamar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'videollamada' })).toBeNull();
     expect(screen.queryByRole('button', { name: /lista de miembros/ })).toBeNull();
+    expect(screen.getByPlaceholderText('Enviar mensaje a @lbars')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Adjuntar archivo' })).toBeTruthy();
+  });
+
+  it('en un chat sin conversación no ofrece adjuntar: el primer mensaje es solo texto', () => {
+    render(<ChatView directChat={{ conversationId: null, user: users.u2 }} messages={[]} users={users} currentUserId="me" />);
+
+    expect(screen.queryByRole('button', { name: 'Adjuntar archivo' })).toBeNull();
     expect(screen.getByPlaceholderText('Enviar mensaje a @lbars')).toBeTruthy();
   });
 

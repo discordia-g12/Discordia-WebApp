@@ -1,8 +1,24 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react'
-import { bootstrap, logout as sessionLogout, setAuthAdapter, setSessionProfile, useSession } from '@discordia/core'
+import {
+  bootstrap,
+  logout as sessionLogout,
+  setAuthAdapter,
+  setAuthAdapterResolver,
+  setSessionProfile,
+  useSession,
+} from '@discordia/core'
 import { BackendProfile, getCurrentToken, mobileAuthAdapter } from '../api/auth'
 
 setAuthAdapter(mobileAuthAdapter)
+
+// Sin backend, como VITE_USE_MOCK en la web. Con __DEV__ en false esta rama no entra al bundle
+if (__DEV__ && process.env.EXPO_PUBLIC_USE_MOCK === 'true') {
+  setAuthAdapterResolver(async () => {
+    const { installMockSession } = await import('../dev/mockSession')
+    useSession.getState().setStatus(useSession.getState().status, { isMock: true })
+    return installMockSession()
+  })
+}
 
 export interface AuthContextValue {
   isAuthenticated: boolean

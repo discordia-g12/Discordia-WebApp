@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
@@ -7,7 +7,6 @@ import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink, keyboar
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
-import * as ImagePicker from 'expo-image-picker'
 import ChatHeader from './chat/ChatHeader'
 import Composer, { type PendingAttachment } from './chat/Composer'
 import ConfirmModal from './shared/ConfirmModal'
@@ -19,6 +18,8 @@ import MessageList from './chat/MessageList'
 import MessageActionsModal from './chat/MessageActionsModal'
 import EditMessageModal from './chat/EditMessageModal'
 import EditProfileModal from './profile/EditProfileModal'
+import PublicProfileModal from './profile/PublicProfileModal'
+import FriendsTab from './friends/FriendsTab'
 import Toast from './shared/Toast'
 import {
   SERVER_SETTINGS_SECTIONS,
@@ -36,6 +37,8 @@ import { ServerTabsRow } from './shell/ServerTabsRow'
 import { Padded, Pane, Screen } from './shell/ShellScreen'
 import { useUserDisplay } from '../hooks/useUserProfiles'
 import { useAppActive } from '../hooks/useAppActive'
+import { useDmInbox } from '../hooks/useDmInbox'
+import { usePickAttachment } from '../hooks/usePickAttachment'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
 import {
@@ -58,7 +61,6 @@ import {
   useMarkAllReadMutation,
   useMarkChannelReadMutation,
   useUnreadQuery,
-  validateAttachmentFile,
   uploadAttachment,
   type MessageAttachment,
 } from '@discordia/core'
@@ -114,6 +116,12 @@ export default function MobileShell() {
   const [screen, setScreen] = useState<MobileScreen>('channels')
   const keyboardVisible = useKeyboardVisible()
   const appActive = useAppActive()
+  const pickAttachment = usePickAttachment()
+  // Pestaña Amigos: el usuario del chat abierto (null: las listas)
+  const [dmUserId, setDmUserId] = useState<string | null>(null)
+  // Perfil público abierto, desde cualquier pestaña
+  const [profileUserId, setProfileUserId] = useState<string | null>(null)
+  const inbox = useDmInbox({ activeUserId: tab === 'messages' ? dmUserId : null, appActive })
 
   // No leídos de cada canal y servidor. El chat abierto no cuenta: ya se está leyendo
   const { data: unread } = useUnreadQuery()
@@ -407,35 +415,8 @@ export default function MobileShell() {
   }
 
   const handlePickAttachment = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 1,
-      })
-
-      if (result.canceled || !result.assets || !result.assets[0]) return
-
-      const asset = result.assets[0]
-      const name = asset.fileName || `imagen-${Date.now()}.jpg`
-      const type = asset.mimeType || 'image/jpeg'
-      const size = asset.fileSize
-
-      const error = validateAttachmentFile({ name, type, size })
-      if (error) {
-        showToast(error, 'error')
-        return
-      }
-
-      setPendingAttachment({
-        uri: asset.uri,
-        name,
-        type,
-        size,
-      })
-    } catch {
-      showToast('No se pudo seleccionar la imagen', 'error')
-    }
+    const picked = await pickAttachment()
+    if (picked) setPendingAttachment(picked)
   }
 
   const handleSend = async () => {
@@ -524,8 +505,24 @@ export default function MobileShell() {
   )
 
   const goTo = (next: ShellTab) => {
-    if (next !== tab) setScreen('channels')
+    if (next !== tab) {
+      setScreen('channels')
+      setDmUserId(null)
+    }
     setTab(next)
+  }
+
+  // El propio perfil no se abre: se edita desde la pestaña Perfil
+  const openProfile = useCallback(
+    (userId: string) => {
+      if (userId !== currentUserId) setProfileUserId(userId)
+    },
+    [currentUserId],
+  )
+
+  const openDirectMessage = (userId: string) => {
+    goTo('messages')
+    setDmUserId(userId)
   }
 
   const pickServer = (id: string) => {
@@ -649,6 +646,7 @@ export default function MobileShell() {
                 showToast('No se pudieron cargar los mensajes anteriores', 'error'),
               )
             }}
+            onPressAuthor={openProfile}
             onLongPressMessage={setActionTargetMessage}
           />
           <Composer
@@ -723,17 +721,19 @@ export default function MobileShell() {
           {tab === 'servers' && serversContent()}
 
           {tab === 'messages' && (
-            <Screen title="Amigos">
-              <Padded>
-                <EmptyState title="por ahora no hay amigos" hint="próximamente: amigos y mensajes directos" />
-              </Padded>
-            </Screen>
+            <FriendsTab
+              openUserId={dmUserId}
+              inboxConnected={inbox.isConnected}
+              onOpenChat={setDmUserId}
+              onCloseChat={() => setDmUserId(null)}
+              onOpenProfile={openProfile}
+            />
           )}
 
           {tab === 'notifications' && (
             <Screen title="Notificaciones">
               <Padded>
-                <EmptyState title="por ahora no hay notificaciones" hint="próximamente: menciones, invitaciones y solicitudes de amistad" />
+                <EmptyState title="por ahora no hay notificaciones" hint="próximamente: menciones e invitaciones" />
               </Padded>
             </Screen>
           )}
@@ -769,10 +769,12 @@ export default function MobileShell() {
             onBlocked={message => showToast(message, 'info')}
           />
         )}
-        {showBars && <BottomTabs value={tab} onChange={goTo} />}
+        {showBars && <BottomTabs value={tab} onChange={goTo} unread={{ messages: inbox.unread > 0 }} />}
       </SafeAreaView>
 
-      <ConnectionBanner active={!!activeSocketChannelId && screen === 'chat' && socket.isReconnecting} />
+      <ConnectionBanner
+        active={(!!activeSocketChannelId && screen === 'chat' && socket.isReconnecting) || (!!dmUserId && inbox.isReconnecting)}
+      />
 
       <CreateServerModal
         visible={createServerModalOpen}
@@ -815,6 +817,10 @@ export default function MobileShell() {
             setServerSettings(null)
             setLeaveServerConfirmOpen(true)
           }}
+          onOpenProfile={userId => {
+            setServerSettings(null)
+            openProfile(userId)
+          }}
         />
       )}
       <UserSettingsScreen
@@ -831,6 +837,7 @@ export default function MobileShell() {
         }}
       />
       <EditProfileModal visible={editProfileOpen} onClose={() => setEditProfileOpen(false)} />
+      <PublicProfileModal userId={profileUserId} onClose={() => setProfileUserId(null)} onMessage={openDirectMessage} />
       <MessageActionsModal
         visible={!!actionTargetMessage}
         message={actionTargetMessage}
@@ -850,7 +857,7 @@ export default function MobileShell() {
       <EditMessageModal
         visible={!!editingMessage}
         message={editingMessage}
-        channelId={channel?.id}
+        channelId={editingMessage?.channelId ?? channel?.id}
         onClose={() => setEditingMessage(null)}
       />
       <InviteModal visible={inviteModalOpen} server={server || undefined} onClose={() => setInviteModalOpen(false)} />

@@ -25,7 +25,7 @@ function renderWithServers(servers: Server[] | undefined) {
 
 describe('useEnsureChannelSelected', () => {
   beforeEach(() => {
-    useUIStore.setState({ selectedServerId: 'home', selectedChannelId: null, selectedDmId: null, appView: 'chat' });
+    useUIStore.setState({ selectedServerId: 'home', selectedChannelId: null, selectedDm: null, appView: 'chat' });
   });
 
   it('si el servidor elegido no es del usuario, vuelve al inicio (no queda un chat vacío)', () => {

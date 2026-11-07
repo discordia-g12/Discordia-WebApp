@@ -45,7 +45,7 @@ const queryClient = new QueryClient({
 // arranca en el inicio y no en un servidor de la anterior
 registerQueryCacheCleaner(() => {
   queryClient.clear();
-  useUIStore.setState({ selectedServerId: 'home', selectedChannelId: null, selectedDmId: null, appView: 'home' });
+  useUIStore.setState({ selectedServerId: 'home', selectedChannelId: null, selectedDm: null, appView: 'home' });
 });
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);

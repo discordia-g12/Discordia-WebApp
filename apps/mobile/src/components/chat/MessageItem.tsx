@@ -17,6 +17,8 @@ interface MessageItemProps {
   sent?: boolean
   /** Nombre de un usuario mencionado. Las menciones se muestran como texto (`@nombre`, `@rol`). */
   mentionName?: (userId: string) => string
+  /** Tocar el avatar o el nombre (estable: la fila está en memo). */
+  onPressAuthor?: (userId: string) => void
   /** Mantener presionado: acciones sobre el mensaje (editar). */
   onLongPress?: () => void
 }
@@ -25,7 +27,16 @@ interface MessageItemProps {
  * Mensaje del chat (PDF, pág. 7): avatar cuadrado, autor en negrita y la fecha chica (20/10/25, 13:25),
  * y el texto grande. Los seguidos de una misma persona van agrupados.
  */
-function MessageItem({ message, author, grouped = false, animate = false, sent = false, mentionName, onLongPress }: MessageItemProps) {
+function MessageItem({
+  message,
+  author,
+  grouped = false,
+  animate = false,
+  sent = false,
+  mentionName,
+  onPressAuthor,
+  onLongPress,
+}: MessageItemProps) {
   const styles = useStyles()
   const reduce = useReducedMotion()
   // Se fija al montarse: al confirmarse deja de estar pendiente y la entrada no tiene que cambiar a mitad de camino
@@ -48,18 +59,31 @@ function MessageItem({ message, author, grouped = false, animate = false, sent =
   const pending = message.status === 'pending'
   const failed = message.status === 'failed'
   const name = author?.name ?? 'Usuario'
+  const authorPress = onPressAuthor
+    ? {
+        onPress: () => onPressAuthor(message.authorId),
+        accessibilityRole: 'button' as const,
+        accessibilityLabel: `Ver el perfil de ${name}`,
+      }
+    : { disabled: true }
 
   return (
     <Animated.View style={[styles.row, grouped && styles.grouped, pending && styles.pending, enter]}>
       <View style={styles.gutter}>
-        {!grouped && <SquareAvatar user={{ username: name, avatar: author?.avatar }} size="md" />}
+        {!grouped && (
+          <Pressable {...authorPress}>
+            <SquareAvatar user={{ username: name, avatar: author?.avatar }} size="md" />
+          </Pressable>
+        )}
       </View>
       <Pressable style={styles.body} onLongPress={onLongPress} delayLongPress={250}>
         {!grouped && (
           <View style={styles.meta}>
-            <Text variant="meta" bold numberOfLines={1} style={styles.author}>
-              {name}
-            </Text>
+            <Pressable style={styles.author} {...authorPress}>
+              <Text variant="meta" bold numberOfLines={1}>
+                {name}
+              </Text>
+            </Pressable>
             <Text variant="meta" tone="muted">
               {formatMessageTime(message.timestamp)}
             </Text>

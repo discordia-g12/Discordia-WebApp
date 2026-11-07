@@ -53,5 +53,15 @@ export default defineConfig({
       },
       timeout: 60 * 1000,
     },
+    {
+      // Mensajes directos: los mocks de core, sin backend ni Auth0 (e2e/direct-messages.spec.ts)
+      command: 'npm run dev -- --port 5175 --strictPort',
+      url: 'http://localhost:5175',
+      reuseExistingServer: !process.env.CI,
+      env: {
+        VITE_USE_MOCK: 'true',
+      },
+      timeout: 60 * 1000,
+    },
   ],
 });

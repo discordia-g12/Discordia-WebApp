@@ -14,7 +14,7 @@ import {
   formatAttachmentSize,
   type MessageMentions,
 } from '@discordia/core';
-import type { Channel, DirectMessage, Message, MessageAttachment, Role, User } from '../../types';
+import type { Channel, Message, MessageAttachment, Role, User } from '../../types';
 import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
 import {
   POPULAR_EMOJIS,
@@ -23,6 +23,7 @@ import {
   sanitizeText,
   useChatViewState,
   type ChatViewState,
+  type DirectChat,
   type Mentionables,
 } from './useChatViewState';
 import styles from './ChatView.module.css';
@@ -30,8 +31,10 @@ import styles from './ChatView.module.css';
 export interface ChatViewProps {
   /** Canal activo si la vista corresponde a un servidor. */
   channel?: Channel | null;
-  /** Conversación directa activa si la vista corresponde a un DM. */
-  directMessage?: DirectMessage | null;
+  /** Chat directo activo si la vista corresponde a un DM. */
+  directChat?: DirectChat | null;
+  /** Enlaces del encabezado de un DM, después de _perfil: agregar amigo, bloquear... */
+  directActions?: { label: string; onPress: () => void }[];
   /** Lista opcional de mensajes. Si no se provee, usa los datos mock. */
   messages?: Message[];
   /** ID del usuario actualmente autenticado. */
@@ -58,10 +61,6 @@ export interface ChatViewProps {
   onToggleMemberList?: () => void;
   /** Estado de visibilidad de la barra lateral de miembros. */
   isMemberListOpen?: boolean;
-  /** Callback para iniciar llamada de voz directa. */
-  onStartVoiceCall?: () => void;
-  /** Callback para iniciar videollamada directa. */
-  onStartVideoCall?: () => void;
   /**
    * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: el input queda
    * deshabilitado y se muestra esto. null o sin definir: se puede escribir.
@@ -153,6 +152,74 @@ function useLoadOlder(
   return { loadOlder, onScroll };
 }
 
+/** Distancia al final (px) que todavía cuenta como "estar abajo". */
+const NEAR_BOTTOM = 80;
+
+/**
+ * Mantiene el chat abajo de todo mientras se esté abajo: al abrirlo, cuando llega un mensaje y cuando el
+ * contenido crece después de dibujarse (una imagen que termina de cargar). Un solo scroll al último
+ * mensaje no alcanza: las imágenes cargan después y lo dejaban corto. Subir a leer lo suelta; volver
+ * abajo, enviar un mensaje o cambiar de chat lo vuelve a pegar.
+ */
+function useStickToBottom(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  chatKey: string,
+  lastMessage: Pick<Message, 'id' | 'authorId'> | undefined,
+  currentUserId: string | undefined,
+  layoutKey: string
+) {
+  const stick = useRef(true);
+  const lastScrollTop = useRef(0);
+
+  const toBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || !stick.current) return;
+    el.scrollTop = el.scrollHeight;
+    // Sin esperar al evento de scroll: el próximo scroll del usuario se compara contra esta posición
+    lastScrollTop.current = el.scrollTop;
+  }, [scrollRef]);
+
+  useLayoutEffect(() => {
+    stick.current = true;
+    lastScrollTop.current = 0;
+  }, [chatKey]);
+
+  // Antes de pintar, para que no se vea el salto. Un mensaje propio baja aunque se estuviera leyendo arriba.
+  const lastId = lastMessage?.id;
+  const lastIsMine = Boolean(currentUserId) && lastMessage?.authorId === currentUserId;
+  useLayoutEffect(() => {
+    if (lastIsMine) stick.current = true;
+    toBottom();
+  }, [lastId, lastIsMine, toBottom]);
+
+  // Lo que crece después de dibujarse. layoutKey cambia cuando se reemplazan los hijos (skeleton → mensajes)
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(toBottom);
+    observer.observe(el);
+    Array.from(el.children).forEach((child) => observer.observe(child));
+    return () => observer.disconnect();
+  }, [scrollRef, toBottom, layoutKey]);
+
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const fromBottom = el.scrollHeight - el.clientHeight - el.scrollTop;
+    // Solo un scroll hacia arriba lo suelta: crecer el contenido o bajar por código no
+    if (el.scrollTop < lastScrollTop.current - 1 && fromBottom > NEAR_BOTTOM) stick.current = false;
+    if (fromBottom <= NEAR_BOTTOM) stick.current = true;
+    lastScrollTop.current = el.scrollTop;
+  }, [scrollRef]);
+
+  /** Suelta el final: cargar mensajes anteriores no tiene que volver a bajar. */
+  const release = useCallback(() => {
+    stick.current = false;
+  }, []);
+
+  return { onScroll, release };
+}
+
 /**
  * Chat del rediseño (PDF, págs. 7 y 9), para canales y mensajes directos. Encabezado con el nombre y
  * enlaces de texto; mensajes con avatar cuadrado, metadato chico y texto grande, separados por día;
@@ -162,7 +229,8 @@ function useLoadOlder(
 export function ChatView(props: ChatViewProps) {
   const {
     channel,
-    directMessage,
+    directChat,
+    directActions = [],
     messages,
     isLoading = false,
     currentUserId,
@@ -170,20 +238,36 @@ export function ChatView(props: ChatViewProps) {
     onOpenUserProfile,
     onToggleMemberList,
     isMemberListOpen = true,
-    onStartVoiceCall,
-    onStartVideoCall,
     hasOlderMessages = false,
     isLoadingOlder = false,
     onLoadOlder,
   } = props;
   const chat = useChatViewState({ ...props, messages });
-  const history = useHistoryIds(channel?.id ?? directMessage?.id ?? 'chat', chat.localMessages, isLoading);
+  const chatKey = channel?.id ?? directChat?.conversationId ?? directChat?.user.id ?? 'chat';
+  const history = useHistoryIds(chatKey, chat.localMessages, isLoading);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const showOlder = hasOlderMessages && !isLoading;
+  const stick = useStickToBottom(
+    scrollRef,
+    chatKey,
+    chat.localMessages[chat.localMessages.length - 1],
+    currentUserId,
+    `${isLoading}-${showOlder}`
+  );
   const older = useLoadOlder(scrollRef, chat.localMessages[0]?.id, {
-    hasOlder: hasOlderMessages && !isLoading,
+    hasOlder: showOlder,
     isLoadingOlder,
-    onLoadOlder,
+    onLoadOlder: onLoadOlder
+      ? () => {
+          stick.release();
+          onLoadOlder();
+        }
+      : undefined,
   });
+  const onScroll = () => {
+    stick.onScroll();
+    older.onScroll();
+  };
   const names = useMentionNames(users, props.mentionables?.roles);
   const myRoleIds = props.mentionables?.myRoleIds;
 
@@ -197,11 +281,12 @@ export function ChatView(props: ChatViewProps) {
         <nav className={styles.links} aria-label="Acciones del chat">
           {chat.isDirectMessage ? (
             <>
-              {directMessage?.recipientId && (
-                <HeaderLink onPress={() => onOpenUserProfile?.(directMessage.recipientId)}>perfil</HeaderLink>
-              )}
-              <HeaderLink onPress={onStartVoiceCall}>llamar</HeaderLink>
-              <HeaderLink onPress={onStartVideoCall}>videollamada</HeaderLink>
+              {directChat && <HeaderLink onPress={() => onOpenUserProfile?.(directChat.user.id)}>perfil</HeaderLink>}
+              {directActions.map(({ label, onPress }) => (
+                <HeaderLink key={label} onPress={onPress}>
+                  {label}
+                </HeaderLink>
+              ))}
             </>
           ) : (
             <HeaderLink pressed={chat.isNotificationsMuted} onPress={() => chat.setIsNotificationsMuted((v) => !v)}>
@@ -226,9 +311,9 @@ export function ChatView(props: ChatViewProps) {
         className={styles.scroll}
         role="log"
         aria-label={`Mensajes de ${chat.chatTitle}`}
-        onScroll={older.onScroll}
+        onScroll={onScroll}
       >
-        {hasOlderMessages && !isLoading ? (
+        {showOlder ? (
           <div className={styles.older}>
             {isLoadingOlder ? (
               <p className={styles.welcomeText} role="status">
@@ -283,7 +368,6 @@ export function ChatView(props: ChatViewProps) {
             })}
           </ol>
         )}
-        <div ref={chat.messagesEndRef} />
       </div>
 
       <Composer chat={chat} users={users} writeBlock={props.writeBlock ?? null} />
@@ -721,23 +805,27 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
       )}
 
       <div className={styles.composerRow}>
-        <button
-          type="button"
-          className={styles.composerIcon}
-          onClick={chat.handleAttachClick}
-          aria-label="Adjuntar archivo"
-          title="Adjuntar archivo"
-          disabled={chat.isUploading}
-        >
-          <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
-        </button>
-        <input
-          type="file"
-          ref={chat.fileInputRef}
-          style={{ display: 'none' }}
-          accept={ATTACHMENT_ACCEPT}
-          onChange={chat.handleFileChange}
-        />
+        {chat.canAttach && (
+          <>
+            <button
+              type="button"
+              className={styles.composerIcon}
+              onClick={chat.handleAttachClick}
+              aria-label="Adjuntar archivo"
+              title="Adjuntar archivo"
+              disabled={chat.isUploading}
+            >
+              <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+            <input
+              type="file"
+              ref={chat.fileInputRef}
+              style={{ display: 'none' }}
+              accept={ATTACHMENT_ACCEPT}
+              onChange={chat.handleFileChange}
+            />
+          </>
+        )}
         <input
           ref={chat.composerInputRef}
           className={styles.composerInput}

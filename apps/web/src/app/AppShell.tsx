@@ -4,6 +4,7 @@ import { GlobalModals } from './GlobalModals';
 import { ConnectionBanner, DisplayText } from '../ui';
 import { ToastHost } from './ToastHost';
 import { useIsReconnecting } from './useConnectionStatus';
+import { useUsers } from './usersContext';
 import { ServerRailPanel } from '../features/servers/ServerRailPanel';
 import { MemberListPanel } from '../features/servers/MemberListPanel';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
@@ -11,7 +12,6 @@ import { ChannelSidebarPanel } from '../features/channels/ChannelSidebarPanel';
 import { ChatPanel } from '../features/chat/ChatPanel';
 import { VoicePanel } from '../features/voice/VoicePanel';
 import { HomePanel } from '../features/friends/HomePanel';
-import { useDmStore } from '../features/friends/dmStore';
 import { UserBarPanel } from '../features/profile/UserBarPanel';
 import { VoiceControlsPanel } from '../features/voice/VoiceControls';
 import styles from './AppShell.module.css';
@@ -24,14 +24,14 @@ type Tone = 'ink' | 'sky' | 'muted';
  */
 function useShellContext(): { word: string; tone: Tone } {
   const selectedServerId = useUIStore((s) => s.selectedServerId);
-  const selectedDmId = useUIStore((s) => s.selectedDmId);
+  const selectedDm = useUIStore((s) => s.selectedDm);
   const appView = useUIStore((s) => s.appView);
-  const directMessages = useDmStore((s) => s.directMessages);
+  const { usersMap } = useUsers();
   const { currentServer } = useCurrentServer();
 
   if (selectedServerId === 'home') {
-    const dm = selectedDmId ? directMessages.find((d) => d.id === selectedDmId) : null;
-    return { word: dm?.recipient?.displayName ?? 'Amigos', tone: 'ink' };
+    const other = selectedDm?.type === 'chat' ? usersMap[selectedDm.userId] : undefined;
+    return { word: other?.displayName ?? 'Amigos', tone: 'ink' };
   }
   return { word: currentServer?.name ?? '', tone: appView === 'voice' ? 'muted' : 'sky' };
 }
