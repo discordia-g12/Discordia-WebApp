@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../client';
-import { editMessage, getMessages, sendMessage } from '../messages';
+import { deleteMessage, editMessage, getMessages, sendMessage } from '../messages';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -109,5 +109,50 @@ describe('mensajes', () => {
     const [msg] = await getMessages('c1');
     expect(msg.edited).toBe(true);
     expect(msg.editedTimestamp).toBe('2026-10-20T10:05:00Z');
+  });
+
+  it('deleteMessage llama a DELETE y devuelve el mensaje normalizado como deleted', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        id: 'm1',
+        content: '',
+        authorId: 'u1',
+        channelId: 'c1',
+        createdAt: '2026-10-20T10:00:00Z',
+        type: 'deleted',
+        isDeleted: true,
+      })
+    );
+
+    const deleted = await deleteMessage('c1', 'm1');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://api.test/api/v1/chat/channels/c1/messages/m1',
+      expect.objectContaining({
+        method: 'DELETE',
+      })
+    );
+    expect(deleted.id).toBe('m1');
+    expect(deleted.type).toBe('deleted');
+    expect(deleted.content).toBe('');
+  });
+
+  it('normaliza mensajes con isDeleted asignando type deleted y limpiando contenido', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse([
+        {
+          id: 'm-del',
+          content: 'este texto debe borrarse',
+          authorId: 'u1',
+          channelId: 'c1',
+          createdAt: '2026-10-20T10:00:00Z',
+          isDeleted: true,
+          attachments: [{ id: 'att-1', name: 'img.png', url: '/att.png' }],
+        },
+      ])
+    );
+    const [msg] = await getMessages('c1');
+    expect(msg.type).toBe('deleted');
+    expect(msg.content).toBe('');
+    expect(msg.attachments).toBeUndefined();
   });
 });

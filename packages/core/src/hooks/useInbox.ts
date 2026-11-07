@@ -80,6 +80,37 @@ export function useInbox({ activeConversationId = null, enabled = true }: UseInb
         return;
       }
 
+      if (event.type === 'DM_MESSAGE_DELETED') {
+        const { conversationId } = event;
+        const message = normalizeMessage(event.message as unknown as Message);
+        updateCachedMessages(queryClient, conversationId, (messages) =>
+          messages.map((m) =>
+            m.id === message.id
+              ? { ...m, ...message, type: 'deleted' as const, content: '', attachments: [] }
+              : m
+          )
+        );
+        const conversations = queryClient.getQueryData<Conversation[]>(conversationsQueryKey);
+        if (conversations?.some((c) => c.id === conversationId)) {
+          queryClient.setQueryData<Conversation[]>(
+            conversationsQueryKey,
+            conversations.map((c) => {
+              if (c.id !== conversationId || c.lastMessage?.createdAt !== (message.createdAt ?? message.timestamp)) {
+                return c;
+              }
+              return {
+                ...c,
+                lastMessage: {
+                  ...c.lastMessage,
+                  content: '/ este mensaje fue eliminado',
+                },
+              };
+            })
+          );
+        }
+        return;
+      }
+
       const { conversationId } = event;
       const message = normalizeMessage(event.message as unknown as Message);
       // Si el historial no cargó, no se toca. Si la conversación está abierta, el mensaje puede llegar también

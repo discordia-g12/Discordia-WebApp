@@ -12,6 +12,7 @@ export function normalizeMessage(message: Message): Message {
   const editedAt = (message as { editedAt?: string }).editedAt;
   const editedTimestamp = message.editedTimestamp ?? (editedAt ? String(editedAt) : null);
   const edited = message.edited ?? Boolean(editedTimestamp);
+  const isDeleted = message.type === 'deleted' || (message as { isDeleted?: boolean }).isDeleted === true;
   const attachments = message.attachments?.map((att) => ({
     ...att,
     url: resolveAttachmentUrl(att.url),
@@ -22,10 +23,12 @@ export function normalizeMessage(message: Message): Message {
     ...message,
     timestamp: time,
     createdAt: message.createdAt ?? time,
-    edited,
-    editedTimestamp,
-    ...(editedAt ? { editedAt: String(editedAt) } : {}),
-    ...(attachments ? { attachments } : {}),
+    type: isDeleted ? 'deleted' : (message.type ?? 'normal'),
+    content: isDeleted ? '' : message.content,
+    edited: isDeleted ? false : edited,
+    editedTimestamp: isDeleted ? null : editedTimestamp,
+    attachments: isDeleted ? undefined : attachments,
+    ...(editedAt && !isDeleted ? { editedAt: String(editedAt) } : {}),
   };
 }
 
@@ -90,4 +93,20 @@ export async function editMessage(
     { content }
   );
   return normalizeMessage(updated);
+}
+
+/**
+ * Elimina un mensaje existente vía DELETE (soft-delete).
+ */
+export async function deleteMessage(
+  channelId: string,
+  messageId: string
+): Promise<Message> {
+  const mock = getApiMock();
+  if (mock?.deleteMessage) return mock.deleteMessage(channelId, messageId);
+
+  const deleted = await api.delete<Message>(
+    `/api/v1/chat/channels/${channelId}/messages/${messageId}`
+  );
+  return normalizeMessage(deleted);
 }

@@ -24,6 +24,8 @@ export interface UseChatSocketOptions {
   onMessage: (message: MessageBackendPayload) => void;
   /** Un mensaje existente fue editado en este canal. */
   onMessageUpdated?: (message: MessageBackendPayload) => void;
+  /** Un mensaje existente fue eliminado en este canal. */
+  onMessageDeleted?: (message: MessageBackendPayload) => void;
   onError?: (message: string) => void;
   onReconnect?: () => void;
   /** El usuario ya no está en el servidor (ban o expulsión). La conexión no se reintenta. */
@@ -55,6 +57,7 @@ export function useChatSocket({
   lastMessageIdSeen,
   onMessage,
   onMessageUpdated,
+  onMessageDeleted,
   onError,
   onReconnect,
   onRemoved,
@@ -65,8 +68,8 @@ export function useChatSocket({
   const connectionRef = useRef<ChatSocketConnection | null>(null);
 
   // Callbacks y último id en refs: cambiarlos no debe reconectar
-  const handlersRef = useRef({ onMessage, onMessageUpdated, onError, onReconnect, onRemoved });
-  handlersRef.current = { onMessage, onMessageUpdated, onError, onReconnect, onRemoved };
+  const handlersRef = useRef({ onMessage, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved });
+  handlersRef.current = { onMessage, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved };
   const lastMessageIdRef = useRef(lastMessageIdSeen);
   lastMessageIdRef.current = lastMessageIdSeen;
 
@@ -81,6 +84,7 @@ export function useChatSocket({
       {
         onMessage: (message) => handlersRef.current.onMessage(message),
         onMessageUpdated: (message) => handlersRef.current.onMessageUpdated?.(message),
+        onMessageDeleted: (message) => handlersRef.current.onMessageDeleted?.(message),
         onError: handlersRef.current.onError
           ? (message) => handlersRef.current.onError?.(message)
           : undefined,
@@ -155,6 +159,18 @@ export function useChatWebSocket(
       if (channelId) {
         updateCachedMessages(queryClient, channelId, (list) =>
           list.map((m) => (m.id === normalized.id ? { ...m, ...normalized } : m))
+        );
+      }
+    },
+    onMessageDeleted: (data) => {
+      const normalized = normalizeMessage(data as unknown as Message);
+      if (channelId) {
+        updateCachedMessages(queryClient, channelId, (list) =>
+          list.map((m) =>
+            m.id === normalized.id
+              ? { ...m, ...normalized, type: 'deleted' as const, content: '', attachments: [] }
+              : m
+          )
         );
       }
     },
