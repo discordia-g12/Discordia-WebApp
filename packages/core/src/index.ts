@@ -49,6 +49,8 @@ export * from './admin/members';
 
 // Backoffice de staff: estado de la plataforma (health checks agregados por el backend)
 export * from './admin/platformStatus';
+// Backoffice de staff: suspender y reactivar cuentas (Auth-User, ADR-002)
+export * from './admin/userSuspensions';
 
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';

@@ -89,3 +89,37 @@
 .healthUnknown {
   color: var(--color-text-muted);
 }
+
+/* Formularios de una celda (suspender, reintentar) */
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-5);
+}
+
+.form > button {
+  align-self: flex-start;
+}
+
+/* Resultado de una acción: bloque con borde, como los avisos de los ajustes */
+.success {
+  margin: 0;
+  padding-left: var(--space-2);
+  font-size: var(--font-meta-size);
+  font-weight: 700;
+  border-left: var(--line-accent) solid var(--color-line-strong);
+}
+
+/* Cuentas suspendidas: filas entre líneas finas */
+.accountList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--line-hairline) solid var(--color-line);
+}
+
+.accountList > li {
+  padding: var(--space-3) 0;
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}

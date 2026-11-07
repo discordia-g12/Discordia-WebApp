@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { ActionLink, BlockButton, Choice, EmptyState, SquareAvatar, UnderlineInput } from '@web/ui';
-import { Cell, Note } from '../layout/Cell';
+import { ActionLink, Choice, SquareAvatar, UnderlineInput } from '@web/ui';
+import { Cell } from '../layout/Cell';
 import { DataTable, type Column } from '../layout/blocks';
+import { ReactivateAccountCell } from './ReactivateAccountCell';
 import { StateTag } from './StateTag';
+import { SuspendAccountCell } from './SuspendAccountCell';
 import { ACCOUNT_STATE_OPTIONS, formatDate, type AccountStateFilter, type PlatformUserRow } from './types';
 import styles from './sections.module.css';
 
@@ -42,8 +44,6 @@ const COLUMNS: Column<PlatformUserRow>[] = [
 export function UsersSection() {
   const [search, setSearch] = useState('');
   const [state, setState] = useState<AccountStateFilter>('all');
-  const [target, setTarget] = useState('');
-  const [reason, setReason] = useState('');
   const users: PlatformUserRow[] = [];
 
   return (
@@ -62,23 +62,8 @@ export function UsersSection() {
         />
       </Cell>
 
-      <Cell title="Suspender usuario" feature="users.suspend">
-        <UnderlineInput label="usuario" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="email o @usuario" />
-        <UnderlineInput
-          label="motivo"
-          value={reason}
-          maxLength={512}
-          onChange={(e) => setReason(e.target.value)}
-          hint="queda en el registro de auditoría y en el expediente"
-        />
-        <BlockButton tone="danger">Suspender</BlockButton>
-        <Note>No va a poder iniciar sesión, se cierran sus sesiones activas y su perfil deja de estar disponible.</Note>
-      </Cell>
-
-      <Cell title="Reactivar usuario" feature="users.reactivate">
-        <EmptyState title="no hay cuentas suspendidas" hint="las cuentas suspendidas van a aparecer acá" />
-        <Note>Vuelve a poder iniciar sesión y su perfil vuelve a estar disponible.</Note>
-      </Cell>
+      <SuspendAccountCell />
+      <ReactivateAccountCell />
     </>
   );
 }

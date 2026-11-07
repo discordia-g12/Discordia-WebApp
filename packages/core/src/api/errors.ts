@@ -20,7 +20,17 @@ export class TimeoutError extends Error {
 export const PROBLEM_TYPES = {
   EMAIL_NOT_VERIFIED: 'https://discordia.app/problems/email-not-verified',
   PASSWORD_RESET_THROTTLED: 'https://discordia.app/problems/password-reset-throttled',
+  /** La cuenta fue suspendida por el staff de la plataforma (Kong o Auth-User, 403). */
+  ACCOUNT_SUSPENDED: 'https://discordia.app/problems/account-suspended',
+  /** El endpoint es solo para el staff de la plataforma (Auth-User, 403). */
+  STAFF_ONLY: 'https://discordia.app/problems/staff-only',
 } as const;
+
+/**
+ * Código con el que Chat Engine y Voice Signaling cierran los WebSockets de una cuenta suspendida
+ * (user.suspended). Reconectar no sirve: Kong rechaza sus tokens.
+ */
+export const ACCOUNT_SUSPENDED_CLOSE_CODE = 4010;
 
 export interface InvalidParam {
   name?: string;

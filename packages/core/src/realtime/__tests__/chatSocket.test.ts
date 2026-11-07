@@ -214,6 +214,26 @@ describe('openChatSocket', () => {
     });
   });
 
+  describe('cuenta suspendida por la plataforma', () => {
+    it('al cerrar con 4010 avisa que la cuenta está suspendida y no vuelve a intentar', async () => {
+      const onAccountSuspended = vi.fn();
+      configureClient({ onAccountSuspended });
+      const onRemoved = vi.fn();
+      const connection = openChatSocket('c1', { onMessage: vi.fn(), onRemoved });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWebSocket.instances[0].open();
+
+      FakeWebSocket.instances[0].closeWith(4010);
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(onAccountSuspended).toHaveBeenCalledTimes(1);
+      expect(onRemoved).not.toHaveBeenCalled();
+      expect(FakeWebSocket.instances).toHaveLength(1);
+      connection.close();
+      configureClient({ onAccountSuspended: undefined });
+    });
+  });
+
   describe('ban o expulsión (W2)', () => {
     it.each([
       [4003, 'banned'],

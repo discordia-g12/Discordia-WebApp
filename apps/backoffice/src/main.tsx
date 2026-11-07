@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { configureClient } from '@discordia/core';
 import { config } from './config';
-import { getAccessToken, handleAuthFailure } from './auth/session';
+import { getAccessToken, handleAccountSuspended, handleAuthFailure } from './auth/session';
 import App from './App';
 
 // Sistema de diseño: los mismos tokens, fuente y base que la web
@@ -20,6 +20,8 @@ configureClient({
   baseUrl: config.apiUrl,
   getToken: getAccessToken,
   onAuthFailure: handleAuthFailure,
+  // Si suspenden la cuenta del staff, no la sesión de la web (auth/session.ts de core)
+  onAccountSuspended: handleAccountSuspended,
 });
 
 initTheme();

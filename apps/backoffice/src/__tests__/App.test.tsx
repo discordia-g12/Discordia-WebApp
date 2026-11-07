@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ROLE_CLAIM } from '@discordia/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { configureClient, ROLE_CLAIM } from '@discordia/core';
 import App from '../App';
 import type { AuthDriver } from '../auth/driver';
 import { setAuthDriver, useBackofficeSession } from '../auth/session';
@@ -19,20 +20,37 @@ function fakeDriver(start: () => Promise<string | null>): AuthDriver {
   };
 }
 
+/** Como en main.tsx: las secciones usan React Query (p. ej. las cuentas suspendidas en Usuarios). */
+function renderApp() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <App />
+    </QueryClientProvider>,
+  );
+}
+
 describe('backoffice', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/');
     useBackofficeSession.setState({ status: 'loading', user: null, error: null });
+    // Usuarios pide las cuentas suspendidas al abrir: sin ninguna
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })),
+    );
+    configureClient({ baseUrl: 'http://api.test', getToken: async () => 'token', onAuthFailure: () => {} });
   });
 
   afterEach(() => {
     cleanup();
     setAuthDriver(null);
+    vi.unstubAllGlobals();
   });
 
   it('el staff ve el backoffice, con todo en "próximamente" salvo Grafana', async () => {
     setAuthDriver(fakeDriver(async () => tokenWith('staff')));
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByRole('navigation', { name: 'Secciones del backoffice' })).toBeTruthy();
     // "/" lleva a la primera sección
@@ -43,7 +61,7 @@ describe('backoffice', () => {
 
   it('cada sección tiene su URL y Observabilidad enlaza a Grafana', async () => {
     setAuthDriver(fakeDriver(async () => tokenWith('staff')));
-    render(<App />);
+    renderApp();
 
     fireEvent.click(await screen.findByRole('button', { name: /observabilidad/i }));
     expect(window.location.pathname).toBe('/observabilidad');
@@ -58,7 +76,7 @@ describe('backoffice', () => {
 
   it('una cuenta sin el rol staff no ve el backoffice', async () => {
     setAuthDriver(fakeDriver(async () => tokenWith('user')));
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByText('Esta cuenta no es staff de la plataforma.')).toBeTruthy();
     expect(screen.queryByRole('navigation', { name: 'Secciones del backoffice' })).toBeNull();
@@ -70,14 +88,14 @@ describe('backoffice', () => {
         throw Object.assign(new Error('access_denied'), { error: 'access_denied', error_description: 'staff_only' });
       }),
     );
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByText('Esta cuenta no es staff de la plataforma.')).toBeTruthy();
   });
 
   it('sin sesión ofrece entrar', async () => {
     setAuthDriver(fakeDriver(async () => null));
-    render(<App />);
+    renderApp();
 
     // BlockButton agrega la barra final: "Entrar /"
     expect(await screen.findByRole('button', { name: /^Entrar/ })).toBeTruthy();
@@ -92,7 +110,7 @@ describe('backoffice', () => {
         return tokenWith('staff');
       }),
     );
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByText('No pudimos verificar tu sesión.')).toBeTruthy();
     expect(screen.getByText('/ no se pudo conectar con Auth0')).toBeTruthy();
@@ -110,7 +128,7 @@ describe('backoffice', () => {
         return 'done';
       },
     });
-    render(<App />);
+    renderApp();
     await screen.findByRole('navigation', { name: 'Secciones del backoffice' });
 
     fireEvent.click(screen.getByRole('button', { name: /Salir/ }));

@@ -47,6 +47,10 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Bloquear?', text: `No van a poder escribirse con ${name} hasta que lo desbloquees. El historial se conserva y, si eran amigos, dejan de serlo.`, confirm: 'Bloquear', danger: true };
     case 'remove-friend':
       return { title: '¿Eliminar amigo?', text: `${name} deja de ser tu amigo. La conversación y el historial se conservan.`, confirm: 'Eliminar', danger: true };
+    case 'suspend-user':
+      return { title: '¿Suspender la cuenta?', text: `${name} no va a poder iniciar sesión, se cierran sus sesiones abiertas y su perfil deja de estar disponible.`, confirm: 'Suspender', danger: true };
+    case 'reactivate-user':
+      return { title: '¿Reactivar la cuenta?', text: `${name} vuelve a poder iniciar sesión y su perfil vuelve a estar disponible.`, confirm: 'Reactivar', danger: false };
   }
 }
 
