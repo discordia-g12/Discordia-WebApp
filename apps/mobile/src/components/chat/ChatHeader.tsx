@@ -34,7 +34,7 @@ export default function ChatHeader({ channelName, socketConnected, onOpenSetting
           {direct ? channelName : `•${channelName}`}
         </Text>
         {statusText && (
-          <Text variant="meta" tone="muted" accessibilityLiveRegion="polite">
+          <Text variant="meta" tone="muted" numberOfLines={1} style={styles.status} accessibilityLiveRegion="polite">
             {statusText}
           </Text>
         )}
@@ -61,6 +61,9 @@ const useStyles = makeStyles(t => ({
   },
   channel: { flex: 1, flexDirection: 'row', alignItems: 'baseline', gap: t.space[2] },
   title: { flexShrink: 1 },
+  // Sin lugar (teléfono chico, varias acciones), se achica el estado antes que el nombre: con el mismo
+  // peso, "desconectado/" quedaba entero y el nombre en "Lu…"
+  status: { flexShrink: 1000 },
   links: {
     alignSelf: 'stretch',
     flexDirection: 'row',
