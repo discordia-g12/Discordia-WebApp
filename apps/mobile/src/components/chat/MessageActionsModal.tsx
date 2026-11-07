@@ -10,6 +10,7 @@ interface MessageActionsModalProps {
   visible: boolean
   message: Message | null
   isAuthor: boolean
+  canManageMessages?: boolean
   onEdit: () => void
   onReply?: () => void
   onDelete?: () => void
@@ -21,6 +22,7 @@ export default function MessageActionsModal({
   visible,
   message,
   isAuthor,
+  canManageMessages = false,
   onEdit,
   onReply,
   onDelete,
@@ -30,6 +32,8 @@ export default function MessageActionsModal({
   const { showToast } = useUI()
 
   if (!message) return null
+
+  const canDelete = Boolean(onDelete && (isAuthor || canManageMessages))
 
   const handleCopy = async () => {
     if (message.content) {
@@ -79,13 +83,13 @@ export default function MessageActionsModal({
             </ActionLink>
           )}
 
-          {isAuthor && onDelete && (
+          {canDelete && (
             <ActionLink
               size="bodySmall"
               style={styles.deleteLink}
               onPress={() => {
                 onClose()
-                onDelete()
+                onDelete?.()
               }}
             >
               eliminar mensaje

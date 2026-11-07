@@ -55,7 +55,19 @@ function MessageItem({
     )
   }
 
-  const deleted = message.type === 'deleted'
+  if (message.type === 'deleted') {
+    return (
+      <Animated.View style={[styles.row, styles.grouped, enter]}>
+        <View style={styles.gutter} />
+        <View style={styles.body}>
+          <Text variant="meta" tone="muted" style={styles.deleted}>
+            / este mensaje fue eliminado
+          </Text>
+        </View>
+      </Animated.View>
+    )
+  }
+
   const pending = message.status === 'pending'
   const failed = message.status === 'failed'
   const name = author?.name ?? 'Usuario'
@@ -89,7 +101,7 @@ function MessageItem({
             </Text>
           </View>
         )}
-        <Text tone={deleted ? 'muted' : 'default'} style={deleted && styles.deleted}>
+        <Text>
           {mentionsToText(message.content, { user: mentionName ?? (() => 'usuario'), role: () => 'rol' })}
           {(message.edited || message.editedTimestamp) && (
             <Text variant="meta" tone="muted">

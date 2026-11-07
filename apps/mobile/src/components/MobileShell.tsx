@@ -52,6 +52,7 @@ import {
   useChatSocket,
   useVoicePresence,
   useVoiceRoom,
+  canInChannel,
   canInServer,
   canSeeSettingsSection,
   isVoiceChannelLocked,
@@ -98,6 +99,7 @@ export default function MobileShell() {
     messages,
     currentUserId,
     sendMessage,
+    deleteMessage,
     fetchChannelMessages,
     fetchOlderChannelMessages,
     hasOlderMessages,
@@ -156,6 +158,7 @@ export default function MobileShell() {
   // Ajustes del servidor abiertos, en qué sección (null: cerrados)
   const [serverSettings, setServerSettings] = useState<ServerSettingsSection | null>(null)
   const [deleteServerConfirmOpen, setDeleteServerConfirmOpen] = useState(false)
+  const [deleteMessageConfirm, setDeleteMessageConfirm] = useState<Message | null>(null)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
   const [leaveServerConfirmOpen, setLeaveServerConfirmOpen] = useState(false)
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
@@ -284,6 +287,9 @@ export default function MobileShell() {
   const isServerOwner = !!server && server.ownerId === currentUserId
   // Qué acciones se ofrecen en el servidor elegido (el backend vuelve a chequear cada una)
   const canManageChannels = canInServer(server, currentUserId, 'MANAGE_CHANNELS')
+  const canManageMessages = channel && server
+    ? canInChannel(server, channel, currentUserId, 'MANAGE_MESSAGES')
+    : false
   const canInvite = canInServer(server, currentUserId, 'CREATE_INSTANT_INVITE')
   const canOpenSettingsSection = (section: ServerSettingsSection) => canSeeSettingsSection(server, currentUserId, section)
   const isChannelLocked = (ch: Channel) => isVoiceChannelLocked(server, ch, currentUserId)
@@ -843,6 +849,7 @@ export default function MobileShell() {
         visible={!!actionTargetMessage}
         message={actionTargetMessage}
         isAuthor={actionTargetMessage?.authorId === currentUserId}
+        canManageMessages={canManageMessages}
         onEdit={() => {
           if (actionTargetMessage) setEditingMessage(actionTargetMessage)
         }}
@@ -851,6 +858,11 @@ export default function MobileShell() {
             const authorUser = users[actionTargetMessage.authorId]
             const name = authorUser?.displayName || authorUser?.username || 'usuario'
             setDraft(prev => (prev ? `${prev} @${name} ` : `@${name} `))
+          }
+        }}
+        onDelete={() => {
+          if (actionTargetMessage) {
+            setDeleteMessageConfirm(actionTargetMessage)
           }
         }}
         onClose={() => setActionTargetMessage(null)}
@@ -936,6 +948,26 @@ export default function MobileShell() {
           setLogoutConfirmOpen(false)
           voice.leave()
           logout()
+        }}
+      />
+      <ConfirmModal
+        visible={!!deleteMessageConfirm}
+        title="¿Eliminar mensaje?"
+        message="¿Seguro que querés eliminar este mensaje? No se puede deshacer."
+        confirmLabel="Eliminar"
+        tone="danger"
+        onCancel={() => setDeleteMessageConfirm(null)}
+        onConfirm={async () => {
+          const target = deleteMessageConfirm
+          setDeleteMessageConfirm(null)
+          if (!target) return
+          const targetChannelId = target.channelId || channel?.id
+          if (!targetChannelId) return
+          try {
+            await deleteMessage(targetChannelId, target.id)
+          } catch {
+            showToast('No se pudo eliminar el mensaje', 'error')
+          }
         }}
       />
     </View>

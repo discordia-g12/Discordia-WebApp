@@ -17,6 +17,7 @@ import {
   getServers,
   sendMessage as apiSendMessage,
   editMessage as apiEditMessage,
+  deleteMessage as apiDeleteMessage,
   updateCachedMessages,
   createServer as apiCreateServer,
   updateServerIcon as apiUpdateServerIcon,
@@ -72,6 +73,7 @@ interface DataContextValue {
   // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => void
   editMessage: (channelId: string, messageId: string, content: string) => Promise<Message>
+  deleteMessage: (channelId: string, messageId: string) => Promise<void>
   addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
   failOptimisticMessage: (channelId: string) => void
@@ -540,6 +542,54 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [queryClient]
   )
 
+  const deleteMessage = useCallback(
+    async (channelId: string, messageId: string): Promise<void> => {
+      let previousMessage: Message | undefined
+
+      const updateRq = (update: (list: Message[]) => Message[]) => {
+        updateCachedMessages(queryClient, channelId, update)
+      }
+
+      setMessages(prev => {
+        const list = prev[channelId] ?? []
+        previousMessage = list.find(m => m.id === messageId)
+        return {
+          ...prev,
+          [channelId]: list.map(m =>
+            m.id === messageId
+              ? { ...m, type: 'deleted' as const, content: '', attachments: [] }
+              : m
+          ),
+        }
+      })
+      updateRq(list =>
+        list.map(m =>
+          m.id === messageId
+            ? { ...m, type: 'deleted' as const, content: '', attachments: [] }
+            : m
+        )
+      )
+
+      try {
+        await apiDeleteMessage(channelId, messageId)
+      } catch (err) {
+        if (previousMessage) {
+          const prevMsg = previousMessage
+          setMessages(prev => {
+            const list = prev[channelId] ?? []
+            return {
+              ...prev,
+              [channelId]: list.map(m => (m.id === messageId ? prevMsg : m)),
+            }
+          })
+          updateRq(list => list.map(m => (m.id === messageId ? prevMsg : m)))
+        }
+        throw err
+      }
+    },
+    [queryClient]
+  )
+
   const setServerIcon = useCallback(async (serverId: string, icon: UploadableFile | null): Promise<void> => {
     const updated = icon ? await apiUpdateServerIcon(serverId, icon) : await apiRemoveServerIcon(serverId)
     // Solo el ícono: el resto del servidor (canales, categorías) ya está al día en la lista
@@ -568,6 +618,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       deleteServer,
       sendMessage,
       editMessage,
+      deleteMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,
@@ -595,6 +646,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       deleteServer,
       sendMessage,
       editMessage,
+      deleteMessage,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,
