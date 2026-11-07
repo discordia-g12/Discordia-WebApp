@@ -3,6 +3,7 @@ import { View } from 'react-native'
 import { useBlocksQuery, useFriendRequestsQuery, useFriendsQuery } from '@discordia/core'
 import { makeStyles } from '../../theme'
 import { Tabs } from '../../ui'
+import type { Message } from '../../types'
 import { Screen } from '../shell/ShellScreen'
 import { AddFriendForm } from './AddFriendForm'
 import { BlockedList } from './BlockedList'
@@ -20,10 +21,11 @@ interface FriendsTabProps {
   onOpenChat: (userId: string) => void
   onCloseChat: () => void
   onOpenProfile: (userId: string) => void
+  onLongPressMessage?: (message: Message) => void
 }
 
 /** Pestaña Amigos: la lista de chats y, en sus secciones, Todos, Pendiente, Bloqueado y Añadir. O un chat abierto. */
-export default function FriendsTab({ openUserId, inboxConnected, onOpenChat, onCloseChat, onOpenProfile }: FriendsTabProps) {
+export default function FriendsTab({ openUserId, inboxConnected, onOpenChat, onCloseChat, onOpenProfile, onLongPressMessage }: FriendsTabProps) {
   const styles = useStyles()
   // Acá y no en cada lista: al volver de un chat, se sigue en la misma sección
   const [section, setSection] = useState<Section>('chats')
@@ -39,6 +41,7 @@ export default function FriendsTab({ openUserId, inboxConnected, onOpenChat, onC
         inboxConnected={inboxConnected}
         onBack={onCloseChat}
         onOpenProfile={onOpenProfile}
+        onLongPressMessage={onLongPressMessage}
       />
     )
   }

@@ -134,7 +134,6 @@ export function useMessageActions(channelId: string | null) {
       showToast(message, 'danger');
     }
   };
-  };
 
   return { sendMessage, toggleReaction, deleteMessage, editMessage };
 }

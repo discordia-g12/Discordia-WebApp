@@ -20,6 +20,7 @@ import Composer, { type PendingAttachment } from '../chat/Composer'
 import MessageList from '../chat/MessageList'
 import ConfirmModal from '../shared/ConfirmModal'
 import { Pane } from '../shell/ShellScreen'
+import type { Message } from '../../types'
 import { ListStatus } from './ListStatus'
 import { FriendRequestCard, MessageRequestCard } from './RequestCards'
 
@@ -31,13 +32,14 @@ interface DmChatScreenProps {
   inboxConnected: boolean
   onBack: () => void
   onOpenProfile: (userId: string) => void
+  onLongPressMessage?: (message: Message) => void
 }
 
 /**
  * Chat directo. Abrirlo no crea nada: la conversación nace con el primer mensaje, y hasta entonces no se ofrece
  * adjuntar. El estado de la relación decide qué va en el encabezado, arriba del historial y en lugar del composer.
  */
-export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile }: DmChatScreenProps) {
+export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile, onLongPressMessage }: DmChatScreenProps) {
   const styles = useStyles()
   const { showToast } = useUI()
   const appActive = useAppActive()
@@ -159,6 +161,7 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
             history.fetchOlder().catch(() => showToast('No se pudieron cargar los mensajes anteriores', 'error'))
           }}
           onPressAuthor={onOpenProfile}
+          onLongPressMessage={onLongPressMessage}
         />
         {actions.canRespondMessageRequest && conversationId ? (
           <MessageRequestCard

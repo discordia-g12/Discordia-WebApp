@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react'
 import { AppState } from 'react-native'
+import { useQueryClient } from '@tanstack/react-query'
 import type { User, Server, Category, Channel, Message, MessageAttachment, MessageBackendPayload } from '../types'
 import { useAuth } from './AuthProvider'
 import {
@@ -16,6 +17,7 @@ import {
   getServers,
   sendMessage as apiSendMessage,
   editMessage as apiEditMessage,
+  updateCachedMessages,
   createServer as apiCreateServer,
   updateServerIcon as apiUpdateServerIcon,
   removeServerIcon as apiRemoveServerIcon,
@@ -81,6 +83,7 @@ interface DataContextValue {
 const DataContext = createContext<DataContextValue | null>(null)
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient()
   const { token, userProfile } = useAuth()
 
   const activeUserId = userProfile?.id ?? ''
@@ -464,6 +467,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       let previousEdited = false
       let previousEditedTimestamp: string | null | undefined = null
 
+      const updateRq = (update: (list: Message[]) => Message[]) => {
+        updateCachedMessages(queryClient, channelId, update)
+      }
+
       setMessages(prev => {
         const list = prev[channelId] ?? []
         return {
@@ -484,6 +491,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }),
         }
       })
+      updateRq(list =>
+        list.map(m =>
+          m.id === messageId
+            ? {
+                ...m,
+                content: newContent,
+                edited: true,
+                editedTimestamp: new Date().toISOString(),
+              }
+            : m
+        )
+      )
 
       try {
         const updated = await apiEditMessage(channelId, messageId, newContent)
@@ -494,6 +513,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             [channelId]: list.map(m => (m.id === messageId ? updated : m)),
           }
         })
+        updateRq(list => list.map(m => (m.id === messageId ? updated : m)))
         return updated
       } catch (err) {
         setMessages(prev => {
@@ -507,10 +527,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             ),
           }
         })
+        updateRq(list =>
+          list.map(m =>
+            m.id === messageId
+              ? { ...m, content: previousContent, edited: previousEdited, editedTimestamp: previousEditedTimestamp }
+              : m
+          )
+        )
         throw err
       }
     },
-    []
+    [queryClient]
   )
 
   const setServerIcon = useCallback(async (serverId: string, icon: UploadableFile | null): Promise<void> => {

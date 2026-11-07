@@ -16,7 +16,7 @@ import {
   conversationWithQueryKey,
   upsertConversation,
 } from './inboxCache';
-import { appendMessage, messagesQueryKey, type MessagePages } from './messageCache';
+import { appendMessage, messagesQueryKey, updateCachedMessages, type MessagePages } from './messageCache';
 
 export interface UseInboxOptions {
   /** La conversación abierta: lo que llega ahí no suma no leídos. */
@@ -50,6 +50,33 @@ export function useInbox({ activeConversationId = null, enabled = true }: UseInb
         const { conversation } = event;
         queryClient.setQueryData<Conversation[]>(conversationsQueryKey, (old) => upsertConversation(old, conversation));
         queryClient.invalidateQueries({ queryKey: conversationWithQueryKey(conversation.otherUserId) });
+        return;
+      }
+
+      if (event.type === 'DM_MESSAGE_UPDATED') {
+        const { conversationId } = event;
+        const message = normalizeMessage(event.message as unknown as Message);
+        updateCachedMessages(queryClient, conversationId, (messages) =>
+          messages.map((m) => (m.id === message.id ? { ...m, ...message } : m))
+        );
+        const conversations = queryClient.getQueryData<Conversation[]>(conversationsQueryKey);
+        if (conversations?.some((c) => c.id === conversationId)) {
+          queryClient.setQueryData<Conversation[]>(
+            conversationsQueryKey,
+            conversations.map((c) => {
+              if (c.id !== conversationId || c.lastMessage?.createdAt !== (message.createdAt ?? message.timestamp)) {
+                return c;
+              }
+              return {
+                ...c,
+                lastMessage: {
+                  ...c.lastMessage,
+                  content: message.content,
+                },
+              };
+            })
+          );
+        }
         return;
       }
 

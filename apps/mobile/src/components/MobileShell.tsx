@@ -727,6 +727,7 @@ export default function MobileShell() {
               onOpenChat={setDmUserId}
               onCloseChat={() => setDmUserId(null)}
               onOpenProfile={openProfile}
+              onLongPressMessage={setActionTargetMessage}
             />
           )}
 
