@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { editMessage as apiEditMessage, updateCachedMessages } from '@discordia/core';
+import { deleteMessage as apiDeleteMessage, editMessage as apiEditMessage, updateCachedMessages } from '@discordia/core';
 import type { Message, MessageAttachment, Reaction } from '../../types';
 import { showToast } from '../../app/uiStore';
 import { useCurrentUser } from '../profile/currentUserStore';
@@ -80,15 +80,36 @@ export function useMessageActions(channelId: string | null) {
   };
 
   // Eliminar mensaje
-  const deleteMessage = (messageId: string) => {
-    const markDeleted = (list: Message[]) =>
-      list.map((m) => (m.id === messageId ? { ...m, type: 'deleted' as const, content: '' } : m));
+  const deleteMessage = async (messageId: string) => {
+    if (!channelId) return;
 
-    updateMessages(markDeleted);
-    showToast('Backend deletion not implemented yet', 'info');
+    let previousMessage: Message | undefined;
+
+    // 1. Actualización optimista
+    updateMessages((list) => {
+      previousMessage = list.find((m) => m.id === messageId);
+      return list.map((m) =>
+        m.id === messageId
+          ? { ...m, type: 'deleted' as const, content: '', attachments: [] }
+          : m,
+      );
+    });
+
+    // 2. Llamada al backend
+    try {
+      await apiDeleteMessage(channelId, messageId);
+    } catch (err: unknown) {
+      // Rollback en caso de error
+      if (previousMessage) {
+        updateMessages((list) =>
+          list.map((m) => (m.id === messageId ? previousMessage! : m)),
+        );
+      }
+      const message = err instanceof Error ? err.message : 'No se pudo eliminar el mensaje';
+      showToast(message, 'danger');
+    }
   };
 
-  // Editar mensaje
   // Editar mensaje
   const editMessage = async (messageId: string, newContent: string) => {
     if (!channelId) return;

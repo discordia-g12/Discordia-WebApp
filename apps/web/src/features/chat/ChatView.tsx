@@ -49,6 +49,8 @@ export interface ChatViewProps {
   onSendMessage?: (content: string, attachment?: MessageAttachment, replyToId?: string) => void;
   /** Callback al alternar una reacción emoji. */
   onToggleReaction?: (messageId: string, emoji: string) => void;
+  /** Si el usuario actual puede moderar/eliminar mensajes ajenos en este canal. */
+  canManageMessages?: boolean;
   /** Callback al eliminar un mensaje. */
   onDeleteMessage?: (messageId: string) => void;
   /** Callback al confirmar la edición de un mensaje existente. */
@@ -357,6 +359,7 @@ export function ChatView(props: ChatViewProps) {
                     chat={chat}
                     users={users}
                     currentUserId={currentUserId}
+                    canManageMessages={props.canManageMessages}
                     myRoleIds={myRoleIds}
                     names={names}
                     consecutive={consecutive}
@@ -392,6 +395,7 @@ function MessageRow({
   chat,
   users,
   currentUserId,
+  canManageMessages,
   myRoleIds,
   names,
   consecutive,
@@ -402,6 +406,7 @@ function MessageRow({
   chat: ChatViewState;
   users: Record<string, User>;
   currentUserId?: string;
+  canManageMessages?: boolean;
   myRoleIds?: string[];
   names: MentionNames;
   consecutive: boolean;
@@ -437,6 +442,7 @@ function MessageRow({
 
   const author = msg.author || users[msg.authorId] || { id: msg.authorId, ...UNKNOWN_USER };
   const isAuthor = msg.authorId === (currentUserId || '');
+  const canDelete = isAuthor || !!canManageMessages;
   // Lo que dice Chat-Engine que notificó: un @everyone sin permiso no resalta
   const mentionsMe = !isAuthor && mentionsUser(msg.mentions, currentUserId ?? '', myRoleIds);
   const isEditing = chat.editingMessageId === msg.id;
@@ -568,6 +574,11 @@ function MessageRow({
           </ActionLink>
           <ActionLink onPress={() => chat.setReplyingTo(msg)}>responder</ActionLink>
           {isAuthor && <ActionLink onPress={() => chat.handleStartEdit(msg)}>editar</ActionLink>}
+          {canDelete && (
+            <ActionLink className={styles.dangerLink} onPress={() => chat.promptDeleteMessage(msg.id)}>
+              eliminar
+            </ActionLink>
+          )}
           <ActionLink onPress={() => chat.setActiveContextMenuMessageId(menuOpen ? null : msg.id)} aria-expanded={menuOpen}>
             más
           </ActionLink>
@@ -591,11 +602,6 @@ function MessageRow({
             <li>
               <button type="button" onClick={() => chat.handleTogglePin(msg)}>
                 {msg.isPinned ? 'desfijar mensaje' : 'fijar mensaje'}
-              </button>
-            </li>
-            <li>
-              <button type="button" onClick={() => chat.handleDeleteMessage(msg.id)}>
-                eliminar mensaje
               </button>
             </li>
           </ul>

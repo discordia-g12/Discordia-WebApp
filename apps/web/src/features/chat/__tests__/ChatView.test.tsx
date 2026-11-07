@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import { useUIStore } from '../../../app/uiStore';
 import { ChatView } from '../ChatView';
 import type { Channel, Message, User } from '../../../types';
 
@@ -153,6 +154,75 @@ describe('ChatView (rediseño)', () => {
     fireEvent.change(input, { target: { value: 'chat no llego (editado)' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onEditMessage).toHaveBeenCalledWith('m2', 'chat no llego (editado)');
+  });
+
+  it('el autor y los moderadores con permiso pueden eliminar mensajes con confirmación previa', () => {
+    const onDeleteMessage = vi.fn();
+    const { rerender } = render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onDeleteMessage={onDeleteMessage} />
+    );
+
+    const mine = screen.getByText('chat no llego').closest('li')!;
+    const others = screen.getByText('m!skip').closest('li')!;
+
+    // 1. El autor ve _eliminar en su mensaje
+    const deleteBtn = within(mine).getByRole('button', { name: '_eliminar' });
+    expect(deleteBtn).toBeTruthy();
+
+    // 2. Un usuario común no ve _eliminar en mensajes ajenos
+    expect(within(others).queryByRole('button', { name: '_eliminar' })).toBeNull();
+
+    // 3. Al clickear _eliminar se abre el diálogo de confirmación
+    fireEvent.click(deleteBtn);
+    const confirmState = useUIStore.getState().confirm;
+    expect(confirmState.action).toBe('delete-message');
+
+    // Confirmar ejecuta onDeleteMessage con el id del mensaje
+    confirmState.onConfirm?.();
+    expect(onDeleteMessage).toHaveBeenCalledWith('m2');
+
+    // 4. Si el usuario tiene canManageMessages, puede eliminar mensajes ajenos
+    rerender(
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        canManageMessages
+        onDeleteMessage={onDeleteMessage}
+      />
+    );
+    const othersModerated = screen.getByText('m!skip').closest('li')!;
+    expect(within(othersModerated).getByRole('button', { name: '_eliminar' })).toBeTruthy();
+  });
+
+  it('muestra el tombstone de mensaje eliminado sin botones de acción', () => {
+    const deletedMessages = [
+      ...MESSAGES,
+      msg('m4', 'u2', '', '2025-10-21T17:30:00', { type: 'deleted' }),
+    ];
+    render(<ChatView channel={channel} messages={deletedMessages} users={users} currentUserId="me" />);
+
+    const tombstone = screen.getByText('/ este mensaje fue eliminado');
+    expect(tombstone).toBeTruthy();
+
+    const row = tombstone.closest('li')!;
+    expect(within(row).queryByRole('button', { name: '_editar' })).toBeNull();
+    expect(within(row).queryByRole('button', { name: '_eliminar' })).toBeNull();
+    expect(within(row).queryByRole('button', { name: '_responder' })).toBeNull();
+  });
+
+  it('si el primer mensaje de un usuario fue eliminado, los siguientes mensajes suyos muestran su autor y avatar', () => {
+    const list = [
+      msg('m1', 'u2', 'hola de u2', '2025-10-21T17:00:00'),
+      msg('m2', 'me', '', '2025-10-21T17:01:00', { type: 'deleted' }),
+      msg('m3', 'me', 'segundo mensaje mio', '2025-10-21T17:02:00'),
+    ];
+    render(<ChatView channel={channel} messages={list} users={users} currentUserId="me" />);
+
+    const row3 = screen.getByText('segundo mensaje mio').closest('li')!;
+    expect(within(row3).getByText('Mar')).toBeTruthy();
+    expect(within(row3).getByLabelText('Ver perfil de Mar')).toBeTruthy();
   });
 
   it('los enlaces del encabezado alternan la lista de miembros y los fijados', () => {

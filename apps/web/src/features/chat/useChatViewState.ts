@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { encodeMentions, validateAttachmentFile, uploadAttachment, type PickedMention } from '@discordia/core';
 import type { Channel, Message, MessageAttachment, Reaction, Role, User } from '../../types';
-import { showToast } from '../../app/uiStore';
+import { showToast, useUIStore } from '../../app/uiStore';
 
 /** Emojis disponibles para reacciones rápidas y selector. */
 export const QUICK_EMOJIS = ['❤️', '👍', '😂', '🚀', '🔥', '🎉', '👏', '👀'];
@@ -357,6 +357,13 @@ export function useChatViewState({
     setActiveContextMenuMessageId(null);
   };
 
+  const promptDeleteMessage = (messageId: string) => {
+    setActiveContextMenuMessageId(null);
+    useUIStore.getState().openConfirm('delete-message', 'este mensaje', '', () => {
+      handleDeleteMessage(messageId);
+    });
+  };
+
   // Fijado de mensaje
   const handleTogglePin = (msg: Message) => {
     if (onPinMessage) {
@@ -472,6 +479,7 @@ export function useChatViewState({
     handleStartEdit,
     handleSaveEdit,
     handleDeleteMessage,
+    promptDeleteMessage,
     handleTogglePin,
     handleCopyText,
     handleAttachMock,

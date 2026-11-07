@@ -75,6 +75,7 @@ export type ConfirmAction =
   | 'logout'
   | 'block-user'
   | 'remove-friend'
+  | 'delete-message'
   | null;
 
 /** Errores de validación durante la edición del perfil de usuario. */

@@ -47,6 +47,8 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Bloquear?', text: `No van a poder escribirse con ${name} hasta que lo desbloquees. El historial se conserva y, si eran amigos, dejan de serlo.`, confirm: 'Bloquear', danger: true };
     case 'remove-friend':
       return { title: '¿Eliminar amigo?', text: `${name} deja de ser tu amigo. La conversación y el historial se conservan.`, confirm: 'Eliminar', danger: true };
+    case 'delete-message':
+      return { title: '¿Eliminar mensaje?', text: '¿Seguro que querés eliminar este mensaje? No se puede deshacer.', confirm: 'Eliminar', danger: true };
   }
 }
 

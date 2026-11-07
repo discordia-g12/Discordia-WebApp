@@ -482,6 +482,10 @@
   text-underline-offset: 2px;
 }
 
+.dangerLink {
+  color: var(--color-danger);
+}
+
 .emojiGrid {
   display: grid;
   grid-template-columns: repeat(8, var(--space-6));
