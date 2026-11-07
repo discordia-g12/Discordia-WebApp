@@ -71,6 +71,18 @@ export class SignupConflictError extends Error {
   }
 }
 
+/**
+ * No se pudo hablar con Auth0: sin conexión o el navegador bloqueó la respuesta por CORS (pasa cuando el
+ * origen de la app no está en "Allowed Web Origins" de la aplicación de Auth0). fetch lo reporta como
+ * TypeError ("Failed to fetch"), sin status ni body, así que no se puede confundir con credenciales malas.
+ */
+export class AuthNetworkError extends Error {
+  constructor() {
+    super('No se pudo conectar con el servidor de autenticación. Revisá tu conexión e intentá de nuevo.');
+    this.name = 'AuthNetworkError';
+  }
+}
+
 export type AuthDenial = 'email_not_verified' | 'suspended';
 
 /**

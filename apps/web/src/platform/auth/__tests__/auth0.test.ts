@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { auth0Provider, hasStoredSession } from '../auth0';
-import { AccountSuspendedError, EmailNotVerifiedError, SignupConflictError } from '@discordia/core';
+import { AccountSuspendedError, AuthNetworkError, EmailNotVerifiedError, SignupConflictError } from '@discordia/core';
 
 function jsonResponse(status: number, body: unknown) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -51,6 +51,12 @@ describe('auth0Provider.loginWithCredentials - respuestas de /oauth/token', () =
     expect(err).not.toBeInstanceOf(EmailNotVerifiedError);
     expect(err).not.toBeInstanceOf(AccountSuspendedError);
     expect((err as Error).message).toBe('El correo electrónico o la contraseña son incorrectos.');
+  });
+
+  it('fallo de red o CORS (fetch rechaza con TypeError) -> AuthNetworkError, no credenciales incorrectas', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(auth0Provider.loginWithCredentials(CREDS)).rejects.toBeInstanceOf(AuthNetworkError);
   });
 
   it('un login que falla no deja viva la sesión de la cuenta anterior', async () => {

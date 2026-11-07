@@ -4,7 +4,7 @@ import { requestPasswordReset } from '../api/passwordReset';
 import { verifyTwoFactor } from '../api/twoFactor';
 import { upsertMyProfile } from '../api/users';
 import type { AuthUser } from './adapter';
-import { AccountSuspendedError, SignupConflictError, TwoFactorRequiredError } from './errors';
+import { AccountSuspendedError, AuthNetworkError, SignupConflictError, TwoFactorRequiredError } from './errors';
 import {
   backToLogin,
   completeTwoFactorSession,
@@ -247,7 +247,10 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
         return;
       }
       const msg = err instanceof Error ? err.message : '';
-      if (err instanceof AccountSuspendedError || msg.includes('access_denied')) {
+      if (err instanceof AuthNetworkError) {
+        // Sin respuesta de Auth0: no es un problema de credenciales
+        setFormError(err.message);
+      } else if (err instanceof AccountSuspendedError || msg.includes('access_denied')) {
         setFormError('Tu cuenta se encuentra suspendida.');
       } else {
         // CA 2 & CA 3 Login: error genérico
@@ -348,6 +351,8 @@ export function useAuthForms(authService: AuthFormActions = sessionActions) {
       // CA 2: Email o nombre de usuario ya registrado
       if (err instanceof SignupConflictError) {
         setFormError(err.message, err.field);
+      } else if (err instanceof AuthNetworkError) {
+        setFormError(err.message);
       } else if (
         msg.toLowerCase().includes('en uso') ||
         msg.toLowerCase().includes('already in use') ||
