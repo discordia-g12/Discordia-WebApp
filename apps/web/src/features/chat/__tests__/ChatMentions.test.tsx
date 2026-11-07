@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChatView } from '../ChatView';
 import type { Mentionables } from '../useChatViewState';
@@ -28,10 +28,6 @@ const mentionables = (extra: Partial<Mentionables> = {}): Mentionables => ({
 const messageOf = (text: string) => screen.getByText(text, { exact: false }).closest('li')!;
 
 describe('Menciones en el chat', () => {
-  beforeEach(() => {
-    Element.prototype.scrollIntoView = vi.fn();
-  });
-
   it('muestra los tokens como @usuario y @rol, nunca el id', () => {
     render(
       <ChatView

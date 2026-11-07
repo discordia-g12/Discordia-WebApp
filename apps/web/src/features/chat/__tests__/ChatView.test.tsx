@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { ChatView } from '../ChatView';
 import type { Channel, Message, User } from '../../../types';
@@ -24,9 +24,30 @@ const MESSAGES = [
 ];
 
 describe('ChatView (rediseño)', () => {
-  beforeEach(() => {
-    // jsdom no implementa scroll: el chat baja al último mensaje con scrollIntoView
-    Element.prototype.scrollIntoView = vi.fn();
+  it('queda abajo mientras se está abajo, se suelta al subir a leer y vuelve abajo al enviar', () => {
+    const { rerender } = render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" />);
+    // jsdom no calcula alturas: un historial de 1000 px en una ventana de 400
+    const log = screen.getByRole('log');
+    let top = 0;
+    Object.defineProperty(log, 'scrollHeight', { configurable: true, get: () => 1000 });
+    Object.defineProperty(log, 'clientHeight', { configurable: true, get: () => 400 });
+    Object.defineProperty(log, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => (top = v) });
+    const withMessage = (m: Message) => (
+      <ChatView channel={channel} messages={[...MESSAGES, m]} users={users} currentUserId="me" />
+    );
+
+    rerender(withMessage(msg('m4', 'u2', 'llegó uno', '2025-10-21T17:00:00')));
+    expect(top).toBe(1000);
+
+    // Sube a leer: lo que llega de otros no lo mueve
+    top = 200;
+    fireEvent.scroll(log);
+    rerender(withMessage(msg('m5', 'u2', 'otro más', '2025-10-21T17:01:00')));
+    expect(top).toBe(200);
+
+    // Lo que envía uno mismo sí baja
+    rerender(withMessage(msg('m6', 'me', 'respondo', '2025-10-21T17:02:00')));
+    expect(top).toBe(1000);
   });
 
   it('muestra los mensajes con autor, fecha y separadores por día', () => {

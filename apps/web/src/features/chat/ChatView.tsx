@@ -152,6 +152,74 @@ function useLoadOlder(
   return { loadOlder, onScroll };
 }
 
+/** Distancia al final (px) que todavía cuenta como "estar abajo". */
+const NEAR_BOTTOM = 80;
+
+/**
+ * Mantiene el chat abajo de todo mientras se esté abajo: al abrirlo, cuando llega un mensaje y cuando el
+ * contenido crece después de dibujarse (una imagen que termina de cargar). Un solo scroll al último
+ * mensaje no alcanza: las imágenes cargan después y lo dejaban corto. Subir a leer lo suelta; volver
+ * abajo, enviar un mensaje o cambiar de chat lo vuelve a pegar.
+ */
+function useStickToBottom(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  chatKey: string,
+  lastMessage: Pick<Message, 'id' | 'authorId'> | undefined,
+  currentUserId: string | undefined,
+  layoutKey: string
+) {
+  const stick = useRef(true);
+  const lastScrollTop = useRef(0);
+
+  const toBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || !stick.current) return;
+    el.scrollTop = el.scrollHeight;
+    // Sin esperar al evento de scroll: el próximo scroll del usuario se compara contra esta posición
+    lastScrollTop.current = el.scrollTop;
+  }, [scrollRef]);
+
+  useLayoutEffect(() => {
+    stick.current = true;
+    lastScrollTop.current = 0;
+  }, [chatKey]);
+
+  // Antes de pintar, para que no se vea el salto. Un mensaje propio baja aunque se estuviera leyendo arriba.
+  const lastId = lastMessage?.id;
+  const lastIsMine = Boolean(currentUserId) && lastMessage?.authorId === currentUserId;
+  useLayoutEffect(() => {
+    if (lastIsMine) stick.current = true;
+    toBottom();
+  }, [lastId, lastIsMine, toBottom]);
+
+  // Lo que crece después de dibujarse. layoutKey cambia cuando se reemplazan los hijos (skeleton → mensajes)
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(toBottom);
+    observer.observe(el);
+    Array.from(el.children).forEach((child) => observer.observe(child));
+    return () => observer.disconnect();
+  }, [scrollRef, toBottom, layoutKey]);
+
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const fromBottom = el.scrollHeight - el.clientHeight - el.scrollTop;
+    // Solo un scroll hacia arriba lo suelta: crecer el contenido o bajar por código no
+    if (el.scrollTop < lastScrollTop.current - 1 && fromBottom > NEAR_BOTTOM) stick.current = false;
+    if (fromBottom <= NEAR_BOTTOM) stick.current = true;
+    lastScrollTop.current = el.scrollTop;
+  }, [scrollRef]);
+
+  /** Suelta el final: cargar mensajes anteriores no tiene que volver a bajar. */
+  const release = useCallback(() => {
+    stick.current = false;
+  }, []);
+
+  return { onScroll, release };
+}
+
 /**
  * Chat del rediseño (PDF, págs. 7 y 9), para canales y mensajes directos. Encabezado con el nombre y
  * enlaces de texto; mensajes con avatar cuadrado, metadato chico y texto grande, separados por día;
@@ -175,13 +243,31 @@ export function ChatView(props: ChatViewProps) {
     onLoadOlder,
   } = props;
   const chat = useChatViewState({ ...props, messages });
-  const history = useHistoryIds(channel?.id ?? directChat?.conversationId ?? directChat?.user.id ?? 'chat', chat.localMessages, isLoading);
+  const chatKey = channel?.id ?? directChat?.conversationId ?? directChat?.user.id ?? 'chat';
+  const history = useHistoryIds(chatKey, chat.localMessages, isLoading);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const showOlder = hasOlderMessages && !isLoading;
+  const stick = useStickToBottom(
+    scrollRef,
+    chatKey,
+    chat.localMessages[chat.localMessages.length - 1],
+    currentUserId,
+    `${isLoading}-${showOlder}`
+  );
   const older = useLoadOlder(scrollRef, chat.localMessages[0]?.id, {
-    hasOlder: hasOlderMessages && !isLoading,
+    hasOlder: showOlder,
     isLoadingOlder,
-    onLoadOlder,
+    onLoadOlder: onLoadOlder
+      ? () => {
+          stick.release();
+          onLoadOlder();
+        }
+      : undefined,
   });
+  const onScroll = () => {
+    stick.onScroll();
+    older.onScroll();
+  };
   const names = useMentionNames(users, props.mentionables?.roles);
   const myRoleIds = props.mentionables?.myRoleIds;
 
@@ -225,9 +311,9 @@ export function ChatView(props: ChatViewProps) {
         className={styles.scroll}
         role="log"
         aria-label={`Mensajes de ${chat.chatTitle}`}
-        onScroll={older.onScroll}
+        onScroll={onScroll}
       >
-        {hasOlderMessages && !isLoading ? (
+        {showOlder ? (
           <div className={styles.older}>
             {isLoadingOlder ? (
               <p className={styles.welcomeText} role="status">
@@ -282,7 +368,6 @@ export function ChatView(props: ChatViewProps) {
             })}
           </ol>
         )}
-        <div ref={chat.messagesEndRef} />
       </div>
 
       <Composer chat={chat} users={users} writeBlock={props.writeBlock ?? null} />

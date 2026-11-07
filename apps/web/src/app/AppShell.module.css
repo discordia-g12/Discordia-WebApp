@@ -5,8 +5,8 @@
   grid-template-columns: var(--layout-rail-width) var(--layout-sidebar-width) minmax(0, 1fr);
   width: 100vw;
   height: 100vh;
-  /* clip y no hidden: con hidden el contenedor igual se puede scrollear por código (el scrollIntoView del
-     chat lo corría, porque la capa del degradé sobresale) */
+  /* clip y no hidden: con hidden el contenedor igual se puede scrollear por código (un scrollIntoView lo
+     corre, porque la capa del degradé sobresale) */
   overflow: clip;
   isolation: isolate;
   color: var(--color-text);

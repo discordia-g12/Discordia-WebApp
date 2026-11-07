@@ -107,8 +107,6 @@ describe('App (prueba de humo)', () => {
     // El estado de la interfaz es un store global: sin esto cada test arranca donde dejó el anterior
     useUIStore.setState(useUIStore.getInitialState(), true);
     localStorage.setItem('discordia_intro_seen', '1');
-    // jsdom no implementa scroll: ChatView baja al último mensaje con scrollIntoView
-    Element.prototype.scrollIntoView = vi.fn();
     FakeWebSocket.instances = [];
     globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => fakeBackend(input, init));

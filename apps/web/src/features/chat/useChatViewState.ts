@@ -117,19 +117,7 @@ export function useChatViewState({
   // Menciones elegidas en el autocompletado: se ven como @label y se envían como token
   const [pickedMentions, setPickedMentions] = useState<PickedMention[]>([]);
 
-  // Referencias para scroll y clicks externos
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLInputElement | null>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  // Solo cuando cambia el último mensaje: cargar mensajes anteriores no debe bajar hasta el final
-  const lastMessageId = localMessages[localMessages.length - 1]?.id;
-  useEffect(() => {
-    scrollToBottom();
-  }, [lastMessageId]);
 
   // Título e información de cabecera
   const chatTitle = channel ? channel.name : directChat?.user.displayName || 'Chat';
@@ -474,7 +462,6 @@ export function useChatViewState({
     setMentionQuery,
     mentionCandidates,
     activeMentionIndex,
-    messagesEndRef,
     composerInputRef,
     pinnedMessages,
     handleInputChange,

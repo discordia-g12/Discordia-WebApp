@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { ApiError, setApiMock, useSession } from '@discordia/core';
 import { useUIStore } from '../../../app/uiStore';
@@ -22,10 +22,6 @@ const toast = () => useUIStore.getState().toast?.message;
 const confirmDialog = () => act(async () => useUIStore.getState().confirm.onConfirm?.());
 
 describe('HomeView', () => {
-  beforeEach(() => {
-    Element.prototype.scrollIntoView = vi.fn();
-  });
-
   afterEach(() => {
     cleanup();
     document.body.innerHTML = '';
