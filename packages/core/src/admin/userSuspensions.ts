@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { ApiError, NetworkError, PROBLEM_TYPES, TimeoutError } from '../api/errors';
 import { isForbidden, isUnauthorized } from './platformStatus';
@@ -62,7 +62,49 @@ export interface SuspendAccountInput {
   reason: string;
 }
 
-export const suspendedAccountsQueryKey = ['admin', 'suspendedAccounts'] as const;
+/** Todo lo de cuentas cuelga de esta clave: suspender o reactivar refresca el listado y las suspendidas. */
+export const platformAccountsQueryKey = ['admin', 'accounts'] as const;
+export const suspendedAccountsQueryKey = [...platformAccountsQueryKey, 'suspended'] as const;
+
+export type AccountStateFilter = 'all' | 'active' | 'suspended';
+
+export interface PlatformAccountFilters {
+  /** Email, @usuario o nombre (parcial, sin distinguir mayúsculas). */
+  query: string;
+  state: AccountStateFilter;
+  page: number;
+  pageSize: number;
+}
+
+export interface PlatformAccountPage {
+  items: PlatformAccount[];
+  /** Cuentas que coinciden con los filtros, en todas las páginas. */
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export const ACCOUNT_STATE_FILTER_OPTIONS: { value: AccountStateFilter; label: string }[] = [
+  { value: 'all', label: 'todos' },
+  { value: 'active', label: 'activos' },
+  { value: 'suspended', label: 'suspendidos' },
+];
+
+/** "Ver listado de usuarios con filtros" (GET /api/v1/admin/users de Auth-User). */
+export async function listPlatformAccounts(filters: PlatformAccountFilters): Promise<PlatformAccountPage> {
+  const raw = await api.get<{ items: PlatformAccountResponse[]; total: number; page: number; page_size: number }>(
+    '/api/v1/admin/users',
+    {
+      query: {
+        q: filters.query.trim() || undefined,
+        state: filters.state,
+        page: filters.page,
+        page_size: filters.pageSize,
+      },
+    },
+  );
+  return { items: raw.items.map(toPlatformAccount), total: raw.total, page: raw.page, pageSize: raw.page_size };
+}
 
 export async function listSuspendedAccounts(): Promise<PlatformAccount[]> {
   const raw = await api.get<PlatformAccountResponse[]>('/api/v1/admin/users/suspended');
@@ -85,6 +127,20 @@ export async function reactivateAccount(userId: string): Promise<PlatformAccount
 const noAuthRetry = (failureCount: number, error: unknown) =>
   !isUnauthorized(error) && !isForbidden(error) && failureCount < 2;
 
+/**
+ * Listado de cuentas con búsqueda y filtro de estado. Mientras llega una página nueva (otra búsqueda u otra
+ * página) se sigue mostrando la anterior, así la tabla no parpadea en cada tecla.
+ */
+export function usePlatformAccounts(filters: PlatformAccountFilters, { enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: [...platformAccountsQueryKey, 'list', filters] as const,
+    queryFn: () => listPlatformAccounts(filters),
+    enabled,
+    placeholderData: keepPreviousData,
+    retry: noAuthRetry,
+  });
+}
+
 /** Cuentas suspendidas, la más reciente primero (para reactivarlas). */
 export function useSuspendedAccounts({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
@@ -100,7 +156,7 @@ export function useSuspendAccount() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: suspendAccount,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: suspendedAccountsQueryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: platformAccountsQueryKey }),
   });
 }
 
@@ -109,11 +165,12 @@ export function useReactivateAccount() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: reactivateAccount,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: suspendedAccountsQueryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: platformAccountsQueryKey }),
   });
 }
 
-export type SuspensionAction = 'suspend' | 'reactivate' | 'list';
+/** list: cuentas suspendidas; list-accounts: el listado de usuarios con filtros. */
+export type SuspensionAction = 'suspend' | 'reactivate' | 'list' | 'list-accounts';
 
 /** Mensaje para el staff cuando falla suspender, reactivar o listar. Siempre dice qué hacer. */
 export function suspensionErrorMessage(error: unknown, action: SuspensionAction): string {
@@ -125,6 +182,10 @@ export function suspensionErrorMessage(error: unknown, action: SuspensionAction)
     return 'Tu propia cuenta está suspendida.';
   }
   if (isForbidden(error)) return 'Tu cuenta no tiene permisos de staff: el servidor rechazó el pedido.';
+  if (action === 'list-accounts') {
+    if (error instanceof ApiError && error.status === 422) return 'La búsqueda no es válida: probá con menos de 100 caracteres.';
+    return 'No pudimos traer el listado de usuarios.';
+  }
   if (error instanceof ApiError) {
     switch (error.status) {
       case 400:

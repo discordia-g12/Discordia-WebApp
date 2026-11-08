@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureClient, request } from '../../api/client';
 import { ApiError, NetworkError, PROBLEM_TYPES } from '../../api/errors';
 import { markAccountSuspended, useSession } from '../../auth/session';
-import { platformAccountLabel, suspensionErrorMessage, toPlatformAccount } from '../userSuspensions';
+import { listPlatformAccounts, platformAccountLabel, suspensionErrorMessage, toPlatformAccount } from '../userSuspensions';
 
 function problem(status: number, type?: string) {
   return new Response(JSON.stringify({ type, title: 'x', status, detail: 'x' }), {
@@ -78,6 +78,30 @@ describe('cuentas en el backoffice', () => {
       suspensionReason: 'spam',
       createdAt: '2026-03-01T00:00:00Z',
     });
+  });
+
+  it('pide el listado con la búsqueda, el estado y la página, y lo pasa a camelCase', async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ items: [raw], total: 31, page: 2, page_size: 25 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    configureClient({ baseUrl: 'http://api.test', getToken: async () => 'token', onAuthFailure: () => {} });
+
+    const result = await listPlatformAccounts({ query: '  tom ', state: 'suspended', page: 2, pageSize: 25 });
+
+    const url = new URL(String((fetchMock.mock.calls[0] as unknown[])[0]));
+    expect(url.pathname).toBe('/api/v1/admin/users');
+    expect(Object.fromEntries(url.searchParams)).toEqual({ q: 'tom', state: 'suspended', page: '2', page_size: '25' });
+    expect(result).toMatchObject({ total: 31, page: 2, pageSize: 25 });
+    expect(result.items[0].userId).toBe('auth0|u1');
+
+    // Sin búsqueda no manda q
+    await listPlatformAccounts({ query: '   ', state: 'all', page: 1, pageSize: 25 });
+    expect(new URL(String((fetchMock.mock.calls[1] as unknown[])[0])).searchParams.has('q')).toBe(false);
+    vi.unstubAllGlobals();
   });
 
   it('muestra nombre y @usuario, o el email si no tiene perfil', () => {

@@ -34,10 +34,13 @@ describe('backoffice', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/');
     useBackofficeSession.setState({ status: 'loading', user: null, error: null });
-    // Usuarios pide las cuentas suspendidas al abrir: sin ninguna
+    // Usuarios pide el listado y las cuentas suspendidas al abrir: sin ninguna
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })),
+      vi.fn(async (url: string) => {
+        const body = String(url).includes('/admin/users?') ? { items: [], total: 0, page: 1, page_size: 25 } : [];
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+      }),
     );
     configureClient({ baseUrl: 'http://api.test', getToken: async () => 'token', onAuthFailure: () => {} });
   });
@@ -48,15 +51,19 @@ describe('backoffice', () => {
     vi.unstubAllGlobals();
   });
 
-  it('el staff ve el backoffice, con todo en "próximamente" salvo Grafana', async () => {
+  it('el staff ve el backoffice: Usuarios ya funciona y lo que falta dice "próximamente"', async () => {
     setAuthDriver(fakeDriver(async () => tokenWith('staff')));
     renderApp();
 
     expect(await screen.findByRole('navigation', { name: 'Secciones del backoffice' })).toBeTruthy();
     // "/" lleva a la primera sección
     await waitFor(() => expect(window.location.pathname).toBe('/usuarios'));
-    expect(screen.getAllByText('próximamente').length).toBeGreaterThan(0);
     expect(screen.getByText('Ana Staff')).toBeTruthy();
+    expect(await screen.findByText('todavía no hay cuentas')).toBeTruthy();
+    expect(screen.queryByText('próximamente')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /servidores/i }));
+    expect(screen.getAllByText('próximamente').length).toBeGreaterThan(0);
   });
 
   it('cada sección tiene su URL y Observabilidad enlaza a Grafana', async () => {
