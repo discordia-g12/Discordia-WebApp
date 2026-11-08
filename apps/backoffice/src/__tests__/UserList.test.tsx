@@ -143,7 +143,7 @@ describe('Ver listado de usuarios con filtros', () => {
     fireEvent.click(within(row).getByRole('button', { name: '_suspender' }));
 
     const suspendCell = screen.getByRole('region', { name: 'Suspender usuario' });
-    expect((within(suspendCell).getByLabelText(/usuario/) as HTMLInputElement).value).toBe('sofi@mail.com');
+    expect((within(suspendCell).getByLabelText(/^usuario/) as HTMLInputElement).value).toBe('sofi@mail.com');
   });
 
   it('"_reactivar" pide confirmación y reactiva la cuenta', async () => {
