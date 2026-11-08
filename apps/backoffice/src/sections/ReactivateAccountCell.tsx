@@ -10,6 +10,7 @@ import {
   type PlatformAccount,
 } from '@discordia/core';
 import { Cell, Note, Row } from '../layout/Cell';
+import { DialogPortal } from '../layout/DialogPortal';
 import { formatDate } from './types';
 import styles from './sections.module.css';
 
@@ -101,12 +102,14 @@ export function ReactivateAccountCell() {
       <Note>Vuelve a poder iniciar sesión y su perfil vuelve a estar disponible.</Note>
 
       {target && (
-        <ConfirmDialog
-          action="reactivate-user"
-          targetName={platformAccountLabel(target)}
-          onConfirm={confirm}
-          onCancel={() => setTarget(null)}
-        />
+        <DialogPortal>
+          <ConfirmDialog
+            action="reactivate-user"
+            targetName={platformAccountLabel(target)}
+            onConfirm={confirm}
+            onCancel={() => setTarget(null)}
+          />
+        </DialogPortal>
       )}
     </Cell>
   );

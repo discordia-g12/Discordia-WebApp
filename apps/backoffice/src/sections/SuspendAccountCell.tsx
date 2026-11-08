@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BlockButton, ConfirmDialog, UnderlineInput } from '@web/ui';
 import { platformAccountLabel, suspensionErrorMessage, useSuspendAccount, type PlatformAccount } from '@discordia/core';
 import { Cell, Note } from '../layout/Cell';
+import { DialogPortal } from '../layout/DialogPortal';
 import styles from './sections.module.css';
 
 /**
@@ -77,7 +78,9 @@ export function SuspendAccountCell() {
       <Note>No va a poder iniciar sesión, se cierran sus sesiones abiertas y su perfil deja de estar disponible.</Note>
 
       {confirming && (
-        <ConfirmDialog action="suspend-user" targetName={target.trim()} onConfirm={confirm} onCancel={() => setConfirming(false)} />
+        <DialogPortal>
+          <ConfirmDialog action="suspend-user" targetName={target.trim()} onConfirm={confirm} onCancel={() => setConfirming(false)} />
+        </DialogPortal>
       )}
     </Cell>
   );
