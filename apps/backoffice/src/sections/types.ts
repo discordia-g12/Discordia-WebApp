@@ -1,22 +1,9 @@
 /**
- * Filas de los listados del backoffice, con los datos que piden los criterios de aceptación. Son el contrato
- * esperado de los endpoints de staff: al implementarlos (etapa 1), los hooks de React Query devuelven esto.
+ * Tipos de las secciones del backoffice que todavía no tienen endpoint. Son el contrato esperado: al
+ * implementarlos, los hooks de React Query de @discordia/core devuelven esto (como PlatformAccount para usuarios).
  */
 
 export type AccountState = 'active' | 'suspended';
-
-export type AccountStateFilter = 'all' | AccountState;
-
-/** Ver listado de usuarios con filtros: búsqueda por email o nombre, filtro por estado. */
-export interface PlatformUserRow {
-  id: string;
-  displayName: string;
-  username: string;
-  email: string;
-  state: AccountState;
-  /** Fecha de registro (ISO). */
-  createdAt: string;
-}
 
 /** Ver listado de servidores: nombre, cantidad de miembros y fecha de creación; búsqueda por nombre. */
 export interface PlatformServerRow {
@@ -26,12 +13,6 @@ export interface PlatformServerRow {
   state: AccountState;
   createdAt: string;
 }
-
-export const ACCOUNT_STATE_OPTIONS: { value: AccountStateFilter; label: string }[] = [
-  { value: 'all', label: 'todos' },
-  { value: 'active', label: 'activos' },
-  { value: 'suspended', label: 'suspendidos' },
-];
 
 export const ACCOUNT_STATE_LABEL: Record<AccountState, string> = {
   active: 'activo',

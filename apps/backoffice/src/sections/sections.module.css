@@ -123,3 +123,13 @@
   padding: var(--space-3) 0;
   border-bottom: var(--line-hairline) solid var(--color-line);
 }
+
+/* Pie del listado: cuántas cuentas, página y anterior / siguiente */
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: var(--font-meta-size);
+}

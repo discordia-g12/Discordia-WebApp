@@ -43,9 +43,10 @@ describe('Suspender usuario', () => {
     fetchMock.mockReset();
   });
 
+  // "^": la celda también tiene etiqueta ("Suspender usuario") y /usuario/ la encontraría a ella también
   const fill = (user: string, reason: string) => {
-    fireEvent.change(screen.getByLabelText(/usuario/i), { target: { value: user } });
-    fireEvent.change(screen.getByLabelText(/motivo/i), { target: { value: reason } });
+    fireEvent.change(screen.getByLabelText(/^usuario/i), { target: { value: user } });
+    fireEvent.change(screen.getByLabelText(/^motivo/i), { target: { value: reason } });
   };
 
   it('no deja suspender sin usuario y motivo', () => {

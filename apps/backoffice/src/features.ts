@@ -9,7 +9,7 @@
 export type FeatureStatus = 'soon' | 'ready';
 
 const FEATURES = {
-  'users.list': 'soon', // Ver listado de usuarios con filtros (Auth-User)
+  'users.list': 'ready', // Ver listado de usuarios con filtros (Auth-User)
   'users.suspend': 'ready', // Suspender usuario a nivel plataforma (Auth-User, ADR-002 de Auth-User)
   'users.reactivate': 'ready', // Reactivar usuario suspendido
   'servers.list': 'soon', // Ver listado de servidores de la plataforma (Server-Roles)

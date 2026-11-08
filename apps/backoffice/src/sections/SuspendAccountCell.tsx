@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BlockButton, ConfirmDialog, UnderlineInput } from '@web/ui';
 import { platformAccountLabel, suspensionErrorMessage, useSuspendAccount, type PlatformAccount } from '@discordia/core';
 import { Cell, Note } from '../layout/Cell';
@@ -9,13 +9,29 @@ import styles from './sections.module.css';
  * "Suspender usuario a nivel plataforma": a quién (email, @usuario o id) y por qué. Pide confirmación (CA 1:
  * "cuando el staff confirma la suspensión") y muestra el resultado o qué hacer si falló. Si no es staff, Kong y
  * Auth-User responden 403 (CA 3) y se muestra ese mensaje.
+ *
+ * `prefill` lo manda "_suspender" del listado: completa la cuenta y deja el foco en el motivo. La key cambia en
+ * cada pedido, así funciona aunque se elija dos veces la misma cuenta.
  */
-export function SuspendAccountCell() {
+export function SuspendAccountCell({ prefill = null }: { prefill?: { user: string; key: number } | null } = {}) {
   const [target, setTarget] = useState('');
   const [reason, setReason] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [suspended, setSuspended] = useState<PlatformAccount | null>(null);
   const mutation = useSuspendAccount();
+  const { reset } = mutation;
+  const reasonRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!prefill) return;
+    setTarget(prefill.user);
+    setSuspended(null);
+    reset();
+    reasonRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    reasonRef.current?.focus();
+    // Solo cuando llega un pedido nuevo (cambia la key)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill?.key]);
 
   const canSubmit = target.trim() !== '' && reason.trim() !== '' && !mutation.isPending;
 
@@ -53,6 +69,7 @@ export function SuspendAccountCell() {
           placeholder="email, @usuario o id"
         />
         <UnderlineInput
+          ref={reasonRef}
           label="motivo"
           required
           value={reason}
