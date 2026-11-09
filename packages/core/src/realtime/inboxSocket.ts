@@ -10,6 +10,9 @@ export type InboxSocketStatus = Exclude<ChatSocketStatus, 'removed'>;
 /** Lo que Chat-Engine publica en `inbox:<userId>`. */
 export type InboxEvent =
   | { type: 'DM_MESSAGE'; conversationId: string; message: MessageBackendPayload }
+  | { type: 'DM_MESSAGE_UPDATED'; conversationId: string; message: MessageBackendPayload }
+  | { type: 'DM_MESSAGE_DELETED'; conversationId: string; message: MessageBackendPayload }
+  | { type: 'DM_MESSAGE_REACTION_UPDATED'; conversationId: string; message: MessageBackendPayload }
   | { type: 'DM_CONVERSATION'; conversation: Conversation };
 
 export interface InboxSocketHandlers {
@@ -27,7 +30,14 @@ export interface InboxSocketConnection {
 }
 
 function isInboxEvent(data: { type?: unknown; conversationId?: unknown; message?: unknown; conversation?: unknown }) {
-  if (data.type === 'DM_MESSAGE') return typeof data.conversationId === 'string' && Boolean(data.message);
+  if (
+    data.type === 'DM_MESSAGE' ||
+    data.type === 'DM_MESSAGE_UPDATED' ||
+    data.type === 'DM_MESSAGE_DELETED' ||
+    data.type === 'DM_MESSAGE_REACTION_UPDATED'
+  ) {
+    return typeof data.conversationId === 'string' && Boolean(data.message);
+  }
   return data.type === 'DM_CONVERSATION' && Boolean(data.conversation);
 }
 

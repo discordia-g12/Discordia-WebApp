@@ -75,6 +75,7 @@ export type ConfirmAction =
   | 'logout'
   | 'block-user'
   | 'remove-friend'
+  | 'delete-message'
   // Backoffice (apps/backoffice usa el mismo ConfirmDialog)
   | 'suspend-user'
   | 'reactivate-user'

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../client';
-import { getMessages, sendMessage } from '../messages';
+import { deleteMessage, editMessage, getMessages, sendMessage, toggleReaction } from '../messages';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -63,5 +63,139 @@ describe('mensajes', () => {
     expect(msg.attachments?.[0].url).toBe(
       'http://api.test/api/v1/chat/uploads/attachments/c1/att-1-screenshot.png'
     );
+  });
+
+  it('editMessage llama a PATCH con el nuevo contenido y devuelve el mensaje normalizado', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        id: 'm1',
+        content: 'contenido editado',
+        authorId: 'u1',
+        channelId: 'c1',
+        createdAt: '2026-10-20T10:00:00Z',
+        edited: true,
+        editedAt: '2026-10-20T10:05:00Z',
+      })
+    );
+
+    const updated = await editMessage('c1', 'm1', 'contenido editado');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://api.test/api/v1/chat/channels/c1/messages/m1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ content: 'contenido editado' }),
+      })
+    );
+    expect(updated.id).toBe('m1');
+    expect(updated.content).toBe('contenido editado');
+    expect(updated.edited).toBe(true);
+    expect(updated.editedTimestamp).toBe('2026-10-20T10:05:00Z');
+  });
+
+  it('normaliza mensajes con editedAt asignando edited: true y editedTimestamp', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse([
+        {
+          id: 'm1',
+          content: 'editado',
+          authorId: 'u1',
+          channelId: 'c1',
+          createdAt: '2026-10-20T10:00:00Z',
+          edited: true,
+          editedAt: '2026-10-20T10:05:00Z',
+        },
+      ])
+    );
+    const [msg] = await getMessages('c1');
+    expect(msg.edited).toBe(true);
+    expect(msg.editedTimestamp).toBe('2026-10-20T10:05:00Z');
+  });
+
+  it('deleteMessage llama a DELETE y devuelve el mensaje normalizado como deleted', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        id: 'm1',
+        content: '',
+        authorId: 'u1',
+        channelId: 'c1',
+        createdAt: '2026-10-20T10:00:00Z',
+        type: 'deleted',
+        isDeleted: true,
+      })
+    );
+
+    const deleted = await deleteMessage('c1', 'm1');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://api.test/api/v1/chat/channels/c1/messages/m1',
+      expect.objectContaining({
+        method: 'DELETE',
+      })
+    );
+    expect(deleted.id).toBe('m1');
+    expect(deleted.type).toBe('deleted');
+    expect(deleted.content).toBe('');
+  });
+
+  it('normaliza mensajes con isDeleted asignando type deleted y limpiando contenido', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse([
+        {
+          id: 'm-del',
+          content: 'este texto debe borrarse',
+          authorId: 'u1',
+          channelId: 'c1',
+          createdAt: '2026-10-20T10:00:00Z',
+          isDeleted: true,
+          attachments: [{ id: 'att-1', name: 'img.png', url: '/att.png' }],
+        },
+      ])
+    );
+    const [msg] = await getMessages('c1');
+    expect(msg.type).toBe('deleted');
+    expect(msg.content).toBe('');
+    expect(msg.attachments).toBeUndefined();
+  });
+
+  it('toggleReaction llama a PUT con el emoji y devuelve el mensaje normalizado con reacciones', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        id: 'm1',
+        content: 'mensaje',
+        authorId: 'u1',
+        channelId: 'c1',
+        createdAt: '2026-10-20T10:00:00Z',
+        reactions: [{ emoji: '👍', count: 1, users: ['u1'] }],
+      })
+    );
+
+    const updated = await toggleReaction('c1', 'm1', '👍');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://api.test/api/v1/chat/channels/c1/messages/m1/reactions',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ emoji: '👍' }),
+      })
+    );
+    expect(updated.id).toBe('m1');
+    expect(updated.reactions).toEqual([{ emoji: '👍', count: 1, users: ['u1'] }]);
+  });
+
+  it('normaliza mensajes eliminados limpiando también sus reacciones', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse([
+        {
+          id: 'm-del-react',
+          content: 'este texto debe borrarse',
+          authorId: 'u1',
+          channelId: 'c1',
+          createdAt: '2026-10-20T10:00:00Z',
+          isDeleted: true,
+          reactions: [{ emoji: '🔥', count: 2, users: ['u1', 'u2'] }],
+        },
+      ])
+    );
+    const [msg] = await getMessages('c1');
+    expect(msg.type).toBe('deleted');
+    expect(msg.reactions).toEqual([]);
   });
 });

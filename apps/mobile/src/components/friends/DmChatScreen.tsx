@@ -12,7 +12,7 @@ import { useDmConversation, useDmMessages } from '../../hooks/useDmConversation'
 import { usePickAttachment } from '../../hooks/usePickAttachment'
 import { useRelationshipActions } from '../../hooks/useRelationshipActions'
 import { useUserDisplay } from '../../hooks/useUserProfiles'
-import { useUI } from '../../providers/AppProviders'
+import { useData, useUI } from '../../providers/AppProviders'
 import { makeStyles } from '../../theme'
 import { ActionLink, Skeleton } from '../../ui'
 import ChatHeader from '../chat/ChatHeader'
@@ -20,6 +20,7 @@ import Composer, { type PendingAttachment } from '../chat/Composer'
 import MessageList from '../chat/MessageList'
 import ConfirmModal from '../shared/ConfirmModal'
 import { Pane } from '../shell/ShellScreen'
+import type { Message } from '../../types'
 import { ListStatus } from './ListStatus'
 import { FriendRequestCard, MessageRequestCard } from './RequestCards'
 
@@ -31,15 +32,17 @@ interface DmChatScreenProps {
   inboxConnected: boolean
   onBack: () => void
   onOpenProfile: (userId: string) => void
+  onLongPressMessage?: (message: Message) => void
 }
 
 /**
  * Chat directo. Abrirlo no crea nada: la conversación nace con el primer mensaje, y hasta entonces no se ofrece
  * adjuntar. El estado de la relación decide qué va en el encabezado, arriba del historial y en lugar del composer.
  */
-export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile }: DmChatScreenProps) {
+export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile, onLongPressMessage }: DmChatScreenProps) {
   const styles = useStyles()
   const { showToast } = useUI()
+  const { currentUserId, toggleReaction } = useData()
   const appActive = useAppActive()
   const pickAttachment = usePickAttachment()
   const { profileQuery, withQuery, conversation, actions } = useDmConversation(userId)
@@ -152,6 +155,7 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
           welcomeTitle={name}
           welcomeHint={`este es el comienzo de tu conversación con ${name}.`}
           messages={messages}
+          currentUserId={currentUserId}
           describeUser={describeUser}
           hasOlder={history.hasOlder}
           loadingOlder={history.isFetchingOlder}
@@ -159,6 +163,17 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
             history.fetchOlder().catch(() => showToast('No se pudieron cargar los mensajes anteriores', 'error'))
           }}
           onPressAuthor={onOpenProfile}
+          onLongPressMessage={onLongPressMessage}
+          onToggleReaction={
+            conversationId
+              ? (messageId, emoji) => {
+                  toggleReaction(conversationId, messageId, emoji).catch((err) => {
+                    const msg = err instanceof Error ? err.message : 'No se pudo actualizar la reacción'
+                    showToast(msg, 'error')
+                  })
+                }
+              : undefined
+          }
         />
         {actions.canRespondMessageRequest && conversationId ? (
           <MessageRequestCard

@@ -147,6 +147,34 @@ describe('useInbox', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: conversationWithQueryKey('other') });
   });
 
+  it('DM_MESSAGE_REACTION_UPDATED actualiza las reacciones en el caché del historial', () => {
+    const { queryClient, wrapper } = setup();
+    queryClient.setQueryData(conversationsQueryKey, [conversation('dm-1')]);
+    queryClient.setQueryData<MessagePages>(messagesQueryKey('dm-1'), {
+      pages: [[{ id: 'm1', content: 'hola', authorId: 'other', channelId: 'dm-1', timestamp: '2026-05-01T00:00:00.000Z', reactions: [] }]],
+      pageParams: [undefined],
+    });
+    renderHook(() => useInbox(), { wrapper });
+
+    act(() =>
+      lastConnection().handlers.onEvent({
+        type: 'DM_MESSAGE_REACTION_UPDATED',
+        conversationId: 'dm-1',
+        message: {
+          id: 'm1',
+          content: 'hola',
+          authorId: 'other',
+          channelId: 'dm-1',
+          createdAt: '2026-05-01T00:00:00.000Z',
+          reactions: [{ emoji: '❤️', count: 1, users: ['other'] }],
+        },
+      })
+    );
+
+    const pages = queryClient.getQueryData<MessagePages>(messagesQueryKey('dm-1'));
+    expect(pages?.pages[0][0].reactions).toEqual([{ emoji: '❤️', count: 1, users: ['other'] }]);
+  });
+
   it('solo pide las conversaciones de nuevo si la conexión volvió, no la primera vez', () => {
     const { wrapper, invalidate } = setup();
     renderHook(() => useInbox(), { wrapper });

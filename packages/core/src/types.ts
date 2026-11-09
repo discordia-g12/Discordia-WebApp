@@ -39,6 +39,7 @@ export interface Reaction {
   emoji: string;
   count: number;
   users: string[];
+  emojiId?: string;
   reacted?: boolean;
   hasReacted?: boolean;
 }
@@ -227,7 +228,18 @@ export interface MessageBackendPayload {
   authorId: string;
   channelId: string;
   createdAt: string;
+  edited?: boolean;
+  editedAt?: string | null;
+  editedTimestamp?: string | null;
+  type?: string;
+  mentions?: MessageMentions;
   attachments?: MessageAttachment[];
+  reactions?: Array<{
+    emoji: string;
+    count: number;
+    users: string[];
+    emojiId?: string;
+  }>;
 }
 
 /** Canal individual perteneciente a una categoría de servidor. */
@@ -298,6 +310,7 @@ export interface Message {
   userId?: string;
   author?: User;
   editedTimestamp?: string | null;
+  editedAt?: string | null;
   edited?: boolean;
   type?: MessageType;
   reactions?: Reaction[];

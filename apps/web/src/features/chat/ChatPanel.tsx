@@ -23,6 +23,12 @@ export function ChatPanel() {
   const channelId = selectedServerId !== 'home' ? selectedChannelId : null;
   const actions = useMessageActions(channelId);
   const writeBlock = useChatWriteBlock();
+  const canManageMessages = currentChannel
+    ? canInChannel(currentServer, currentChannel, currentUser.id, 'MANAGE_MESSAGES')
+    : false;
+  const canAddReactions = currentChannel
+    ? canInChannel(currentServer, currentChannel, currentUser.id, 'ADD_REACTIONS')
+    : true;
   const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder } = useChannelMessagesQuery(channelId);
 
   // Menciones: miembros (con su perfil si ya llegó), roles del servidor y si puede usar @everyone y roles
@@ -51,6 +57,8 @@ export function ChatPanel() {
   return (
     <ChatView
       channel={currentChannel}
+      canManageMessages={canManageMessages}
+      canAddReactions={canAddReactions}
       messages={realMessages || []}
       isLoading={isLoading}
       hasOlderMessages={hasOlder}

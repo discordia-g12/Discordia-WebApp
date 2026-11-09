@@ -8,13 +8,18 @@ import React, {
   useState,
 } from 'react'
 import { AppState } from 'react-native'
-import type { User, Server, Category, Channel, Message, MessageAttachment, MessageBackendPayload } from '../types'
+import { useQueryClient } from '@tanstack/react-query'
+import type { User, Server, Category, Channel, Message, MessageAttachment, MessageBackendPayload, Reaction } from '../types'
 import { useAuth } from './AuthProvider'
 import {
   getMessages,
   MESSAGES_PAGE_SIZE,
   getServers,
   sendMessage as apiSendMessage,
+  editMessage as apiEditMessage,
+  deleteMessage as apiDeleteMessage,
+  toggleReaction as apiToggleReaction,
+  updateCachedMessages,
   createServer as apiCreateServer,
   updateServerIcon as apiUpdateServerIcon,
   removeServerIcon as apiRemoveServerIcon,
@@ -68,6 +73,9 @@ interface DataContextValue {
 
   // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => void
+  editMessage: (channelId: string, messageId: string, content: string) => Promise<Message>
+  deleteMessage: (channelId: string, messageId: string) => Promise<void>
+  toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<Message>
   addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
   failOptimisticMessage: (channelId: string) => void
@@ -79,6 +87,7 @@ interface DataContextValue {
 const DataContext = createContext<DataContextValue | null>(null)
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient()
   const { token, userProfile } = useAuth()
 
   const activeUserId = userProfile?.id ?? ''
@@ -383,6 +392,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             ...updated[existingIndex],
             status: 'sent',
             content: payload.content,
+            edited: payload.edited ?? (payload.editedTimestamp ? true : updated[existingIndex].edited),
+            editedTimestamp: payload.editedTimestamp ?? updated[existingIndex].editedTimestamp,
+            reactions: payload.reactions !== undefined ? payload.reactions : updated[existingIndex].reactions,
           }
           return { ...prev, [channelId]: updated }
         }
@@ -407,6 +419,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               createdAt: payload.createdAt,
               timestamp: payload.createdAt,
               status: 'sent',
+              reactions: payload.reactions ?? updated[pendingIndex].reactions ?? [],
             }
             return { ...prev, [channelId]: updated }
           }
@@ -422,6 +435,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           timestamp: payload.createdAt,
           type: 'normal',
           status: 'sent',
+          reactions: payload.reactions ?? [],
         }
         return { ...prev, [channelId]: [...list, newMsg] }
       })
@@ -454,6 +468,270 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [addOptimisticMessage, confirmOptimisticMessage, failOptimisticMessage],
   )
 
+  const editMessage = useCallback(
+    async (channelId: string, messageId: string, newContent: string): Promise<Message> => {
+      let previousContent = ''
+      let previousEdited = false
+      let previousEditedTimestamp: string | null | undefined = null
+
+      const updateRq = (update: (list: Message[]) => Message[]) => {
+        updateCachedMessages(queryClient, channelId, update)
+      }
+
+      setMessages(prev => {
+        const list = prev[channelId] ?? []
+        return {
+          ...prev,
+          [channelId]: list.map(m => {
+            if (m.id === messageId) {
+              previousContent = m.content
+              previousEdited = m.edited ?? false
+              previousEditedTimestamp = m.editedTimestamp
+              return {
+                ...m,
+                content: newContent,
+                edited: true,
+                editedTimestamp: new Date().toISOString(),
+              }
+            }
+            return m
+          }),
+        }
+      })
+      updateRq(list =>
+        list.map(m =>
+          m.id === messageId
+            ? {
+                ...m,
+                content: newContent,
+                edited: true,
+                editedTimestamp: new Date().toISOString(),
+              }
+            : m
+        )
+      )
+
+      try {
+        const updated = await apiEditMessage(channelId, messageId, newContent)
+        setMessages(prev => {
+          const list = prev[channelId] ?? []
+          return {
+            ...prev,
+            [channelId]: list.map(m => (m.id === messageId ? updated : m)),
+          }
+        })
+        updateRq(list => list.map(m => (m.id === messageId ? updated : m)))
+        return updated
+      } catch (err) {
+        setMessages(prev => {
+          const list = prev[channelId] ?? []
+          return {
+            ...prev,
+            [channelId]: list.map(m =>
+              m.id === messageId
+                ? { ...m, content: previousContent, edited: previousEdited, editedTimestamp: previousEditedTimestamp }
+                : m
+            ),
+          }
+        })
+        updateRq(list =>
+          list.map(m =>
+            m.id === messageId
+              ? { ...m, content: previousContent, edited: previousEdited, editedTimestamp: previousEditedTimestamp }
+              : m
+          )
+        )
+        throw err
+      }
+    },
+    [queryClient]
+  )
+
+  const deleteMessage = useCallback(
+    async (channelId: string, messageId: string): Promise<void> => {
+      let previousMessage: Message | undefined
+
+      const updateRq = (update: (list: Message[]) => Message[]) => {
+        updateCachedMessages(queryClient, channelId, update)
+      }
+
+      setMessages(prev => {
+        const list = prev[channelId] ?? []
+        previousMessage = list.find(m => m.id === messageId)
+        return {
+          ...prev,
+          [channelId]: list.map(m =>
+            m.id === messageId
+              ? { ...m, type: 'deleted' as const, content: '', attachments: [] }
+              : m
+          ),
+        }
+      })
+      updateRq(list =>
+        list.map(m =>
+          m.id === messageId
+            ? { ...m, type: 'deleted' as const, content: '', attachments: [] }
+            : m
+        )
+      )
+
+      try {
+        await apiDeleteMessage(channelId, messageId)
+      } catch (err) {
+        if (previousMessage) {
+          const prevMsg = previousMessage
+          setMessages(prev => {
+            const list = prev[channelId] ?? []
+            return {
+              ...prev,
+              [channelId]: list.map(m => (m.id === messageId ? prevMsg : m)),
+            }
+          })
+          updateRq(list => list.map(m => (m.id === messageId ? prevMsg : m)))
+        }
+        throw err
+      }
+    },
+    [queryClient]
+  )
+
+  const toggleReaction = useCallback(
+    async (channelId: string, messageId: string, emoji: string): Promise<Message> => {
+      let previousReactions: Reaction[] | undefined
+
+      const updateRq = (update: (list: Message[]) => Message[]) => {
+        updateCachedMessages(queryClient, channelId, update)
+      }
+
+      setMessages(prev => {
+        const list = prev[channelId] ?? []
+        const msg = list.find(m => m.id === messageId)
+        if (msg) {
+          previousReactions = msg.reactions ? [...msg.reactions] : []
+        }
+        return {
+          ...prev,
+          [channelId]: list.map(m => {
+            if (m.id !== messageId) return m
+            const reactions = m.reactions || []
+            const existing = reactions.find(r => r.emoji === emoji)
+            const hasReacted = existing
+              ? (existing.hasReacted ?? existing.reacted ?? existing.users.includes(activeUserId))
+              : false
+
+            let nextReactions: Reaction[]
+            if (existing && hasReacted) {
+              nextReactions = reactions
+                .map(r =>
+                  r.emoji === emoji
+                    ? {
+                        ...r,
+                        count: r.count - 1,
+                        reacted: false,
+                        hasReacted: false,
+                        users: (r.users || []).filter(u => u !== activeUserId),
+                      }
+                    : r
+                )
+                .filter(r => r.count > 0)
+            } else if (existing) {
+              nextReactions = reactions.map(r =>
+                r.emoji === emoji
+                  ? {
+                      ...r,
+                      count: r.count + 1,
+                      reacted: true,
+                      hasReacted: true,
+                      users: [...(r.users || []), activeUserId],
+                    }
+                  : r
+              )
+            } else {
+              nextReactions = [
+                ...reactions,
+                { emoji, count: 1, reacted: true, hasReacted: true, users: [activeUserId] },
+              ]
+            }
+            return { ...m, reactions: nextReactions }
+          }),
+        }
+      })
+
+      updateRq(list =>
+        list.map(m => {
+          if (m.id !== messageId) return m
+          const reactions = m.reactions || []
+          const existing = reactions.find(r => r.emoji === emoji)
+          const hasReacted = existing
+            ? (existing.hasReacted ?? existing.reacted ?? existing.users.includes(activeUserId))
+            : false
+
+          let nextReactions: Reaction[]
+          if (existing && hasReacted) {
+            nextReactions = reactions
+              .map(r =>
+                r.emoji === emoji
+                  ? {
+                      ...r,
+                      count: r.count - 1,
+                      reacted: false,
+                      hasReacted: false,
+                      users: (r.users || []).filter(u => u !== activeUserId),
+                    }
+                  : r
+              )
+              .filter(r => r.count > 0)
+          } else if (existing) {
+            nextReactions = reactions.map(r =>
+              r.emoji === emoji
+                ? {
+                    ...r,
+                    count: r.count + 1,
+                    reacted: true,
+                    hasReacted: true,
+                    users: [...(r.users || []), activeUserId],
+                  }
+                : r
+            )
+          } else {
+            nextReactions = [
+              ...reactions,
+              { emoji, count: 1, reacted: true, hasReacted: true, users: [activeUserId] },
+            ]
+          }
+          return { ...m, reactions: nextReactions }
+        })
+      )
+
+      try {
+        const updated = await apiToggleReaction(channelId, messageId, emoji)
+        setMessages(prev => {
+          const list = prev[channelId] ?? []
+          return {
+            ...prev,
+            [channelId]: list.map(m => (m.id === messageId ? { ...m, reactions: updated.reactions } : m)),
+          }
+        })
+        updateRq(list => list.map(m => (m.id === messageId ? { ...m, reactions: updated.reactions } : m)))
+        return updated
+      } catch (err) {
+        if (previousReactions !== undefined) {
+          const prevReactions = previousReactions
+          setMessages(prev => {
+            const list = prev[channelId] ?? []
+            return {
+              ...prev,
+              [channelId]: list.map(m => (m.id === messageId ? { ...m, reactions: prevReactions } : m)),
+            }
+          })
+          updateRq(list => list.map(m => (m.id === messageId ? { ...m, reactions: prevReactions } : m)))
+        }
+        throw err
+      }
+    },
+    [activeUserId, queryClient]
+  )
+
   const setServerIcon = useCallback(async (serverId: string, icon: UploadableFile | null): Promise<void> => {
     const updated = icon ? await apiUpdateServerIcon(serverId, icon) : await apiRemoveServerIcon(serverId)
     // Solo el ícono: el resto del servidor (canales, categorías) ya está al día en la lista
@@ -481,6 +759,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       leaveServer,
       deleteServer,
       sendMessage,
+      editMessage,
+      deleteMessage,
+      toggleReaction,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,
@@ -507,6 +788,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       leaveServer,
       deleteServer,
       sendMessage,
+      editMessage,
+      deleteMessage,
+      toggleReaction,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,

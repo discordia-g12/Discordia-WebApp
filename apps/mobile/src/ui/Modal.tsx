@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, type ComponentRef } from 'react'
 import { Animated, KeyboardAvoidingView, Modal as RNModal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from 'lucide-react-native'
@@ -20,6 +20,9 @@ interface ModalProps {
   /** alertdialog: confirmaciones de acciones que no se pueden deshacer. */
   role?: 'dialog' | 'alertdialog'
   children: React.ReactNode
+  scrollRef?: React.RefObject<ComponentRef<typeof ScrollView> | null>
+  /** Encabezado fijo adicional bajo el título que no scrollea con el contenido. */
+  pinnedHeader?: React.ReactNode
 }
 
 /**
@@ -27,7 +30,7 @@ interface ModalProps {
  * desde arriba como una cortina, con el título en display y el contenido debajo. Se cierra con la ×,
  * tocando afuera o con el botón atrás de Android; sale subiendo.
  */
-export function Modal({ visible, title, description, onClose, role = 'dialog', children }: ModalProps) {
+export function Modal({ visible, title, description, onClose, role = 'dialog', children, scrollRef, pinnedHeader }: ModalProps) {
   const styles = useStyles()
   const { colors } = useTheme()
   const reduce = useReducedMotion()
@@ -87,7 +90,8 @@ export function Modal({ visible, title, description, onClose, role = 'dialog', c
               <X color={colors.text} size={22} strokeWidth={1.5} />
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" bounces={false}>
+          {pinnedHeader}
+          <ScrollView ref={scrollRef} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" bounces={false}>
             {children}
           </ScrollView>
         </Animated.View>

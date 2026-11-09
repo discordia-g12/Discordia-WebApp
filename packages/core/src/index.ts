@@ -55,6 +55,7 @@ export * from './admin/userSuspensions';
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';
 export * from './chat/mentions';
+export * from './chat/emojis';
 export * from './realtime/chatSocket';
 export * from './realtime/inboxSocket';
 

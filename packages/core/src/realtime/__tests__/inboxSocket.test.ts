@@ -67,7 +67,7 @@ describe('openInboxSocket', () => {
     connection.close();
   });
 
-  it('entrega los dos tipos de evento', async () => {
+  it('entrega los tipos de evento', async () => {
     const onEvent = vi.fn();
     const connection = openInboxSocket({ onEvent });
     await vi.advanceTimersByTimeAsync(0);
@@ -75,10 +75,16 @@ describe('openInboxSocket', () => {
 
     const message = { type: 'DM_MESSAGE', conversationId: 'dm-1', message: { id: 'm1' } };
     const conversation = { type: 'DM_CONVERSATION', conversation: { id: 'dm-1' } };
+    const reaction = {
+      type: 'DM_MESSAGE_REACTION_UPDATED',
+      conversationId: 'dm-1',
+      message: { id: 'm1', reactions: [{ emoji: '👍', count: 1, users: ['u1'] }] },
+    };
     last().receive(message);
     last().receive(conversation);
+    last().receive(reaction);
 
-    expect(onEvent.mock.calls).toEqual([[message], [conversation]]);
+    expect(onEvent.mock.calls).toEqual([[message], [conversation], [reaction]]);
     connection.close();
   });
 

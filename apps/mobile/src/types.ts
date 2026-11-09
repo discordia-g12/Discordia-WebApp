@@ -10,6 +10,7 @@ export type {
   MessageAttachment,
   MessageBackendPayload,
   MessageType,
+  Reaction,
   Role,
   RoleBackendResponse,
   RoleMember,

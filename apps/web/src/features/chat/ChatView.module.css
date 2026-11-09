@@ -436,6 +436,11 @@
   right: var(--space-5);
 }
 
+.messagePopoverUp {
+  top: auto;
+  bottom: calc(100% - var(--space-2));
+}
+
 .pinned {
   top: calc(var(--space-7) - 1px);
   right: var(--space-5);
@@ -482,6 +487,66 @@
   text-underline-offset: 2px;
 }
 
+.dangerLink {
+  color: var(--color-danger);
+}
+
+.categoryNav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.categoryNavButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.categoryNavButton:hover {
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+}
+
+.emojiPicker {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-right: var(--space-1);
+}
+
+.emojiCategory {
+  display: flex;
+  flex-direction: column;
+}
+
+.emojiCategoryTitle {
+  font-size: var(--font-label-size);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-1);
+}
+
+.emojiPlaceholder {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+  font-style: italic;
+  padding: var(--space-1) 0;
+}
+
 .emojiGrid {
   display: grid;
   grid-template-columns: repeat(8, var(--space-6));
@@ -524,6 +589,12 @@
 .composerPopover {
   bottom: calc(100% + var(--space-2));
   left: var(--space-5);
+}
+
+.composerEmojiPopover {
+  bottom: calc(100% + var(--space-2));
+  right: var(--space-5);
+  left: auto;
 }
 
 .mentionOption[aria-selected='true'] {

@@ -120,6 +120,27 @@ describe('openChatSocket', () => {
     connection.close();
   });
 
+  it('entrega MESSAGE_REACTION_UPDATED a onMessageUpdated', async () => {
+    const onMessageUpdated = vi.fn();
+    const connection = openChatSocket('c1', { onMessage: vi.fn(), onMessageUpdated });
+    await vi.advanceTimersByTimeAsync(0);
+    FakeWebSocket.instances[0].open();
+
+    const payload = {
+      type: 'MESSAGE_REACTION_UPDATED',
+      id: 'm1',
+      content: 'hola',
+      authorId: 'u1',
+      channelId: 'c1',
+      createdAt: '2026-10-20T10:00:00Z',
+      reactions: [{ emoji: '👍', count: 1, users: ['u1'] }],
+    };
+    FakeWebSocket.instances[0].receive(payload);
+
+    expect(onMessageUpdated).toHaveBeenCalledWith(payload);
+    connection.close();
+  });
+
   it('reconnect() cambia de socket al instante y el viejo no programa otra reconexión', async () => {
     const connection = openChatSocket('c1', { onMessage: vi.fn() });
     await vi.advanceTimersByTimeAsync(0);

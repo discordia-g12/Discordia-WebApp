@@ -65,6 +65,8 @@ export function placeMessage(prev: ChatLine | null, msg: ChatLine): { newDay: Da
     prev.authorId === msg.authorId &&
     prev.type !== 'system' &&
     msg.type !== 'system' &&
+    prev.type !== 'deleted' &&
+    msg.type !== 'deleted' &&
     Math.abs(new Date(msg.timestamp).getTime() - new Date(prev.timestamp).getTime()) < GROUP_WINDOW_MS;
   return { newDay, grouped };
 }
