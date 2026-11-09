@@ -1,5 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { deleteMessage as apiDeleteMessage, editMessage as apiEditMessage, updateCachedMessages } from '@discordia/core';
+import {
+  deleteMessage as apiDeleteMessage,
+  editMessage as apiEditMessage,
+  toggleReaction as apiToggleReaction,
+  updateCachedMessages,
+} from '@discordia/core';
 import type { Message, MessageAttachment, Reaction } from '../../types';
 import { showToast } from '../../app/uiStore';
 import { useCurrentUser } from '../profile/currentUserStore';
@@ -33,50 +38,75 @@ export function useMessageActions(channelId: string | null) {
   };
 
   // Alternar reacción emoji
-  const toggleReaction = (messageId: string, emoji: string) => {
-    const updater = (list: Message[]) => {
-      return list.map((msg) => {
-        if (msg.id !== messageId) return msg;
-        const reactions = msg.reactions || [];
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    if (!channelId) return;
+
+    let previousReactions: Reaction[] | undefined;
+
+    updateMessages((list) => {
+      const msg = list.find((m) => m.id === messageId);
+      if (msg) {
+        previousReactions = msg.reactions ? [...msg.reactions] : [];
+      }
+      return list.map((m) => {
+        if (m.id !== messageId) return m;
+        const reactions = m.reactions || [];
         const existing = reactions.find((r) => r.emoji === emoji);
+        const hasReacted = existing
+          ? (existing.hasReacted ?? existing.reacted ?? existing.users.includes(currentUser.id))
+          : false;
+
         let nextReactions: Reaction[];
-        if (existing) {
-          if (existing.reacted) {
-            nextReactions = reactions
-              .map((r) =>
-                r.emoji === emoji
-                  ? {
+        if (existing && hasReacted) {
+          nextReactions = reactions
+            .map((r) =>
+              r.emoji === emoji
+                ? {
                     ...r,
                     count: r.count - 1,
                     reacted: false,
+                    hasReacted: false,
                     users: (r.users || []).filter((u) => u !== currentUser.id),
                   }
-                  : r,
-              )
-              .filter((r) => r.count > 0);
-          } else {
-            nextReactions = reactions.map((r) =>
-              r.emoji === emoji
-                ? {
+                : r
+            )
+            .filter((r) => r.count > 0);
+        } else if (existing) {
+          nextReactions = reactions.map((r) =>
+            r.emoji === emoji
+              ? {
                   ...r,
                   count: r.count + 1,
                   reacted: true,
+                  hasReacted: true,
                   users: [...(r.users || []), currentUser.id],
                 }
-                : r,
-            );
-          }
+              : r
+          );
         } else {
           nextReactions = [
             ...reactions,
-            { emoji, count: 1, reacted: true, users: [currentUser.id] },
+            { emoji, count: 1, reacted: true, hasReacted: true, users: [currentUser.id] },
           ];
         }
-        return { ...msg, reactions: nextReactions };
+        return { ...m, reactions: nextReactions };
       });
-    };
+    });
 
-    updateMessages(updater);
+    try {
+      const updated = await apiToggleReaction(channelId, messageId, emoji);
+      updateMessages((list) =>
+        list.map((m) => (m.id === messageId ? { ...m, reactions: updated.reactions } : m))
+      );
+    } catch (err: unknown) {
+      if (previousReactions !== undefined) {
+        updateMessages((list) =>
+          list.map((m) => (m.id === messageId ? { ...m, reactions: previousReactions } : m))
+        );
+      }
+      const message = err instanceof Error ? err.message : 'No se pudo actualizar la reacción';
+      showToast(message, 'danger');
+    }
   };
 
   // Eliminar mensaje

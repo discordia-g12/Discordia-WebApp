@@ -1,14 +1,24 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type Dispatch,
+  type KeyboardEvent,
+  type SetStateAction,
+} from 'react';
 import { encodeMentions, validateAttachmentFile, uploadAttachment, type PickedMention } from '@discordia/core';
 import type { Channel, Message, MessageAttachment, Reaction, Role, User } from '../../types';
 import { showToast, useUIStore } from '../../app/uiStore';
 
-/** Emojis disponibles para reacciones rápidas y selector. */
-export const QUICK_EMOJIS = ['❤️', '👍', '😂', '🚀', '🔥', '🎉', '👏', '👀'];
-export const POPULAR_EMOJIS = [
-  '😀', '😂', '😍', '😎', '🥳', '🤔', '🙌', '👍',
-  '❤️', '🔥', '✨', '🚀', '💯', '🛡️', '⚡', '☕'
-];
+export {
+  QUICK_EMOJIS,
+  POPULAR_EMOJIS,
+  EMOJI_CATEGORIES,
+  type EmojiCategory,
+} from '@discordia/core';
 
 /**
  * Limpia caracteres nulos \x00 para evitar fallos de persistencia en PostgreSQL.
@@ -105,11 +115,44 @@ export function useChatViewState({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Menús flotantes e interactivos
-  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpenRaw] = useState(false);
   const [isPinnedPanelOpen, setIsPinnedPanelOpen] = useState(false);
   const [isNotificationsMuted, setIsNotificationsMuted] = useState(false);
-  const [activeContextMenuMessageId, setActiveContextMenuMessageId] = useState<string | null>(null);
-  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+  const [activeContextMenuMessageId, setActiveContextMenuMessageIdRaw] = useState<string | null>(null);
+  const [reactionPickerMessageId, setReactionPickerMessageIdRaw] = useState<string | null>(null);
+
+  const setIsEmojiPickerOpen: Dispatch<SetStateAction<boolean>> = useCallback((action) => {
+    setIsEmojiPickerOpenRaw((prev) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (next) {
+        setActiveContextMenuMessageIdRaw(null);
+        setReactionPickerMessageIdRaw(null);
+      }
+      return next;
+    });
+  }, []);
+
+  const setActiveContextMenuMessageId: Dispatch<SetStateAction<string | null>> = useCallback((action) => {
+    setActiveContextMenuMessageIdRaw((prev) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (next) {
+        setIsEmojiPickerOpenRaw(false);
+        setReactionPickerMessageIdRaw(null);
+      }
+      return next;
+    });
+  }, []);
+
+  const setReactionPickerMessageId: Dispatch<SetStateAction<string | null>> = useCallback((action) => {
+    setReactionPickerMessageIdRaw((prev) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (next) {
+        setIsEmojiPickerOpenRaw(false);
+        setActiveContextMenuMessageIdRaw(null);
+      }
+      return next;
+    });
+  }, []);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionCursorIndex, setMentionCursorIndex] = useState<number>(-1);

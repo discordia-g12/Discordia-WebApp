@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Paperclip, Smile } from 'lucide-react';
 import { distances } from '@discordia/tokens';
@@ -16,8 +16,9 @@ import {
 } from '@discordia/core';
 import type { Channel, Message, MessageAttachment, Role, User } from '../../types';
 import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
+import { showToast } from '../../app/uiStore';
 import {
-  POPULAR_EMOJIS,
+  EMOJI_CATEGORIES,
   QUICK_EMOJIS,
   mentionLabel,
   sanitizeText,
@@ -49,6 +50,8 @@ export interface ChatViewProps {
   onSendMessage?: (content: string, attachment?: MessageAttachment, replyToId?: string) => void;
   /** Callback al alternar una reacción emoji. */
   onToggleReaction?: (messageId: string, emoji: string) => void;
+  /** Si el usuario actual tiene permiso para reaccionar a mensajes en este canal. */
+  canAddReactions?: boolean;
   /** Si el usuario actual puede moderar/eliminar mensajes ajenos en este canal. */
   canManageMessages?: boolean;
   /** Callback al eliminar un mensaje. */
@@ -360,6 +363,7 @@ export function ChatView(props: ChatViewProps) {
                     users={users}
                     currentUserId={currentUserId}
                     canManageMessages={props.canManageMessages}
+                    canAddReactions={props.canAddReactions ?? true}
                     myRoleIds={myRoleIds}
                     names={names}
                     consecutive={consecutive}
@@ -396,6 +400,7 @@ function MessageRow({
   users,
   currentUserId,
   canManageMessages,
+  canAddReactions = true,
   myRoleIds,
   names,
   consecutive,
@@ -407,6 +412,7 @@ function MessageRow({
   users: Record<string, User>;
   currentUserId?: string;
   canManageMessages?: boolean;
+  canAddReactions?: boolean;
   myRoleIds?: string[];
   names: MentionNames;
   consecutive: boolean;
@@ -419,6 +425,21 @@ function MessageRow({
     animate: { opacity: 1, y: 0 },
     transition: reduce ? transitions.reduced : transitions.base,
   } as const;
+
+  const rowRef = useRef<HTMLLIElement | null>(null);
+  const [openUpwards, setOpenUpwards] = useState(false);
+  const menuOpen = chat.activeContextMenuMessageId === msg.id;
+  const pickerOpen = chat.reactionPickerMessageId === msg.id;
+
+  useLayoutEffect(() => {
+    if (pickerOpen || menuOpen) {
+      if (rowRef.current && typeof window !== 'undefined') {
+        const rect = rowRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        setOpenUpwards(spaceBelow < 320);
+      }
+    }
+  }, [pickerOpen, menuOpen]);
 
   if (msg.type === 'deleted') {
     return (
@@ -447,12 +468,11 @@ function MessageRow({
   const mentionsMe = !isAuthor && mentionsUser(msg.mentions, currentUserId ?? '', myRoleIds);
   const isEditing = chat.editingMessageId === msg.id;
   const isReplying = chat.replyingTo?.id === msg.id;
-  const menuOpen = chat.activeContextMenuMessageId === msg.id;
-  const pickerOpen = chat.reactionPickerMessageId === msg.id;
   const openProfile = () => onOpenUserProfile?.(author.id);
 
   return (
     <motion.li
+      ref={rowRef}
       className={[
         styles.message,
         consecutive ? styles.compact : '',
@@ -543,7 +563,13 @@ function MessageRow({
                   key={r.emoji}
                   type="button"
                   className={`${styles.reaction} ${active ? styles.reactionActive : ''}`}
-                  onClick={() => chat.handleToggleReaction(msg.id, r.emoji)}
+                  onClick={() => {
+                    if (!active && !canAddReactions) {
+                      showToast('No tenés permiso para agregar reacciones', 'danger');
+                      return;
+                    }
+                    chat.handleToggleReaction(msg.id, r.emoji);
+                  }}
                   aria-pressed={active}
                   aria-label={`${r.emoji} ${r.count}`}
                 >
@@ -558,20 +584,23 @@ function MessageRow({
       {/* Acciones al pasar el mouse o con foco dentro del mensaje */}
       {!isEditing && (
         <div className={styles.tools}>
-          {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              className={styles.toolEmoji}
-              onClick={() => chat.handleToggleReaction(msg.id, emoji)}
-              aria-label={`Reaccionar con ${emoji}`}
-            >
-              {emoji}
-            </button>
-          ))}
-          <ActionLink onPress={() => chat.setReactionPickerMessageId(pickerOpen ? null : msg.id)} aria-expanded={pickerOpen}>
-            reaccionar
-          </ActionLink>
+          {canAddReactions &&
+            QUICK_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className={styles.toolEmoji}
+                onClick={() => chat.handleToggleReaction(msg.id, emoji)}
+                aria-label={`Reaccionar con ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          {canAddReactions && (
+            <ActionLink onPress={() => chat.setReactionPickerMessageId(pickerOpen ? null : msg.id)} aria-expanded={pickerOpen}>
+              reaccionar
+            </ActionLink>
+          )}
           <ActionLink onPress={() => chat.setReplyingTo(msg)}>responder</ActionLink>
           {isAuthor && <ActionLink onPress={() => chat.handleStartEdit(msg)}>editar</ActionLink>}
           {canDelete && (
@@ -586,13 +615,21 @@ function MessageRow({
       )}
 
       {pickerOpen && (
-        <Popover className={styles.messagePopover} label="Reacciones" onClose={() => chat.setReactionPickerMessageId(null)}>
+        <Popover
+          className={`${styles.messagePopover} ${openUpwards ? styles.messagePopoverUp : ''}`}
+          label="Reacciones"
+          onClose={() => chat.setReactionPickerMessageId(null)}
+        >
           <EmojiGrid onPick={(emoji) => chat.handleToggleReaction(msg.id, emoji)} />
         </Popover>
       )}
 
       {menuOpen && (
-        <Popover className={styles.messagePopover} label="Más acciones" onClose={() => chat.setActiveContextMenuMessageId(null)}>
+        <Popover
+          className={`${styles.messagePopover} ${openUpwards ? styles.messagePopoverUp : ''}`}
+          label="Más acciones"
+          onClose={() => chat.setActiveContextMenuMessageId(null)}
+        >
           <ul className={styles.menu}>
             <li>
               <button type="button" onClick={() => chat.handleCopyText(mentionsToText(msg.content, names), msg.id)}>
@@ -799,7 +836,7 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
       )}
 
       {chat.isEmojiPickerOpen && (
-        <Popover className={styles.composerPopover} label="Emojis" onClose={() => chat.setIsEmojiPickerOpen(false)}>
+        <Popover className={styles.composerEmojiPopover} label="Emojis" onClose={() => chat.setIsEmojiPickerOpen(false)}>
           <EmojiGrid
             onPick={(emoji) => {
               chat.setInputText((prev) => prev + emoji);
@@ -870,21 +907,90 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
 // ==========================================
 
 function EmojiGrid({ onPick }: { onPick: (emoji: string) => void }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const handleJumpToCategory = (catId: string) => {
+    if (!containerRef.current) return;
+    const target = containerRef.current.querySelector<HTMLElement>(`[data-category="${catId}"]`);
+    if (target) {
+      const top = target.offsetTop - containerRef.current.offsetTop;
+      if (typeof containerRef.current.scrollTo === 'function') {
+        containerRef.current.scrollTo({ top, behavior: 'smooth' });
+      } else {
+        containerRef.current.scrollTop = top;
+      }
+    }
+  };
+
   return (
-    <div className={styles.emojiGrid}>
-      {POPULAR_EMOJIS.map((emoji) => (
-        <button key={emoji} type="button" className={styles.emoji} onClick={() => onPick(emoji)} aria-label={emoji}>
-          {emoji}
-        </button>
-      ))}
+    <div>
+      <nav className={styles.categoryNav} aria-label="Categorías de emojis">
+        {EMOJI_CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            type="button"
+            className={styles.categoryNavButton}
+            onClick={() => handleJumpToCategory(cat.id)}
+            title={cat.name}
+            aria-label={cat.name}
+          >
+            {cat.icon}
+          </button>
+        ))}
+      </nav>
+
+      <div ref={containerRef} className={styles.emojiPicker}>
+        {EMOJI_CATEGORIES.map((cat) => (
+          <div key={cat.id} data-category={cat.id} className={styles.emojiCategory}>
+            <div className={styles.emojiCategoryTitle}>{cat.name}</div>
+            {cat.isPlaceholder ? (
+              <div className={styles.emojiPlaceholder}>{cat.description}</div>
+            ) : (
+              <div className={styles.emojiGrid}>
+                {cat.emojis.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className={styles.emoji}
+                    onClick={() => onPick(emoji)}
+                    aria-label={emoji}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-/** Panel flotante de línea fina; se cierra con Escape. */
+/** Panel flotante de línea fina; se cierra al hacer clic afuera o con Escape. */
 function Popover({ children, className, label, onClose }: { children: ReactNode; className: string; label: string; onClose: () => void }) {
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handlePointerDown(e: MouseEvent | TouchEvent) {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (popoverRef.current && popoverRef.current.contains(target)) return;
+      if (target.closest('[aria-expanded="true"]')) return;
+      onClose();
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [onClose]);
+
   return (
     <div
+      ref={popoverRef}
       className={`${styles.popover} ${className}`}
       role="dialog"
       aria-label={label}
