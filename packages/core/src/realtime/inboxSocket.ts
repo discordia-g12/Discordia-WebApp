@@ -1,4 +1,5 @@
-import { getClientConfig, getWsBaseUrl } from '../api/client';
+import { getClientConfig, getWsBaseUrl, notifyAccountSuspended } from '../api/client';
+import { ACCOUNT_SUSPENDED_CLOSE_CODE } from '../api/errors';
 import { getApiMock } from '../api/mock';
 import type { Conversation, MessageBackendPayload } from '../types';
 import { reconnectDelayMs, type ChatSocketStatus } from './chatSocket';
@@ -109,9 +110,17 @@ export function openInboxSocket(handlers: InboxSocketHandlers): InboxSocketConne
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event?: { code?: number }) => {
       // Un socket reemplazado (reconnect / close) no vuelve a programar nada
       if (socket !== ws) return;
+      // Cuenta suspendida por el staff: no se reintenta y toda la app pasa a "suspendida"
+      if (event?.code === ACCOUNT_SUSPENDED_CLOSE_CODE) {
+        disposed = true;
+        socket = null;
+        setStatus('closed');
+        notifyAccountSuspended();
+        return;
+      }
       setPending('closed');
       scheduleReconnect();
     };

@@ -76,6 +76,9 @@ export type ConfirmAction =
   | 'block-user'
   | 'remove-friend'
   | 'delete-message'
+  // Backoffice (apps/backoffice usa el mismo ConfirmDialog)
+  | 'suspend-user'
+  | 'reactivate-user'
   | null;
 
 /** Errores de validación durante la edición del perfil de usuario. */

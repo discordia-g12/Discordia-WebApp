@@ -1,4 +1,5 @@
-import { getClientConfig, getWsBaseUrl } from '../api/client';
+import { getClientConfig, getWsBaseUrl, notifyAccountSuspended } from '../api/client';
+import { ACCOUNT_SUSPENDED_CLOSE_CODE } from '../api/errors';
 import { isConversationId } from '../api/conversations';
 import type { MessageAttachment, MessageBackendPayload } from '../types';
 
@@ -178,6 +179,15 @@ export function openChatSocket(
     ws.onclose = (event?: { code?: number }) => {
       // Un socket reemplazado (reconnect / close) no vuelve a programar nada
       if (socket !== ws) return;
+
+      // Cuenta suspendida por el staff: no se reintenta y toda la app pasa a "suspendida"
+      if (event?.code === ACCOUNT_SUSPENDED_CLOSE_CODE) {
+        disposed = true;
+        socket = null;
+        setStatus('closed');
+        notifyAccountSuspended();
+        return;
+      }
 
       const removal = CLOSE_CODE_REMOVAL[event?.code ?? 0];
       if (removal) {

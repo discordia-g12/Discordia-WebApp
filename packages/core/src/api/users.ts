@@ -28,11 +28,14 @@ interface UserBackendResponse {
   activity_status?: string;
   custom_status?: string;
   created_at?: string;
+  /** Suspendida por la plataforma: Auth-User solo manda el nombre (perfil no disponible). */
+  is_suspended?: boolean;
 }
 
 function toUserProfile(res: UserBackendResponse): UserProfile {
   return {
     ...res,
+    isSuspended: res.is_suspended === true,
     id: res.user_id || res.id || '',
     displayName: res.display_name || res.username,
     display_name: res.display_name || res.username,

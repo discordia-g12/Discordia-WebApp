@@ -49,6 +49,10 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Eliminar amigo?', text: `${name} deja de ser tu amigo. La conversación y el historial se conservan.`, confirm: 'Eliminar', danger: true };
     case 'delete-message':
       return { title: '¿Eliminar mensaje?', text: '¿Seguro que querés eliminar este mensaje? No se puede deshacer.', confirm: 'Eliminar', danger: true };
+    case 'suspend-user':
+      return { title: '¿Suspender la cuenta?', text: `${name} no va a poder iniciar sesión, se cierran sus sesiones abiertas y su perfil deja de estar disponible.`, confirm: 'Suspender', danger: true };
+    case 'reactivate-user':
+      return { title: '¿Reactivar la cuenta?', text: `${name} vuelve a poder iniciar sesión y su perfil vuelve a estar disponible.`, confirm: 'Reactivar', danger: false };
   }
 }
 

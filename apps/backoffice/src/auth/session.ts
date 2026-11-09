@@ -96,3 +96,8 @@ export async function getAccessToken(opts?: { forceRefresh?: boolean }): Promise
 export function handleAuthFailure(): void {
   set({ status: 'signed_out', user: null });
 }
+
+/** Otro staff suspendió esta cuenta: Kong ya rechaza sus pedidos (403 account-suspended). */
+export function handleAccountSuspended(): void {
+  set({ status: 'error', user: null, error: 'Tu cuenta fue suspendida por la plataforma. Hablá con otro miembro del staff.' });
+}

@@ -1,4 +1,4 @@
-import { NetworkError, TimeoutError, parseErrorResponse } from './errors';
+import { NetworkError, PROBLEM_TYPES, TimeoutError, parseErrorResponse } from './errors';
 
 export interface ClientConfig {
   baseUrl: string;
@@ -6,6 +6,11 @@ export interface ClientConfig {
   wsBaseUrl?: string;
   getToken: (opts?: { forceRefresh?: boolean }) => Promise<string>;
   onAuthFailure: () => void;
+  /**
+   * El staff suspendió la cuenta: la API respondió 403 account-suspended o un WebSocket se cerró con 4010.
+   * La sesión de core pasa a "suspended" (auth/session.ts).
+   */
+  onAccountSuspended?: () => void;
   timeoutMs: number;
   /**
    * Envío de los pedidos con archivos (FormData). Si no se define, van por fetch. Mobile registra uno con
@@ -35,6 +40,11 @@ export function configureClient(config: Partial<ClientConfig>): void {
 
 export function getClientConfig(): ClientConfig {
   return clientConfig;
+}
+
+/** Avisa que la cuenta quedó suspendida (lo llaman el cliente HTTP y los WebSockets). */
+export function notifyAccountSuspended(): void {
+  clientConfig.onAccountSuspended?.();
 }
 
 /** Base de los WebSockets, sin barra final: wsBaseUrl, o baseUrl con http -> ws y https -> wss. */
@@ -210,7 +220,10 @@ export async function request<T = unknown>(
   }
 
   if (!response.ok) {
-    throw await parseErrorResponse(response, correlationId);
+    const error = await parseErrorResponse(response, correlationId);
+    // Cuenta suspendida (Kong la rechaza aunque el token siga vigente): toda la app pasa a "suspendida"
+    if (error.status === 403 && error.type === PROBLEM_TYPES.ACCOUNT_SUSPENDED) notifyAccountSuspended();
+    throw error;
   }
 
   // Respuestas sin contenido (204 No Content)
