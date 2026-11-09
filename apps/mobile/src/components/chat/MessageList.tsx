@@ -13,6 +13,7 @@ interface MessageListProps {
   welcomeTitle?: string
   welcomeHint?: string
   messages: Message[]
+  currentUserId?: string
   describeUser: (userId: string) => UserDisplay
   /** Hay mensajes anteriores a los cargados: arriba se ofrece cargarlos en vez del comienzo del canal. */
   hasOlder?: boolean
@@ -23,6 +24,8 @@ interface MessageListProps {
   onPressAuthor?: (userId: string) => void
   /** Mantener presionado: acciones sobre el mensaje (editar). */
   onLongPressMessage?: (message: Message) => void
+  /** Tocar una reacción para alternarla. */
+  onToggleReaction?: (messageId: string, emoji: string) => void
 }
 
 type Row =
@@ -47,12 +50,14 @@ export default function MessageList({
   welcomeTitle,
   welcomeHint,
   messages,
+  currentUserId,
   describeUser,
   hasOlder = false,
   loadingOlder = false,
   onLoadOlder,
   onPressAuthor,
   onLongPressMessage,
+  onToggleReaction,
 }: MessageListProps) {
   const styles = useStyles()
   const listRef = useRef<FlatList<Row>>(null)
@@ -184,12 +189,14 @@ export default function MessageList({
           <MessageItem
             message={item.message}
             author={describeUser(item.message.authorId)}
+            currentUserId={currentUserId}
             mentionName={id => describeUser(id).name}
             grouped={item.grouped}
             animate={new Date(item.message.timestamp).getTime() > openedAt.current - NEW_WINDOW_MS}
             sent={item.message.status === 'pending'}
             onPressAuthor={onPressAuthor}
             onLongPress={onLongPressMessage ? () => onLongPressMessage(item.message) : undefined}
+            onToggleReaction={onToggleReaction}
           />
         )
       }

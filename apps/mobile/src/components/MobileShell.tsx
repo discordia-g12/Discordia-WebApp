@@ -111,6 +111,7 @@ export default function MobileShell() {
     addOptimisticMessage,
     confirmOptimisticMessage,
     failOptimisticMessage,
+    toggleReaction,
     refreshServers,
   } = useData()
   const { selectedServerId, selectedChannelId, selectChannel, selectServer, showToast } = useUI()
@@ -290,6 +291,21 @@ export default function MobileShell() {
   const canManageMessages = channel && server
     ? canInChannel(server, channel, currentUserId, 'MANAGE_MESSAGES')
     : false
+  const canAddReactions = channel && server
+    ? canInChannel(server, channel, currentUserId, 'ADD_REACTIONS')
+    : true
+
+  const handleToggleReaction = useCallback(
+    async (channelId: string, messageId: string, emoji: string) => {
+      try {
+        await toggleReaction(channelId, messageId, emoji)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'No se pudo actualizar la reacción'
+        showToast(msg, 'error')
+      }
+    },
+    [toggleReaction, showToast]
+  )
   const canInvite = canInServer(server, currentUserId, 'CREATE_INSTANT_INVITE')
   const canOpenSettingsSection = (section: ServerSettingsSection) => canSeeSettingsSection(server, currentUserId, section)
   const isChannelLocked = (ch: Channel) => isVoiceChannelLocked(server, ch, currentUserId)
@@ -644,6 +660,7 @@ export default function MobileShell() {
           <MessageList
             channelName={channel.name}
             messages={channelMessages}
+            currentUserId={currentUserId}
             describeUser={describeUser}
             hasOlder={!!hasOlderMessages[channel.id]}
             loadingOlder={!!loadingOlderMessages[channel.id]}
@@ -654,6 +671,7 @@ export default function MobileShell() {
             }}
             onPressAuthor={openProfile}
             onLongPressMessage={setActionTargetMessage}
+            onToggleReaction={(messageId, emoji) => handleToggleReaction(channel.id, messageId, emoji)}
           />
           <Composer
             channelName={channel.name}
@@ -850,6 +868,13 @@ export default function MobileShell() {
         message={actionTargetMessage}
         isAuthor={actionTargetMessage?.authorId === currentUserId}
         canManageMessages={canManageMessages}
+        canAddReactions={canAddReactions}
+        onToggleReaction={(messageId, emoji) => {
+          const targetChannelId = actionTargetMessage?.channelId ?? channel?.id
+          if (targetChannelId) {
+            handleToggleReaction(targetChannelId, messageId, emoji)
+          }
+        }}
         onEdit={() => {
           if (actionTargetMessage) setEditingMessage(actionTargetMessage)
         }}

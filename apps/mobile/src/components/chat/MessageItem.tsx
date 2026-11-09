@@ -9,6 +9,7 @@ import type { UserDisplay } from '../../hooks/useUserProfiles'
 interface MessageItemProps {
   message: Message
   author?: UserDisplay
+  currentUserId?: string
   /** Sigue al anterior de la misma persona: sin avatar ni encabezado. */
   grouped?: boolean
   /** Mensaje nuevo (no del historial): entra subiendo. */
@@ -21,6 +22,8 @@ interface MessageItemProps {
   onPressAuthor?: (userId: string) => void
   /** Mantener presionado: acciones sobre el mensaje (editar). */
   onLongPress?: () => void
+  /** Tocar una reacción para alternarla. */
+  onToggleReaction?: (messageId: string, emoji: string) => void
 }
 
 /**
@@ -30,12 +33,14 @@ interface MessageItemProps {
 function MessageItem({
   message,
   author,
+  currentUserId,
   grouped = false,
   animate = false,
   sent = false,
   mentionName,
   onPressAuthor,
   onLongPress,
+  onToggleReaction,
 }: MessageItemProps) {
   const styles = useStyles()
   const reduce = useReducedMotion()
@@ -156,13 +161,24 @@ function MessageItem({
         )}
         {!!message.reactions?.length && (
           <View style={styles.reactions}>
-            {message.reactions.map(r => (
-              <View key={r.emoji} style={[styles.reaction, r.reacted && styles.reactionMine]}>
-                <Text variant="meta" tone={r.reacted ? 'inverse' : 'default'}>
-                  {r.emoji} {r.count}
-                </Text>
-              </View>
-            ))}
+            {message.reactions.map(r => {
+              const hasReacted = Boolean(
+                r.reacted || r.hasReacted || (currentUserId && r.users?.includes(currentUserId))
+              )
+              return (
+                <Pressable
+                  key={r.emoji}
+                  style={[styles.reaction, hasReacted && styles.reactionMine]}
+                  onPress={() => onToggleReaction?.(message.id, r.emoji)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${r.emoji} ${r.count}`}
+                >
+                  <Text variant="meta" tone={hasReacted ? 'inverse' : 'default'}>
+                    {r.emoji} {r.count}
+                  </Text>
+                </Pressable>
+              )
+            })}
           </View>
         )}
       </Pressable>
