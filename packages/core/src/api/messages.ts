@@ -28,6 +28,7 @@ export function normalizeMessage(message: Message): Message {
     edited: isDeleted ? false : edited,
     editedTimestamp: isDeleted ? null : editedTimestamp,
     attachments: isDeleted ? undefined : attachments,
+    reactions: isDeleted ? [] : (message.reactions ?? []),
     ...(editedAt && !isDeleted ? { editedAt: String(editedAt) } : {}),
   };
 }
@@ -109,4 +110,23 @@ export async function deleteMessage(
     `/api/v1/chat/channels/${channelId}/messages/${messageId}`
   );
   return normalizeMessage(deleted);
+}
+
+/**
+ * Alterna una reacción con emoji en un mensaje existente vía PUT.
+ * Si el usuario ya había reaccionado con ese emoji, se retira; si no, se agrega.
+ */
+export async function toggleReaction(
+  channelId: string,
+  messageId: string,
+  emoji: string
+): Promise<Message> {
+  const mock = getApiMock();
+  if (mock?.toggleReaction) return mock.toggleReaction(channelId, messageId, emoji);
+
+  const updated = await api.put<Message>(
+    `/api/v1/chat/channels/${channelId}/messages/${messageId}/reactions`,
+    { emoji }
+  );
+  return normalizeMessage(updated);
 }

@@ -62,6 +62,7 @@ export interface ApiMock {
   getMessages?(channelId: string, options?: GetMessagesOptions): Promise<Message[]>;
   sendMessage?(channelId: string, content: string, attachments?: MessageAttachment[]): Promise<Message>;
   deleteMessage?(channelId: string, messageId: string): Promise<Message>;
+  toggleReaction?(channelId: string, messageId: string, emoji: string): Promise<Message>;
   markChannelRead?(channelId: string): Promise<void>;
   /** Reemplaza al socket inbox: el mock le entrega los eventos a `onEvent`. Devuelve cómo desuscribirse. */
   subscribeInbox?(onEvent: (event: InboxEvent) => void): () => void;

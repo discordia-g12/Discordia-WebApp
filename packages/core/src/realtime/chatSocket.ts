@@ -33,7 +33,7 @@ const CLOSE_CODE_REMOVAL: Record<number, ChatRemovalReason> = {
 
 export interface ChatSocketHandlers {
   onMessage: (message: MessageBackendPayload) => void;
-  /** Un mensaje existente fue editado en este canal. */
+  /** Un mensaje existente fue editado o sus reacciones cambiaron en este canal. */
   onMessageUpdated?: (message: MessageBackendPayload) => void;
   /** Un mensaje existente fue eliminado en este canal. */
   onMessageDeleted?: (message: MessageBackendPayload) => void;
@@ -137,7 +137,7 @@ export function openChatSocket(
           return;
         }
 
-        if (data.type === 'MESSAGE_UPDATED') {
+        if (data.type === 'MESSAGE_UPDATED' || data.type === 'MESSAGE_REACTION_UPDATED') {
           if (handlers.onMessageUpdated) {
             handlers.onMessageUpdated(data as MessageBackendPayload);
           } else {

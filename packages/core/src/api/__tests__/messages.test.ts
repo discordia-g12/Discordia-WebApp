@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../client';
-import { deleteMessage, editMessage, getMessages, sendMessage } from '../messages';
+import { deleteMessage, editMessage, getMessages, sendMessage, toggleReaction } from '../messages';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -154,5 +154,48 @@ describe('mensajes', () => {
     expect(msg.type).toBe('deleted');
     expect(msg.content).toBe('');
     expect(msg.attachments).toBeUndefined();
+  });
+
+  it('toggleReaction llama a PUT con el emoji y devuelve el mensaje normalizado con reacciones', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        id: 'm1',
+        content: 'mensaje',
+        authorId: 'u1',
+        channelId: 'c1',
+        createdAt: '2026-10-20T10:00:00Z',
+        reactions: [{ emoji: '👍', count: 1, users: ['u1'] }],
+      })
+    );
+
+    const updated = await toggleReaction('c1', 'm1', '👍');
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://api.test/api/v1/chat/channels/c1/messages/m1/reactions',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ emoji: '👍' }),
+      })
+    );
+    expect(updated.id).toBe('m1');
+    expect(updated.reactions).toEqual([{ emoji: '👍', count: 1, users: ['u1'] }]);
+  });
+
+  it('normaliza mensajes eliminados limpiando también sus reacciones', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse([
+        {
+          id: 'm-del-react',
+          content: 'este texto debe borrarse',
+          authorId: 'u1',
+          channelId: 'c1',
+          createdAt: '2026-10-20T10:00:00Z',
+          isDeleted: true,
+          reactions: [{ emoji: '🔥', count: 2, users: ['u1', 'u2'] }],
+        },
+      ])
+    );
+    const [msg] = await getMessages('c1');
+    expect(msg.type).toBe('deleted');
+    expect(msg.reactions).toEqual([]);
   });
 });

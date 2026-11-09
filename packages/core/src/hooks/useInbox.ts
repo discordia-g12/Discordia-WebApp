@@ -111,6 +111,15 @@ export function useInbox({ activeConversationId = null, enabled = true }: UseInb
         return;
       }
 
+      if (event.type === 'DM_MESSAGE_REACTION_UPDATED') {
+        const { conversationId } = event;
+        const message = normalizeMessage(event.message as unknown as Message);
+        updateCachedMessages(queryClient, conversationId, (messages) =>
+          messages.map((m) => (m.id === message.id ? { ...m, ...message } : m))
+        );
+        return;
+      }
+
       const { conversationId } = event;
       const message = normalizeMessage(event.message as unknown as Message);
       // Si el historial no cargó, no se toca. Si la conversación está abierta, el mensaje puede llegar también
