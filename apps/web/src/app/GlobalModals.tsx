@@ -2,6 +2,7 @@ import { AnimatePresence } from 'motion/react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   deleteServer,
+  errorMessageFor,
   leaveServer,
   useCreateCategoryMutation,
   useCreateChannelMutation,
@@ -78,10 +79,18 @@ export function GlobalModals() {
       return;
     }
     if (action === 'delete-server' && currentServer) {
+      if (currentServer.ownerId !== currentUser.id) {
+        closeConfirm();
+        ui.showToast('Solo quien creó el servidor puede eliminarlo.', 'danger');
+        return;
+      }
       try {
         await deleteServer(currentServer.id);
-      } catch {
-        ui.showToast('No se pudo eliminar el servidor', 'danger');
+      } catch (err) {
+        ui.showToast(
+          errorMessageFor(err, { 403: 'Solo quien creó el servidor puede eliminarlo.' }, 'No se pudo eliminar el servidor'),
+          'danger'
+        );
         return;
       }
       dropCurrentServer();

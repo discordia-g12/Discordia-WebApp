@@ -292,4 +292,26 @@ describe('ServerSettingsScreen (rediseño)', () => {
     expect(String(transferCall[0])).toBe('http://localhost:8000/api/v1/servers/s1/transfers');
     expect(JSON.parse(transferCall[1].body)).toEqual({ target_user_id: 'u2' });
   });
+
+  describe('Eliminar servidor', () => {
+    it('CA 1: owner ve la opción Eliminar en el menú lateral y al tocarla llama a onDeleteServer', () => {
+      const { onDeleteServer } = renderSettings({ server: { ...server, ownerId: 'me' } });
+
+      const deleteBtn = screen.getByRole('button', { name: 'Eliminar' });
+      expect(deleteBtn).toBeTruthy();
+      fireEvent.click(deleteBtn);
+      expect(onDeleteServer).toHaveBeenCalledTimes(1);
+    });
+
+    it('CA 2: usuario no owner no ve la opción Eliminar (ve Abandonar)', () => {
+      const { onLeaveServer } = renderSettings({ server: { ...server, ownerId: 'other-user' } });
+
+      expect(screen.queryByRole('button', { name: 'Eliminar' })).toBeNull();
+
+      const leaveBtn = screen.getByRole('button', { name: 'Abandonar' });
+      expect(leaveBtn).toBeTruthy();
+      fireEvent.click(leaveBtn);
+      expect(onLeaveServer).toHaveBeenCalledTimes(1);
+    });
+  });
 });

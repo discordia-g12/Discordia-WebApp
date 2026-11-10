@@ -48,8 +48,8 @@ export function Modal({ visible, title, description, onClose, role = 'dialog', c
       easing: easing(visible ? 'enter' : 'exit'),
       useNativeDriver,
     })
-    animation.start(({ finished }) => {
-      if (finished && !visible) setMounted(false)
+    animation.start(() => {
+      if (!visible) setMounted(false)
     })
     return () => animation.stop()
   }, [visible, reduce, progress])
@@ -63,13 +63,13 @@ export function Modal({ visible, title, description, onClose, role = 'dialog', c
 
   return (
     <RNModal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
-      <Animated.View style={[styles.scrim, { opacity: progress }]}>
+      <Animated.View style={[styles.scrim, { opacity: progress }]} pointerEvents={visible ? 'auto' : 'none'}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Cerrar" accessibilityRole="button" />
       </Animated.View>
-      <KeyboardAvoidingView behavior={keyboardAvoidingBehavior} pointerEvents="box-none" style={styles.layer}>
+      <KeyboardAvoidingView behavior={keyboardAvoidingBehavior} pointerEvents={visible ? 'box-none' : 'none'} style={styles.layer}>
         <Animated.View
           style={[styles.panel, { paddingTop: insets.top, maxHeight: height * 0.9 }, panelMotion]}
-          accessibilityViewIsModal
+          accessibilityViewIsModal={visible}
           accessibilityRole={role === 'alertdialog' ? 'alert' : undefined}
           accessibilityLabel={title}
         >
