@@ -7,6 +7,12 @@
   color: var(--color-text);
 }
 
+/* Con el aviso de incidentes abierto (IncidentBanner, 2rem), la pantalla baja para no quedar tapada */
+:global(body:has([data-incident-banner])) .shell {
+  height: calc(100dvh - 2rem);
+  margin-top: 2rem;
+}
+
 /* ── Tira de servidores (arriba) ── */
 
 .strips {

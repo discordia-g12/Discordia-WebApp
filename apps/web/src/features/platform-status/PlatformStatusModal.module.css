@@ -1,0 +1,94 @@
+.global {
+  margin: 0;
+  font-weight: 700;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Filas entre líneas finas */
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--line-hairline) solid var(--color-line);
+}
+
+.list > li {
+  padding: var(--space-2) 0;
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
+
+.incident {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.incidentTitle {
+  margin: 0;
+  font-weight: 700;
+}
+
+.kind {
+  text-transform: uppercase;
+}
+
+.description {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.service {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* Estado con texto y borde: el color solo no alcanza para leerlo */
+.health {
+  padding: 0 var(--space-1);
+  font-size: var(--font-meta-size);
+  white-space: nowrap;
+  border: var(--line-hairline) solid currentColor;
+}
+
+.operational {
+  color: var(--color-speaking);
+}
+
+.degraded {
+  color: var(--color-danger);
+}
+
+.maintenance {
+  color: var(--color-text);
+  border-style: dashed;
+}
+
+.unknown {
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+}

@@ -3,6 +3,7 @@ import { useUIStore } from './uiStore';
 import { GlobalModals } from './GlobalModals';
 import { ConnectionBanner, DisplayText } from '../ui';
 import { ToastHost } from './ToastHost';
+import { IncidentBanner } from '../features/platform-status/IncidentBanner';
 import { useIsReconnecting } from './useConnectionStatus';
 import { useUsers } from './usersContext';
 import { ServerRailPanel } from '../features/servers/ServerRailPanel';
@@ -89,6 +90,7 @@ export function AppShell() {
       <GlobalModals />
       <ToastHost />
       <ConnectionBanner active={reconnecting} />
+      <IncidentBanner />
     </>
   );
 }

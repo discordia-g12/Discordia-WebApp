@@ -14,6 +14,8 @@ export interface UserMenuProps {
   onOpenSettings?: () => void;
   /** Abre el backoffice de la plataforma (otra app, en otra pestaña). Solo para el staff. */
   onOpenBackoffice?: () => void;
+  /** Estado de la plataforma e incidentes activos. */
+  onOpenPlatformStatus?: () => void;
   onLogout?: () => void;
 }
 
@@ -32,6 +34,7 @@ export function UserMenuContent({
   onEditProfile,
   onOpenSettings,
   onOpenBackoffice,
+  onOpenPlatformStatus,
   onLogout,
   onDone,
 }: Omit<UserMenuProps, 'onClose'> & {
@@ -103,6 +106,7 @@ export function UserMenuContent({
             backoffice ↗
           </ActionLink>
         )}
+        {onOpenPlatformStatus && <ActionLink onPress={run(onOpenPlatformStatus)}>estado de la plataforma</ActionLink>}
         {onLogout && <ActionLink onPress={run(onLogout)}>cerrar sesión</ActionLink>}
       </div>
     </>

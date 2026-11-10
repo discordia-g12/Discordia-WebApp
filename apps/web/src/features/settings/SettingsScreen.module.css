@@ -10,6 +10,11 @@
   background: var(--gradient-background), var(--color-background);
 }
 
+/* Con el aviso de incidentes (IncidentBanner, 2rem) los ajustes empiezan debajo, como el resto de la app */
+:global(body:has([data-incident-banner])) .screen {
+  top: 2rem;
+}
+
 /* ── Columna izquierda: identidad, buscador e índice arriba; menú gigante abajo ── */
 
 .side {

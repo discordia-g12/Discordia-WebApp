@@ -13,6 +13,12 @@
   background: var(--color-background);
 }
 
+/* Con el aviso de incidentes abierto (IncidentBanner, 2rem), la grilla baja para no quedar tapada */
+:global(body:has([data-incident-banner])) .shell {
+  height: calc(100vh - 2rem);
+  margin-top: 2rem;
+}
+
 /*
  * Degradé de fondo con deriva muy lenta (60 s, solo transform). Más alto que la pantalla para que al
  * moverse no se vea el borde; con movimiento reducido queda quieto.

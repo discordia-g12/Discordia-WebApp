@@ -1,0 +1,53 @@
+/*
+ * Barra de aviso arriba de todo, a todo el ancho y de 2rem de alto. Mientras está, los shells (escritorio y
+ * mobile) bajan su grilla esos 2rem con body:has([data-incident-banner]): el aviso no tapa nada.
+ */
+.bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 590; /* debajo de los modales (600) y los avisos (700) */
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 2rem;
+  padding: 0 var(--space-4);
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  font-size: var(--font-meta-size);
+  white-space: nowrap;
+}
+
+.kind {
+  flex: none;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Una sola línea: lo que no entra se corta (el detalle está en "_ver estado") */
+.text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.action {
+  flex: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
