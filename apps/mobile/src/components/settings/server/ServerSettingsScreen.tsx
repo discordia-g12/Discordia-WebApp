@@ -17,6 +17,7 @@ import type { Server } from '../../../types'
 import { SettingsCell, SettingsScreen, type SettingsSection } from '../SettingsScreen'
 import { RoleSaveBar, RolesSection } from './RolesSection'
 import { BansSection, MembersSection } from './MembersSection'
+import { MemberGrowthChart } from '../../servers/MemberGrowthChart'
 
 export type ServerSettingsSection = 'overview' | 'roles' | 'members' | 'bans'
 type Section = ServerSettingsSection
@@ -124,6 +125,9 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
               <Figure label="canales" value={channels.length} />
               <Figure label="roles" value={roles.roles.length} />
             </View>
+          </SettingsCell>
+          <SettingsCell title="Crecimiento de miembros" index={3}>
+            <MemberGrowthChart serverId={server.id} />
           </SettingsCell>
         </>
       )}

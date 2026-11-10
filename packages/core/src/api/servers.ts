@@ -23,6 +23,7 @@ import {
   ServerMemberPage,
   ServerMemberBackendResponse,
   ServerMemberPageBackendResponse,
+  MemberGrowthResponse,
 } from '../types';
 
 export interface CreateServerRequest {
@@ -332,3 +333,28 @@ export async function reorderChannels(serverId: string, categories: Category[]):
 export async function reorderCategories(serverId: string, categories: Category[]): Promise<void> {
   await api.put(`/api/v1/servers/${serverId}/categories/order`, { category_ids: toCategoryOrder(categories) });
 }
+
+export interface GetMemberGrowthOptions {
+  days?: number;
+  start_date?: string;
+  end_date?: string;
+}
+
+export async function getMemberGrowth(
+  serverId: string,
+  options?: GetMemberGrowthOptions
+): Promise<MemberGrowthResponse> {
+  const params = new URLSearchParams();
+  if (options?.days !== undefined) {
+    params.set('days', String(options.days));
+  }
+  if (options?.start_date) {
+    params.set('start_date', options.start_date);
+  }
+  if (options?.end_date) {
+    params.set('end_date', options.end_date);
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return await api.get<MemberGrowthResponse>(`/api/v1/servers/${serverId}/metrics/member-growth${query}`);
+}
+

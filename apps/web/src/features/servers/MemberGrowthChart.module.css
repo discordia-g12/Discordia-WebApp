@@ -1,0 +1,153 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.periodButtons {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.periodBtn {
+  background: transparent;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  color: var(--color-text-muted);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-body-small-size);
+  cursor: pointer;
+  border-radius: var(--radius, 0);
+  transition: all 0.15s ease;
+}
+
+.periodBtn:hover {
+  color: var(--color-text);
+  border-color: var(--color-text);
+}
+
+.periodBtnActive {
+  background: var(--color-text);
+  color: var(--color-background);
+  border-color: var(--color-text);
+  font-weight: 700;
+}
+
+.summaryCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--space-3);
+}
+
+.card {
+  padding: var(--space-2) var(--space-3);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.cardLabel {
+  font-size: var(--font-label-size);
+  text-transform: uppercase;
+  letter-spacing: var(--font-label-letter-spacing);
+  color: var(--color-text-muted);
+}
+
+.cardValue {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.positive {
+  color: #23a55a;
+}
+
+.negative {
+  color: #da373c;
+}
+
+.chartWrap {
+  width: 100%;
+  position: relative;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  padding: var(--space-3);
+}
+
+.svgChart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.gridLine {
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-dasharray: 3 3;
+}
+
+.axisText {
+  fill: var(--color-text-muted);
+  font-size: 10px;
+  font-family: inherit;
+}
+
+.areaPath {
+  fill: rgba(88, 101, 242, 0.15);
+}
+
+.linePath {
+  fill: none;
+  stroke: #5865f2;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dataDot {
+  fill: #5865f2;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  cursor: pointer;
+  transition: r 0.15s ease;
+}
+
+.dataDot:hover,
+.dataDotActive {
+  r: 5.5;
+  fill: #ffffff;
+  stroke: #5865f2;
+  stroke-width: 2.5;
+}
+
+.tooltip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: rgba(14, 18, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: var(--font-body-small-size);
+  margin-top: var(--space-2);
+}
+
+.meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-meta-size);
+}
+
+.errorFeedback {
+  color: #da373c;
+  font-size: var(--font-body-small-size);
+}
