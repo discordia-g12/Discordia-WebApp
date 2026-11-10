@@ -458,3 +458,27 @@ export interface AuditEntry {
   timestamp: string;
   details?: Record<string, unknown>;
 }
+
+/** Punto de datos en la evolución diaria de miembros de un servidor. */
+export interface MemberGrowthPoint {
+  date: string;
+  member_count: number;
+  joined: number;
+  left: number;
+}
+
+/** Período seleccionado para la consulta de crecimiento. */
+export interface MemberGrowthPeriod {
+  start_date: string;
+  end_date: string;
+  days: number;
+}
+
+/** Respuesta de la API para el gráfico de evolución de miembros. */
+export interface MemberGrowthResponse {
+  server_id: string;
+  period: MemberGrowthPeriod;
+  current_member_count: number;
+  data: MemberGrowthPoint[];
+}
+

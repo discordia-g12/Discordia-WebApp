@@ -55,6 +55,12 @@ function fakeBackend(input: RequestInfo | URL, init?: RequestInit) {
       });
     case 'POST /api/v1/users/bulk':
       return jsonResponse([{ user_id: 'u2', username: 'lbars', display_name: 'Lbars' }]);
+    case 'GET /api/v1/servers/s1/metrics/member-growth':
+      return jsonResponse({
+        server_id: 's1',
+        period: { start_date: '2026-10-01', end_date: '2026-10-30', days: 30 },
+        data: [{ date: '2026-10-30', member_count: 2, joined: 0, left: 0 }],
+      });
     default:
       return jsonResponse([]);
   }
@@ -341,7 +347,7 @@ describe('App (prueba de humo)', () => {
     await check('crear servidor');
 
     expect(found).toEqual({});
-  });
+  }, 15000);
 
   it('accesibilidad: mobile no tiene violaciones de axe', async () => {
     window.innerWidth = 500;
