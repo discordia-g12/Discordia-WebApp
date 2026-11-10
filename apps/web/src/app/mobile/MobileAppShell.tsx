@@ -3,6 +3,7 @@ import { Bell, ChevronLeft, Compass, Hash, MessageSquare, Plus, User as UserIcon
 import { ActionLink, ConnectionBanner, DisplayText, EmptyState, Logo, ServerStrip, Skeleton, SquareAvatar } from '../../ui';
 import { useUIStore } from '../uiStore';
 import { GlobalModals } from '../GlobalModals';
+import { IncidentBanner } from '../../features/platform-status/IncidentBanner';
 import { ToastHost } from '../ToastHost';
 import { FullScreenViews } from '../FullScreenViews';
 import { useIsReconnecting } from '../useConnectionStatus';
@@ -177,6 +178,7 @@ export function MobileAppShell() {
       <FullScreenViews />
       <ToastHost />
       <ConnectionBanner active={reconnecting} />
+      <IncidentBanner />
     </div>
   );
 }
@@ -310,6 +312,7 @@ function ProfileTab() {
         onEditProfile={actions.onEditProfile}
         onOpenSettings={actions.onOpenSettings}
         onOpenBackoffice={actions.onOpenBackoffice}
+        onOpenPlatformStatus={actions.onOpenPlatformStatus}
         onLogout={actions.onLogout}
       />
     </Screen>

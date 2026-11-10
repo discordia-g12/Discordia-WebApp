@@ -30,6 +30,7 @@ export function UserBarPanel({ tone }: { tone: UserBarProps['tone'] }) {
       onSaveCustomStatus={actions.onSaveCustomStatus}
       onEditProfile={actions.onEditProfile}
       onOpenBackoffice={actions.onOpenBackoffice}
+      onOpenPlatformStatus={actions.onOpenPlatformStatus}
       onLogout={actions.onLogout}
     />
   );

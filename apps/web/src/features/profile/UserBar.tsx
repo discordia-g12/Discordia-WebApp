@@ -29,6 +29,7 @@ export interface UserBarProps {
   onSaveCustomStatus?: (customStatus: string) => void;
   onEditProfile?: () => void;
   onOpenBackoffice?: () => void;
+  onOpenPlatformStatus?: () => void;
   onLogout?: () => void;
 }
 
@@ -53,6 +54,7 @@ export function UserBar({
   onSaveCustomStatus,
   onEditProfile,
   onOpenBackoffice,
+  onOpenPlatformStatus,
   onLogout,
 }: UserBarProps) {
   const [showMenu, setShowMenu] = useState(false);
@@ -113,6 +115,7 @@ export function UserBar({
             onEditProfile={onEditProfile}
             onOpenSettings={onOpenSettings}
             onOpenBackoffice={onOpenBackoffice}
+            onOpenPlatformStatus={onOpenPlatformStatus}
             onLogout={onLogout}
           />
         )}

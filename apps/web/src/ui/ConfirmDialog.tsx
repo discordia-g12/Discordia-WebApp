@@ -53,6 +53,10 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Suspender la cuenta?', text: `${name} no va a poder iniciar sesión, se cierran sus sesiones abiertas y su perfil deja de estar disponible.`, confirm: 'Suspender', danger: true };
     case 'reactivate-user':
       return { title: '¿Reactivar la cuenta?', text: `${name} vuelve a poder iniciar sesión y su perfil vuelve a estar disponible.`, confirm: 'Reactivar', danger: false };
+    case 'publish-incident':
+      return { title: '¿Publicar el incidente?', text: `Todos los usuarios con sesión van a ver el aviso "${name}" en la app hasta que lo resuelvas.`, confirm: 'Publicar', danger: false };
+    case 'resolve-incident':
+      return { title: '¿Resolver el incidente?', text: `El aviso "${name}" desaparece para todos los usuarios. No se puede reabrir: si vuelve a pasar, publicá otro.`, confirm: 'Resolver', danger: false };
   }
 }
 

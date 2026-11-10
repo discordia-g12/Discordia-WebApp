@@ -44,6 +44,8 @@ export function useUserPanelActions() {
     // Backoffice de la plataforma (app aparte, backoffice.discordia.lol): el link solo se muestra con el rol
     // "staff". Es solo un atajo: el backoffice vuelve a verificar el rol al entrar
     onOpenBackoffice: isStaff ? openBackoffice : undefined,
+    // Estado de la plataforma e incidentes activos (historia 74, CA 3)
+    onOpenPlatformStatus: () => useUIStore.getState().setActiveModal('platform-status'),
     onBuyPoints: () => setAppView('user-settings'),
     onSubscribePremium: () => setAppView('user-settings'),
     // Cerrar sesión pide confirmación

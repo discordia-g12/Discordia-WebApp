@@ -60,6 +60,7 @@ export type Modal =
   | 'create-channel'
   | 'edit-channel'
   | 'create-category'
+  | 'platform-status'
   | null;
 
 /** Acciones críticas que requieren confirmación explícita del usuario. */
@@ -79,6 +80,8 @@ export type ConfirmAction =
   // Backoffice (apps/backoffice usa el mismo ConfirmDialog)
   | 'suspend-user'
   | 'reactivate-user'
+  | 'publish-incident'
+  | 'resolve-incident'
   | null;
 
 /** Errores de validación durante la edición del perfil de usuario. */
