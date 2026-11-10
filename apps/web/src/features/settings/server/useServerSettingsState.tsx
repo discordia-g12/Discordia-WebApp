@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
 import { Server, Channel, User, ChannelType } from '../../../types';
-import { imageFileError, serverIconErrorMessage, useRolesAdmin } from '@discordia/core';
+import {
+  imageFileError,
+  serverBannerErrorMessage,
+  serverIconErrorMessage,
+  serverSettingsErrorMessage,
+  serverSettingsValidationError,
+  updateServer,
+  useRolesAdmin,
+} from '@discordia/core';
 import { TabType } from './shared';
-import { useServerIcon } from '../../servers/serverActions';
+import { useServerBanner, useServerIcon } from '../../servers/serverActions';
 import { showToast } from '../../../app/uiStore';
 
 /** Lo que recibe la pantalla de ajustes del servidor. */
@@ -38,10 +46,18 @@ export function useServerSettingsState(props: ServerSettingsProps) {
   const [iconBusy, setIconBusy] = useState(false);
   const [iconError, setIconError] = useState<string | null>(null);
   const serverIconActions = useServerIcon();
+  const [serverBanner, setServerBanner] = useState(serverState.banner || '');
+  const [bannerBusy, setBannerBusy] = useState(false);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+  const serverBannerActions = useServerBanner();
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  // Nombre y descripción guardados: el formulario compara contra esto para saber si hay cambios
+  const [savedName, setSavedName] = useState(serverState.name);
+  const [savedDescription, setSavedDescription] = useState(serverState.description || '');
+  const overviewDirty = serverName.trim() !== savedName || serverDescription.trim() !== savedDescription;
 
   // Roles: estado y reglas de core (los mismos que mobile); acá se confirma con el diálogo del navegador
   const rolesAdmin = useRolesAdmin(serverState.id, { confirm: (message) => window.confirm(message) });
-  const { roles } = rolesAdmin;
 
   // Members Tab States
   const [members] = useState<User[]>(serverState.members || []);
@@ -117,26 +133,76 @@ export function useServerSettingsState(props: ServerSettingsProps) {
     }
   };
 
-  // Save server overview handler
-  const handleSaveOverview = () => {
+  // Banner: igual que el ícono, se guarda apenas se elige (PUT /servers/{id}/banner)
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || bannerBusy) return;
+
+    const error = imageFileError(file);
+    if (error) {
+      setBannerError(error);
+      return;
+    }
+
+    setBannerBusy(true);
+    setBannerError(null);
+    try {
+      setServerBanner((await serverBannerActions.change(serverState.id, file)) || '');
+      showToast('Banner actualizado', 'success');
+    } catch (err) {
+      setBannerError(serverBannerErrorMessage(err));
+    } finally {
+      setBannerBusy(false);
+    }
+  };
+
+  const handleRemoveBanner = async () => {
+    if (bannerBusy) return;
+    setBannerBusy(true);
+    setBannerError(null);
+    try {
+      setServerBanner((await serverBannerActions.remove(serverState.id)) || '');
+      showToast('Banner quitado', 'success');
+    } catch (err) {
+      setBannerError(serverBannerErrorMessage(err));
+    } finally {
+      setBannerBusy(false);
+    }
+  };
+
+  // Nombre y descripción: PATCH /servers/{id} con lo que cambió. Si el backend lo rechaza (permisos o datos
+  // inválidos) se muestra el motivo y no se toca nada: ni el caché ni lo guardado
+  const handleSaveOverview = async () => {
+    if (isSaving) return;
+    const payload: { name?: string; description?: string } = {};
+    if (serverName.trim() !== savedName) payload.name = serverName;
+    if (serverDescription.trim() !== savedDescription) payload.description = serverDescription;
+    if (Object.keys(payload).length === 0) return;
+
+    const invalid = serverSettingsValidationError(payload);
+    if (invalid) {
+      setOverviewError(invalid);
+      return;
+    }
+
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      setSaveSuccess(true);
-      const updated: Server = {
-        ...serverState,
-        name: serverName,
-        description: serverDescription,
-        icon: serverIcon,
-        iconUrl: serverIcon,
-        roles,
-        categories,
-        members,
-      };
-      setServerState(updated);
+    setOverviewError(null);
+    try {
+      const updated = await updateServer(serverState.id, payload);
+      setServerState((prev) => ({ ...prev, name: updated.name, description: updated.description }));
+      setServerName(updated.name);
+      setSavedName(updated.name);
+      setServerDescription(updated.description || '');
+      setSavedDescription(updated.description || '');
       onUpdateServer?.(updated);
+      setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
-    }, 600);
+    } catch (err) {
+      setOverviewError(serverSettingsErrorMessage(err));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Create channel handler
@@ -322,6 +388,13 @@ export function useServerSettingsState(props: ServerSettingsProps) {
     handleRemoveIcon,
     iconBusy,
     iconError,
+    serverBanner,
+    handleBannerUpload,
+    handleRemoveBanner,
+    bannerBusy,
+    bannerError,
+    overviewDirty,
+    overviewError,
     handleSaveOverview,
     handleCreateChannel,
     handleDeleteChannel,
