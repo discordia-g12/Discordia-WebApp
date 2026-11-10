@@ -90,6 +90,12 @@
   color: var(--color-text-muted);
 }
 
+/* Mantenimiento: en tinta y con borde punteado, para no confundirlo con operativo ni con degradado */
+.healthMaintenance {
+  color: var(--color-text);
+  border-style: dashed;
+}
+
 /* Formularios de una celda (suspender, reintentar) */
 .form {
   display: flex;
@@ -132,4 +138,21 @@
   justify-content: space-between;
   gap: var(--space-4);
   font-size: var(--font-meta-size);
+}
+
+/* Incidentes: título en negrita con su tipo, descripción y una línea de servicios y fechas */
+.incident {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.incidentTitle {
+  margin: 0;
+  font-weight: 700;
+}
+
+.incidentDescription {
+  margin: 0;
+  white-space: pre-line;
 }

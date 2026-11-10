@@ -19,6 +19,7 @@ import styles from './sections.module.css';
 const HEALTH_CLASS: Record<PlatformHealth, string> = {
   operational: styles.healthOperational,
   degraded: styles.healthDegraded,
+  maintenance: styles.healthMaintenance,
   unknown: styles.healthUnknown,
 };
 
