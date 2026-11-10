@@ -214,6 +214,8 @@ export interface ServerBackendResponse {
   owner_id: string;
   description?: string | null;
   icon_url?: string | null;
+  /** Banner 16:9 (960x540). Lo muestra la franja del servidor en la barra, en lugar del ícono. */
+  banner_url?: string | null;
   created_at: string;
   /** Permisos efectivos del usuario que pide (bitmask, mismos bits que los roles). */
   my_permissions?: number;

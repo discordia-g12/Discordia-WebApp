@@ -5,6 +5,8 @@ import {
   IMAGE_UPLOAD_ACCEPT,
   MUTE_DURATIONS,
   PERMISSION_BITS,
+  SERVER_DESCRIPTION_MAX_LENGTH,
+  SERVER_NAME_MAX_LENGTH,
   canSeeSettingsSection,
   errorMessageFor,
   memberActionsIn,
@@ -30,7 +32,7 @@ import styles from './ServerSettingsScreen.module.css';
 type Section = 'overview' | 'roles' | 'members' | 'bans' | 'channels' | 'moderation' | 'notifications' | 'emojis' | 'boost';
 
 const SECTIONS: SettingsSection<Section>[] = [
-  { id: 'overview', label: 'Resumen', items: ['Ícono', 'Nombre y descripción', 'Números', 'Crecimiento de miembros'] },
+  { id: 'overview', label: 'Resumen', items: ['Ícono', 'Banner', 'Nombre y descripción', 'Números', 'Crecimiento de miembros'] },
   { id: 'roles', label: 'Roles', items: ['Crear rol', 'Roles', 'Editar rol', 'Permisos'] },
   { id: 'members', label: 'Miembros', items: ['Asignar roles', 'Silenciar', 'Expulsar', 'Banear'] },
   { id: 'bans', label: 'Baneos', items: ['Usuarios baneados', 'Revocar'] },
@@ -52,8 +54,9 @@ export interface ServerSettingsScreenProps extends ServerSettingsProps {
 /**
  * Ajustes del servidor del rediseño, sobre SettingsScreen (mismo esqueleto que los de usuario,
  * sección 3 de docs/TODO-REDISENO.md). Roles, miembros (con expulsar y silenciar), baneos y canales van
- * contra el backend (hooks de core). Lo que el backend todavía no guarda (identidad del servidor,
- * moderación, notificaciones, emojis, mejoras) se muestra deshabilitado con "próximamente".
+ * contra el backend (hooks de core), igual que la identidad del servidor (ícono, banner, nombre y descripción).
+ * Lo que el backend todavía no guarda (moderación, notificaciones, emojis, mejoras) se muestra deshabilitado
+ * con "próximamente". RESUMEN solo lo ven el dueño y quien tiene Gestionar servidor o Administrador.
  */
 export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, ...props }: ServerSettingsScreenProps) {
   const s = useServerSettingsState(props);
@@ -165,17 +168,66 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
         )}
       </SettingsCell>
 
-      {/* Sin PATCH /servers/{id} en el backend: guardar solo cambiaba el caché y se perdía al recargar */}
-      <SettingsCell title="Nombre y descripción" soon>
-        <UnderlineInput label="nombre del servidor" value={s.serverName} maxLength={100} onChange={(e) => s.setServerName(e.target.value)} />
-        <UnderlineInput
-          label="descripción"
-          value={s.serverDescription}
-          maxLength={200}
-          placeholder="Contale a quien llega de qué se trata"
-          onChange={(e) => s.setServerDescription(e.target.value)}
-        />
-        <BlockButton onPress={s.handleSaveOverview}>Guardar</BlockButton>
+      {/* Banner: la franja del servidor en la barra lo muestra en lugar del ícono. Mismo flujo que el ícono */}
+      <SettingsCell title="Banner">
+        <div className={styles.bannerPreview}>
+          {s.serverBanner ? (
+            <img src={s.serverBanner} alt={`Banner de ${s.serverName}`} className={styles.bannerImage} />
+          ) : (
+            <span className={styles.meta}>sin banner</span>
+          )}
+        </div>
+        <div className={styles.iconRow}>
+          <FileAction
+            label={s.bannerBusy ? 'subiendo…' : 'cambiar banner'}
+            accept={IMAGE_UPLOAD_ACCEPT}
+            onChange={s.handleBannerUpload}
+            disabled={s.bannerBusy}
+            describedBy="server-banner-message"
+          />
+          {s.serverBanner && (
+            <ActionLink onPress={s.handleRemoveBanner} disabled={s.bannerBusy}>
+              quitar banner
+            </ActionLink>
+          )}
+        </div>
+        {s.bannerError ? (
+          <Feedback tone="error">/ {s.bannerError}</Feedback>
+        ) : (
+          <p id="server-banner-message" className={styles.meta}>
+            / JPEG, PNG o WebP, hasta 5 MB. Se guarda al elegirlo y se recorta al centro en 16:9.
+          </p>
+        )}
+      </SettingsCell>
+
+      {/* PATCH /servers/{id}: el backend valida (1 a 100 caracteres, sin vacío) y avisa al resto con server.updated */}
+      <SettingsCell title="Nombre y descripción">
+        <form
+          className={styles.overviewForm}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void s.handleSaveOverview();
+          }}
+        >
+          <UnderlineInput
+            label="nombre del servidor"
+            value={s.serverName}
+            maxLength={SERVER_NAME_MAX_LENGTH}
+            onChange={(e) => s.setServerName(e.target.value)}
+          />
+          <UnderlineInput
+            label="descripción"
+            value={s.serverDescription}
+            maxLength={SERVER_DESCRIPTION_MAX_LENGTH}
+            placeholder="Contale a quien llega de qué se trata"
+            onChange={(e) => s.setServerDescription(e.target.value)}
+          />
+          {s.overviewError && <Feedback tone="error">/ {s.overviewError}</Feedback>}
+          {s.saveSuccess && !s.overviewDirty && <Feedback>/ guardado</Feedback>}
+          <BlockButton type="submit" loading={s.isSaving} disabled={!s.overviewDirty}>
+            Guardar
+          </BlockButton>
+        </form>
       </SettingsCell>
 
       {/* Sin "miembros": el servidor no trae la lista (se pide paginada en MIEMBROS) y el número daría 0 */}

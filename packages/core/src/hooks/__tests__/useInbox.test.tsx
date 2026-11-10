@@ -147,6 +147,16 @@ describe('useInbox', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: conversationWithQueryKey('other') });
   });
 
+  it('SERVER_UPDATED vuelve a pedir los servidores (nombre, ícono o banner cambiados por otro miembro)', () => {
+    const { wrapper, invalidate } = setup();
+    renderHook(() => useInbox(), { wrapper });
+
+    act(() => lastConnection().handlers.onEvent({ type: 'SERVER_UPDATED', serverId: 'srv-1' }));
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['servers'] });
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: conversationsQueryKey });
+  });
+
   it('DM_MESSAGE_REACTION_UPDATED actualiza las reacciones en el caché del historial', () => {
     const { queryClient, wrapper } = setup();
     queryClient.setQueryData(conversationsQueryKey, [conversation('dm-1')]);

@@ -66,6 +66,33 @@
   gap: var(--space-4);
 }
 
+/* Banner: el recorte real (16:9) que guarda el backend, sin bordes redondeados como el resto de las franjas */
+.bannerPreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 16 / 9;
+  margin-bottom: var(--space-3);
+  background: var(--color-decoration);
+  border: var(--line-hairline) solid var(--color-line);
+  overflow: hidden;
+}
+
+.bannerImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.overviewForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 /* Números del resumen: grandes, como el display */
 .stats {
   display: grid;

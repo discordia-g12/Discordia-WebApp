@@ -80,11 +80,13 @@ describe('openInboxSocket', () => {
       conversationId: 'dm-1',
       message: { id: 'm1', reactions: [{ emoji: '👍', count: 1, users: ['u1'] }] },
     };
+    const serverUpdated = { type: 'SERVER_UPDATED', serverId: 'srv-1' };
     last().receive(message);
     last().receive(conversation);
     last().receive(reaction);
+    last().receive(serverUpdated);
 
-    expect(onEvent.mock.calls).toEqual([[message], [conversation], [reaction]]);
+    expect(onEvent.mock.calls).toEqual([[message], [conversation], [reaction], [serverUpdated]]);
     connection.close();
   });
 
@@ -98,6 +100,8 @@ describe('openInboxSocket', () => {
     last().receive({ type: 'OTRA_COSA' });
     last().receive({ type: 'DM_MESSAGE', conversationId: 'dm-1' });
     last().receive({ type: 'DM_CONVERSATION' });
+    last().receive({ type: 'SERVER_UPDATED' });
+    last().receive({ type: 'SERVER_UPDATED', serverId: '' });
     last().receiveRaw('no es json');
 
     expect(onEvent).not.toHaveBeenCalled();

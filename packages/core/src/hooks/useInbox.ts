@@ -46,6 +46,13 @@ export function useInbox({ activeConversationId = null, enabled = true }: UseInb
     if (!active) return;
 
     const handleEvent = (event: InboxEvent) => {
+      // Otro miembro cambió la configuración del servidor: se vuelve a pedir la lista (barra de servidores,
+      // encabezado y ajustes leen de ahí). El evento solo trae el id, los datos los da la API
+      if (event.type === 'SERVER_UPDATED') {
+        queryClient.invalidateQueries({ queryKey: ['servers'] });
+        return;
+      }
+
       if (event.type === 'DM_CONVERSATION') {
         const { conversation } = event;
         queryClient.setQueryData<Conversation[]>(conversationsQueryKey, (old) => upsertConversation(old, conversation));

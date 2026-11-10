@@ -1,6 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../client';
-import { deleteServer, editChannel, isLocalCategoryId, mapServerFromBackend } from '../servers';
+import { ApiError } from '../errors';
+import {
+  deleteServer,
+  editChannel,
+  isLocalCategoryId,
+  mapServerFromBackend,
+  removeServerBanner,
+  serverBannerErrorMessage,
+  serverSettingsErrorMessage,
+  serverSettingsValidationError,
+  updateServer,
+  updateServerBanner,
+} from '../servers';
 import type { ChannelBackendResponse, ServerBackendResponse } from '../../types';
 
 function backendChannel(overrides: Partial<ChannelBackendResponse> = {}): ChannelBackendResponse {
@@ -35,6 +47,17 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe('mapServerFromBackend', () => {
+  it('trae la descripción y el banner (la franja del servidor lo usa en lugar del ícono)', () => {
+    const server = mapServerFromBackend(
+      backendServer({ description: 'Hola', icon_url: 'https://x/i.webp', banner_url: 'https://x/b.webp' })
+    );
+    expect(server).toMatchObject({ description: 'Hola', iconUrl: 'https://x/i.webp', banner: 'https://x/b.webp' });
+
+    const without = mapServerFromBackend(backendServer({ description: null, banner_url: null }));
+    expect(without.banner).toBeUndefined();
+    expect(without.description).toBeUndefined();
+  });
+
   it('convierte my_permissions en ids de permisos (o lo deja vacío si el backend no lo manda)', () => {
     const withPermissions = mapServerFromBackend(backendServer({ my_permissions: (1 << 1) | (1 << 6) }));
     expect(withPermissions.myPermissions).toEqual(['MANAGE_CHANNELS', 'CREATE_INSTANT_INVITE']);
@@ -145,5 +168,84 @@ describe('deleteServer', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1');
     expect(init.method).toBe('DELETE');
+  });
+});
+
+describe('configuración del servidor', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    configureClient({
+      baseUrl: 'http://localhost:8000',
+      getToken: vi.fn().mockResolvedValue('jwt-token'),
+      onAuthFailure: vi.fn(),
+      timeoutMs: 500,
+    });
+    fetchMock = vi.fn(async () => jsonResponse(backendServer({ name: 'Nuevo', banner_url: 'https://x/b.webp' })));
+    globalThis.fetch = fetchMock;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('updateServer manda PATCH /servers/:id con los campos que vienen, con trim', async () => {
+    const server = await updateServer('srv-1', { name: '  Nuevo  ' });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1');
+    expect(init.method).toBe('PATCH');
+    expect(JSON.parse(init.body)).toEqual({ name: 'Nuevo' });
+    expect(server.name).toBe('Nuevo');
+  });
+
+  it('updateServerBanner sube el archivo en el campo "banner"; removeServerBanner lo borra', async () => {
+    const file = new File([new Uint8Array([1])], 'b.png', { type: 'image/png' });
+
+    const updated = await updateServerBanner('srv-1', file);
+    await removeServerBanner('srv-1');
+
+    const [putUrl, put] = fetchMock.mock.calls[0];
+    expect(putUrl).toBe('http://localhost:8000/api/v1/servers/srv-1/banner');
+    expect(put.method).toBe('PUT');
+    expect(((put.body as FormData).get('banner') as File).name).toBe('b.png');
+    expect(updated.banner).toBe('https://x/b.webp');
+    expect(fetchMock.mock.calls[1][1].method).toBe('DELETE');
+  });
+
+  it.each([
+    [{ name: '' }, 'El nombre no puede quedar vacío.'],
+    [{ name: '   ' }, 'El nombre no puede quedar vacío.'],
+    [{ name: 'a'.repeat(101) }, 'El nombre puede tener hasta 100 caracteres.'],
+    [{ name: 'a\u0000b' }, 'El nombre tiene caracteres no permitidos.'],
+    [{ description: 'd'.repeat(1001) }, 'La descripción puede tener hasta 1000 caracteres.'],
+    [{ description: 'a\u0000b' }, 'La descripción tiene caracteres no permitidos.'],
+  ])('serverSettingsValidationError rechaza %j', (payload, message) => {
+    expect(serverSettingsValidationError(payload)).toBe(message);
+  });
+
+  it('serverSettingsValidationError acepta datos válidos (100 caracteres, descripción vacía)', () => {
+    expect(serverSettingsValidationError({ name: 'a'.repeat(100), description: '' })).toBeNull();
+    expect(serverSettingsValidationError({})).toBeNull();
+  });
+
+  it('serverSettingsErrorMessage explica cada error del backend en castellano', () => {
+    expect(serverSettingsErrorMessage(new ApiError({ status: 403 }))).toBe(
+      'Necesitás el permiso Gestionar servidor para cambiar la configuración.'
+    );
+    expect(serverSettingsErrorMessage(new ApiError({ status: 404 }))).toBe('El servidor ya no existe.');
+    expect(serverSettingsErrorMessage(new ApiError({ status: 422, invalidParams: [{ name: 'name', msg: 'x' }] }))).toBe(
+      'El nombre tiene que tener entre 1 y 100 caracteres.'
+    );
+    expect(
+      serverSettingsErrorMessage(new ApiError({ status: 422, invalidParams: [{ loc: ['body', 'description'], msg: 'x' }] }))
+    ).toBe('La descripción puede tener hasta 1000 caracteres.');
+    expect(serverSettingsErrorMessage(new Error('red'))).toBe('No se pudo guardar la configuración. Probá de nuevo.');
+  });
+
+  it('serverBannerErrorMessage: sin permiso lo dice; si no, el error de imagen', () => {
+    expect(serverBannerErrorMessage(new ApiError({ status: 403 }))).toBe('Necesitás el permiso Gestionar servidor para cambiar el banner.');
+    expect(serverBannerErrorMessage(new ApiError({ status: 413 }))).toBe('La imagen pesa más de 5 MB.');
   });
 });
