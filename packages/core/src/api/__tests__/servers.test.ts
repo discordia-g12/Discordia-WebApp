@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../client';
-import { editChannel, isLocalCategoryId, mapServerFromBackend } from '../servers';
+import { deleteServer, editChannel, isLocalCategoryId, mapServerFromBackend } from '../servers';
 import type { ChannelBackendResponse, ServerBackendResponse } from '../../types';
 
 function backendChannel(overrides: Partial<ChannelBackendResponse> = {}): ChannelBackendResponse {
@@ -118,5 +118,32 @@ describe('editChannel', () => {
     expect(init.method).toBe('PATCH');
     expect(JSON.parse(init.body)).toEqual({ category_id: 'uuid-1' });
     expect(channel.categoryId).toBe('uuid-1');
+  });
+});
+
+describe('deleteServer', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    configureClient({
+      baseUrl: 'http://localhost:8000',
+      getToken: vi.fn().mockResolvedValue('jwt-token'),
+      onAuthFailure: vi.fn(),
+      timeoutMs: 500,
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('llama a DELETE /api/v1/servers/:serverId', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    globalThis.fetch = fetchMock;
+
+    await deleteServer('srv-1');
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1');
+    expect(init.method).toBe('DELETE');
   });
 });

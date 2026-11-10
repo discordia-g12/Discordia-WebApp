@@ -300,6 +300,8 @@ export default function MobileShell() {
       }
     }
     setTargetChannelForAction(null)
+    setEditChannelModalOpen(false)
+    setDeleteChannelModalOpen(false)
   }
 
   const handleSelectServer = (id: string) => selectServer(id)
@@ -865,6 +867,11 @@ export default function MobileShell() {
         onCancel={() => setDeleteServerConfirmOpen(false)}
         onConfirm={async () => {
           if (!server) return
+          if (!isServerOwner) {
+            setDeleteServerConfirmOpen(false)
+            showToast('Solo quien creó el servidor puede eliminarlo.', 'error')
+            return
+          }
           try {
             await deleteServer(server.id)
             setDeleteServerConfirmOpen(false)

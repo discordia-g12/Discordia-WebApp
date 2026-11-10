@@ -8,10 +8,10 @@ interface ChannelActionModalsProps {
     channel: Channel | null
     categories?: Category[]
     editVisible: boolean
-    deleteVisible: boolean
+    deleteVisible?: boolean
     onCloseEdit: () => void
-    onRequestDelete: (channel: Channel) => void
-    onCloseDelete: () => void
+    onRequestDelete?: (channel: Channel) => void
+    onCloseDelete?: () => void
     onDeleted: () => void
 }
 
@@ -21,7 +21,7 @@ export default function ChannelActionModals({
     channel,
     categories,
     editVisible,
-    deleteVisible,
+    deleteVisible = false,
     onCloseEdit,
     onRequestDelete,
     onCloseDelete,
@@ -37,15 +37,18 @@ export default function ChannelActionModals({
                 channel={channel}
                 categories={categories}
                 onClose={onCloseEdit}
+                onDeleted={onDeleted}
                 onRequestDelete={onRequestDelete}
             />
-            <DeleteChannelModal
-                visible={deleteVisible}
-                serverId={serverId}
-                channel={channel}
-                onClose={onCloseDelete}
-                onSuccess={onDeleted}
-            />
+            {deleteVisible && onCloseDelete && (
+                <DeleteChannelModal
+                    visible={deleteVisible}
+                    serverId={serverId}
+                    channel={channel}
+                    onClose={onCloseDelete}
+                    onSuccess={onDeleted}
+                />
+            )}
         </>
     )
 }
