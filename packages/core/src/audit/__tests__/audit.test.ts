@@ -1,0 +1,246 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { configureClient } from '../../api/client';
+import { ApiError } from '../../api/errors';
+import { getServerAuditLogs } from '../api';
+import {
+  AUDIT_CATEGORY_LABELS,
+  AUDIT_CATEGORY_OPTIONS,
+  formatAuditAction,
+  formatAuditChanges,
+  formatAuditDate,
+} from '../formatters';
+import { isAuditForbidden, auditErrorMessage } from '../useServerAuditLogs';
+import { canSeeSettingsSection } from '../../admin/permissions';
+import type { AuditLogPage } from '../types';
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+const originalFetch = globalThis.fetch;
+
+describe('Audit API: getServerAuditLogs', () => {
+  beforeEach(() => {
+    configureClient({
+      baseUrl: 'http://localhost:8000',
+      getToken: async () => 'jwt-token',
+    });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('realiza GET al endpoint con query params correctos', async () => {
+    const mockPage: AuditLogPage = {
+      serverId: 'srv-123',
+      items: [
+        {
+          id: 'log-1',
+          serverId: 'srv-123',
+          category: 'members',
+          action: 'MEMBER_KICK',
+          actorId: 'auth0|mod',
+          targetId: 'auth0|user',
+          reason: 'Spam',
+          createdAt: '2026-11-10T12:00:00Z',
+        },
+      ],
+      limit: 25,
+      hasMore: false,
+      nextCursor: null,
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(mockPage));
+    globalThis.fetch = fetchMock;
+
+    const res = await getServerAuditLogs('srv-123', {
+      category: 'members',
+      action: 'MEMBER_KICK',
+      actorId: 'auth0|mod',
+      before: '2026-11-10T15:00:00Z',
+      limit: 25,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      'http://localhost:8000/api/v1/servers/srv-123/audit-logs?category=members&action=MEMBER_KICK&actor_id=auth0%7Cmod&before=2026-11-10T15%3A00%3A00Z&limit=25'
+    );
+    expect(init.method).toBe('GET');
+    expect(init.headers['Authorization']).toBe('Bearer jwt-token');
+    expect(res).toEqual(mockPage);
+  });
+
+  it('propaga ApiError 403 cuando el usuario no tiene permisos', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      jsonResponse(
+        { detail: 'Forbidden: User does not have moderation permissions for this server' },
+        403
+      )
+    );
+
+    await expect(getServerAuditLogs('srv-123')).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe('Audit Formatters', () => {
+  it('traduce las categorías y opciones', () => {
+    expect(AUDIT_CATEGORY_LABELS.all).toBe('Todas las acciones');
+    expect(AUDIT_CATEGORY_LABELS.members).toBe('Miembros');
+    expect(AUDIT_CATEGORY_LABELS.roles).toBe('Roles');
+    expect(AUDIT_CATEGORY_LABELS.channels).toBe('Canales');
+    expect(AUDIT_CATEGORY_LABELS.categories).toBe('Categorías');
+    expect(AUDIT_CATEGORY_LABELS.server).toBe('Servidor');
+    expect(AUDIT_CATEGORY_LABELS.invites).toBe('Invitaciones');
+    expect(AUDIT_CATEGORY_LABELS.messages).toBe('Mensajes');
+
+    expect(AUDIT_CATEGORY_OPTIONS).toHaveLength(8);
+  });
+
+  it('traduce acciones a texto natural en español', () => {
+    expect(
+      formatAuditAction({ action: 'MEMBER_KICK', category: 'members' })
+    ).toBe('Expulsó a');
+
+    expect(
+      formatAuditAction({ action: 'MEMBER_BAN_ADD', category: 'members' })
+    ).toBe('Baneó a');
+
+    expect(
+      formatAuditAction({ action: 'MEMBER_BAN_REMOVE', category: 'members' })
+    ).toBe('Revocó el baneo de');
+
+    expect(
+      formatAuditAction({ action: 'MEMBER_MUTE', category: 'members' })
+    ).toBe('Silenció a');
+
+    expect(
+      formatAuditAction({ action: 'MEMBER_UNMUTE', category: 'members' })
+    ).toBe('Quitó el silencio a');
+
+    expect(
+      formatAuditAction({
+        action: 'MEMBER_ROLE_ASSIGN',
+        category: 'roles',
+        metadata: { role_name: 'Moderador' },
+      })
+    ).toBe('Asignó el rol @Moderador a');
+
+    expect(
+      formatAuditAction({
+        action: 'MEMBER_ROLE_REMOVE',
+        category: 'roles',
+        metadata: { role_name: 'Admin' },
+      })
+    ).toBe('Quitó el rol @Admin a');
+
+    expect(
+      formatAuditAction({
+        action: 'ROLE_CREATE',
+        category: 'roles',
+        metadata: { name: 'VIP' },
+      })
+    ).toBe('Creó el rol @VIP');
+
+    expect(
+      formatAuditAction({
+        action: 'CHANNEL_CREATE',
+        category: 'channels',
+        metadata: { name: 'general' },
+      })
+    ).toBe('Creó el canal #general');
+
+    expect(
+      formatAuditAction({
+        action: 'CATEGORY_CREATE',
+        category: 'categories',
+        metadata: { name: 'Comunidad' },
+      })
+    ).toBe('Creó la categoría "Comunidad"');
+
+    expect(
+      formatAuditAction({ action: 'SERVER_UPDATE', category: 'server' })
+    ).toBe('Actualizó los ajustes del servidor');
+
+    expect(
+      formatAuditAction({ action: 'SERVER_TRANSFER', category: 'server' })
+    ).toBe('Transfirió la propiedad del servidor');
+
+    expect(
+      formatAuditAction({
+        action: 'INVITE_CREATE',
+        category: 'invites',
+        metadata: { code: 'ABC123XYZ' },
+      })
+    ).toBe('Creó la invitación ABC123XYZ');
+
+    expect(
+      formatAuditAction({ action: 'MESSAGE_DELETE', category: 'messages' })
+    ).toBe('Eliminó un mensaje de');
+  });
+
+  it('formatea cambios y diferencias (antes vs después)', () => {
+    const changes = {
+      name: { old: 'Antiguo', new: 'Nuevo' },
+      spam_filter: { old: false, new: true },
+      permissions: { old: ['CONNECT'], new: ['CONNECT', 'SPEAK'] },
+      icon_url: { old: 'old.png', new: null },
+    };
+
+    const diffs = formatAuditChanges(changes);
+    expect(diffs).toEqual([
+      { key: 'name', label: 'Nombre', oldVal: 'Antiguo', newVal: 'Nuevo' },
+      { key: 'spam_filter', label: 'Filtro de spam', oldVal: 'desactivado', newVal: 'activado' },
+      { key: 'permissions', label: 'Permisos', oldVal: 'CONNECT', newVal: 'CONNECT, SPEAK' },
+      { key: 'icon_url', label: 'Ícono', oldVal: 'old.png', newVal: '(ninguno)' },
+    ]);
+
+    expect(formatAuditChanges(null)).toEqual([]);
+    expect(formatAuditChanges(undefined)).toEqual([]);
+  });
+
+  it('formatea fechas relativas y absolutas', () => {
+    const now = new Date('2026-11-10T12:00:00Z');
+    expect(formatAuditDate('2026-11-10T11:59:40Z', now)).toBe('hace unos momentos');
+    expect(formatAuditDate('2026-11-10T11:45:00Z', now)).toBe('hace 15 min');
+    expect(formatAuditDate('2026-11-10T08:00:00Z', now)).toBe('hace 4 h');
+    expect(formatAuditDate('2026-11-08T12:00:00Z', now)).toContain('08/11/2026');
+    expect(formatAuditDate('invalid-date')).toBe('');
+  });
+});
+
+describe('Audit Helpers & Permissions', () => {
+  it('detecta 403 Forbidden para auditoría', () => {
+    const error403 = new ApiError({
+      status: 403,
+      title: 'Forbidden',
+      detail: 'No tienes permisos',
+    });
+    const error500 = new ApiError({
+      status: 500,
+      title: 'Server Error',
+    });
+
+    expect(isAuditForbidden(error403)).toBe(true);
+    expect(isAuditForbidden(error500)).toBe(false);
+    expect(isAuditForbidden(new Error('fail'))).toBe(false);
+
+    expect(auditErrorMessage(error403)).toContain('No tienes permisos de moderación');
+    expect(auditErrorMessage(new Error('timeout'))).toBe('timeout');
+  });
+
+  it('permite ver la sección audit a moderadores o dueños', () => {
+    const serverWithOwner = { ownerId: 'usr-1', myPermissions: [] };
+    const serverWithMod = { ownerId: 'other', myPermissions: ['BAN_MEMBERS'] };
+    const serverWithoutMod = { ownerId: 'other', myPermissions: ['SEND_MESSAGES'] };
+
+    expect(canSeeSettingsSection(serverWithOwner, 'usr-1', 'audit')).toBe(true);
+    expect(canSeeSettingsSection(serverWithMod, 'usr-2', 'audit')).toBe(true);
+    expect(canSeeSettingsSection(serverWithoutMod, 'usr-3', 'audit')).toBe(false);
+  });
+});

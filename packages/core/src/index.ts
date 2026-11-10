@@ -46,6 +46,7 @@ export * from './hooks/useInbox';
 export * from './admin/permissions';
 export * from './admin/roles';
 export * from './admin/members';
+export * from './audit';
 
 // Backoffice de staff: estado de la plataforma (health checks agregados por el backend)
 export * from './admin/platformStatus';
