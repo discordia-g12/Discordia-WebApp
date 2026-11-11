@@ -27,6 +27,7 @@ import { PERMISSION_CATEGORIES, PRESET_ROLE_COLORS } from './shared';
 import { useServerSettingsState, type ServerSettingsState } from './useServerSettingsState';
 import { useUIStore } from '../../../app/uiStore';
 import { MemberGrowthChart } from '../../servers/MemberGrowthChart';
+import { AuditLogViewer } from './audit';
 import styles from './ServerSettingsScreen.module.css';
 
 type Section = 'overview' | 'roles' | 'members' | 'bans' | 'channels' | 'moderation' | 'notifications' | 'emojis' | 'boost';
@@ -990,8 +991,8 @@ function ModerationSection({ s }: { s: ServerSettingsState }) {
           hint="separadas por comas; los mensajes que las tengan no se publican"
         />
       </SettingsCell>
-      <SettingsCell title="Registro de auditoría" wide soon>
-        <EmptyState title="sin acciones registradas" hint="las acciones de administración del servidor aparecerán aquí" />
+      <SettingsCell title="Registro de auditoría" wide>
+        <AuditLogViewer serverId={s.serverState.id} />
       </SettingsCell>
     </>
   );

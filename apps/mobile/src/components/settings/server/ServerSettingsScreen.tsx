@@ -17,9 +17,10 @@ import type { Server } from '../../../types'
 import { SettingsCell, SettingsScreen, type SettingsSection } from '../SettingsScreen'
 import { RoleSaveBar, RolesSection } from './RolesSection'
 import { BansSection, MembersSection } from './MembersSection'
+import { AuditSection } from './AuditSection'
 import { MemberGrowthChart } from '../../servers/MemberGrowthChart'
 
-export type ServerSettingsSection = 'overview' | 'roles' | 'members' | 'bans'
+export type ServerSettingsSection = 'overview' | 'roles' | 'members' | 'bans' | 'audit'
 type Section = ServerSettingsSection
 
 // Las secciones que tienen backend: canales se maneja desde la barra de canales, y moderación,
@@ -29,6 +30,7 @@ const SECTIONS: SettingsSection<Section>[] = [
   { id: 'roles', label: 'Roles' },
   { id: 'members', label: 'Miembros' },
   { id: 'bans', label: 'Baneos' },
+  { id: 'audit', label: 'Auditoría' },
 ]
 
 /** Secciones en orden: "Ajustes del servidor" abre la primera que el usuario puede ver. */
@@ -137,6 +139,8 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
       {section === 'members' && <MembersSection members={members} ownerId={server.ownerId} currentUserId={currentUserId} actions={memberActions} onOpenProfile={onOpenProfile} />}
 
       {section === 'bans' && <BansSection bans={bans} />}
+
+      {section === 'audit' && <AuditSection serverId={server.id} />}
 
       <ConfirmModal
         visible={!!pending}
