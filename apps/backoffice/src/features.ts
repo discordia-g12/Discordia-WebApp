@@ -12,7 +12,7 @@ const FEATURES = {
   'users.list': 'ready', // Ver listado de usuarios con filtros (Auth-User)
   'users.suspend': 'ready', // Suspender usuario a nivel plataforma (Auth-User, ADR-002 de Auth-User)
   'users.reactivate': 'ready', // Reactivar usuario suspendido
-  'servers.list': 'soon', // Ver listado de servidores de la plataforma (Server-Roles)
+  'servers.list': 'ready', // Ver listado de servidores de la plataforma (GET /api/v1/admin/servers, Server-Roles)
   'servers.suspend': 'ready', // Suspender servidor completo y levantar la suspensión (Server-Roles, ADR-002)
   'servers.delete': 'soon', // Eliminar servidor desde el backoffice
   'cases.user': 'soon', // Ver expediente de investigación de un usuario

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActionLink, BlockButton, Skeleton, SquareAvatar } from '@web/ui';
 import {
   isForbidden,
@@ -9,22 +9,12 @@ import {
   type PlatformAccount,
 } from '@discordia/core';
 import { DataTable, type Column } from '../layout/blocks';
+import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from '../layout/useDebouncedValue';
 import { StateTag } from './StateTag';
 import { formatDate } from './types';
 import styles from './sections.module.css';
 
 export const ACCOUNTS_PAGE_SIZE = 25;
-/** Espera después de la última tecla antes de buscar: un pedido por búsqueda, no por letra. */
-export const SEARCH_DEBOUNCE_MS = 300;
-
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(id);
-  }, [value, delayMs]);
-  return debounced;
-}
 
 /**
  * Tabla del listado de usuarios ("Ver listado de usuarios con filtros"): busca en el servidor por email, @usuario

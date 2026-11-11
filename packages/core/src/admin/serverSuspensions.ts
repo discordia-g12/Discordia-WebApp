@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { ApiError, NetworkError, PROBLEM_TYPES, TimeoutError } from '../api/errors';
 import { isForbidden, isUnauthorized } from './platformStatus';
@@ -69,6 +69,46 @@ export interface SuspendServerInput {
 export const adminServersQueryKey = ['admin', 'servers'] as const;
 export const suspendedServersQueryKey = [...adminServersQueryKey, 'suspended'] as const;
 
+export type ServerStateFilter = 'all' | 'active' | 'suspended';
+
+export interface AdminServerFilters {
+  /** Nombre (parcial, sin distinguir mayúsculas) o id exacto. */
+  query: string;
+  state: ServerStateFilter;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminServerPage {
+  items: AdminServer[];
+  /** Servidores que coinciden con los filtros, en todas las páginas. */
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export const SERVER_STATE_FILTER_OPTIONS: { value: ServerStateFilter; label: string }[] = [
+  { value: 'all', label: 'todos' },
+  { value: 'active', label: 'activos' },
+  { value: 'suspended', label: 'suspendidos' },
+];
+
+/** "Ver listado de servidores de la plataforma" (GET /api/v1/admin/servers de Server-Roles). De acá sale el id. */
+export async function listAdminServers(filters: AdminServerFilters): Promise<AdminServerPage> {
+  const raw = await api.get<{ items: AdminServerResponse[]; total: number; page: number; page_size: number }>(
+    '/api/v1/admin/servers',
+    {
+      query: {
+        q: filters.query.trim() || undefined,
+        state: filters.state,
+        page: filters.page,
+        page_size: filters.pageSize,
+      },
+    },
+  );
+  return { items: raw.items.map(toAdminServer), total: raw.total, page: raw.page, pageSize: raw.page_size };
+}
+
 export async function listSuspendedServers(): Promise<AdminServer[]> {
   const raw = await api.get<AdminServerResponse[]>('/api/v1/admin/servers/suspended');
   return raw.map(toAdminServer);
@@ -89,6 +129,20 @@ export async function liftServerSuspension(serverId: string): Promise<AdminServe
 
 const noAuthRetry = (failureCount: number, error: unknown) =>
   !isUnauthorized(error) && !isForbidden(error) && failureCount < 2;
+
+/**
+ * Listado de servidores con búsqueda y filtro de estado. Mientras llega una página nueva se sigue mostrando la
+ * anterior, así la tabla no parpadea en cada tecla.
+ */
+export function useAdminServers(filters: AdminServerFilters, { enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: [...adminServersQueryKey, 'list', filters] as const,
+    queryFn: () => listAdminServers(filters),
+    enabled,
+    placeholderData: keepPreviousData,
+    retry: noAuthRetry,
+  });
+}
 
 /** Servidores suspendidos, el más reciente primero (para levantar la suspensión). */
 export function useSuspendedServers({ enabled = true }: { enabled?: boolean } = {}) {
@@ -118,8 +172,8 @@ export function useLiftServerSuspension() {
   });
 }
 
-/** list: el listado de servidores suspendidos. */
-export type ServerSuspensionAction = 'suspend' | 'lift' | 'list';
+/** list: el listado de servidores suspendidos; list-servers: el listado de servidores con filtros. */
+export type ServerSuspensionAction = 'suspend' | 'lift' | 'list' | 'list-servers';
 
 /** Mensaje para el staff cuando falla suspender, levantar o listar. Siempre dice qué hacer. */
 export function serverSuspensionErrorMessage(error: unknown, action: ServerSuspensionAction): string {
@@ -131,6 +185,10 @@ export function serverSuspensionErrorMessage(error: unknown, action: ServerSuspe
     return 'Tu propia cuenta está suspendida.';
   }
   if (isForbidden(error)) return 'Tu cuenta no tiene permisos de staff: el servidor rechazó el pedido.';
+  if (action === 'list-servers') {
+    if (error instanceof ApiError && error.status === 422) return 'La búsqueda no es válida: probá con menos de 100 caracteres.';
+    return 'No pudimos traer el listado de servidores.';
+  }
   if (error instanceof ApiError) {
     switch (error.status) {
       case 404:

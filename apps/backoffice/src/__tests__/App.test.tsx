@@ -34,11 +34,12 @@ describe('backoffice', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/');
     useBackofficeSession.setState({ status: 'loading', user: null, error: null });
-    // Usuarios pide el listado y las cuentas suspendidas al abrir: sin ninguna
+    // Usuarios y Servidores piden su listado (paginado) y sus suspendidos al abrir: sin ninguno
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
-        const body = String(url).includes('/admin/users?') ? { items: [], total: 0, page: 1, page_size: 25 } : [];
+        const paged = String(url).includes('/admin/users?') || String(url).includes('/admin/servers?');
+        const body = paged ? { items: [], total: 0, page: 1, page_size: 25 } : [];
         return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
       }),
     );

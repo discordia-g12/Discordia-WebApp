@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BlockButton, ConfirmDialog, UnderlineInput } from '@web/ui';
 import { isServerId, serverSuspensionErrorMessage, useSuspendServer, type AdminServer } from '@discordia/core';
 import { Cell, Note } from '../layout/Cell';
@@ -8,13 +8,36 @@ import styles from './sections.module.css';
 /**
  * "Suspender servidor completo": qué servidor (por id, porque el nombre no es único: ADR-002 de Server-Roles) y
  * por qué. Pide confirmación (CA 1: "una vez que el staff confirma") y muestra el resultado o qué hacer si falló.
+ *
+ * `prefill` lo manda "_suspender" del listado: completa el id, recuerda el nombre para la confirmación y deja el
+ * foco en el motivo. La key cambia en cada pedido, así funciona aunque se elija dos veces el mismo servidor.
  */
-export function SuspendServerCell() {
+export function SuspendServerCell({
+  prefill = null,
+}: { prefill?: { serverId: string; name: string; key: number } | null } = {}) {
   const [serverId, setServerId] = useState('');
+  // Nombre del servidor elegido en el listado; deja de valer si se edita el id a mano
+  const [picked, setPicked] = useState<{ serverId: string; name: string } | null>(null);
   const [reason, setReason] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [suspended, setSuspended] = useState<AdminServer | null>(null);
   const mutation = useSuspendServer();
+  const { reset } = mutation;
+  const reasonRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!prefill) return;
+    setServerId(prefill.serverId);
+    setPicked({ serverId: prefill.serverId, name: prefill.name });
+    setSuspended(null);
+    reset();
+    reasonRef.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    reasonRef.current?.focus();
+    // Solo cuando llega un pedido nuevo (cambia la key)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill?.key]);
+
+  const pickedName = picked && picked.serverId === serverId.trim() ? picked.name : null;
 
   const idLooksWrong = serverId.trim() !== '' && !isServerId(serverId);
   const canSubmit = isServerId(serverId) && reason.trim() !== '' && !mutation.isPending;
@@ -24,6 +47,7 @@ export function SuspendServerCell() {
       const server = await mutation.mutateAsync({ serverId, reason });
       setSuspended(server);
       setServerId('');
+      setPicked(null);
       setReason('');
     } catch {
       // El error queda en mutation.error y se muestra abajo
@@ -52,9 +76,16 @@ export function SuspendServerCell() {
           onChange={(e) => setServerId(e.target.value)}
           placeholder="3f2a…-…"
           error={idLooksWrong ? 'el id es un UUID, por ejemplo 3f2a9c1e-…' : undefined}
-          hint={idLooksWrong ? undefined : 'el nombre no alcanza: puede haber varios servidores con el mismo'}
+          hint={
+            idLooksWrong
+              ? undefined
+              : pickedName
+                ? `servidor: ${pickedName}`
+                : 'copialo del listado de arriba con "_suspender": el nombre no alcanza, puede haber varios iguales'
+          }
         />
         <UnderlineInput
+          ref={reasonRef}
           label="motivo"
           required
           value={reason}
@@ -83,7 +114,7 @@ export function SuspendServerCell() {
         <DialogPortal>
           <ConfirmDialog
             action="suspend-server"
-            targetName={serverId.trim()}
+            targetName={pickedName ? `${pickedName} (${serverId.trim()})` : serverId.trim()}
             onConfirm={confirm}
             onCancel={() => setConfirming(false)}
           />
