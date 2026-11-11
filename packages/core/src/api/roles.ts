@@ -11,8 +11,7 @@ export const DEFAULT_ROLE_COLOR = '#99aab5';
 /**
  * Posición del bit de cada permiso dentro del bitmask del backend
  * (Server-Roles-Core-Service, core/permissions.py). Los ids son los que usa la UI:
- * CREATE_INSTANT_INVITE es CREATE_INVITE en el backend. VIEW_AUDIT_LOG
- * todavía no tiene bit en el backend, por lo que nunca aparece habilitado.
+ * CREATE_INSTANT_INVITE es CREATE_INVITE en el backend.
  */
 export const PERMISSION_BITS: Record<string, number> = {
   VIEW_CHANNELS: 0,
@@ -38,6 +37,7 @@ export const PERMISSION_BITS: Record<string, number> = {
   ADMINISTRATOR: 20,
   VIDEO: 21,
   SCREEN_SHARE: 22,
+  VIEW_AUDIT_LOG: 23,
 };
 
 /** Convierte el bitmask del backend en la lista de ids de permisos que usa la UI. */

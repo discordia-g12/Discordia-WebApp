@@ -3,8 +3,7 @@ import type { Channel, Server } from '../types';
 
 /**
  * Permisos de un rol tal como se muestran en los ajustes del servidor (web y mobile), agrupados. Los ids
- * son los de PERMISSION_BITS; los que todavía no tienen bit en el backend (VIEW_AUDIT_LOG) se
- * muestran sin poder activarse (hasBackendBit).
+ * son los de PERMISSION_BITS.
  */
 export const PERMISSION_CATEGORIES = [
   {
@@ -101,8 +100,8 @@ export const SETTINGS_SECTION_PERMISSIONS: Record<string, string[]> = {
   members: ['MANAGE_ROLES', 'MUTE_MEMBERS', 'KICK_MEMBERS', 'BAN_MEMBERS'],
   bans: ['BAN_MEMBERS'],
   channels: ['MANAGE_CHANNELS'],
-  moderation: ['MANAGE_SERVER', 'ADMINISTRATOR', 'BAN_MEMBERS', 'KICK_MEMBERS', 'MANAGE_ROLES', 'MANAGE_CHANNELS'],
-  audit: ['MANAGE_SERVER', 'ADMINISTRATOR', 'BAN_MEMBERS', 'KICK_MEMBERS', 'MANAGE_ROLES', 'MANAGE_CHANNELS'],
+  moderation: ['MANAGE_SERVER', 'ADMINISTRATOR', 'BAN_MEMBERS', 'KICK_MEMBERS', 'MANAGE_ROLES', 'MANAGE_CHANNELS', 'VIEW_AUDIT_LOG'],
+  audit: ['MANAGE_SERVER', 'ADMINISTRATOR', 'BAN_MEMBERS', 'KICK_MEMBERS', 'MANAGE_ROLES', 'MANAGE_CHANNELS', 'VIEW_AUDIT_LOG'],
   emojis: ['MANAGE_SERVER'],
 };
 

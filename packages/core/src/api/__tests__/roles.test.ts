@@ -77,8 +77,13 @@ describe('permissionsToBitmask', () => {
     expect(permissionsToBitmask(bitmaskToPermissions(1 << 20))).toBe(1 << 20);
   });
 
-  it('ignora ids sin bit en el backend (VIEW_AUDIT_LOG)', () => {
-    expect(permissionsToBitmask(['SEND_MESSAGES', 'VIEW_AUDIT_LOG'])).toBe(1 << 9);
+  it('ignora ids sin bit en el backend', () => {
+    expect(permissionsToBitmask(['SEND_MESSAGES', 'UNKNOWN_PERMISSION'])).toBe(1 << 9);
+  });
+
+  it('view_audit_log tiene bit 23', () => {
+    expect(permissionsToBitmask(['VIEW_AUDIT_LOG'])).toBe(1 << 23);
+    expect(bitmaskToPermissions(1 << 23)).toEqual(['VIEW_AUDIT_LOG']);
   });
 
   it('video y compartir pantalla son permisos separados (bits 21 y 22)', () => {
