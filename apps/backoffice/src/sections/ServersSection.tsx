@@ -3,6 +3,8 @@ import { ActionLink, BlockButton, SquareAvatar, UnderlineInput } from '@web/ui';
 import { Cell, Note } from '../layout/Cell';
 import { DataTable, type Column } from '../layout/blocks';
 import { StateTag } from './StateTag';
+import { SuspendServerCell } from './SuspendServerCell';
+import { SuspendedServersCell } from './SuspendedServersCell';
 import { formatDate, type PlatformServerRow } from './types';
 import styles from './sections.module.css';
 
@@ -37,11 +39,12 @@ const COLUMNS: Column<PlatformServerRow>[] = [
  * SERVIDORES: "Ver listado de servidores de la plataforma" (nombre, miembros y fecha de creación, con
  * búsqueda por nombre), "Suspender servidor completo" (y levantar la suspensión) y "Eliminar servidor desde
  * el backoffice". Endpoints en Server-Roles.
+ *
+ * Suspender va por id (el nombre no es único) y sigue el ADR-002 de Server-Roles; las acciones del listado se
+ * conectan cuando exista el endpoint del listado.
  */
 export function ServersSection() {
   const [search, setSearch] = useState('');
-  const [suspendTarget, setSuspendTarget] = useState('');
-  const [suspendReason, setSuspendReason] = useState('');
   const [deleteName, setDeleteName] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const servers: PlatformServerRow[] = [];
@@ -59,18 +62,8 @@ export function ServersSection() {
         />
       </Cell>
 
-      <Cell title="Suspender servidor" feature="servers.suspend">
-        <UnderlineInput label="servidor" value={suspendTarget} onChange={(e) => setSuspendTarget(e.target.value)} placeholder="nombre o id" />
-        <UnderlineInput
-          label="motivo"
-          value={suspendReason}
-          maxLength={512}
-          onChange={(e) => setSuspendReason(e.target.value)}
-          hint="por ejemplo, la denuncia que se investiga"
-        />
-        <BlockButton tone="danger">Suspender</BlockButton>
-        <Note>Ningún miembro puede entrar mientras dure. El contenido se conserva y se puede levantar la suspensión desde el listado.</Note>
-      </Cell>
+      <SuspendServerCell />
+      <SuspendedServersCell />
 
       <Cell title="Eliminar servidor" feature="servers.delete">
         <UnderlineInput

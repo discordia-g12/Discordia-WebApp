@@ -26,7 +26,9 @@ export function ChatConnectionProvider({ children }: { children: ReactNode }) {
     {
       onRemoved: (reason) => {
         showToast(chatRemovalMessage(reason), 'danger');
-        selectServer('home', []);
+        // Servidor suspendido: sigue siendo miembro, se queda en el servidor y ve el aviso (la lista se recarga
+        // sola en useChatWebSocket y marca isSuspended). Ban / expulsión: el servidor ya no está, vuelve al inicio
+        if (reason !== 'server-suspended') selectServer('home', []);
       },
       // El servidor rechazó el mensaje (p. ej. le sacaron el permiso justo antes de enviarlo)
       onError: (error) => showToast(`No se pudo enviar el mensaje: ${error}`, 'danger'),

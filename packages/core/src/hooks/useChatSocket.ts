@@ -190,7 +190,9 @@ export function useChatWebSocket(
 
 /** Texto para mostrar cuando el chat cerró la conexión porque sacaron al usuario del servidor. */
 export function chatRemovalMessage(reason: ChatRemovalReason): string {
-  return reason === 'banned' ? 'Te banearon de este servidor.' : 'Ya no sos miembro de este servidor.';
+  if (reason === 'banned') return 'Te banearon de este servidor.';
+  if (reason === 'server-suspended') return 'La plataforma suspendió este servidor.';
+  return 'Ya no sos miembro de este servidor.';
 }
 
 /** Lo que muestra el input cuando Chat Engine dice que no puede escribir (mute o rol sin permiso). */

@@ -1,5 +1,5 @@
 import { getClientConfig, getWsBaseUrl, notifyAccountSuspended } from '../api/client';
-import { ACCOUNT_SUSPENDED_CLOSE_CODE } from '../api/errors';
+import { ACCOUNT_SUSPENDED_CLOSE_CODE, SERVER_SUSPENDED_CLOSE_CODE } from '../api/errors';
 import { isConversationId } from '../api/conversations';
 import type { MessageAttachment, MessageBackendPayload } from '../types';
 
@@ -20,8 +20,11 @@ export function reconnectDelayMs(attempts: number): number {
  */
 export type ChatSocketStatus = 'connecting' | 'open' | 'reconnecting' | 'closed' | 'removed';
 
-/** Por qué el chat cerró la conexión para siempre: baneado, o expulsado / salió del servidor. */
-export type ChatRemovalReason = 'banned' | 'removed';
+/**
+ * Por qué el chat cerró la conexión para siempre: baneado, expulsado / salió del servidor, o el staff suspendió el
+ * servidor (hasta que se levante la suspensión).
+ */
+export type ChatRemovalReason = 'banned' | 'removed' | 'server-suspended';
 
 /**
  * Códigos de cierre de Chat Engine (SessionManager.disconnectUser). Reintentar no sirve: cada intento
@@ -30,6 +33,7 @@ export type ChatRemovalReason = 'banned' | 'removed';
 const CLOSE_CODE_REMOVAL: Record<number, ChatRemovalReason> = {
   4003: 'banned',
   4002: 'removed',
+  [SERVER_SUSPENDED_CLOSE_CODE]: 'server-suspended',
 };
 
 export interface ChatSocketHandlers {

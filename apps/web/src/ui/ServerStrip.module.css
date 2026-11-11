@@ -70,6 +70,39 @@
   right: calc(var(--space-2) + var(--space-1));
 }
 
+/* Servidor suspendido por el staff: imagen apagada y cartel rojo "suspended" sobre la franja */
+.suspended .image,
+.suspended .placeholder {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.suspendedTag {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  padding: 0 var(--space-1);
+  transform: translate(-50%, -50%);
+  font-size: var(--font-meta-size);
+  font-weight: 700;
+  line-height: var(--space-4);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #fff;
+  background: var(--color-danger);
+}
+
+/* La franja activa se corre --space-2: el cartel se centra en la parte visible */
+.active:not(.horizontal) .suspendedTag {
+  left: calc(50% - var(--space-2) / 2);
+}
+
+.suspendedActivity {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
 /* Etiqueta negra desplegada (PDF, pág. 8): fixed, con la posición de la franja (ver ServerStrip) */
 .label {
   position: fixed;

@@ -16,6 +16,7 @@ import { VoiceControlsPanel } from '../../features/voice/VoiceControls';
 import { useVoice } from '../../features/voice/voiceContext';
 import { MemberListPanel } from '../../features/servers/MemberListPanel';
 import { HomePanel } from '../../features/friends/HomePanel';
+import { SuspendedServerPanel } from '../../features/servers/SuspendedServerPanel';
 import { UserBarPanel } from '../../features/profile/UserBarPanel';
 import { UserMenuContent } from '../../features/profile/UserMenu';
 import { useUserPanelActions } from '../../features/profile/profileActions';
@@ -117,7 +118,7 @@ export function MobileAppShell() {
                 </div>
               </div>
             </Screen>
-          ) : channelOpen && currentServer ? (
+          ) : channelOpen && currentServer && !currentServer.isSuspended ? (
             isMemberListOpen && appView === 'chat' ? (
               <Pane backLabel={currentChannel ? `•${currentChannel.name}` : 'Volver'} onBack={() => useUIStore.getState().toggleMemberList()}>
                 <MemberListPanel />
@@ -129,7 +130,9 @@ export function MobileAppShell() {
             )
           ) : (
             <Screen title={currentServer?.name ?? 'Servidores'} tinted>
-              {currentServer ? (
+              {currentServer?.isSuspended ? (
+                <SuspendedServerPanel server={currentServer} />
+              ) : currentServer ? (
                 <ChannelSidebarPanel onChannelOpened={() => setChannelOpen(true)} />
               ) : (
                 <div className={styles.padded}>
@@ -211,6 +214,7 @@ function ServerTabsRow({
               unread={serverUnreadLabel(server)}
               badge={serverUnreadBadge(server)}
               orientation="horizontal"
+              suspended={server.isSuspended}
               onPress={() => onSelect(server.id)}
             />
           </li>

@@ -14,7 +14,7 @@ Las decisiones de seguridad están en [`Gateway/docs/ADR-002-Rol-Staff-Backoffic
 | Sección | URL | Historias (consigna) | Estado |
 |---------|-----|----------------------|--------|
 | Usuarios | `/usuarios` | Listado con filtros, suspender, reactivar | **Funciona** (Auth-User `/api/v1/admin/users`): listado paginado con búsqueda por email, @usuario o nombre y filtro por estado; suspender y reactivar con confirmación, también desde cada fila |
-| Servidores | `/servidores` | Listado, suspender (y levantar), eliminar | Próximamente |
+| Servidores | `/servidores` | Listado, suspender (y levantar), eliminar | Suspender por id y levantar: listo (Server-Roles `/api/v1/admin/servers`). Listado y eliminar: próximamente |
 | Expedientes | `/expedientes` | Expediente de usuario o servidor | Próximamente |
 | Métricas | `/metricas` | Métricas globales de la plataforma | Próximamente |
 | Estado | `/estado` | Estado de la plataforma e incidentes | Estado de los servicios funciona (`GET /api/v1/admin/status`, cada 30 s); incidentes, próximamente |
