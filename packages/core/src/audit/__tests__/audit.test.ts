@@ -13,6 +13,7 @@ import {
 import { isAuditForbidden, auditErrorMessage } from '../useServerAuditLogs';
 import { canSeeSettingsSection } from '../../admin/permissions';
 import type { AuditLogPage } from '../types';
+import type { User } from '../../types';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -214,6 +215,7 @@ describe('Audit Formatters', () => {
       })
     ).toBeNull();
 
+    const targetUser: User = { id: 'usr-target', displayName: 'Facundo', username: 'facu' };
     expect(
       formatAuditTarget(
         {
@@ -221,7 +223,7 @@ describe('Audit Formatters', () => {
           category: 'members',
           targetId: 'usr-target',
         },
-        { id: 'usr-target', displayName: 'Facundo', username: 'facu' } as any
+        targetUser
       )
     ).toBe('@Facundo');
 
