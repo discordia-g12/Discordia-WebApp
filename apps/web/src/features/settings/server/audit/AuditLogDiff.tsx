@@ -20,11 +20,13 @@ export function AuditLogDiff({ changes }: AuditLogDiffProps) {
             <tr key={diff.key}>
               <td className={styles.diffKey}>{diff.label}</td>
               <td className={styles.diffValues}>
-                <span className={styles.diffOld}>{diff.oldVal}</span>
-                <span className={styles.diffArrow} aria-hidden="true">
-                  →
-                </span>
-                <span className={styles.diffNew}>{diff.newVal}</span>
+                {diff.oldVal ? <span className={styles.diffOld}>{diff.oldVal}</span> : null}
+                {diff.oldVal && diff.newVal ? (
+                  <span className={styles.diffArrow} aria-hidden="true">
+                    →
+                  </span>
+                ) : null}
+                {diff.newVal ? <span className={styles.diffNew}>{diff.newVal}</span> : null}
               </td>
             </tr>
           ))}

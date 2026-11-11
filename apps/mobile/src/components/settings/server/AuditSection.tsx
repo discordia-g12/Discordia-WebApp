@@ -220,15 +220,21 @@ function AuditLogRow({ entry, actor, targetUser, onFilterByActor }: AuditLogRowP
                     {item.label}:
                   </Text>
                   <View style={styles.diffValues}>
-                    <Text variant="meta" tone="muted" style={styles.diffOld}>
-                      {item.oldVal || '(vacío)'}
-                    </Text>
-                    <Text variant="meta" tone="muted">
-                      →
-                    </Text>
-                    <Text variant="meta" bold style={styles.diffNew}>
-                      {item.newVal || '(vacío)'}
-                    </Text>
+                    {item.oldVal ? (
+                      <Text variant="meta" tone="muted" style={styles.diffOld}>
+                        {item.oldVal}
+                      </Text>
+                    ) : null}
+                    {item.oldVal && item.newVal ? (
+                      <Text variant="meta" tone="muted">
+                        →
+                      </Text>
+                    ) : null}
+                    {item.newVal ? (
+                      <Text variant="meta" bold style={styles.diffNew}>
+                        {item.newVal}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               ))}

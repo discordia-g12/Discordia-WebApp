@@ -1,3 +1,4 @@
+import { bitmaskToPermissions } from '../api/roles';
 import type { AuditCategory, AuditLogEntry } from './types';
 
 export const AUDIT_CATEGORY_OPTIONS: { id: AuditCategory | 'all'; label: string }[] = [
@@ -103,6 +104,33 @@ const FIELD_LABELS: Record<string, string> = {
   require_2fa: 'Exigir 2FA',
 };
 
+export const PERMISSION_LABELS: Record<string, string> = {
+  VIEW_CHANNELS: 'Ver canales',
+  MANAGE_CHANNELS: 'Gestionar canales',
+  MANAGE_ROLES: 'Gestionar roles',
+  MANAGE_SERVER: 'Gestionar servidor',
+  KICK_MEMBERS: 'Expulsar miembros',
+  BAN_MEMBERS: 'Banear miembros',
+  CREATE_INSTANT_INVITE: 'Crear invitaciones',
+  CHANGE_NICKNAME: 'Cambiar apodo',
+  MANAGE_NICKNAMES: 'Gestionar apodos',
+  SEND_MESSAGES: 'Enviar mensajes',
+  MANAGE_MESSAGES: 'Gestionar mensajes',
+  EMBED_LINKS: 'Incrustar enlaces',
+  ATTACH_FILES: 'Adjuntar archivos',
+  ADD_REACTIONS: 'Reaccionar',
+  MENTION_EVERYONE: 'Mencionar @everyone y roles',
+  CONNECT: 'Conectarse',
+  SPEAK: 'Hablar',
+  MUTE_MEMBERS: 'Silenciar miembros',
+  DEAFEN_MEMBERS: 'Ensordecer miembros',
+  MOVE_MEMBERS: 'Mover miembros',
+  ADMINISTRATOR: 'Administrador',
+  VIDEO: 'Video',
+  SCREEN_SHARE: 'Compartir pantalla',
+  VIEW_AUDIT_LOG: 'Ver registro de auditoría',
+};
+
 function formatDiffValue(val: unknown): string {
   if (val === null || val === undefined) return '(ninguno)';
   if (typeof val === 'boolean') return val ? 'activado' : 'desactivado';
@@ -111,9 +139,52 @@ function formatDiffValue(val: unknown): string {
     return val.join(', ');
   }
   if (typeof val === 'object') {
+    if (Object.keys(val as object).length === 0) return '(vacío)';
     return JSON.stringify(val);
   }
   return String(val);
+}
+
+/**
+ * Formatea un cambio de permisos (sea como bitmask numérico, lista de strings o evento legado vacío).
+ * Produce un resumen de permisos añadidos (+) y quitados (-), legible en español.
+ */
+export function formatPermissionChange(
+  oldVal: unknown,
+  newVal: unknown
+): { oldVal: string; newVal: string } {
+  const isBitmask = typeof oldVal === 'number' || typeof newVal === 'number';
+  const isArray = Array.isArray(oldVal) || Array.isArray(newVal);
+
+  if (!isBitmask && !isArray) {
+    if ((oldVal === undefined || oldVal === null) && (newVal === undefined || newVal === null)) {
+      return { oldVal: '', newVal: 'permisos modificados' };
+    }
+    return { oldVal: formatDiffValue(oldVal), newVal: formatDiffValue(newVal) };
+  }
+
+  const toList = (v: unknown): string[] => {
+    if (typeof v === 'number') return bitmaskToPermissions(v);
+    if (Array.isArray(v)) return v.filter((item): item is string => typeof item === 'string');
+    return [];
+  };
+
+  const oldList = toList(oldVal);
+  const newList = toList(newVal);
+
+  const label = (id: string) => PERMISSION_LABELS[id] || id;
+
+  const added = newList.filter((p) => !oldList.includes(p)).map((p) => `+ ${label(p)}`);
+  const removed = oldList.filter((p) => !newList.includes(p)).map((p) => `- ${label(p)}`);
+
+  if (added.length === 0 && removed.length === 0) {
+    return { oldVal: '(sin cambios)', newVal: '' };
+  }
+
+  return {
+    oldVal: removed.length > 0 ? removed.join(', ') : '',
+    newVal: added.length > 0 ? added.join(', ') : '',
+  };
 }
 
 export interface FormattedChange {
@@ -133,6 +204,20 @@ export function formatAuditChanges(changes?: Record<string, unknown> | null): Fo
 
   for (const [key, value] of Object.entries(changes)) {
     const label = FIELD_LABELS[key] || key;
+
+    if (key === 'permissions') {
+      const isDiffObj = value && typeof value === 'object' && ('old' in value || 'new' in value);
+      const diff = isDiffObj ? (value as { old?: unknown; new?: unknown }) : undefined;
+      const permChange = formatPermissionChange(diff?.old, diff?.new);
+      result.push({
+        key,
+        label,
+        oldVal: permChange.oldVal,
+        newVal: permChange.newVal,
+      });
+      continue;
+    }
+
     if (value && typeof value === 'object' && ('old' in value || 'new' in value)) {
       const diff = value as { old?: unknown; new?: unknown };
       result.push({

@@ -196,12 +196,79 @@ describe('Audit Formatters', () => {
     expect(diffs).toEqual([
       { key: 'name', label: 'Nombre', oldVal: 'Antiguo', newVal: 'Nuevo' },
       { key: 'spam_filter', label: 'Filtro de spam', oldVal: 'desactivado', newVal: 'activado' },
-      { key: 'permissions', label: 'Permisos', oldVal: 'CONNECT', newVal: 'CONNECT, SPEAK' },
+      { key: 'permissions', label: 'Permisos', oldVal: '', newVal: '+ Hablar' },
       { key: 'icon_url', label: 'Ícono', oldVal: 'old.png', newVal: '(ninguno)' },
     ]);
 
     expect(formatAuditChanges(null)).toEqual([]);
     expect(formatAuditChanges(undefined)).toEqual([]);
+  });
+
+  it('formatea cambios de permisos con bitmasks y traduce a español', () => {
+    // Agregar VIEW_AUDIT_LOG (bit 23)
+    const addAuditLog = formatAuditChanges({
+      permissions: { old: 0, new: 1 << 23 },
+    });
+    expect(addAuditLog).toEqual([
+      {
+        key: 'permissions',
+        label: 'Permisos',
+        oldVal: '',
+        newVal: '+ Ver registro de auditoría',
+      },
+    ]);
+
+    // Quitar KICK_MEMBERS (bit 4)
+    const removeKick = formatAuditChanges({
+      permissions: { old: 1 << 4, new: 0 },
+    });
+    expect(removeKick).toEqual([
+      {
+        key: 'permissions',
+        label: 'Permisos',
+        oldVal: '- Expulsar miembros',
+        newVal: '',
+      },
+    ]);
+
+    // Agregar y quitar en la misma acción
+    const swapPerms = formatAuditChanges({
+      permissions: { old: 1 << 4, new: 1 << 23 },
+    });
+    expect(swapPerms).toEqual([
+      {
+        key: 'permissions',
+        label: 'Permisos',
+        oldVal: '- Expulsar miembros',
+        newVal: '+ Ver registro de auditoría',
+      },
+    ]);
+  });
+
+  it('maneja eventos legados de permisos con objeto vacío sin mostrar "- -> {}"', () => {
+    const legacyEmpty = formatAuditChanges({
+      permissions: {},
+    });
+    expect(legacyEmpty).toEqual([
+      {
+        key: 'permissions',
+        label: 'Permisos',
+        oldVal: '',
+        newVal: 'permisos modificados',
+      },
+    ]);
+
+    const otherEmptyObj = formatAuditChanges({
+      custom_data: {},
+    });
+    expect(otherEmptyObj).toEqual([
+      {
+        key: 'custom_data',
+        label: 'custom_data',
+        oldVal: '-',
+        newVal: '(vacío)',
+      },
+    ]);
   });
 
   it('formatea fechas relativas y absolutas', () => {
