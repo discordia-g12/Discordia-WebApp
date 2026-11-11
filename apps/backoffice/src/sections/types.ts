@@ -5,15 +5,6 @@
 
 export type AccountState = 'active' | 'suspended';
 
-/** Ver listado de servidores: nombre, cantidad de miembros y fecha de creación; búsqueda por nombre. */
-export interface PlatformServerRow {
-  id: string;
-  name: string;
-  members: number;
-  state: AccountState;
-  createdAt: string;
-}
-
 export const ACCOUNT_STATE_LABEL: Record<AccountState, string> = {
   active: 'activo',
   suspended: 'suspendido',

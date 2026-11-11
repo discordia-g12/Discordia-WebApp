@@ -110,9 +110,11 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
   }));
 
   const categories: Category[] = [];
+  const isSuspended = raw.is_suspended === true;
 
-  // Si hay canales sin categoría, o si no hay ninguna categoría creada aún, mostramos la sección general
-  if (uncategorizedChannels.length > 0 || mappedCategories.length === 0) {
+  // Si hay canales sin categoría, o si no hay ninguna categoría creada aún, mostramos la sección general.
+  // Un servidor suspendido no tiene contenido para mostrar: ni siquiera la sección vacía
+  if (!isSuspended && (uncategorizedChannels.length > 0 || mappedCategories.length === 0)) {
     categories.push({
       id: `${LOCAL_CATEGORY_PREFIX}${raw.id}-general`,
       serverId: raw.id,
@@ -139,8 +141,15 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
     boostLevel: 0,
     boostCount: 0,
     createdAt: raw.created_at,
+    isSuspended,
   };
 }
+
+/** Texto del panel de un servidor suspendido, igual en web y mobile. */
+export const SUSPENDED_SERVER_TITLE = 'Servidor suspendido';
+export const SUSPENDED_SERVER_MESSAGE =
+  'La plataforma suspendió este servidor mientras revisa una denuncia. Su contenido se conserva: vas a poder ' +
+  'volver a usarlo cuando se levante la suspensión.';
 
 /**
  * Consulta la lista de servidores a los que pertenece el usuario.

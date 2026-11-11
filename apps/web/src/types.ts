@@ -80,6 +80,8 @@ export type ConfirmAction =
   // Backoffice (apps/backoffice usa el mismo ConfirmDialog)
   | 'suspend-user'
   | 'reactivate-user'
+  | 'suspend-server'
+  | 'lift-server-suspension'
   | 'publish-incident'
   | 'resolve-incident'
   | null;

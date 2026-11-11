@@ -24,6 +24,8 @@ export const PROBLEM_TYPES = {
   ACCOUNT_SUSPENDED: 'https://discordia.app/problems/account-suspended',
   /** El endpoint es solo para el staff de la plataforma (Auth-User, 403). */
   STAFF_ONLY: 'https://discordia.app/problems/staff-only',
+  /** El servidor está suspendido por el staff de la plataforma (Server-Roles, 403). */
+  SERVER_SUSPENDED: 'https://discordia.app/problems/server-suspended',
 } as const;
 
 /**
@@ -31,6 +33,12 @@ export const PROBLEM_TYPES = {
  * (user.suspended). Reconectar no sirve: Kong rechaza sus tokens.
  */
 export const ACCOUNT_SUSPENDED_CLOSE_CODE = 4010;
+
+/**
+ * Código con el que Chat Engine cierra los WebSockets de los canales de un servidor suspendido por el staff
+ * (server.suspended). Reconectar no sirve hasta que se levante la suspensión.
+ */
+export const SERVER_SUSPENDED_CLOSE_CODE = 4011;
 
 export interface InvalidParam {
   name?: string;

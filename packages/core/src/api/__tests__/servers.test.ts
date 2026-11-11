@@ -103,6 +103,15 @@ describe('mapServerFromBackend', () => {
 
     expect(server.categories.map((c) => c.name)).toEqual(['GAMING']);
   });
+
+  it('marca el servidor suspendido por el staff y no arma la sección general vacía', () => {
+    // Server-Roles ya manda un suspendido sin canales ni categorías (member_server_view)
+    const suspended = mapServerFromBackend(backendServer({ is_suspended: true }));
+    expect(suspended.isSuspended).toBe(true);
+    expect(suspended.categories).toEqual([]);
+
+    expect(mapServerFromBackend(backendServer()).isSuspended).toBe(false);
+  });
 });
 
 describe('editChannel', () => {

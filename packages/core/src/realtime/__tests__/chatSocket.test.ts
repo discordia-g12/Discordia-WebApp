@@ -259,6 +259,7 @@ describe('openChatSocket', () => {
     it.each([
       [4003, 'banned'],
       [4002, 'removed'],
+      [4011, 'server-suspended'],
     ] as const)('al cerrar con %i avisa %s y no vuelve a intentar', async (code, reason) => {
       const onRemoved = vi.fn();
       const onStatusChange = vi.fn();

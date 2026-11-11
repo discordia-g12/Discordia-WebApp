@@ -219,6 +219,8 @@ export interface ServerBackendResponse {
   created_at: string;
   /** Permisos efectivos del usuario que pide (bitmask, mismos bits que los roles). */
   my_permissions?: number;
+  /** Suspendido por el staff (ADR-002 de Server-Roles): viene sin canales ni categorías. */
+  is_suspended?: boolean;
   channels: ChannelBackendResponse[];
   categories?: CategoryBackendResponse[];
 }
@@ -299,6 +301,11 @@ export interface Server {
   muted?: boolean;
   vanityUrl?: string;
   createdAt?: string;
+  /**
+   * Suspendido por el staff de la plataforma: sigue en la lista con el cartel "suspended", sin canales, y al abrirlo
+   * se muestra que está suspendido en lugar del contenido (ADR-002 de Server-Roles).
+   */
+  isSuspended?: boolean;
 }
 
 /** Mensaje individual publicado en un canal o chat directo. */

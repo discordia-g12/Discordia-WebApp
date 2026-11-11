@@ -53,6 +53,10 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Suspender la cuenta?', text: `${name} no va a poder iniciar sesión, se cierran sus sesiones abiertas y su perfil deja de estar disponible.`, confirm: 'Suspender', danger: true };
     case 'reactivate-user':
       return { title: '¿Reactivar la cuenta?', text: `${name} vuelve a poder iniciar sesión y su perfil vuelve a estar disponible.`, confirm: 'Reactivar', danger: false };
+    case 'suspend-server':
+      return { title: '¿Suspender el servidor?', text: `Ningún miembro del servidor ${name} va a poder entrar ni usarlo, y se cortan sus chats y llamadas. El contenido se conserva hasta que levantes la suspensión.`, confirm: 'Suspender', danger: true };
+    case 'lift-server-suspension':
+      return { title: '¿Levantar la suspensión?', text: `Los miembros de ${name} vuelven a tener acceso normal al servidor y a todo su contenido.`, confirm: 'Levantar', danger: false };
     case 'publish-incident':
       return { title: '¿Publicar el incidente?', text: `Todos los usuarios con sesión van a ver el aviso "${name}" en la app hasta que lo resuelvas.`, confirm: 'Publicar', danger: false };
     case 'resolve-incident':

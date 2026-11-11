@@ -77,6 +77,15 @@ describe('ServerRail (rediseño)', () => {
     expect(onDiscoverServers).toHaveBeenCalledTimes(1);
   });
 
+  it('un servidor suspendido por el staff sigue en el rail con el cartel "suspended" y sin badge', () => {
+    const suspended = { ...server('s5', 'castigado', 4), isSuspended: true } as Server;
+    render(<ServerRail servers={[suspended]} selectedServerId="home" onSelectServer={vi.fn()} />);
+
+    const strip = screen.getByRole('button', { name: 'Servidor castigado, suspendido' });
+    expect(strip.querySelector('[data-testid="server-suspended"]')?.textContent).toBe('suspended');
+    expect(strip.querySelector('[data-testid="server-unread"]')).toBeNull();
+  });
+
   it('mientras cargan los servidores muestra el esqueleto', () => {
     render(<ServerRail servers={[]} selectedServerId="home" onSelectServer={vi.fn()} isLoading />);
 

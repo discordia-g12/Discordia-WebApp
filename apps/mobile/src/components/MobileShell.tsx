@@ -3,7 +3,7 @@ import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { makeStyles } from '../theme'
-import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink, keyboardAvoidingBehavior } from '../ui'
+import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink, Text, keyboardAvoidingBehavior } from '../ui'
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
@@ -63,6 +63,8 @@ import {
   useMarkChannelReadMutation,
   useUnreadQuery,
   uploadAttachment,
+  SUSPENDED_SERVER_MESSAGE,
+  SUSPENDED_SERVER_TITLE,
   type MessageAttachment,
 } from '@discordia/core'
 
@@ -277,7 +279,8 @@ export default function MobileShell() {
       }
     },
     onRemoved: reason => {
-      // Lo sacaron del servidor (ban o expulsión): el chat no reintenta y el servidor sale de la lista
+      // Lo sacaron del servidor (ban o expulsión): el chat no reintenta y el servidor sale de la lista.
+      // Si el staff suspendió el servidor, sigue en la lista y la pantalla de canales muestra el aviso
       showToast(chatRemovalMessage(reason), 'error')
       setScreen('channels')
       refreshServers().catch(() => undefined)
@@ -631,6 +634,28 @@ export default function MobileShell() {
                 unirme con una invitación
               </ActionLink>
             </View>
+          </Padded>
+        </Screen>
+      )
+    }
+
+    // Suspendido por el staff: sigue en la tira con el cartel rojo; adentro, solo el aviso (ADR-002 de Server-Roles).
+    // Va antes del chat y la voz: si tenía un canal abierto cuando llegó la suspensión, también se reemplaza
+    if (server?.isSuspended) {
+      return (
+        <Screen title={server.name} tinted>
+          <Padded>
+            <View style={styles.suspendedTag}>
+              <Text variant="meta" tone="onDanger" bold>
+                SUSPENDED
+              </Text>
+            </View>
+            <EmptyState title={SUSPENDED_SERVER_TITLE} hint={SUSPENDED_SERVER_MESSAGE} />
+            {!isServerOwner && (
+              <View style={styles.links}>
+                <ActionLink onPress={() => setLeaveServerConfirmOpen(true)}>salir del servidor</ActionLink>
+              </View>
+            )}
           </Padded>
         </Screen>
       )
@@ -1010,4 +1035,11 @@ const useStyles = makeStyles(t => ({
   root: { flex: 1 },
   content: { flex: 1 },
   links: { flexDirection: 'row', flexWrap: 'wrap', columnGap: t.space[5], rowGap: t.space[2] },
+  // Cartel rojo "suspended", igual que en la franja de la tira de servidores
+  suspendedTag: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: t.space[1],
+    marginBottom: t.space[2],
+    backgroundColor: t.colors.danger,
+  },
 }))
