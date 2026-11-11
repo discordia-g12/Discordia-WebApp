@@ -8,6 +8,7 @@ import {
   formatAuditAction,
   formatAuditChanges,
   formatAuditDate,
+  formatAuditTarget,
 } from '../formatters';
 import { isAuditForbidden, auditErrorMessage } from '../useServerAuditLogs';
 import { canSeeSettingsSection } from '../../admin/permissions';
@@ -182,6 +183,56 @@ describe('Audit Formatters', () => {
     expect(
       formatAuditAction({ action: 'MESSAGE_DELETE', category: 'messages' })
     ).toBe('Eliminó un mensaje de');
+  });
+
+  it('formatea el target sin repetir nombres ni mostrar UUIDs para roles, servidor o canales', () => {
+    expect(
+      formatAuditTarget({
+        action: 'ROLE_PERMISSIONS_UPDATE',
+        category: 'roles',
+        metadata: { name: '2' },
+        targetId: '0d672479-08eb-4f47-9b3e-b2e62d3b7614',
+      })
+    ).toBeNull();
+
+    expect(
+      formatAuditTarget({
+        action: 'SERVER_UPDATE',
+        category: 'server',
+        metadata: {},
+        targetId: 'b0c97032-e104-49e6-a4aa-1087b2657324',
+        serverId: 'b0c97032-e104-49e6-a4aa-1087b2657324',
+      })
+    ).toBeNull();
+
+    expect(
+      formatAuditTarget({
+        action: 'CHANNEL_CREATE',
+        category: 'channels',
+        metadata: { name: 'general' },
+        targetId: 'chan-uuid-1234',
+      })
+    ).toBeNull();
+
+    expect(
+      formatAuditTarget(
+        {
+          action: 'MEMBER_KICK',
+          category: 'members',
+          targetId: 'usr-target',
+        },
+        { id: 'usr-target', displayName: 'Facundo', username: 'facu' } as any
+      )
+    ).toBe('@Facundo');
+
+    expect(
+      formatAuditTarget({
+        action: 'MEMBER_BAN_ADD',
+        category: 'members',
+        metadata: { username: 'juan' },
+        targetId: 'usr-target',
+      })
+    ).toBe('@juan');
   });
 
   it('formatea cambios y diferencias (antes vs después)', () => {

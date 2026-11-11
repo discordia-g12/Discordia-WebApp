@@ -1,4 +1,5 @@
 import { bitmaskToPermissions } from '../api/roles';
+import type { User } from '../types';
 import type { AuditCategory, AuditLogEntry } from './types';
 
 export const AUDIT_CATEGORY_OPTIONS: { id: AuditCategory | 'all'; label: string }[] = [
@@ -84,6 +85,47 @@ export function formatAuditAction(entry: Pick<AuditLogEntry, 'action' | 'categor
     default:
       return (entry.action as string).replace(/_/g, ' ').toLowerCase();
   }
+}
+
+/**
+ * Determina el texto del sujeto u objetivo de la acción si corresponde.
+ * - Para acciones de miembros o mensajes, muestra el usuario afectado (@displayName o @username).
+ * - Para acciones de roles, canales, categorías o servidor donde el nombre ya está
+ *   incorporado naturalmente en formatAuditAction (ej. "Modificó los permisos de @2"),
+ *   no se repite el nombre ni se muestra el UUID crudo.
+ */
+export function formatAuditTarget(
+  entry: Pick<AuditLogEntry, 'action' | 'category' | 'metadata' | 'targetId'> & { serverId?: string },
+  targetUser?: User | null
+): string | null {
+  if (targetUser) {
+    return `@${targetUser.displayName || targetUser.username}`;
+  }
+
+  const userActions = [
+    'MEMBER_BAN_ADD',
+    'MEMBER_BAN_REMOVE',
+    'MEMBER_KICK',
+    'MEMBER_MUTE',
+    'MEMBER_UNMUTE',
+    'MEMBER_ROLE_ASSIGN',
+    'MEMBER_ROLE_REMOVE',
+    'MESSAGE_DELETE',
+    'SERVER_TRANSFER',
+  ];
+
+  if (userActions.includes(entry.action)) {
+    if (entry.targetId && entry.targetId !== entry.serverId) {
+      const metaName = entry.metadata?.username || entry.metadata?.displayName || entry.metadata?.name;
+      if (typeof metaName === 'string' && metaName.trim()) {
+        return `@${metaName.trim()}`;
+      }
+      return `@${entry.targetId}`;
+    }
+    return null;
+  }
+
+  return null;
 }
 
 const FIELD_LABELS: Record<string, string> = {

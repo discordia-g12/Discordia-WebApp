@@ -5,6 +5,7 @@ import {
   formatAuditAction,
   formatAuditChanges,
   formatAuditDate,
+  formatAuditTarget,
   useServerAuditLogs,
   type AuditCategory,
   type AuditLogEntry,
@@ -148,12 +149,7 @@ function AuditLogRow({ entry, actor, targetUser, onFilterByActor }: AuditLogRowP
   const actorName = actor?.displayName || actor?.username || entry.actorId
   const actionText = formatAuditAction(entry)
 
-  let targetText = ''
-  if (targetUser) {
-    targetText = `@${targetUser.displayName || targetUser.username}`
-  } else if (entry.targetId) {
-    targetText = entry.targetId
-  }
+  const targetText = formatAuditTarget(entry, targetUser)
 
   const diffItems = entry.changes ? formatAuditChanges(entry.changes) : []
   const hasDiff = diffItems.length > 0

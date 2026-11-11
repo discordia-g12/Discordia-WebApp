@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AuditLogEntry, User } from '@discordia/core';
-import { formatAuditAction, formatAuditDate } from '@discordia/core';
+import { formatAuditAction, formatAuditDate, formatAuditTarget } from '@discordia/core';
 import { ActionLink, SquareAvatar } from '../../../../ui';
 import { AuditLogDiff } from './AuditLogDiff';
 import styles from './AuditLogViewer.module.css';
@@ -21,16 +21,7 @@ export function AuditLogRow({ entry, actor, targetUser, onFilterByActor }: Audit
 
   const hasChanges = Boolean(entry.changes && Object.keys(entry.changes).length > 0);
 
-  let targetText: string | null = null;
-  if (targetUser) {
-    targetText = `@${targetUser.displayName || targetUser.username}`;
-  } else if (entry.metadata?.name && typeof entry.metadata.name === 'string') {
-    targetText = entry.metadata.name;
-  } else if (entry.metadata?.code && typeof entry.metadata.code === 'string') {
-    targetText = entry.metadata.code;
-  } else if (entry.targetId && entry.targetId !== entry.serverId) {
-    targetText = entry.targetId;
-  }
+  const targetText = formatAuditTarget(entry, targetUser);
 
   const avatar = (
     <SquareAvatar
