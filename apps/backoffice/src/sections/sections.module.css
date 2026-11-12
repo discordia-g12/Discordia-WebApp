@@ -96,6 +96,32 @@
   border-style: dashed;
 }
 
+/* Período personalizado de las métricas: dos fechas y el botón en una fila */
+.dateRange {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-5);
+  align-items: end;
+}
+
+@media (max-width: 767px) {
+  .dateRange {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dateRange > button {
+    justify-self: start;
+  }
+}
+
+/* Aviso: falta parte del resultado (un servicio no respondió) */
+.warning {
+  margin: 0;
+  padding-left: var(--space-2);
+  font-size: var(--font-meta-size);
+  border-left: var(--line-accent) solid var(--color-danger);
+}
+
 /* Formularios de una celda (suspender, reintentar) */
 .form {
   display: flex;

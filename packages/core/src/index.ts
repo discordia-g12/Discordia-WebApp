@@ -51,6 +51,7 @@ export * from './audit';
 // Backoffice de staff: estado de la plataforma (health checks agregados por el backend)
 export * from './admin/platformStatus';
 export * from './admin/incidents';
+export * from './admin/platformMetrics';
 // Backoffice de staff: suspender y reactivar cuentas (Auth-User, ADR-002)
 export * from './admin/userSuspensions';
 export * from './admin/serverSuspensions';

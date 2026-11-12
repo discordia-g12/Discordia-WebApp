@@ -61,14 +61,18 @@ export function DataTable<T>({
   );
 }
 
-/** Cifras grandes con su etiqueta chica (métricas y resumen del expediente). Sin dato: "—". */
-export function StatGrid({ stats }: { stats: { label: string; value?: ReactNode }[] }) {
+/**
+ * Cifras grandes con su etiqueta chica (métricas y resumen del expediente). Sin dato: "—". hint aclara qué
+ * cuenta la cifra, en chico debajo.
+ */
+export function StatGrid({ stats }: { stats: { label: string; value?: ReactNode; hint?: string }[] }) {
   return (
     <dl className={styles.stats}>
       {stats.map((s) => (
         <div key={s.label}>
           <dt>{s.label}</dt>
           <dd>{s.value ?? '—'}</dd>
+          {s.hint && <dd className={styles.statHint}>/ {s.hint}</dd>}
         </div>
       ))}
     </dl>
