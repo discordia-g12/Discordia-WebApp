@@ -64,6 +64,9 @@ describe('backoffice', () => {
     expect(screen.queryByText('próximamente')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /servidores/i }));
+    expect(screen.queryByText('próximamente')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /expedientes/i }));
     expect(screen.getAllByText('próximamente').length).toBeGreaterThan(0);
   });
 

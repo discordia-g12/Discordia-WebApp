@@ -192,6 +192,7 @@ export function useChatWebSocket(
 export function chatRemovalMessage(reason: ChatRemovalReason): string {
   if (reason === 'banned') return 'Te banearon de este servidor.';
   if (reason === 'server-suspended') return 'La plataforma suspendió este servidor.';
+  if (reason === 'server-deleted') return 'Este servidor fue eliminado.';
   return 'Ya no sos miembro de este servidor.';
 }
 

@@ -82,6 +82,7 @@ export type ConfirmAction =
   | 'reactivate-user'
   | 'suspend-server'
   | 'lift-server-suspension'
+  | 'delete-server-staff'
   | 'publish-incident'
   | 'resolve-incident'
   | null;

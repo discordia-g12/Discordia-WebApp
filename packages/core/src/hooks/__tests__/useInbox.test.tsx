@@ -157,6 +157,17 @@ describe('useInbox', () => {
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: conversationsQueryKey });
   });
 
+  it('SERVER_DELETED vuelve a pedir los servidores e invoca onServerDeleted', () => {
+    const { wrapper, invalidate } = setup();
+    const onServerDeleted = vi.fn();
+    renderHook(() => useInbox({ onServerDeleted }), { wrapper });
+
+    act(() => lastConnection().handlers.onEvent({ type: 'SERVER_DELETED', serverId: 'srv-1' }));
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['servers'] });
+    expect(onServerDeleted).toHaveBeenCalledWith('srv-1');
+  });
+
   it('DM_MESSAGE_REACTION_UPDATED actualiza las reacciones en el caché del historial', () => {
     const { queryClient, wrapper } = setup();
     queryClient.setQueryData(conversationsQueryKey, [conversation('dm-1')]);

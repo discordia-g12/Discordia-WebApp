@@ -59,7 +59,20 @@ describe('Ver listado de servidores de la plataforma', () => {
         return listResponse(Object.fromEntries(parsed.searchParams));
       }
       if (parsed.pathname === '/api/v1/admin/servers/suspended') return json([CASTIGADO]);
-      if (method === 'DELETE') return json({ ...CASTIGADO, is_suspended: false });
+      if (parsed.pathname.endsWith('/suspension') && method === 'DELETE') {
+        return json({ ...CASTIGADO, is_suspended: false });
+      }
+      if (method === 'DELETE') {
+        return json({
+          id: PIBES_A.id,
+          name: PIBES_A.name,
+          owner_id: PIBES_A.owner_id,
+          member_count: PIBES_A.member_count,
+          deleted_by: 'auth0|staff',
+          reason: 'incumplimiento',
+          deleted_at: '2026-11-12T12:00:00Z',
+        });
+      }
       return json({}, 404);
     });
   });
@@ -157,6 +170,27 @@ describe('Ver listado de servidores de la plataforma', () => {
     await waitFor(() =>
       expect(
         fetchMock.mock.calls.some(([url, init]) => String(url).endsWith(`/${CASTIGADO.id}/suspension`) && init?.method === 'DELETE'),
+      ).toBe(true),
+    );
+  });
+
+  it('"_eliminar" precarga el id en el formulario de eliminación y pide confirmación antes de borrar', async () => {
+    renderSection();
+    await screen.findByText(PIBES_A.id);
+
+    fireEvent.click(within(rowOf(PIBES_A.id)).getByRole('button', { name: 'Eliminar Los Pibes' }));
+
+    const deleteCell = screen.getByRole('region', { name: 'Eliminar servidor' });
+    const idInput = within(deleteCell).getByLabelText(/^id del servidor/i) as HTMLInputElement;
+    expect(idInput.value).toBe(PIBES_A.id);
+
+    fireEvent.change(within(deleteCell).getByLabelText(/^motivo/i), { target: { value: 'incumplimiento' } });
+    fireEvent.click(within(deleteCell).getByRole('button', { name: /^Eliminar servidor/ }));
+    fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: /^Eliminar servidor/ }));
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url, init]) => String(url).endsWith(`/api/v1/admin/servers/${PIBES_A.id}`) && init?.method === 'DELETE'),
       ).toBe(true),
     );
   });
