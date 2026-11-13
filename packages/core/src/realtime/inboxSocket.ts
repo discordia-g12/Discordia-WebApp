@@ -15,7 +15,9 @@ export type InboxEvent =
   | { type: 'DM_MESSAGE_REACTION_UPDATED'; conversationId: string; message: MessageBackendPayload }
   | { type: 'DM_CONVERSATION'; conversation: Conversation }
   /** Cambió el nombre, la descripción, el ícono o el banner de un servidor del usuario: hay que volver a pedirlo. */
-  | { type: 'SERVER_UPDATED'; serverId: string };
+  | { type: 'SERVER_UPDATED'; serverId: string }
+  /** Se eliminó un servidor del usuario (por su dueño o por el staff): hay que sacarlo de la lista. */
+  | { type: 'SERVER_DELETED'; serverId: string };
 
 export interface InboxSocketHandlers {
   onEvent: (event: InboxEvent) => void;
@@ -38,7 +40,9 @@ function isInboxEvent(data: {
   conversation?: unknown;
   serverId?: unknown;
 }) {
-  if (data.type === 'SERVER_UPDATED') return typeof data.serverId === 'string' && data.serverId.length > 0;
+  if (data.type === 'SERVER_UPDATED' || data.type === 'SERVER_DELETED') {
+    return typeof data.serverId === 'string' && data.serverId.length > 0;
+  }
   if (
     data.type === 'DM_MESSAGE' ||
     data.type === 'DM_MESSAGE_UPDATED' ||

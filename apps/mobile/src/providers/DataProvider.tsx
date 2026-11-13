@@ -70,6 +70,8 @@ interface DataContextValue {
   leaveServer: (serverId: string) => Promise<void>
   /** Elimina el servidor (solo quien lo creó). */
   deleteServer: (serverId: string) => Promise<void>
+  /** Saca del estado local un servidor eliminado externamente (p. ej. desde el backoffice). */
+  removeServerLocally: (serverId: string) => void
 
   // Mutaciones y sincronización
   sendMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => void
@@ -316,6 +318,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     },
     [],
   )
+
+  const removeServerLocally = useCallback((serverId: string) => {
+    setServers(prev => prev.filter(srv => srv.id !== serverId))
+  }, [])
 
   // Mensajes de un canal (Chat-Engine-Service). Si falla, quedan los que ya había
   const fetchChannelMessages = useCallback(
@@ -758,6 +764,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       reorderCategories,
       leaveServer,
       deleteServer,
+      removeServerLocally,
       sendMessage,
       editMessage,
       deleteMessage,
@@ -787,6 +794,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       reorderCategories,
       leaveServer,
       deleteServer,
+      removeServerLocally,
       sendMessage,
       editMessage,
       deleteMessage,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActionLink, BlockButton, Choice, ConfirmDialog, UnderlineInput } from '@web/ui';
+import { ActionLink, Choice, ConfirmDialog, UnderlineInput } from '@web/ui';
 import {
   SERVER_STATE_FILTER_OPTIONS,
   serverSuspensionErrorMessage,
@@ -7,8 +7,9 @@ import {
   type AdminServer,
   type ServerStateFilter,
 } from '@discordia/core';
-import { Cell, Note } from '../layout/Cell';
+import { Cell } from '../layout/Cell';
 import { DialogPortal } from '../layout/DialogPortal';
+import { DeleteServerCell } from './DeleteServerCell';
 import { ServersTable } from './ServersTable';
 import { SuspendServerCell } from './SuspendServerCell';
 import { SuspendedServersCell } from './SuspendedServersCell';
@@ -19,18 +20,18 @@ import styles from './sections.module.css';
  * búsqueda por nombre o id y filtro de estado), "Suspender servidor completo" (y levantar la suspensión) y
  * "Eliminar servidor desde el backoffice". Endpoints en Server-Roles (/api/v1/admin/servers).
  *
- * Suspender va por id porque el nombre no es único (ADR-002 de Server-Roles). Desde el listado: "_suspender"
- * completa el formulario con el id del servidor, y "_levantar suspensión" pide confirmación y la levanta ahí mismo.
+ * Suspender y eliminar van por id porque el nombre no es único (ADR-002 de Server-Roles). Desde el listado:
+ * "_suspender" o "_eliminar" completan el formulario correspondiente con el id del servidor, y
+ * "_levantar suspensión" pide confirmación y la levanta ahí mismo.
  */
 export function ServersSection() {
   const [search, setSearch] = useState('');
   const [state, setState] = useState<ServerStateFilter>('all');
-  // Cada pedido de "_suspender" lleva un número nuevo, así el formulario se completa aunque sea el mismo servidor
+  // Cada pedido de "_suspender" o "_eliminar" lleva un número nuevo, así el formulario se completa aunque sea el mismo servidor
   const [suspendPrefill, setSuspendPrefill] = useState<{ serverId: string; name: string; key: number } | null>(null);
+  const [deletePrefill, setDeletePrefill] = useState<{ serverId: string; name: string; key: number } | null>(null);
   const [liftTarget, setLiftTarget] = useState<AdminServer | null>(null);
   const lift = useLiftServerSuspension();
-  const [deleteName, setDeleteName] = useState('');
-  const [deleteReason, setDeleteReason] = useState('');
 
   const confirmLift = async () => {
     if (!liftTarget) return;
@@ -81,6 +82,12 @@ export function ServersSection() {
                   suspender
                 </ActionLink>
               )}
+              <ActionLink
+                onPress={() => setDeletePrefill({ serverId: server.id, name: server.name, key: Date.now() })}
+                aria-label={`Eliminar ${server.name}`}
+              >
+                eliminar
+              </ActionLink>
             </span>
           )}
         />
@@ -99,18 +106,7 @@ export function ServersSection() {
 
       <SuspendServerCell prefill={suspendPrefill} />
       <SuspendedServersCell />
-
-      <Cell title="Eliminar servidor" feature="servers.delete">
-        <UnderlineInput
-          label="nombre del servidor"
-          value={deleteName}
-          onChange={(e) => setDeleteName(e.target.value)}
-          hint="escribilo completo para confirmar"
-        />
-        <UnderlineInput label="motivo" value={deleteReason} maxLength={512} onChange={(e) => setDeleteReason(e.target.value)} />
-        <BlockButton tone="danger">Eliminar servidor</BlockButton>
-        <Note>Se borran para siempre sus canales, mensajes y roles. No se puede deshacer.</Note>
-      </Cell>
+      <DeleteServerCell prefill={deletePrefill} />
 
       {liftTarget && (
         <DialogPortal>

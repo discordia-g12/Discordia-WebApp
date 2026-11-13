@@ -65,6 +65,32 @@ export interface SuspendServerInput {
   reason: string;
 }
 
+export interface DeleteServerByStaffInput {
+  serverId: string;
+  /** Motivo: queda en los logs y en el evento server.deleted (auditoría). */
+  reason?: string;
+}
+
+export interface DeletedAdminServer {
+  id: string;
+  name: string;
+  ownerId: string;
+  memberCount: number;
+  deletedBy: string;
+  reason: string | null;
+  deletedAt: string;
+}
+
+interface DeletedAdminServerResponse {
+  id: string;
+  name: string;
+  owner_id: string;
+  member_count: number;
+  deleted_by: string;
+  reason?: string | null;
+  deleted_at: string;
+}
+
 /** Todo lo de servidores del backoffice cuelga de esta clave: suspender o levantar refresca lo que se muestre. */
 export const adminServersQueryKey = ['admin', 'servers'] as const;
 export const suspendedServersQueryKey = [...adminServersQueryKey, 'suspended'] as const;
@@ -127,6 +153,24 @@ export async function liftServerSuspension(serverId: string): Promise<AdminServe
   return toAdminServer(raw);
 }
 
+/** "Eliminar servidor desde el backoffice" (DELETE /api/v1/admin/servers/{id} de Server-Roles, solo staff). */
+export async function deleteServerByStaff(input: DeleteServerByStaffInput): Promise<DeletedAdminServer> {
+  const trimmedReason = input.reason?.trim();
+  const raw = await api.delete<DeletedAdminServerResponse>(
+    `/api/v1/admin/servers/${encodeURIComponent(input.serverId.trim())}`,
+    trimmedReason ? { body: { reason: trimmedReason } } : undefined,
+  );
+  return {
+    id: raw.id,
+    name: raw.name,
+    ownerId: raw.owner_id,
+    memberCount: raw.member_count,
+    deletedBy: raw.deleted_by,
+    reason: raw.reason ?? null,
+    deletedAt: raw.deleted_at,
+  };
+}
+
 const noAuthRetry = (failureCount: number, error: unknown) =>
   !isUnauthorized(error) && !isForbidden(error) && failureCount < 2;
 
@@ -172,10 +216,22 @@ export function useLiftServerSuspension() {
   });
 }
 
-/** list: el listado de servidores suspendidos; list-servers: el listado de servidores con filtros. */
-export type ServerSuspensionAction = 'suspend' | 'lift' | 'list' | 'list-servers';
+/** Eliminar permanentemente un servidor desde el backoffice. */
+export function useDeleteServerByStaff() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteServerByStaff,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminServersQueryKey });
+      queryClient.invalidateQueries({ queryKey: ['servers'] });
+    },
+  });
+}
 
-/** Mensaje para el staff cuando falla suspender, levantar o listar. Siempre dice qué hacer. */
+/** list: el listado de servidores suspendidos; list-servers: el listado de servidores con filtros. */
+export type ServerSuspensionAction = 'suspend' | 'lift' | 'delete' | 'list' | 'list-servers';
+
+/** Mensaje para el staff cuando falla suspender, levantar, eliminar o listar. Siempre dice qué hacer. */
 export function serverSuspensionErrorMessage(error: unknown, action: ServerSuspensionAction): string {
   if (error instanceof NetworkError || error instanceof TimeoutError) {
     return 'No pudimos conectar con el servidor. Revisá tu conexión y probá de nuevo.';
@@ -192,7 +248,7 @@ export function serverSuspensionErrorMessage(error: unknown, action: ServerSuspe
   if (error instanceof ApiError) {
     switch (error.status) {
       case 404:
-        return action === 'suspend' ? 'No existe un servidor con ese id.' : 'Ese servidor ya no existe.';
+        return action === 'suspend' || action === 'delete' ? 'No existe un servidor con ese id.' : 'Ese servidor ya no existe.';
       case 409:
         return action === 'suspend' ? 'Ese servidor ya está suspendido.' : 'Ese servidor ya no estaba suspendido.';
       case 422:
@@ -200,5 +256,6 @@ export function serverSuspensionErrorMessage(error: unknown, action: ServerSuspe
     }
   }
   if (action === 'list') return 'No pudimos traer los servidores suspendidos.';
+  if (action === 'delete') return 'No se pudo eliminar el servidor.';
   return action === 'suspend' ? 'No se pudo suspender el servidor.' : 'No se pudo levantar la suspensión.';
 }

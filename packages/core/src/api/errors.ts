@@ -40,6 +40,12 @@ export const ACCOUNT_SUSPENDED_CLOSE_CODE = 4010;
  */
 export const SERVER_SUSPENDED_CLOSE_CODE = 4011;
 
+/**
+ * Código con el que Chat Engine cierra los WebSockets de los canales de un servidor eliminado (server.deleted).
+ * Reconectar no sirve: el servidor ya no existe.
+ */
+export const SERVER_DELETED_CLOSE_CODE = 4004;
+
 export interface InvalidParam {
   name?: string;
   loc?: (string | number)[];

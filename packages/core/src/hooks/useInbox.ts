@@ -23,13 +23,22 @@ export interface UseInboxOptions {
   activeConversationId?: string | null;
   /** false para soltar la conexión (p. ej. la app en segundo plano); al volver a true, refresca. */
   enabled?: boolean;
+  /** Callback opcional cuando cambia la configuración de un servidor (mobile lo usa para refrescar su estado local). */
+  onServerUpdated?: (serverId: string) => void;
+  /** Callback opcional cuando se elimina un servidor (mobile lo usa para sacarlo y cerrar vistas activas). */
+  onServerDeleted?: (serverId: string) => void;
 }
 
 /**
  * Socket del usuario: mete lo que llega en el caché de conversaciones y de mensajes. Se monta una sola vez
  * por sesión. Al reconectar, o al volver de `enabled` en false, pide de nuevo las conversaciones.
  */
-export function useInbox({ activeConversationId = null, enabled = true }: UseInboxOptions = {}) {
+export function useInbox({
+  activeConversationId = null,
+  enabled = true,
+  onServerUpdated,
+  onServerDeleted,
+}: UseInboxOptions = {}) {
   const queryClient = useQueryClient();
   const sessionStatus = useSession((s) => s.status);
   const [status, setStatus] = useState<InboxSocketStatus>('closed');
@@ -39,6 +48,8 @@ export function useInbox({ activeConversationId = null, enabled = true }: UseInb
   // En un ref: abrir otra conversación no debe reconectar
   const activeRef = useRef(activeConversationId);
   activeRef.current = activeConversationId;
+  const serverCallbacksRef = useRef({ onServerUpdated, onServerDeleted });
+  serverCallbacksRef.current = { onServerUpdated, onServerDeleted };
 
   const active = enabled && sessionStatus === 'authenticated';
 
@@ -50,6 +61,13 @@ export function useInbox({ activeConversationId = null, enabled = true }: UseInb
       // encabezado y ajustes leen de ahí). El evento solo trae el id, los datos los da la API
       if (event.type === 'SERVER_UPDATED') {
         queryClient.invalidateQueries({ queryKey: ['servers'] });
+        serverCallbacksRef.current.onServerUpdated?.(event.serverId);
+        return;
+      }
+
+      if (event.type === 'SERVER_DELETED') {
+        queryClient.invalidateQueries({ queryKey: ['servers'] });
+        serverCallbacksRef.current.onServerDeleted?.(event.serverId);
         return;
       }
 

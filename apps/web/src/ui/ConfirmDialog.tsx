@@ -57,6 +57,8 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Suspender el servidor?', text: `Ningún miembro del servidor ${name} va a poder entrar ni usarlo, y se cortan sus chats y llamadas. El contenido se conserva hasta que levantes la suspensión.`, confirm: 'Suspender', danger: true };
     case 'lift-server-suspension':
       return { title: '¿Levantar la suspensión?', text: `Los miembros de ${name} vuelven a tener acceso normal al servidor y a todo su contenido.`, confirm: 'Levantar', danger: false };
+    case 'delete-server-staff':
+      return { title: '¿Eliminar el servidor?', text: `Se borra ${name} con todos sus canales, mensajes y roles de forma permanente. No se puede deshacer.`, confirm: 'Eliminar servidor', danger: true };
     case 'publish-incident':
       return { title: '¿Publicar el incidente?', text: `Todos los usuarios con sesión van a ver el aviso "${name}" en la app hasta que lo resuelvas.`, confirm: 'Publicar', danger: false };
     case 'resolve-incident':

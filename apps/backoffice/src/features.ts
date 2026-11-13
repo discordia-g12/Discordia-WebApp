@@ -14,7 +14,7 @@ const FEATURES = {
   'users.reactivate': 'ready', // Reactivar usuario suspendido
   'servers.list': 'ready', // Ver listado de servidores de la plataforma (GET /api/v1/admin/servers, Server-Roles)
   'servers.suspend': 'ready', // Suspender servidor completo y levantar la suspensión (Server-Roles, ADR-002)
-  'servers.delete': 'soon', // Eliminar servidor desde el backoffice
+  'servers.delete': 'ready', // Eliminar servidor desde el backoffice (DELETE /api/v1/admin/servers/{id}, Server-Roles)
   'cases.user': 'soon', // Ver expediente de investigación de un usuario
   'cases.server': 'soon', // Ver expediente de investigación de un servidor
   'metrics.global': 'ready', // Ver métricas globales de la plataforma (GET /api/v1/admin/metrics, Notification-Audit-Metrics)

@@ -108,6 +108,7 @@ export default function MobileShell() {
     loadingOlderMessages,
     leaveServer,
     deleteServer,
+    removeServerLocally,
     reorderChannels,
     reorderCategories,
     addOptimisticMessage,
@@ -126,25 +127,8 @@ export default function MobileShell() {
   const [dmUserId, setDmUserId] = useState<string | null>(null)
   // Perfil público abierto, desde cualquier pestaña
   const [profileUserId, setProfileUserId] = useState<string | null>(null)
-  const inbox = useDmInbox({ activeUserId: tab === 'messages' ? dmUserId : null, appActive })
-
-  // No leídos de cada canal y servidor. El chat abierto no cuenta: ya se está leyendo
-  const { data: unread } = useUnreadQuery()
-  const readingChannelId = tab === 'servers' && screen === 'chat' ? selectedChannelId : null
-  const servers = useMemo(
-    () => applyUnread(loadedServers, unread, readingChannelId),
-    [loadedServers, unread, readingChannelId],
-  )
-  const markChannelRead = useMarkChannelReadMutation()
-  const markAllRead = useMarkAllReadMutation()
-
-  // Voz (LiveKit). Si la conexión se corta sola, volver a la lista de canales
-  const voice = useVoiceRoom({
-    onUnexpectedDisconnect: reason => {
-      setScreen(current => (current === 'voice' ? 'channels' : current))
-      showToast(voiceDisconnectMessage(reason), reason === 'duplicate' ? 'info' : 'error')
-    },
-  })
+  const notifiedDeletedServersRef = useRef(new Set<string>())
+  const activeServerIdRef = useRef<string | null>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [draft, setDraft] = useState('')
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null)
@@ -177,9 +161,73 @@ export default function MobileShell() {
   // Participante sobre el que se mantuvo presionado (menú para silenciarlo solo para vos)
   const [voiceActionTarget, setVoiceActionTarget] = useState<VoiceParticipantTarget | null>(null)
 
+  const clearDeletedServerUi = useCallback(
+    (deletedServerId: string, notify: boolean) => {
+      removeServerLocally(deletedServerId)
+      if (activeServerIdRef.current === deletedServerId) {
+        setServerSettings(null)
+        setDeleteServerConfirmOpen(false)
+        setLeaveServerConfirmOpen(false)
+        setInviteModalOpen(false)
+        setCreateChannelModalOpen(false)
+        setCreateCategoryModalOpen(false)
+        setEditChannelModalOpen(false)
+        setDeleteChannelModalOpen(false)
+        selectChannel(null)
+        setScreen('channels')
+        if (notify && !notifiedDeletedServersRef.current.has(deletedServerId)) {
+          notifiedDeletedServersRef.current.add(deletedServerId)
+          showToast(chatRemovalMessage('server-deleted'), 'error')
+        }
+      }
+    },
+    [removeServerLocally, selectChannel, showToast],
+  )
+
+  const inbox = useDmInbox({
+    activeUserId: tab === 'messages' ? dmUserId : null,
+    appActive,
+    onServerUpdated: () => {
+      refreshServers().catch(() => undefined)
+    },
+    onServerDeleted: deletedServerId => {
+      clearDeletedServerUi(deletedServerId, true)
+      refreshServers().catch(() => undefined)
+    },
+  })
+
+  // No leídos de cada canal y servidor. El chat abierto no cuenta: ya se está leyendo
+  const { data: unread } = useUnreadQuery()
+  const readingChannelId = tab === 'servers' && screen === 'chat' ? selectedChannelId : null
+  const servers = useMemo(
+    () => applyUnread(loadedServers, unread, readingChannelId),
+    [loadedServers, unread, readingChannelId],
+  )
+  const markChannelRead = useMarkChannelReadMutation()
+  const markAllRead = useMarkAllReadMutation()
+
+  // Voz (LiveKit). Si la conexión se corta sola, volver a la lista de canales
+  const voice = useVoiceRoom({
+    onUnexpectedDisconnect: reason => {
+      setScreen(current => (current === 'voice' ? 'channels' : current))
+      showToast(voiceDisconnectMessage(reason), reason === 'duplicate' ? 'info' : 'error')
+    },
+  })
+
   const server = servers.find(s => s.id === selectedServerId) ?? servers[0]
+  activeServerIdRef.current = server?.id ?? null
   const allChannels: Channel[] = server ? server.categories.flatMap(c => c.channels) : []
   const channel = allChannels.find(c => c.id === selectedChannelId) ?? null
+
+  useEffect(() => {
+    if (!serversLoaded) return
+    if (selectedServerId && !servers.some(s => s.id === selectedServerId)) {
+      selectServer(servers[0]?.id ?? null)
+      selectChannel(null)
+      setServerSettings(null)
+      setScreen('channels')
+    }
+  }, [serversLoaded, servers, selectedServerId, selectServer, selectChannel])
   const channelMessages: Message[] = channel ? messages[channel.id] ?? [] : []
   // El propio usuario (llega con el perfil de la sesión)
   const me: User = users[currentUserId] ?? { id: currentUserId, username: 'usuario', displayName: 'Usuario', status: 'online' }
@@ -279,10 +327,17 @@ export default function MobileShell() {
       }
     },
     onRemoved: reason => {
-      // Lo sacaron del servidor (ban o expulsión): el chat no reintenta y el servidor sale de la lista.
+      // Lo sacaron del servidor (ban, expulsión o eliminación): el chat no reintenta y el servidor sale de la lista.
       // Si el staff suspendió el servidor, sigue en la lista y la pantalla de canales muestra el aviso
+      if (reason === 'server-deleted' && server) {
+        notifiedDeletedServersRef.current.add(server.id)
+      }
       showToast(chatRemovalMessage(reason), 'error')
       setScreen('channels')
+      selectChannel(null)
+      if (reason !== 'server-suspended' && server) {
+        clearDeletedServerUi(server.id, false)
+      }
       refreshServers().catch(() => undefined)
     },
   })
