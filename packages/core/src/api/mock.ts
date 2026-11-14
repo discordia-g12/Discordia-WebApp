@@ -9,6 +9,7 @@ import type {
   PublicProfile,
   Server,
 } from '../types';
+import type { Call, CallJoinResponse } from './calls';
 import type { ConversationWith, StartConversationRequest, StartConversationResponse } from './conversations';
 import type { SendFriendRequestPayload } from './friends';
 import type { GetMessagesOptions } from './messages';
@@ -66,6 +67,15 @@ export interface ApiMock {
   markChannelRead?(channelId: string): Promise<void>;
   /** Reemplaza al socket inbox: el mock le entrega los eventos a `onEvent`. Devuelve cómo desuscribirse. */
   subscribeInbox?(onEvent: (event: InboxEvent) => void): () => void;
+  /**
+   * Llamadas privadas. Sin LiveKit: con el mock, usePrivateCall no entra a la sala (las credenciales son de
+   * mentira) y la llamada se ve igual en la interfaz.
+   */
+  startCall?(conversationId: string): Promise<CallJoinResponse>;
+  acceptCall?(callId: string): Promise<CallJoinResponse>;
+  declineCall?(callId: string): Promise<void>;
+  endCall?(callId: string): Promise<void>;
+  getCurrentCall?(): Promise<Call | null>;
 }
 
 let apiMock: ApiMock | null = null;

@@ -216,7 +216,7 @@ describe('HomeView', () => {
 
       expect(await screen.findByPlaceholderText('Enviar mensaje a @Emma Watson')).toBeTruthy();
       expect((await mock.getFriends()).map((f) => f.id)).not.toContain('u3');
-      expect(screen.getByRole('button', { name: 'agregar amigo' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Agregar a Emma Watson como amigo' })).toBeTruthy();
     });
 
     it('rechazar la saca de la lista', async () => {
@@ -305,7 +305,7 @@ describe('HomeView', () => {
 
       expect(await screen.findByText('Esperando respuesta.')).toBeTruthy();
       expect(screen.queryByRole('combobox')).toBeNull();
-      expect(screen.getByRole('button', { name: 'cancelar solicitud' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Cancelar solicitud de amistad' })).toBeTruthy();
     });
 
     it('bloqueado: historial con "desbloqueá para escribir", y desbloquear lo libera', async () => {
@@ -315,7 +315,7 @@ describe('HomeView', () => {
       expect(await screen.findByText('Desbloqueá para escribir.')).toBeTruthy();
       expect(await within(screen.getByRole('log')).findByText('Nos vemos.')).toBeTruthy();
 
-      fireEvent.click(screen.getByRole('button', { name: 'desbloquear' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Desbloquear a Daniel Park' }));
 
       expect(await screen.findByPlaceholderText('Enviar mensaje a @Daniel Park')).toBeTruthy();
     });
@@ -324,7 +324,8 @@ describe('HomeView', () => {
       const { sidebar } = renderHome();
       await open(sidebar, /Sofia Rossi/);
 
-      fireEvent.click(await screen.findByRole('button', { name: 'bloquear' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Más opciones' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Bloquear a Sofia Rossi' }));
       await confirmDialog();
 
       expect(await screen.findByText('Desbloqueá para escribir.')).toBeTruthy();

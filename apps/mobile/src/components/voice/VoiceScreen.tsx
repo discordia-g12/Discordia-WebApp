@@ -140,7 +140,7 @@ function Tile({
 }
 
 /** Borde grueso que late mientras la persona habla (quieto con movimiento reducido). */
-function SpeakingBorder() {
+export function SpeakingBorder() {
   const styles = useStyles()
   const reduce = useReducedMotion()
   const [opacity] = useState(() => new Animated.Value(1))

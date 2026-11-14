@@ -50,33 +50,20 @@
 }
 
 /* Enlaces de texto separados por líneas verticales ("hilos | mensajes fijados | ...") */
+.presence {
+  flex-shrink: 0;
+  font-size: var(--font-meta-size);
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+/* Acciones como íconos (IconButton), pegadas al borde derecho y del alto del encabezado */
 .links {
   display: flex;
+  align-self: stretch;
   align-items: center;
   flex-shrink: 0;
-}
-
-.headerLink {
-  padding: 0 var(--space-3);
-  background: none;
-  border: 0;
-  border-left: var(--line-hairline) solid var(--color-line-strong);
-  font-family: inherit;
-  font-size: var(--font-meta-size);
-  line-height: var(--font-meta-line-height);
-  color: var(--color-text);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.headerLink:first-child {
-  border-left: 0;
-}
-
-.headerLink:hover,
-.headerLink[aria-pressed='true'] {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  margin-right: calc(-1 * var(--space-5));
 }
 
 /* ── Lista de mensajes ── */
@@ -692,20 +679,17 @@
  */
 @container chat (max-width: 640px) {
   /*
-   * El canal y sus enlaces no entran en una fila: el título va arriba y los enlaces debajo, en las filas
-   * que hagan falta. En una fila, los enlaces se montaban sobre el título y quedaban debajo del panel de
-   * miembros; deslizando de costado (mobile), las últimas acciones (bloquear, mensajes fijados) no se veían.
+   * Una sola fila: el nombre se corta con puntos suspensivos y los íconos quedan enteros a la derecha. En
+   * pantallas angostas el DM muestra menos íconos y el resto va al menú "más" (DM_HEADER_COMPACT_ICONS).
    */
   .header {
-    flex-wrap: wrap;
-    row-gap: var(--space-2);
-    height: auto;
-    min-height: var(--space-7);
-    padding: var(--space-3) var(--space-4);
+    gap: var(--space-3);
+    padding: 0 var(--space-4);
   }
 
   .titleGroup {
-    flex-basis: 100%;
+    flex: 1;
+    gap: var(--space-3);
   }
 
   .title {
@@ -713,17 +697,8 @@
     text-overflow: ellipsis;
   }
 
-  /*
-   * El primer enlace de cada fila, alineado con el título. La línea que separa los enlaces queda sobre el
-   * borde izquierdo de la caja en el primero de cada fila: el recorte la oculta ahí.
-   */
   .links {
-    flex-wrap: wrap;
-    flex-shrink: 1;
-    row-gap: var(--space-2);
-    min-width: 0;
-    margin-left: calc(-1 * (var(--space-3) + var(--line-hairline)));
-    clip-path: inset(0 0 0 var(--line-hairline));
+    margin-right: calc(-1 * var(--space-4));
   }
 
   .topic {

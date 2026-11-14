@@ -22,10 +22,14 @@ interface FriendsTabProps {
   onCloseChat: () => void
   onOpenProfile: (userId: string) => void
   onLongPressMessage?: (message: Message) => void
+  /** Llamar desde el chat abierto (ver usePrivateCallSession). */
+  onCall?: (conversationId: string, name: string) => void
+  /** Conversación de la llamada en curso, si hay. */
+  callConversationId?: string | null
 }
 
 /** Pestaña Amigos: la lista de chats y, en sus secciones, Todos, Pendiente, Bloqueado y Añadir. O un chat abierto. */
-export default function FriendsTab({ openUserId, inboxConnected, onOpenChat, onCloseChat, onOpenProfile, onLongPressMessage }: FriendsTabProps) {
+export default function FriendsTab({ openUserId, inboxConnected, onOpenChat, onCloseChat, onOpenProfile, onLongPressMessage, onCall, callConversationId }: FriendsTabProps) {
   const styles = useStyles()
   // Acá y no en cada lista: al volver de un chat, se sigue en la misma sección
   const [section, setSection] = useState<Section>('chats')
@@ -42,6 +46,8 @@ export default function FriendsTab({ openUserId, inboxConnected, onOpenChat, onC
         onBack={onCloseChat}
         onOpenProfile={onOpenProfile}
         onLongPressMessage={onLongPressMessage}
+        onCall={onCall}
+        callConversationId={callConversationId}
       />
     )
   }

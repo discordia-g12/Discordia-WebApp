@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../../api/client';
 import { setApiMock, type ApiMock } from '../../api/mock';
 import { openChatSocket } from '../chatSocket';
-import { openInboxSocket, type InboxEvent } from '../inboxSocket';
+import { isInboxEvent, openInboxSocket, type InboxEvent } from '../inboxSocket';
 
 class FakeWebSocket {
   static CONNECTING = 0;
@@ -41,6 +41,35 @@ class FakeWebSocket {
     this.onclose?.();
   }
 }
+
+const callPayload = {
+  id: 'c1',
+  conversationId: 'dm-1',
+  callerId: 'u1',
+  calleeId: 'u2',
+  status: 'ringing',
+  createdAt: '2026-11-12T10:00:00.000Z',
+  expiresAt: '2026-11-12T10:00:30.000Z',
+};
+
+describe('isInboxEvent: llamadas', () => {
+  it.each(['CALL_RINGING', 'CALL_ACCEPTED', 'CALL_ENDED'])('acepta %s con una llamada completa', (type) => {
+    expect(isInboxEvent({ type, call: callPayload })).toBe(true);
+    expect(isInboxEvent({ type, call: { ...callPayload, status: 'ended', endReason: 'missed' } })).toBe(true);
+  });
+
+  it('rechaza una llamada ausente o incompleta', () => {
+    expect(isInboxEvent({ type: 'CALL_RINGING' })).toBe(false);
+    expect(isInboxEvent({ type: 'CALL_RINGING', call: null })).toBe(false);
+    expect(isInboxEvent({ type: 'CALL_RINGING', call: 'c1' })).toBe(false);
+    for (const field of ['id', 'conversationId', 'callerId', 'calleeId', 'expiresAt'] as const) {
+      expect(isInboxEvent({ type: 'CALL_ENDED', call: { ...callPayload, [field]: '' } })).toBe(false);
+      expect(isInboxEvent({ type: 'CALL_ENDED', call: { ...callPayload, [field]: undefined } })).toBe(false);
+    }
+    expect(isInboxEvent({ type: 'CALL_ACCEPTED', call: { ...callPayload, status: 'otro' } })).toBe(false);
+    expect(isInboxEvent({ type: 'CALL_OTRO', call: callPayload })).toBe(false);
+  });
+});
 
 describe('openInboxSocket', () => {
   const originalWebSocket = globalThis.WebSocket;
@@ -117,6 +146,19 @@ describe('openInboxSocket', () => {
     expect(onEvent).not.toHaveBeenCalled();
     connection.close();
     consoleError.mockRestore();
+  });
+
+  it('entrega los eventos de llamadas', async () => {
+    const onEvent = vi.fn();
+    const connection = openInboxSocket({ onEvent });
+    await vi.advanceTimersByTimeAsync(0);
+    last().open();
+
+    const events = (['CALL_RINGING', 'CALL_ACCEPTED', 'CALL_ENDED'] as const).map((type) => ({ type, call: callPayload }));
+    events.forEach((event) => last().receive(event));
+
+    expect(onEvent.mock.calls).toEqual(events.map((event) => [event]));
+    connection.close();
   });
 
   it('reconecta con backoff y un token nuevo, y avisa al volver', async () => {

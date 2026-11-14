@@ -72,6 +72,7 @@ export type ConfirmAction =
   | 'leave-server'
   | 'transfer-ownership'
   | 'switch-voice-channel'
+  | 'start-call'
   | 'delete-category'
   | 'logout'
   | 'block-user'

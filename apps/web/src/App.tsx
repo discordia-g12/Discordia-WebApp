@@ -4,6 +4,7 @@ import { AuthView } from './features/auth/AuthView';
 import { DawnIntro } from './features/auth/DawnIntro';
 import { useCurrentUserStore } from './features/profile/currentUserStore';
 import { VoiceProvider } from './features/voice/VoiceProvider';
+import { CallProvider } from './features/calls/CallProvider';
 import { ChatConnectionProvider } from './features/chat/ChatConnectionProvider';
 import { UsersProvider } from './app/UsersProvider';
 import { useUIStore } from './app/uiStore';
@@ -59,11 +60,13 @@ export default function App() {
     <>
       {intro}
       <VoiceProvider>
-        <ChatConnectionProvider>
-          <UsersProvider>
-            <AuthenticatedApp />
-          </UsersProvider>
-        </ChatConnectionProvider>
+        <CallProvider>
+          <ChatConnectionProvider>
+            <UsersProvider>
+              <AuthenticatedApp />
+            </UsersProvider>
+          </ChatConnectionProvider>
+        </CallProvider>
       </VoiceProvider>
     </>
   );

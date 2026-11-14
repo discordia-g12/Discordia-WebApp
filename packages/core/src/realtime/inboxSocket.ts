@@ -1,6 +1,7 @@
 import { getClientConfig, getWsBaseUrl, notifyAccountSuspended } from '../api/client';
 import { ACCOUNT_SUSPENDED_CLOSE_CODE } from '../api/errors';
 import { getApiMock } from '../api/mock';
+import type { Call } from '../api/calls';
 import type { Conversation, MessageBackendPayload } from '../types';
 import { reconnectDelayMs, type ChatSocketStatus } from './chatSocket';
 
@@ -17,7 +18,31 @@ export type InboxEvent =
   /** Cambió el nombre, la descripción, el ícono o el banner de un servidor del usuario: hay que volver a pedirlo. */
   | { type: 'SERVER_UPDATED'; serverId: string }
   /** Se eliminó un servidor del usuario (por su dueño o por el staff): hay que sacarlo de la lista. */
-  | { type: 'SERVER_DELETED'; serverId: string };
+  | { type: 'SERVER_DELETED'; serverId: string }
+  /** Llamada privada (Voice publica por Chat a los dos participantes, el mismo `call` para ambos). */
+  | { type: 'CALL_RINGING'; call: Call }
+  | { type: 'CALL_ACCEPTED'; call: Call }
+  | { type: 'CALL_ENDED'; call: Call };
+
+export type CallInboxEvent = Extract<InboxEvent, { type: 'CALL_RINGING' | 'CALL_ACCEPTED' | 'CALL_ENDED' }>;
+
+const CALL_EVENT_TYPES: ReadonlySet<unknown> = new Set(['CALL_RINGING', 'CALL_ACCEPTED', 'CALL_ENDED']);
+
+const nonEmptyString = (value: unknown) => typeof value === 'string' && value.length > 0;
+
+/** Lo mínimo para que la máquina de llamadas pueda decidir: ids, estado y vencimiento. */
+function isCall(value: unknown): value is Call {
+  if (typeof value !== 'object' || value === null) return false;
+  const call = value as Record<string, unknown>;
+  return (
+    nonEmptyString(call.id) &&
+    nonEmptyString(call.conversationId) &&
+    nonEmptyString(call.callerId) &&
+    nonEmptyString(call.calleeId) &&
+    (call.status === 'ringing' || call.status === 'active' || call.status === 'ended') &&
+    nonEmptyString(call.expiresAt)
+  );
+}
 
 export interface InboxSocketHandlers {
   onEvent: (event: InboxEvent) => void;
@@ -33,13 +58,15 @@ export interface InboxSocketConnection {
   close: () => void;
 }
 
-function isInboxEvent(data: {
+export function isInboxEvent(data: {
   type?: unknown;
   conversationId?: unknown;
   message?: unknown;
   conversation?: unknown;
   serverId?: unknown;
-}) {
+  call?: unknown;
+}): boolean {
+  if (CALL_EVENT_TYPES.has(data.type)) return isCall(data.call);
   if (data.type === 'SERVER_UPDATED' || data.type === 'SERVER_DELETED') {
     return typeof data.serverId === 'string' && data.serverId.length > 0;
   }

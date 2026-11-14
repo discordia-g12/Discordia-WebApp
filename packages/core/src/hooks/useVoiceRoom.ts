@@ -8,7 +8,12 @@ import type {
   Room,
   VideoTrack,
 } from 'livekit-client';
-import { joinVoiceChannel, leaveVoiceChannel, type VoicePublishPermissions } from '../api/voice';
+import {
+  joinVoiceChannel,
+  leaveVoiceChannel,
+  type VoiceJoinResponse,
+  type VoicePublishPermissions,
+} from '../api/voice';
 import { DEFAULT_VOICE_PREFS, getVoicePlatform, type LiveKitModule } from '../voice/platform';
 
 export type VoiceConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
@@ -38,8 +43,32 @@ export interface VoiceJoinResult {
 export type VoiceDisconnectReason = 'removed' | 'duplicate' | 'lost';
 
 export interface UseVoiceRoomOptions {
-  /** Se llama cuando la sala se cierra sin que el usuario lo pida, con el motivo. */
+  /**
+   * Se llama cuando la sala de un canal de servidor se cierra sin que el usuario lo pida, con el motivo. Una
+   * sala propia (join con `credentials`) avisa por su `onLeave`, no acá.
+   */
   onUnexpectedDisconnect?: (reason: VoiceDisconnectReason) => void;
+}
+
+/**
+ * Sala que no es un canal de servidor (una llamada privada): quien la usa trae las credenciales y su salida.
+ * Sin opciones, `join` es un canal de servidor (joinVoiceChannel / leaveVoiceChannel).
+ */
+export interface VoiceJoinOptions {
+  /** Token y URL de LiveKit para esta sala. */
+  credentials?: () => Promise<VoiceJoinResponse>;
+  /**
+   * Avisar al backend que se salió, una sola vez por sala: al llamar a leave, al pasar a otra sala, al
+   * desmontar, o si la sala se cerró sola (`reason` viene solo en este último caso).
+   */
+  onLeave?: (reason?: VoiceDisconnectReason) => Promise<void>;
+}
+
+/** La sala pedida más recientemente. `own`: con credenciales propias (no es un canal de servidor). */
+interface RoomTarget {
+  id: string;
+  own: boolean;
+  onLeave?: VoiceJoinOptions['onLeave'];
 }
 
 /** Texto para mostrar cuando la sala se cerró sin que el usuario lo pidiera. */
@@ -60,6 +89,14 @@ function toDisconnectReason(reason: DisconnectReason | undefined, lk: LiveKitMod
   if (reason === reasons.PARTICIPANT_REMOVED || reason === reasons.ROOM_DELETED) return 'removed';
   if (reason === reasons.DUPLICATE_IDENTITY) return 'duplicate';
   return 'lost';
+}
+
+/** La salida de la sala `target` en el backend: la propia, o leaveVoiceChannel si es un canal. */
+function notifyLeave(target: RoomTarget, reason?: VoiceDisconnectReason): Promise<void> {
+  const leaving = target.own
+    ? (target.onLeave?.(reason) ?? Promise.resolve())
+    : leaveVoiceChannel();
+  return leaving.catch((err) => console.error('[Voice] Error al salir de la sala:', err));
 }
 
 /**
@@ -106,8 +143,8 @@ function toConnectionState(state: ConnectionState, lk: LiveKitModule): VoiceConn
  * plataforma (cargar LiveKit, reproducir el audio, permisos, preferencias) lo aporta VoicePlatform.
  *
  * El voice-service firma el token y el cliente se conecta directo a LiveKit. Hay una sola sala
- * activa a la vez: unirse a otro canal cierra la anterior. Mute y deafen se pueden cambiar sin
- * estar conectado y se aplican al entrar.
+ * activa a la vez: unirse a otro canal (o a una llamada, con credenciales propias) cierra la anterior. Mute
+ * y deafen se pueden cambiar sin estar conectado y se aplican al entrar.
  */
 export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const [platform] = useState(getVoicePlatform);
@@ -118,8 +155,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const roomRef = useRef<Room | null>(null);
   // livekit-client, guardado al unirse (la plataforma puede cargarlo recién ahí)
   const livekitRef = useRef<LiveKitModule | null>(null);
-  // Canal pedido más recientemente; permite descartar joins que quedaron viejos
-  const channelIdRef = useRef<string | null>(null);
+  // Sala pedida más recientemente; permite descartar joins que quedaron viejos
+  const targetRef = useRef<RoomTarget | null>(null);
   const mutedRef = useRef(initialPrefs.muted);
   const deafenedRef = useRef(initialPrefs.deafened);
   const mutedBeforeDeafenRef = useRef(initialPrefs.mutedBeforeDeafen);
@@ -134,7 +171,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const speakingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const syncParticipantsRef = useRef<() => void>(() => undefined);
 
-  const [channelId, setChannelId] = useState<string | null>(null);
+  const [target, setTarget] = useState<RoomTarget | null>(null);
   const [connectionState, setConnectionState] = useState<VoiceConnectionState>('disconnected');
   const [participants, setParticipants] = useState<VoiceRoomParticipant[]>([]);
   const [isMuted, setIsMuted] = useState(initialPrefs.muted);
@@ -208,8 +245,8 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
 
   const resetState = useCallback(() => {
     roomRef.current = null;
-    channelIdRef.current = null;
-    setChannelId(null);
+    targetRef.current = null;
+    setTarget(null);
     setConnectionState('disconnected');
     setParticipants([]);
     clearTimeout(speakingTimerRef.current);
@@ -257,28 +294,40 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
         .on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
           // Desconexión no pedida por el usuario (red, servidor, lo sacaron): limpiar y avisar al backend
           if (roomRef.current !== room) return;
+          const closed = targetRef.current;
           disconnectRoom(room);
           resetState();
-          leaveVoiceChannel().catch((err) => console.error('[Voice] Error al salir del canal:', err));
-          onUnexpectedDisconnectRef.current?.(toDisconnectReason(reason, lk));
+          const disconnectReason = toDisconnectReason(reason, lk);
+          if (!closed) return;
+          notifyLeave(closed, disconnectReason);
+          // Una sala propia (llamada) la cierra su dueño: no es "te sacaron del canal"
+          if (!closed.own) onUnexpectedDisconnectRef.current?.(disconnectReason);
         });
     },
     [applyVolume, disconnectRoom, platform, resetState, syncParticipants]
   );
 
+  /**
+   * Entra a una sala. Sin `opts`, a un canal de servidor. Con `opts.credentials`, a una sala propia (una
+   * llamada privada). Si ya estaba en otra, la cierra: entre canales el backend mueve al usuario solo; si
+   * alguna de las dos es propia, se avisa la salida de la anterior (onLeave o leaveVoiceChannel).
+   */
   const join = useCallback(
-    async (targetChannelId: string): Promise<VoiceJoinResult> => {
+    async (roomId: string, opts: VoiceJoinOptions = {}): Promise<VoiceJoinResult> => {
       if (platform.isSupported?.() === false) {
         throw new Error(platform.unsupportedMessage ?? 'La voz no está disponible en este dispositivo.');
       }
-      if (channelIdRef.current === targetChannelId) {
+      if (targetRef.current?.id === roomId) {
         return { microphoneAvailable: true };
       }
 
+      const own = Boolean(opts.credentials);
+      const next: RoomTarget = { id: roomId, own, onLeave: opts.onLeave };
       const previous = roomRef.current;
+      const previousTarget = targetRef.current;
       roomRef.current = null;
-      channelIdRef.current = targetChannelId;
-      setChannelId(targetChannelId);
+      targetRef.current = next;
+      setTarget(next);
       setConnectionState('connecting');
       setParticipants([]);
       // Al cerrar la sala anterior se cierra su cámara: en la nueva arranca apagada
@@ -287,12 +336,15 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       clearTimeout(speakingTimerRef.current);
       speakingUntilRef.current = {};
       if (previous) await disconnectRoom(previous);
+      if (previousTarget && (previousTarget.own || own)) notifyLeave(previousTarget);
 
-      const isSuperseded = () => channelIdRef.current !== targetChannelId;
+      const isSuperseded = () => targetRef.current !== next;
       let room: Room | null = null;
 
       try {
-        const { token, url, permissions } = await joinVoiceChannel(targetChannelId);
+        const { token, url, permissions } = opts.credentials
+          ? await opts.credentials()
+          : await joinVoiceChannel(roomId);
         if (isSuperseded()) return { microphoneAvailable: true };
         publishRef.current = permissions ?? PUBLISH_ALL;
         setPublishPermissions(publishRef.current);
@@ -346,12 +398,10 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
 
   const leave = useCallback(async () => {
     const room = roomRef.current;
-    const wasInChannel = channelIdRef.current !== null;
+    const left = targetRef.current;
     resetState();
     if (room) await disconnectRoom(room);
-    if (wasInChannel) {
-      await leaveVoiceChannel().catch((err) => console.error('[Voice] Error al salir del canal:', err));
-    }
+    if (left) await notifyLeave(left);
   }, [disconnectRoom, resetState]);
 
   const setMuted = useCallback(
@@ -498,17 +548,20 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   useEffect(() => {
     return () => {
       const room = roomRef.current;
-      const wasInChannel = channelIdRef.current !== null;
+      const left = targetRef.current;
       roomRef.current = null;
-      channelIdRef.current = null;
+      targetRef.current = null;
       clearTimeout(speakingTimerRef.current);
       if (room) disconnectRoom(room);
-      if (wasInChannel) leaveVoiceChannel().catch(() => undefined);
+      if (left) notifyLeave(left);
     };
   }, [disconnectRoom]);
 
   return {
-    channelId,
+    /** El canal de servidor en el que está (o al que está entrando); null si no hay sala o es una propia. */
+    channelId: target && !target.own ? target.id : null,
+    /** La sala actual, de cualquier tipo (canal o llamada, p. ej. `call-<id>`). */
+    roomId: target?.id ?? null,
     connectionState,
     participants,
     // Sin permiso para hablar se muestra silenciado, aunque la preferencia guardada sea otra

@@ -13,6 +13,9 @@ import { ChannelSidebarPanel } from '../../features/channels/ChannelSidebarPanel
 import { ChatPanel } from '../../features/chat/ChatPanel';
 import { VoicePanel } from '../../features/voice/VoicePanel';
 import { VoiceControlsPanel } from '../../features/voice/VoiceControls';
+import { CallControlsPanel } from '../../features/calls/CallControls';
+import { CallNotices } from '../../features/calls/CallNotices';
+import { isInCall, useCall } from '../../features/calls/callContext';
 import { useVoice } from '../../features/voice/voiceContext';
 import { MemberListPanel } from '../../features/servers/MemberListPanel';
 import { HomePanel } from '../../features/friends/HomePanel';
@@ -48,6 +51,7 @@ export function MobileAppShell() {
   const appView = useUIStore((s) => s.appView);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
   const voice = useVoice();
+  const call = useCall();
   const reconnecting = useIsReconnecting();
   const [tab, setTab] = useState<MobileTab>('servers');
   const [channelOpen, setChannelOpen] = useState(false);
@@ -92,7 +96,8 @@ export function MobileAppShell() {
     setChannelOpen(false);
   };
 
-  const inCall = voice.room.channelId !== null;
+  const inPrivateCall = isInCall(call.state);
+  const inCall = voice.room.channelId !== null || inPrivateCall;
 
   return (
     <div className={styles.shell}>
@@ -158,6 +163,7 @@ export function MobileAppShell() {
       {inCall && (
         <div className={styles.call}>
           <VoiceControlsPanel tone="muted" />
+          <CallControlsPanel tone="muted" />
           <UserBarPanel tone="muted" />
         </div>
       )}
@@ -180,6 +186,7 @@ export function MobileAppShell() {
       <GlobalModals />
       <FullScreenViews />
       <ToastHost />
+      <CallNotices />
       <ConnectionBanner active={reconnecting} />
       <IncidentBanner />
     </div>
@@ -298,6 +305,7 @@ function ProfileTab() {
   const actions = useUserPanelActions();
   const reconnecting = useIsReconnecting();
   const voice = useVoice();
+  const call = useCall();
 
   return (
     <Screen title="Perfil">
@@ -306,7 +314,7 @@ function ProfileTab() {
         <div>
           <p className={styles.name}>{user.displayName}</p>
           <p className={styles.meta}>@{user.username}</p>
-          <p className={styles.meta}>{userBarStatus(user, voice.room.channelId !== null, reconnecting)}</p>
+          <p className={styles.meta}>{userBarStatus(user, voice.room.channelId !== null, reconnecting, isInCall(call.state))}</p>
         </div>
       </div>
       <UserMenuContent

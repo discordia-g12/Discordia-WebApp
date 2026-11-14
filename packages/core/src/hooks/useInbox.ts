@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { isConversationId } from '../api/conversations';
 import { normalizeMessage } from '../api/messages';
 import { useSession } from '../auth/session';
+import { isCallInboxEvent, publishCallEvent, publishInboxReconnect } from '../realtime/callEvents';
 import {
   openInboxSocket,
   type InboxEvent,
@@ -31,7 +32,8 @@ export interface UseInboxOptions {
 
 /**
  * Socket del usuario: mete lo que llega en el caché de conversaciones y de mensajes. Se monta una sola vez
- * por sesión. Al reconectar, o al volver de `enabled` en false, pide de nuevo las conversaciones.
+ * por sesión. Al reconectar, o al volver de `enabled` en false, pide de nuevo las conversaciones. Los eventos
+ * de llamadas no los toca: los reenvía a subscribeCallEvents (los usa usePrivateCall).
  */
 export function useInbox({
   activeConversationId = null,
@@ -57,6 +59,12 @@ export function useInbox({
     if (!active) return;
 
     const handleEvent = (event: InboxEvent) => {
+      // Llamadas privadas: las procesa usePrivateCall
+      if (isCallInboxEvent(event)) {
+        publishCallEvent(event);
+        return;
+      }
+
       // Otro miembro cambió la configuración del servidor: se vuelve a pedir la lista (barra de servidores,
       // encabezado y ajustes leen de ahí). El evento solo trae el id, los datos los da la API
       if (event.type === 'SERVER_UPDATED') {
@@ -174,6 +182,7 @@ export function useInbox({
           queryClient.invalidateQueries({
             predicate: ({ queryKey: [scope, id] }) => scope === 'messages' && isConversationId(id as string),
           });
+          publishInboxReconnect();
         }
         hasOpenedRef.current = true;
       },

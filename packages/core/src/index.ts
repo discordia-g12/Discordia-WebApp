@@ -30,6 +30,7 @@ export * from './api/friends';
 export * from './api/blocks';
 export * from './api/conversations';
 export * from './api/presence';
+export * from './api/calls';
 
 // Hooks de React (React Query y perfiles), los mismos en web y mobile
 export * from './hooks/useApi';
@@ -62,9 +63,11 @@ export * from './chat/mentions';
 export * from './chat/emojis';
 export * from './realtime/chatSocket';
 export * from './realtime/inboxSocket';
+export * from './realtime/callEvents';
 
 // Mensajes directos: las reglas de producto, iguales en web y mobile
 export * from './dm/inboxList';
+export * from './dm/headerActions';
 export * from './dm/actions';
 export * from './dm/errors';
 export * from './dm/friendRequestJoke';
@@ -73,3 +76,8 @@ export * from './dm/friendRequestJoke';
 export * from './voice/platform';
 export * from './hooks/useVoiceRoom';
 export * from './hooks/useVoicePresence';
+
+// Llamadas privadas 1 a 1: la máquina, los textos y el hook que une API, inbox y sala
+export * from './calls/machine';
+export * from './calls/messages';
+export * from './hooks/usePrivateCall';

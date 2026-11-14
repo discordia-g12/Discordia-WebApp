@@ -3,9 +3,10 @@ import { isConversationId } from '../api/conversations';
 import type { ApiMock } from '../api/mock';
 import type { InboxEvent } from '../realtime/inboxSocket';
 import type { Conversation, FriendRequest, Message, MessageAttachment, PublicProfile, Relationship } from '../types';
+import { createCallMock, type CallMock, type CallMockOptions } from './callMock';
 import { CURRENT_USER_ID, DM_MESSAGES, MESSAGES, SERVERS, USERS } from './data';
 
-export interface DmMockOptions {
+export interface DmMockOptions extends CallMockOptions {
   /** Usuarios que bloquearon al usuario simulado: su relación es `none` y escribirles da error de entrega. */
   blockedBy?: string[];
 }
@@ -36,7 +37,8 @@ export type DmMock = Required<
     | 'markChannelRead'
     | 'subscribeInbox'
   >
-> & {
+> &
+  CallMock & {
   /** Simula un mensaje de `userId`, como si llegara por el socket inbox. */
   simulateIncomingMessage(userId: string, content: string): Message;
 };
@@ -73,7 +75,7 @@ const forbidden = (code: string) => new ApiError({ status: 403, code, detail: co
  * u3: solicitud de mensaje recibida. u4: solicitud de mensaje y de amistad enviadas. u5: solicitud de
  * amistad recibida. u6: bloqueado. El estado vive en cada instancia y se pierde al recargar.
  */
-export function createDmMock({ blockedBy = [] }: DmMockOptions = {}): DmMock {
+export function createDmMock({ blockedBy = [], ...callOptions }: DmMockOptions = {}): DmMock {
   const friends = new Set(['u1', 'u2']);
   const blocked = new Set(['u6']);
   const blockers = new Set(blockedBy);
@@ -195,7 +197,19 @@ export function createDmMock({ blockedBy = [] }: DmMockOptions = {}): DmMock {
     });
   };
 
+  /** Mismas reglas que call-access de Chat: conversación aceptada (o amigos), sin bloqueo en ningún sentido. */
+  const callAccess = (conversationId: string) => {
+    const conversation = conversations.get(conversationId);
+    if (!conversation) throw new ApiError({ status: 404, code: 'CONVERSATION_NOT_FOUND', detail: 'Mock conversation not found' });
+    const { otherUserId } = conversation;
+    if (!canReach(otherUserId)) throw forbidden('DM_NOT_DELIVERABLE');
+    if (conversation.status !== 'accepted' && !friends.has(otherUserId)) throw forbidden('DM_PENDING');
+    return otherUserId;
+  };
+
   return {
+    ...createCallMock({ emit, callAccess }, callOptions),
+
     async getPublicProfile(userId) {
       if (USERS[userId]?.isSuspended) throw notFound('Mock profile not available');
       return profile(userId);

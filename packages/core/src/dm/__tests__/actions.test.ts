@@ -100,3 +100,23 @@ describe('dmActions: amistad', () => {
     expect(actions.canRespondMessageRequest).toBe(true);
   });
 });
+
+describe('dmActions: llamar', () => {
+  it('se puede llamar si la conversación existe y se puede escribir', () => {
+    expect(dmActions({ relationship: 'friend', conversation: conversation('accepted', 'other') }).canCall).toBe(true);
+    expect(dmActions({ relationship: 'none', conversation: conversation('accepted', 'me') }).canCall).toBe(true);
+  });
+
+  it('entre amigos, una conversación pendiente vieja en el caché no impide llamar', () => {
+    expect(dmActions({ relationship: 'friend', conversation: conversation('pending', 'me') }).canCall).toBe(true);
+  });
+
+  it('no se puede sin conversación, con una solicitud sin aceptar, bloqueado o sin entrega', () => {
+    expect(dmActions({ relationship: 'friend', conversation: null }).canCall).toBe(false);
+    expect(dmActions({ relationship: 'none', conversation: conversation('pending', 'me') }).canCall).toBe(false);
+    expect(dmActions({ relationship: 'none', conversation: conversation('pending', 'other') }).canCall).toBe(false);
+    expect(dmActions({ relationship: 'blocked', conversation: conversation('accepted', 'other') }).canCall).toBe(false);
+    const undeliverable = dmActions({ relationship: 'none', conversation: conversation('accepted', 'other'), canMessage: false });
+    expect(undeliverable.canCall).toBe(false);
+  });
+});

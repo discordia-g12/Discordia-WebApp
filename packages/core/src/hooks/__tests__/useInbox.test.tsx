@@ -16,6 +16,7 @@ import {
   useSendFriendRequestMutation,
 } from '../useFriends';
 import { useInbox } from '../useInbox';
+import { subscribeCallEvents } from '../../realtime/callEvents';
 
 const connections: { handlers: InboxSocketHandlers; close: ReturnType<typeof vi.fn>; reconnect: ReturnType<typeof vi.fn> }[] = [];
 
@@ -166,6 +167,47 @@ describe('useInbox', () => {
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['servers'] });
     expect(onServerDeleted).toHaveBeenCalledWith('srv-1');
+  });
+
+  it('los eventos de llamadas no tocan el caché: van a subscribeCallEvents', () => {
+    const { queryClient, wrapper, invalidate } = setup();
+    queryClient.setQueryData(conversationsQueryKey, [conversation('dm-1')]);
+    const onEvent = vi.fn();
+    const unsubscribe = subscribeCallEvents({ onEvent });
+    renderHook(() => useInbox(), { wrapper });
+    const event: InboxEvent = {
+      type: 'CALL_RINGING',
+      call: {
+        id: 'c1',
+        conversationId: 'dm-1',
+        callerId: 'other',
+        calleeId: 'me',
+        status: 'ringing',
+        createdAt: '2026-11-12T10:00:00.000Z',
+        expiresAt: '2026-11-12T10:00:30.000Z',
+      },
+    };
+
+    act(() => lastConnection().handlers.onEvent(event));
+
+    expect(onEvent).toHaveBeenCalledWith(event);
+    expect(invalidate).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(conversationsQueryKey)).toEqual([conversation('dm-1')]);
+    unsubscribe();
+  });
+
+  it('avisa a las llamadas cuando el inbox vuelve, no la primera vez', () => {
+    const { wrapper } = setup();
+    const onReconnect = vi.fn();
+    const unsubscribe = subscribeCallEvents({ onReconnect });
+    renderHook(() => useInbox(), { wrapper });
+
+    emitStatus('open');
+    expect(onReconnect).not.toHaveBeenCalled();
+    emitStatus('reconnecting');
+    emitStatus('open');
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+    unsubscribe();
   });
 
   it('DM_MESSAGE_REACTION_UPDATED actualiza las reacciones en el caché del historial', () => {

@@ -30,6 +30,7 @@ import { UserSettingsScreen } from './settings/user/UserSettingsScreen'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
 import { BottomTabs, type ShellTab } from './shell/BottomTabs'
+import { CallLayer, PrivateCallBar } from './calls/CallLayer'
 import { CallBar } from './shell/CallBar'
 import { ProfileTab } from './shell/ProfileTab'
 import { ServerMenu } from './shell/ServerMenu'
@@ -38,6 +39,7 @@ import { Padded, Pane, Screen } from './shell/ShellScreen'
 import { useUserDisplay } from '../hooks/useUserProfiles'
 import { useAppActive } from '../hooks/useAppActive'
 import { useDmInbox } from '../hooks/useDmInbox'
+import { usePrivateCallSession } from '../hooks/usePrivateCallSession'
 import { usePickAttachment } from '../hooks/usePickAttachment'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
@@ -213,6 +215,8 @@ export default function MobileShell() {
       showToast(voiceDisconnectMessage(reason), reason === 'duplicate' ? 'info' : 'error')
     },
   })
+  // Llamada privada 1 a 1, con la misma sala: entrar a una cierra el canal de voz y al revés
+  const privateCall = usePrivateCallSession({ voice, enabled: appActive })
 
   const server = servers.find(s => s.id === selectedServerId) ?? servers[0]
   activeServerIdRef.current = server?.id ?? null
@@ -834,6 +838,8 @@ export default function MobileShell() {
               onCloseChat={() => setDmUserId(null)}
               onOpenProfile={openProfile}
               onLongPressMessage={setActionTargetMessage}
+              onCall={privateCall.requestCall}
+              callConversationId={privateCall.callConversationId}
             />
           )}
 
@@ -876,6 +882,7 @@ export default function MobileShell() {
             onBlocked={message => showToast(message, 'info')}
           />
         )}
+        {showBars && <PrivateCallBar session={privateCall} voice={voice} />}
         {showBars && <BottomTabs value={tab} onChange={goTo} unread={{ messages: inbox.unread > 0 }} />}
       </SafeAreaView>
 
@@ -984,6 +991,7 @@ export default function MobileShell() {
 
       {channelActionModals}
       {voiceParticipantActions}
+      <CallLayer session={privateCall} voice={voice} voiceChannelName={voiceLocation?.channel.name} />
 
       <ConfirmModal
         visible={leaveServerConfirmOpen}

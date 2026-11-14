@@ -55,20 +55,21 @@ test.describe('Mensajes directos', () => {
     await card.getByRole('button', { name: 'Aceptar /' }).click();
 
     await expect(page.getByRole('combobox', { name: 'Enviar mensaje a @Emma Watson' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'agregar amigo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Agregar a Emma Watson como amigo' })).toBeVisible();
   });
 
   test('bloquear y desbloquear conserva el historial', async ({ page }) => {
     await dmRow(page, 'Sofia Rossi').click();
     await expect(page.getByRole('combobox', { name: 'Enviar mensaje a @Sofia Rossi' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'bloquear' }).click();
+    await page.getByRole('button', { name: 'Más opciones' }).click();
+    await page.getByRole('menuitem', { name: 'Bloquear a Sofia Rossi' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Bloquear /' }).click();
 
     await expect(page.getByText('Desbloqueá para escribir.')).toBeVisible();
     await expect(page.getByRole('log').locator('li').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'desbloquear' }).click();
+    await page.getByRole('button', { name: 'Desbloquear a Sofia Rossi' }).click();
     await expect(page.getByRole('combobox', { name: 'Enviar mensaje a @Sofia Rossi' })).toBeVisible();
   });
 
@@ -81,7 +82,7 @@ test.describe('Mensajes directos', () => {
 
   test('perfil público: datos, servidores en común y enviar mensaje', async ({ page }) => {
     await dmRow(page, 'Sofia Rossi').click();
-    await page.getByRole('button', { name: 'perfil', exact: true }).click();
+    await page.getByRole('button', { name: 'Ver el perfil de Sofia Rossi' }).click();
 
     const profile = page.getByRole('dialog', { name: 'Sofia Rossi' });
     await expect(profile.getByRole('region', { name: 'Servidores en común' }).locator('li').first()).toBeVisible();

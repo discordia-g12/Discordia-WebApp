@@ -59,6 +59,9 @@ export function useRelationshipActions() {
     });
 
   return {
+    /** Se está mandando una solicitud de amistad (el encabezado del DM muestra "enviada" deshabilitado). */
+    sendingFriendRequest: sendRequest.isPending,
+
     addFriend: async (userId: string) => {
       try {
         await sendRequest.mutateAsync({ userId });

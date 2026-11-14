@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { useUIStore } from '../../../app/uiStore';
+import { dmActions, dmHeaderActions } from '@discordia/core';
 import { ChatView } from '../ChatView';
 import type { Channel, Message, User } from '../../../types';
 
@@ -225,26 +226,38 @@ describe('ChatView (rediseño)', () => {
     expect(within(row3).getByLabelText('Ver perfil de Mar')).toBeTruthy();
   });
 
-  it('los enlaces del encabezado alternan la lista de miembros y los fijados', () => {
+  it('los íconos del encabezado alternan la lista de miembros, los fijados y las notificaciones', () => {
     const onToggleMemberList = vi.fn();
     render(
       <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" isMemberListOpen onToggleMemberList={onToggleMemberList} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'ocultar lista de miembros' }));
+    const members = screen.getByRole('button', { name: 'Lista de miembros' });
+    expect(members.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(members);
     expect(onToggleMemberList).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole('button', { name: 'mensajes fijados' }));
+    const pins = screen.getByRole('button', { name: 'Mensajes fijados' });
+    fireEvent.click(pins);
+    expect(pins.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('dialog', { name: 'Mensajes fijados' }).textContent).toContain('todavía no hay mensajes fijados');
+
+    const bell = screen.getByRole('button', { name: 'Silenciar notificaciones' });
+    fireEvent.click(bell);
+    expect(bell.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('en un DM el encabezado tiene _perfil y sus acciones, sin llamadas ni lista de miembros', () => {
+  it('en un DM el encabezado tiene íconos (dmHeaderActions) y el menú "más", sin lista de miembros', () => {
     const onOpenUserProfile = vi.fn();
-    const onBlock = vi.fn();
+    const onAction = vi.fn();
+    const actions = dmActions({ relationship: 'friend', conversation: { id: 'dm-1', status: 'accepted', requestedBy: 'u2', otherUserId: 'u2', unreadCount: 0 } });
     render(
       <ChatView
-        directChat={{ conversationId: 'dm-1', user: users.u2 }}
-        directActions={[{ label: 'bloquear', onPress: onBlock }]}
+        directChat={{ conversationId: 'dm-1', user: { ...users.u2, status: 'online' } }}
+        directHeader={{
+          layout: (pinned) => dmHeaderActions({ name: 'lbars', actions, hasConversation: true, pinned }),
+          onAction,
+        }}
         messages={[]}
         users={users}
         currentUserId="me"
@@ -253,15 +266,53 @@ describe('ChatView (rediseño)', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'perfil' }));
-    fireEvent.click(screen.getByRole('button', { name: 'bloquear' }));
+    const header = within(screen.getByRole('navigation', { name: 'Acciones del chat' }));
+    expect(screen.getByText('Conectado/')).toBeTruthy();
+
+    // Perfil y fijados los resuelve la vista; el resto va a onAction
+    fireEvent.click(header.getByRole('button', { name: 'Ver el perfil de lbars' }));
     expect(onOpenUserProfile).toHaveBeenCalledWith('u2');
-    expect(onBlock).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('button', { name: 'llamar' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'videollamada' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /lista de miembros/ })).toBeNull();
+    fireEvent.click(header.getByRole('button', { name: 'Mensajes fijados' }));
+    expect(screen.getByRole('dialog', { name: 'Mensajes fijados' })).toBeTruthy();
+    fireEvent.click(header.getByRole('button', { name: 'Llamar a lbars' }));
+    expect(onAction).toHaveBeenCalledWith('call');
+
+    // Las destructivas, en el menú "más"
+    expect(header.queryByRole('button', { name: 'Bloquear a lbars' })).toBeNull();
+    fireEvent.click(header.getByRole('button', { name: 'Más opciones' }));
+    const menu = screen.getByRole('menu', { name: 'Más opciones' });
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Eliminar amigo', 'Bloquear a lbars']);
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Bloquear a lbars' }));
+    expect(onAction).toHaveBeenCalledWith('block');
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    expect(header.queryByRole('button', { name: /lista de miembros/i })).toBeNull();
     expect(screen.getByPlaceholderText('Enviar mensaje a @lbars')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Adjuntar archivo' })).toBeTruthy();
+  });
+
+  it('el menú "más" se maneja con el teclado y se cierra con Escape', () => {
+    const actions = dmActions({ relationship: 'friend', conversation: { id: 'dm-1', status: 'accepted', requestedBy: 'u2', otherUserId: 'u2', unreadCount: 0 } });
+    render(
+      <ChatView
+        directChat={{ conversationId: 'dm-1', user: users.u2 }}
+        directHeader={{ layout: () => dmHeaderActions({ name: 'lbars', actions, hasConversation: true }), onAction: vi.fn() }}
+        messages={[]}
+        users={users}
+        currentUserId="me"
+      />
+    );
+
+    const more = screen.getByRole('button', { name: 'Más opciones' });
+    fireEvent.click(more);
+    const items = screen.getAllByRole('menuitem');
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(items[0], { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[1]);
+    fireEvent.keyDown(items[1], { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(items[0], { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(more);
   });
 
   it('en un chat sin conversación no ofrece adjuntar: el primer mensaje es solo texto', () => {
