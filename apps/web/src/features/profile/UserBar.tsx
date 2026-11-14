@@ -19,6 +19,8 @@ export interface UserBarProps {
   cannotSpeak?: boolean;
   isDeafened: boolean;
   inVoiceChannel?: boolean;
+  /** En una llamada privada (llamando o en curso): el estado dice "En llamada/". */
+  inPrivateCall?: boolean;
   /** Se cortó la conexión y la app está volviendo: el estado dice "reconectando/". */
   reconnecting?: boolean;
   onToggleMute: () => void;
@@ -45,6 +47,7 @@ export function UserBar({
   cannotSpeak = false,
   isDeafened,
   inVoiceChannel = false,
+  inPrivateCall = false,
   reconnecting = false,
   onToggleMute,
   onToggleDeafen,
@@ -74,7 +77,7 @@ export function UserBar({
         <span className={styles.text}>
           <span className={styles.name}>{currentUser.displayName}</span>
           <span className={`${styles.status} ${reconnecting ? styles.reconnecting : ''}`}>
-            {userBarStatus(currentUser, inVoiceChannel, reconnecting)}
+            {userBarStatus(currentUser, inVoiceChannel, reconnecting, inPrivateCall)}
           </span>
         </span>
       </button>

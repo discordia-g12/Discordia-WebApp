@@ -24,6 +24,10 @@ interface CallBarProps {
   cannotUseCamera?: boolean
   /** Tocar un botón bloqueado: la app explica por qué (en el teléfono no hay tooltip). */
   onBlocked?: (message: string) => void
+  /** Llamada privada: el nombre del otro va sin "•" y sin servidor. */
+  direct?: boolean
+  /** Reemplaza al estado de la conexión (en una llamada privada: llamando…, la duración). */
+  status?: string
 }
 
 const CANNOT_SPEAK = 'No tenés permiso para hablar en este canal'
@@ -56,6 +60,8 @@ export function CallBar({
   cannotSpeak = false,
   cannotUseCamera = false,
   onBlocked,
+  direct = false,
+  status,
 }: CallBarProps) {
   const styles = useStyles()
   const { colors } = useTheme()
@@ -67,12 +73,23 @@ export function CallBar({
 
   return (
     <View style={styles.bar}>
-      <Pressable style={styles.info} onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Volver a la llamada en ${channelName}`}>
+      <Pressable
+        style={styles.info}
+        onPress={onOpen}
+        accessibilityRole="button"
+        accessibilityLabel={direct ? `Volver a la llamada con ${channelName}` : `Volver a la llamada en ${channelName}`}
+      >
         <Text variant="bodySmall" bold numberOfLines={1}>
-          •{channelName}
+          {direct ? channelName : `•${channelName}`}
           {serverName ? <Text variant="bodySmall" tone="muted"> / {serverName}</Text> : null}
         </Text>
-        <CallState state={connectionState} />
+        {status ? (
+          <Text variant="meta" tone="muted">
+            {status}/
+          </Text>
+        ) : (
+          <CallState state={connectionState} />
+        )}
       </Pressable>
       <Pressable
         style={[styles.control, cannotSpeak && styles.disabled]}

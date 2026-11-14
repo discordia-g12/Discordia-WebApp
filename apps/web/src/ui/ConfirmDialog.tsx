@@ -7,9 +7,9 @@ import { UnderlineInput } from './UnderlineInput';
 
 export interface ConfirmDialogProps {
   action: NonNullable<ConfirmAction>;
-  /** Lo que se confirma: servidor, canal, usuario o el canal de voz de destino. */
+  /** Lo que se confirma: servidor, canal, usuario, el canal de voz de destino o a quién se llama. */
   targetName: string;
-  /** Al cambiar de canal de voz, el canal actual. */
+  /** Al cambiar de canal de voz o llamar, el canal actual. */
   targetDetail?: string;
   /** Si devuelve una promesa, el botón queda cargando hasta que termine. */
   onConfirm: () => void | Promise<void>;
@@ -37,6 +37,8 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Eliminar canal?', text: `Se borra •${name} con todos sus mensajes. No se puede deshacer.`, confirm: 'Eliminar', danger: true };
     case 'switch-voice-channel':
       return { title: '¿Cambiar de canal?', text: `Estás conectado a ${detail || 'otro canal de voz'}. Si entrás a ${name}, salís de ese canal.`, confirm: 'Cambiar', danger: false };
+    case 'start-call':
+      return { title: '¿Llamar?', text: `Estás conectado a ${detail || 'otro canal de voz'}. Si llamás a ${name}, salís de ese canal.`, confirm: 'Llamar', danger: false };
     case 'delete-category':
       return { title: '¿Eliminar categoría?', text: `Se borra la categoría ${name}. Sus canales quedan sin categoría.`, confirm: 'Eliminar', danger: true };
     case 'logout':

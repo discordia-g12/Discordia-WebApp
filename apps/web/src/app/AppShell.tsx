@@ -16,6 +16,8 @@ import { HomePanel } from '../features/friends/HomePanel';
 import { SuspendedServerPanel } from '../features/servers/SuspendedServerPanel';
 import { UserBarPanel } from '../features/profile/UserBarPanel';
 import { VoiceControlsPanel } from '../features/voice/VoiceControls';
+import { CallControlsPanel } from '../features/calls/CallControls';
+import { CallNotices } from '../features/calls/CallNotices';
 import styles from './AppShell.module.css';
 
 type Tone = 'ink' | 'sky' | 'muted';
@@ -75,6 +77,7 @@ export function AppShell() {
               {word}
             </DisplayText>
             <VoiceControlsPanel tone={tone} />
+            <CallControlsPanel tone={tone} />
             <UserBarPanel tone={tone} />
           </div>
         </aside>
@@ -95,6 +98,7 @@ export function AppShell() {
 
       <GlobalModals />
       <ToastHost />
+      <CallNotices />
       <ConnectionBanner active={reconnecting} />
       <IncidentBanner />
     </>

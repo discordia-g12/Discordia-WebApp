@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Paperclip, Smile } from 'lucide-react';
+import { Bell, BellOff, Paperclip, Pin, Smile, Users } from 'lucide-react';
 import { distances } from '@discordia/tokens';
 import {
   formatDayLabel,
@@ -12,10 +12,12 @@ import {
   splitMentions,
   ATTACHMENT_ACCEPT,
   formatAttachmentSize,
+  type DmHeaderActionId,
+  type DmHeaderLayout,
   type MessageMentions,
 } from '@discordia/core';
-import type { Channel, Message, MessageAttachment, Role, User } from '../../types';
-import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
+import type { Channel, Message, MessageAttachment, Role, Status, User } from '../../types';
+import { ActionLink, IconButton, IconMenu, Skeleton, SquareAvatar, transitions } from '../../ui';
 import { showToast } from '../../app/uiStore';
 import {
   EMOJI_CATEGORIES,
@@ -27,6 +29,7 @@ import {
   type DirectChat,
   type Mentionables,
 } from './useChatViewState';
+import { DM_HEADER_ICONS } from './dmHeaderIcons';
 import styles from './ChatView.module.css';
 
 export interface ChatViewProps {
@@ -34,8 +37,16 @@ export interface ChatViewProps {
   channel?: Channel | null;
   /** Chat directo activo si la vista corresponde a un DM. */
   directChat?: DirectChat | null;
-  /** Enlaces del encabezado de un DM, después de _perfil: agregar amigo, bloquear... */
-  directActions?: { label: string; onPress: () => void }[];
+  /**
+   * Encabezado de un DM: qué va como ícono y qué al menú "más" (dmHeaderActions de core, con el estado de los
+   * mensajes fijados, que es de esta vista) y qué hacer con cada acción. Fijados y perfil los resuelve ChatView.
+   */
+  directHeader?: {
+    layout: (pinned: { count: number; open: boolean }) => DmHeaderLayout;
+    onAction: (id: DmHeaderActionId) => void;
+  };
+  /** Algo entre el encabezado y los mensajes (en un DM, la llamada en curso). */
+  banner?: ReactNode;
   /** Lista opcional de mensajes. Si no se provee, usa los datos mock. */
   messages?: Message[];
   /** ID del usuario actualmente autenticado. */
@@ -235,7 +246,7 @@ export function ChatView(props: ChatViewProps) {
   const {
     channel,
     directChat,
-    directActions = [],
+    directHeader,
     messages,
     isLoading = false,
     currentUserId,
@@ -281,33 +292,45 @@ export function ChatView(props: ChatViewProps) {
       <header className={styles.header}>
         <div className={styles.titleGroup}>
           <h1 className={styles.title}>{chat.isDirectMessage ? chat.chatTitle : `•${chat.chatTitle}`}</h1>
+          {directChat && <span className={styles.presence}>{PRESENCE_LABEL[directChat.user.status] ?? PRESENCE_LABEL.offline}/</span>}
           {chat.chatTopic !== 'No topic set.' && <p className={styles.topic}>{chat.chatTopic}</p>}
         </div>
         <nav className={styles.links} aria-label="Acciones del chat">
           {chat.isDirectMessage ? (
-            <>
-              {directChat && <HeaderLink onPress={() => onOpenUserProfile?.(directChat.user.id)}>perfil</HeaderLink>}
-              {directActions.map(({ label, onPress }) => (
-                <HeaderLink key={label} onPress={onPress}>
-                  {label}
-                </HeaderLink>
-              ))}
-            </>
+            directChat && directHeader && (
+              <DirectHeaderActions
+                layout={directHeader.layout({ count: chat.pinnedMessages.length, open: chat.isPinnedPanelOpen })}
+                onAction={(id) => {
+                  if (id === 'pins') chat.setIsPinnedPanelOpen((v) => !v);
+                  else if (id === 'profile') onOpenUserProfile?.(directChat.user.id);
+                  else directHeader.onAction(id);
+                }}
+              />
+            )
           ) : (
-            <HeaderLink pressed={chat.isNotificationsMuted} onPress={() => chat.setIsNotificationsMuted((v) => !v)}>
-              {chat.isNotificationsMuted ? 'activar notificaciones' : 'silenciar notificaciones'}
-            </HeaderLink>
-          )}
-          <HeaderLink pressed={chat.isPinnedPanelOpen} onPress={() => chat.setIsPinnedPanelOpen((v) => !v)}>
-            {`mensajes fijados${chat.pinnedMessages.length ? ` (${chat.pinnedMessages.length})` : ''}`}
-          </HeaderLink>
-          {!chat.isDirectMessage && onToggleMemberList && (
-            <HeaderLink pressed={isMemberListOpen} onPress={onToggleMemberList}>
-              {isMemberListOpen ? 'ocultar lista de miembros' : 'mostrar lista de miembros'}
-            </HeaderLink>
+            <>
+              <IconButton
+                icon={chat.isNotificationsMuted ? BellOff : Bell}
+                label="Silenciar notificaciones"
+                pressed={chat.isNotificationsMuted}
+                onPress={() => chat.setIsNotificationsMuted((v) => !v)}
+              />
+              <IconButton
+                icon={Pin}
+                label="Mensajes fijados"
+                badge={chat.pinnedMessages.length}
+                pressed={chat.isPinnedPanelOpen}
+                onPress={() => chat.setIsPinnedPanelOpen((v) => !v)}
+              />
+              {onToggleMemberList && (
+                <IconButton icon={Users} label="Lista de miembros" pressed={isMemberListOpen} onPress={onToggleMemberList} />
+              )}
+            </>
           )}
         </nav>
       </header>
+
+      {props.banner}
 
       {chat.isPinnedPanelOpen && <PinnedPanel chat={chat} users={users} names={names} />}
 
@@ -382,11 +405,42 @@ export function ChatView(props: ChatViewProps) {
   );
 }
 
-function HeaderLink({ children, pressed, onPress }: { children: string; pressed?: boolean; onPress?: () => void }) {
+/** Presencia al lado del nombre en un DM, como en la lista de mensajes directos. */
+const PRESENCE_LABEL: Record<Status, string> = {
+  online: 'Conectado',
+  idle: 'Ausente',
+  dnd: 'No molestar',
+  invisible: 'Desconectado',
+  offline: 'Desconectado',
+};
+
+/** Las acciones de un DM: íconos y, si hace falta, el menú "más" con las raras o destructivas. */
+function DirectHeaderActions({ layout, onAction }: { layout: DmHeaderLayout; onAction: (id: DmHeaderActionId) => void }) {
   return (
-    <button type="button" className={styles.headerLink} onClick={onPress} aria-pressed={pressed}>
-      {children}
-    </button>
+    <>
+      {layout.icons.map((action) => (
+        <IconButton
+          key={action.id}
+          icon={DM_HEADER_ICONS[action.icon]}
+          label={action.label}
+          pressed={action.pressed}
+          badge={action.badge}
+          disabled={action.disabled}
+          tone={action.destructive ? 'danger' : 'default'}
+          onPress={() => onAction(action.id)}
+        />
+      ))}
+      <IconMenu
+        items={layout.menu.map((action) => ({
+          id: action.id,
+          icon: DM_HEADER_ICONS[action.icon],
+          label: action.label,
+          tone: action.destructive ? 'danger' : 'default',
+          disabled: action.disabled,
+          onPress: () => onAction(action.id),
+        }))}
+      />
+    </>
   );
 }
 

@@ -1,10 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import {
+  DM_HEADER_COMPACT_ICONS,
+  dmHeaderActions,
   uploadAttachment,
   useAutoMarkChannelRead,
   useFriendRequestsQuery,
   usePresenceQuery,
+  type DmHeaderAction,
+  type DmHeaderActionId,
   type MessageAttachment,
 } from '@discordia/core'
 import { useAppActive } from '../../hooks/useAppActive'
@@ -14,11 +18,12 @@ import { useRelationshipActions } from '../../hooks/useRelationshipActions'
 import { useUserDisplay } from '../../hooks/useUserProfiles'
 import { useData, useUI } from '../../providers/AppProviders'
 import { makeStyles } from '../../theme'
-import { ActionLink, Skeleton } from '../../ui'
+import { ACTION_ICONS, IconButton, Skeleton } from '../../ui'
 import ChatHeader from '../chat/ChatHeader'
 import Composer, { type PendingAttachment } from '../chat/Composer'
 import MessageList from '../chat/MessageList'
 import ConfirmModal from '../shared/ConfirmModal'
+import { MoreMenu } from '../shared/MoreMenu'
 import { Pane } from '../shell/ShellScreen'
 import type { Message } from '../../types'
 import { ListStatus } from './ListStatus'
@@ -33,13 +38,17 @@ interface DmChatScreenProps {
   onBack: () => void
   onOpenProfile: (userId: string) => void
   onLongPressMessage?: (message: Message) => void
+  /** Llamar a la persona; el botón se ofrece solo si se le puede escribir (dmActions().canCall). */
+  onCall?: (conversationId: string, name: string) => void
+  /** Conversación de la llamada en curso (si es esta, no se ofrece llamar: la barra de la llamada tiene cortar). */
+  callConversationId?: string | null
 }
 
 /**
  * Chat directo. Abrirlo no crea nada: la conversación nace con el primer mensaje, y hasta entonces no se ofrece
  * adjuntar. El estado de la relación decide qué va en el encabezado, arriba del historial y en lugar del composer.
  */
-export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile, onLongPressMessage }: DmChatScreenProps) {
+export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile, onLongPressMessage, onCall, callConversationId }: DmChatScreenProps) {
   const styles = useStyles()
   const { showToast } = useUI()
   const { currentUserId, toggleReaction } = useData()
@@ -124,6 +133,34 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
   const handleDeclineFriend = async () => {
     if ((await relation.declineRequest()) && !conversationId) onBack()
   }
+
+  // Acciones del encabezado (las mismas reglas que la web): íconos y, lo raro o destructivo, en "más".
+  // Sin panel de fijados en mobile; el perfil se abre tocando el nombre
+  const header = dmHeaderActions({
+    name,
+    actions,
+    hasConversation: !!conversationId,
+    inCallHere: !!conversationId && callConversationId === conversationId,
+    pinned: undefined,
+    showProfile: false,
+    friendRequestSending: relation.requestSent,
+    maxIcons: DM_HEADER_COMPACT_ICONS,
+  })
+  const runAction: Record<DmHeaderActionId, (() => void) | undefined> = {
+    call: conversationId && onCall ? () => onCall(conversationId, name) : undefined,
+    pins: undefined,
+    'add-friend': relation.addFriend,
+    'accept-friend': relation.acceptRequest,
+    'decline-friend': handleDeclineFriend,
+    'cancel-friend-request': relation.cancelRequest,
+    profile: () => onOpenProfile(userId),
+    unblock: relation.unblock,
+    'remove-friend': () => setRemoveConfirmOpen(true),
+    block: () => setBlockConfirmOpen(true),
+  }
+  // Mientras se procesa un cambio de relación, sus acciones esperan (llamar no depende de eso)
+  const isDisabled = (action: DmHeaderAction) => !!action.disabled || (relation.busy && action.id !== 'call')
+  const available = (action: DmHeaderAction) => runAction[action.id] !== undefined
 
   const body = () => {
     if (withQuery.isLoading) {
@@ -210,34 +247,33 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
         direct
         status={presence?.[userId] === 'online' ? 'conectado/' : 'desconectado/'}
         onPressTitle={() => onOpenProfile(userId)}
-      >
-        {actions.canAddFriend && !relation.requestSent && (
-          <ActionLink disabled={relation.busy} onPress={relation.addFriend}>
-            agregar amigo
-          </ActionLink>
-        )}
-        {relation.requestSent && <ActionLink disabled>solicitud enviada</ActionLink>}
-        {actions.canCancelFriendRequest && (
-          <ActionLink disabled={relation.busy} onPress={relation.cancelRequest}>
-            cancelar solicitud
-          </ActionLink>
-        )}
-        {actions.canUnblock && (
-          <ActionLink disabled={relation.busy} onPress={relation.unblock}>
-            desbloquear
-          </ActionLink>
-        )}
-        {actions.canRemoveFriend && (
-          <ActionLink disabled={relation.busy} onPress={() => setRemoveConfirmOpen(true)} accessibilityLabel={`Eliminar a ${name} de tus amigos`}>
-            eliminar amigo
-          </ActionLink>
-        )}
-        {actions.canBlock && (
-          <ActionLink disabled={relation.busy} onPress={() => setBlockConfirmOpen(true)} accessibilityLabel={`Bloquear a ${name}`}>
-            bloquear
-          </ActionLink>
-        )}
-      </ChatHeader>
+        actions={
+          <>
+            {header.icons.filter(available).map(action => (
+              <IconButton
+                key={action.id}
+                icon={ACTION_ICONS[action.icon]}
+                label={action.label}
+                onPress={runAction[action.id]}
+                pressed={action.pressed}
+                badge={action.badge}
+                tone={action.destructive ? 'danger' : 'default'}
+                disabled={isDisabled(action)}
+              />
+            ))}
+            <MoreMenu
+              items={header.menu.filter(available).map(action => ({
+                key: action.id,
+                label: action.label,
+                icon: ACTION_ICONS[action.icon],
+                destructive: action.destructive,
+                disabled: isDisabled(action),
+                onSelect: () => runAction[action.id]?.(),
+              }))}
+            />
+          </>
+        }
+      />
       {body()}
       <ConfirmModal
         visible={blockConfirmOpen}

@@ -379,7 +379,7 @@ describe('App (prueba de humo)', () => {
     await waitFor(() => expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('desde el celu')));
 
     // Miembros como pantalla aparte, y la vuelta
-    fireEvent.click(screen.getByRole('button', { name: 'mostrar lista de miembros' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lista de miembros' }));
     expect(await screen.findByText('Lbars')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Volver a •general' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Volver a Torton' }));

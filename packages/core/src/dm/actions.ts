@@ -31,6 +31,8 @@ export interface DmActions {
   canRespondMessageRequest: boolean;
   canBlock: boolean;
   canUnblock: boolean;
+  /** Llamar desde el chat: la conversación existe y se puede escribir en ella (Voice repite el chequeo). */
+  canCall: boolean;
 }
 
 export interface DmActionsInput {
@@ -69,5 +71,6 @@ export function dmActions(input: DmActionsInput): DmActions {
     canRespondMessageRequest: composer === 'message_request',
     canBlock: relationship !== 'blocked',
     canUnblock: relationship === 'blocked',
+    canCall: composer === 'open' && Boolean(input.conversation),
   };
 }

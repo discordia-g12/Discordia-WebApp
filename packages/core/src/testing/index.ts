@@ -3,3 +3,4 @@
 export * from './data';
 export * from './apiMock';
 export * from './dmMock';
+export * from './callMock';

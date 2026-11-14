@@ -9,11 +9,17 @@ const STATUS_LABEL: Record<Status, string> = {
 };
 
 /**
- * Estado bajo el nombre, con barra final: "reconectando/" mientras vuelve la conexión, "En canal de voz/",
- * el estado personalizado o la presencia ("Invisible/").
+ * Estado bajo el nombre, con barra final: "reconectando/" mientras vuelve la conexión, "En llamada/" (privada),
+ * "En canal de voz/", el estado personalizado o la presencia ("Invisible/").
  */
-export function userBarStatus(user: Pick<User, 'status' | 'customStatus'>, inVoiceChannel: boolean, reconnecting = false): string {
+export function userBarStatus(
+  user: Pick<User, 'status' | 'customStatus'>,
+  inVoiceChannel: boolean,
+  reconnecting = false,
+  inPrivateCall = false
+): string {
   if (reconnecting) return 'reconectando/';
+  if (inPrivateCall) return 'En llamada/';
   if (inVoiceChannel) return 'En canal de voz/';
   return `${user.customStatus || STATUS_LABEL[user.status] || STATUS_LABEL.offline}/`;
 }

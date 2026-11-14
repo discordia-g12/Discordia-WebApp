@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { Ban, Bell, BellOff, CircleUser, Phone, Pin, UserMinus, UserPlus } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ActionLink,
@@ -12,6 +13,8 @@ import {
   DisplayText,
   EmptyState,
   HairlineGrid,
+  IconButton,
+  IconMenu,
   Logo,
   SectionLabel,
   ServerStrip,
@@ -64,6 +67,9 @@ export function Catalog() {
             <BlockButton loading>Creando cuenta</BlockButton>
             <BlockButton tone="danger">Eliminar</BlockButton>
           </div>
+        </Section>
+        <Section title="IconButton / IconMenu">
+          <IconDemo />
         </Section>
         <Section title="Tabs">
           <TabsDemo />
@@ -247,6 +253,32 @@ function MotionSample({ preset }: { preset: MotionPreset }) {
       <motion.div className={styles.motionInner} {...props}>
         {preset}
       </motion.div>
+    </div>
+  );
+}
+
+/** Encabezado de un chat: íconos con línea fina entre ellos, un interruptor, un contador y el menú "más". */
+function IconDemo() {
+  const [muted, setMuted] = useState(false);
+  const [pinsOpen, setPinsOpen] = useState(false);
+  return (
+    <div className={styles.row}>
+      <IconButton icon={Phone} label="Llamar" />
+      <IconButton icon={Pin} label="Mensajes fijados" badge={3} pressed={pinsOpen} onPress={() => setPinsOpen((v) => !v)} />
+      <IconButton
+        icon={muted ? BellOff : Bell}
+        label={muted ? 'Activar notificaciones' : 'Silenciar notificaciones'}
+        pressed={muted}
+        onPress={() => setMuted((v) => !v)}
+      />
+      <IconButton icon={UserPlus} label="Agregar amigo" disabled />
+      <IconButton icon={CircleUser} label="Ver perfil" />
+      <IconMenu
+        items={[
+          { id: 'remove', icon: UserMinus, label: 'Eliminar amigo', tone: 'danger', onPress: () => undefined },
+          { id: 'block', icon: Ban, label: 'Bloquear', tone: 'danger', onPress: () => undefined },
+        ]}
+      />
     </div>
   );
 }

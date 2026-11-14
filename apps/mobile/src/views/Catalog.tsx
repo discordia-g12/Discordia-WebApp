@@ -3,12 +3,14 @@ import { Platform, ScrollView, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { makeStyles, useThemePreference } from '../theme'
 import {
+  ACTION_ICONS,
   ActionLink,
   Background,
   BlockButton,
   Choice,
   DisplayText,
   EmptyState,
+  IconButton,
   SectionLabel,
   ServerStrip,
   Skeleton,
@@ -91,6 +93,12 @@ export function Catalog() {
             <ActionLink>editar</ActionLink>
             <ActionLink disabled>próximamente</ActionLink>
           </View>
+          <View style={styles.icons}>
+            <IconButton icon={ACTION_ICONS.phone} label="Llamar" />
+            <IconButton icon={ACTION_ICONS.pin} label="Mensajes fijados" pressed badge={3} />
+            <IconButton icon={ACTION_ICONS['user-check']} label="Solicitud enviada" disabled />
+            <IconButton icon={ACTION_ICONS.ban} label="Bloquear" tone="danger" />
+          </View>
           <View style={styles.row}>
             <SquareAvatar user={{ username: 'pilar', displayName: 'Pilar Montilla' }} status="online" />
             <SquareAvatar user={{ username: 'lbars' }} size="lg" status="offline" />
@@ -126,5 +134,7 @@ const useStyles = makeStyles(t => ({
   root: { flex: 1 },
   content: { gap: t.space[6], padding: t.space[4], paddingBottom: t.space[9] },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: t.space[4] },
+  // Los íconos van en fila pegados, cada uno con su línea a la izquierda, como en un encabezado
+  icons: { flexDirection: 'row', alignSelf: 'flex-start', height: t.space[7] },
   voice: { height: 520, borderTopWidth: t.lines.hairline, borderTopColor: t.colors.lineStrong },
 }))
