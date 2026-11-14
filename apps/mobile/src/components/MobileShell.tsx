@@ -882,7 +882,7 @@ export default function MobileShell() {
             onBlocked={message => showToast(message, 'info')}
           />
         )}
-        {showBars && <PrivateCallBar session={privateCall} voice={voice} />}
+        {showBars && <PrivateCallBar session={privateCall} voice={voice} onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined} />}
         {showBars && <BottomTabs value={tab} onChange={goTo} unread={{ messages: inbox.unread > 0 }} />}
       </SafeAreaView>
 
@@ -991,7 +991,12 @@ export default function MobileShell() {
 
       {channelActionModals}
       {voiceParticipantActions}
-      <CallLayer session={privateCall} voice={voice} voiceChannelName={voiceLocation?.channel.name} />
+      <CallLayer
+        session={privateCall}
+        voice={voice}
+        voiceChannelName={voiceLocation?.channel.name}
+        onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined}
+      />
 
       <ConfirmModal
         visible={leaveServerConfirmOpen}

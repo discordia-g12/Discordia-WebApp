@@ -103,8 +103,10 @@
 .controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-4);
+  /* Cinco botones y cortar: más juntos, y si no entran (ventana angosta) bajan de línea en vez de cortarse */
+  gap: var(--space-3);
 }
 
 .control {
@@ -133,6 +135,95 @@
   background: var(--color-inverse-background);
 }
 
+/* Cámara prendida: el ícono entero, sin invertir (apagada no es "algo silenciado") */
+.controlOn {
+  opacity: 1;
+  border-width: var(--line-accent);
+}
+
+.control:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Con video (#54): las fichas son cuadros 4:3 con el video o el avatar en el medio */
+.withVideo .tile {
+  max-width: none;
+}
+
+.frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(120px, 22vw, 280px);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--color-inverse-background);
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+/* Quien habla: el borde va sobre el cuadro (el ::after de la ficha chica está pensado para el avatar de 56 px) */
+.withVideo .tile::after {
+  display: none;
+}
+
+.withVideo .speaking .frame {
+  outline: var(--line-accent) solid var(--color-speaking);
+  outline-offset: var(--line-accent);
+}
+
+/* Las fichas se pueden tocar para agrandar la llamada */
+.expandable {
+  cursor: zoom-in;
+}
+
+/*
+ * Pantalla completa: la llamada tapa toda la ventana. Arriba de menús y ajustes (500), abajo de los modales
+ * (600), los avisos (700) y la llamada entrante (750): un "¿cortar?" se sigue viendo encima. Con el banner de
+ * incidentes arriba baja sus 2rem, como el shell y los ajustes: el aviso no tapa el estado de la llamada.
+ */
+.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 550;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-bottom: none;
+}
+
+.expanded .status {
+  justify-self: start;
+}
+
+.expanded .tiles {
+  grid-row: auto;
+  grid-column: auto;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: var(--space-5);
+}
+
+/* Los dos cuadros lado a lado, lo más grandes que entren sin pasarse del alto disponible */
+.expanded .frame {
+  width: min(
+    calc((100vw - 2 * var(--space-5) - var(--space-5)) / 2),
+    calc((100vh - 2 * var(--space-5) - 2 * var(--space-5) - 2 * var(--space-7) - var(--space-4)) * 4 / 3)
+  );
+}
+
+.expanded .controls {
+  justify-content: center;
+}
+
+:global(body:has([data-incident-banner])) .expanded {
+  top: 2rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .panel,
   .pending,
@@ -151,5 +242,26 @@
     grid-row: 2;
     grid-column: 1 / -1;
     justify-content: center;
+  }
+
+  .frame {
+    width: calc((100vw - 2 * var(--space-4) - var(--space-4)) / 2);
+  }
+
+  /* Pantalla completa en el teléfono: los cuadros uno arriba del otro */
+  .expanded {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-4);
+  }
+
+  .expanded .tiles {
+    flex-direction: column;
+  }
+
+  .expanded .frame {
+    width: min(
+      calc(100vw - 2 * var(--space-4)),
+      calc((100vh - 2 * var(--space-4) - 2 * var(--space-5) - 2 * var(--space-7) - 2 * var(--space-4)) / 2 * 4 / 3)
+    );
   }
 }

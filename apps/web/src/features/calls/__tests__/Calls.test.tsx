@@ -23,6 +23,7 @@ import { CallContext, type CallContextValue } from '../callContext';
 import { CallProvider } from '../CallProvider';
 import { CallNotices, CALL_END_NOTICE_MS } from '../CallNotices';
 import { CallControlsPanel } from '../CallControls';
+import { CallPanel } from '../CallPanel';
 import { formatCallDuration } from '../callDuration';
 
 /** El inicio (con el DM de `userId` abierto) y los avisos globales de la llamada, contra el mock de core. */
@@ -332,6 +333,158 @@ describe('llamar estando en un canal de voz', () => {
     expect(activeModal).toBe('confirm-action');
     expect(confirm).toMatchObject({ action: 'start-call', targetName: 'Sofia Rossi', targetDetail: 'general-voz' });
     expect(ctx!.state.status).toBe('idle');
+  });
+});
+
+// ── Cámara en la llamada (#54) ──
+
+describe('cámara en la llamada', () => {
+  afterEach(() => cleanup());
+
+  const ACTIVE_CALL: Call = { ...CALL, status: 'active', answeredAt: '2026-11-12T10:00:05.000Z' };
+  const active: PrivateCallState = { status: 'active', conversationId: 'dm-u1', call: ACTIVE_CALL, role: 'caller', finished: [] };
+  const fakeTrack = () => ({ attach: vi.fn(), detach: vi.fn() });
+
+  function renderPanel(room: Partial<ReturnType<typeof useVoiceRoom>>, toggleCamera = vi.fn(async () => {})) {
+    const voice = {
+      room: { ...fakeRoom(), roomId: 'call-c1', connectionState: 'connected', canVideo: true, isCameraOn: false, ...room } as ReturnType<typeof useVoiceRoom>,
+      presence: {},
+      join: async () => {},
+      disconnect: () => {},
+      isSwitching: () => false,
+      toggleCamera,
+    };
+    const value: CallContextValue = {
+      state: active,
+      peerId: 'u1',
+      call: vi.fn(),
+      accept: vi.fn(async () => {}),
+      decline: vi.fn(async () => {}),
+      hangUp: vi.fn(async () => {}),
+      dismiss: vi.fn(),
+    };
+    const result = render(
+      <VoiceContext.Provider value={voice}>
+        <CallContext.Provider value={value}>
+          <CallPanel conversationId="dm-u1" peer={USERS.u1} />
+        </CallContext.Provider>
+      </VoiceContext.Provider>
+    );
+    return { ...result, toggleCamera };
+  }
+
+  it('CA 1: prender la cámara pide toggleCamera', () => {
+    const { toggleCamera } = renderPanel({});
+    const button = screen.getByRole('button', { name: 'Prender cámara' });
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(button);
+
+    expect(toggleCamera).toHaveBeenCalledTimes(1);
+  });
+
+  it('CA 1: el video del otro se ve en su ficha', () => {
+    const track = fakeTrack();
+    const { container } = renderPanel({
+      participants: [
+        { identity: 'me', isLocal: true, isSpeaking: false, isMuted: false, videoTrack: null },
+        { identity: 'u1', isLocal: false, isSpeaking: false, isMuted: false, videoTrack: track },
+      ] as unknown as ReturnType<typeof useVoiceRoom>['participants'],
+    });
+
+    expect(screen.getByRole('listitem', { name: 'Sofia Rossi, con cámara' })).toBeTruthy();
+    const videos = container.querySelectorAll('video');
+    expect(videos).toHaveLength(1);
+    expect(track.attach).toHaveBeenCalledWith(videos[0]);
+  });
+
+  it('CA 1: la propia, en espejo, y el botón para apagarla', () => {
+    const { container } = renderPanel({
+      isCameraOn: true,
+      participants: [
+        { identity: 'me', isLocal: true, isSpeaking: false, isMuted: false, videoTrack: fakeTrack() },
+      ] as unknown as ReturnType<typeof useVoiceRoom>['participants'],
+    });
+
+    expect(screen.getByRole('button', { name: 'Apagar cámara' }).getAttribute('aria-pressed')).toBe('true');
+    expect(container.querySelector('video')?.className).toMatch(/mirrored/);
+  });
+
+  it('CA 2: sin video vuelven las fichas chicas y el audio sigue igual (micrófono intacto)', () => {
+    const track = fakeTrack();
+    const remote = { identity: 'u1', isLocal: false, isSpeaking: true, isMuted: false };
+    const participants = (videoTrack: unknown) => [remote].map((p) => ({ ...p, videoTrack })) as unknown as ReturnType<typeof useVoiceRoom>['participants'];
+    const { container, rerender } = renderPanel({ participants: participants(track) });
+    expect(container.querySelectorAll('video')).toHaveLength(1);
+
+    const voice = {
+      room: { ...fakeRoom(), roomId: 'call-c1', connectionState: 'connected', canVideo: true, isCameraOn: false, participants: participants(null) } as unknown as ReturnType<typeof useVoiceRoom>,
+      presence: {},
+      join: async () => {},
+      disconnect: () => {},
+      isSwitching: () => false,
+      toggleCamera: async () => {},
+    };
+    rerender(
+      <VoiceContext.Provider value={voice}>
+        <CallContext.Provider value={{ state: active, peerId: 'u1', call: vi.fn(), accept: vi.fn(), decline: vi.fn(), hangUp: vi.fn(), dismiss: vi.fn() }}>
+          <CallPanel conversationId="dm-u1" peer={USERS.u1} />
+        </CallContext.Provider>
+      </VoiceContext.Provider>
+    );
+
+    expect(container.querySelectorAll('video')).toHaveLength(0);
+    expect(track.detach).toHaveBeenCalled();
+    expect(screen.getByRole('listitem', { name: 'Sofia Rossi, hablando' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Silenciar micrófono' })).toBeTruthy();
+  });
+
+  it('deshabilitada mientras conecta o si el token no deja video (Voice anterior)', () => {
+    renderPanel({ connectionState: 'connecting' });
+    expect((screen.getByRole('button', { name: 'Prender cámara' }) as HTMLButtonElement).disabled).toBe(true);
+    cleanup();
+    renderPanel({ canVideo: false });
+    expect((screen.getByRole('button', { name: 'Prender cámara' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('pantalla completa: tocar las fichas la agranda, el botón y Escape la vuelven al chat', () => {
+    renderPanel({});
+    const panel = screen.getByRole('region', { name: 'Llamada con Sofia Rossi' });
+    expect(panel.className).not.toMatch(/expanded/);
+
+    fireEvent.click(screen.getByRole('list', { name: 'Participantes de la llamada' }));
+    expect(panel.className).toMatch(/expanded/);
+    const exit = screen.getByRole('button', { name: 'Salir de pantalla completa' });
+    expect(exit.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(exit);
+    expect(panel.className).not.toMatch(/expanded/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pantalla completa' }));
+    expect(panel.className).toMatch(/expanded/);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(panel.className).not.toMatch(/expanded/);
+  });
+
+  it('pantalla completa sin cámaras: las fichas son cuadros grandes con el avatar', () => {
+    const { container } = renderPanel({});
+    expect(container.querySelector('[class*="frame"]')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pantalla completa' }));
+
+    expect(container.querySelectorAll('[class*="frame"]')).toHaveLength(2);
+    expect(container.querySelector('video')).toBeNull();
+  });
+
+  it('sin violaciones de accesibilidad con video', async () => {
+    const { container } = renderPanel({
+      isCameraOn: true,
+      participants: [
+        { identity: 'me', isLocal: true, isSpeaking: false, isMuted: false, videoTrack: fakeTrack() },
+        { identity: 'u1', isLocal: false, isSpeaking: false, isMuted: false, videoTrack: fakeTrack() },
+      ] as unknown as ReturnType<typeof useVoiceRoom>['participants'],
+    });
+    expect(await a11yViolations(container)).toEqual([]);
   });
 });
 

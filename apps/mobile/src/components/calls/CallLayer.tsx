@@ -1,13 +1,14 @@
 import React from 'react'
 import { Modal as RNModal, Pressable, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ChevronDown, Headphones, HeadphoneOff, Mic, MicOff, PhoneOff } from 'lucide-react-native'
+import { ChevronDown, Headphones, HeadphoneOff, Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-react-native'
 import type { useVoiceRoom } from '@discordia/core'
 import { useCallStatusLine, type CallPeer, type PrivateCallSession } from '../../hooks/usePrivateCallSession'
 import { makeStyles, useTheme } from '../../theme'
 import { ActionLink, Background, BlockButton, SquareAvatar, Text } from '../../ui'
 import ConfirmModal from '../shared/ConfirmModal'
 import { CallBar } from '../shell/CallBar'
+import ParticipantVideo from '../voice/ParticipantVideo'
 import { SpeakingBorder } from '../voice/VoiceScreen'
 
 type VoiceRoom = ReturnType<typeof useVoiceRoom>
@@ -17,6 +18,8 @@ interface CallLayerProps {
   voice: VoiceRoom
   /** Nombre del canal de voz de servidor en el que está (aceptar o llamar lo saca de ahí). */
   voiceChannelName?: string
+  /** Prende o apaga la cámara (#54); sin esta función no hay botón (sin WebRTC nativo, p. ej. Expo Go). */
+  onToggleCamera?: () => void
 }
 
 /**
@@ -25,7 +28,7 @@ interface CallLayerProps {
  * mismo modal a pantalla completa, así atender no cierra uno para abrir otro. También pide confirmar una
  * llamada hecha desde un canal de voz de servidor.
  */
-export function CallLayer({ session, voice, voiceChannelName }: CallLayerProps) {
+export function CallLayer({ session, voice, voiceChannelName, onToggleCamera }: CallLayerProps) {
   const styles = useStyles()
   const { state, viewOpen, pendingCall } = session
   const incoming = state.status === 'incoming'
@@ -49,7 +52,7 @@ export function CallLayer({ session, voice, voiceChannelName }: CallLayerProps) 
             {incoming ? (
               <IncomingCall session={session} channel={voice.channelId ? channel : null} />
             ) : showCall ? (
-              <CallView session={session} voice={voice} />
+              <CallView session={session} voice={voice} onToggleCamera={onToggleCamera} />
             ) : null}
           </SafeAreaView>
         </View>
@@ -107,8 +110,11 @@ function IncomingCall({ session, channel }: { session: PrivateCallSession; chann
   )
 }
 
-/** La llamada en curso (o cómo terminó, un momento): el otro, el estado y los controles. */
-function CallView({ session, voice }: { session: PrivateCallSession; voice: VoiceRoom }) {
+/**
+ * La llamada en curso (o cómo terminó, un momento): el otro, el estado y los controles. Con la cámara del
+ * otro prendida (#54) su video ocupa el centro; la propia va en un recuadro chico, en espejo.
+ */
+function CallView({ session, voice, onToggleCamera }: { session: PrivateCallSession; voice: VoiceRoom; onToggleCamera?: () => void }) {
   const styles = useStyles()
   const { colors } = useTheme()
   const { state, peer, endedText } = session
@@ -119,6 +125,11 @@ function CallView({ session, voice }: { session: PrivateCallSession; voice: Voic
   const local = voice.participants.find(p => p.isLocal)
   const MicIcon = voice.isMuted ? MicOff : Mic
   const AudioIcon = voice.isDeafened ? HeadphoneOff : Headphones
+  const CameraIcon = voice.isCameraOn ? Video : VideoOff
+  const remoteVideo = !ended ? (remote?.videoTrack ?? null) : null
+  const localVideo = !ended ? (local?.videoTrack ?? null) : null
+  // La cámara se publica en la sala: con la conexión establecida y si el token la deja (Voice anterior: no)
+  const cameraUsable = voice.connectionState === 'connected' && voice.canVideo
 
   return (
     <View style={styles.screen}>
@@ -140,7 +151,19 @@ function CallView({ session, voice }: { session: PrivateCallSession; voice: Voic
       </View>
 
       <View style={styles.center}>
-        <PeerAvatar peer={peer} speaking={!!remote?.isSpeaking} />
+        {remoteVideo ? (
+          <View style={styles.remoteVideo} accessibilityLabel={`${peer.name}, con cámara${remote?.isSpeaking ? ', hablando' : ''}`}>
+            <ParticipantVideo track={remoteVideo} style={styles.fill} />
+            {remote?.isSpeaking && <SpeakingBorder />}
+          </View>
+        ) : (
+          <PeerAvatar peer={peer} speaking={!!remote?.isSpeaking} />
+        )}
+        {localVideo && (
+          <View style={styles.localVideo} accessibilityLabel="Tu cámara">
+            <ParticipantVideo track={localVideo} mirrored style={styles.fill} />
+          </View>
+        )}
         <Text variant="heading" numberOfLines={2} style={styles.name}>
           {peer.name}
         </Text>
@@ -185,6 +208,18 @@ function CallView({ session, voice }: { session: PrivateCallSession; voice: Voic
           >
             <AudioIcon color={colors.text} size={22} strokeWidth={1.5} />
           </Pressable>
+          {onToggleCamera && (
+            <Pressable
+              style={[styles.control, voice.isCameraOn && styles.active, !cameraUsable && styles.disabled]}
+              onPress={onToggleCamera}
+              disabled={!cameraUsable}
+              accessibilityRole="button"
+              accessibilityLabel={voice.isCameraOn ? 'Apagar cámara' : 'Prender cámara'}
+              accessibilityState={{ selected: voice.isCameraOn, disabled: !cameraUsable }}
+            >
+              <CameraIcon color={voice.isCameraOn ? colors.inverseText : colors.text} size={22} strokeWidth={1.5} />
+            </Pressable>
+          )}
           <Pressable style={[styles.control, styles.hangUp]} onPress={session.hangUp} accessibilityRole="button" accessibilityLabel="Cortar la llamada">
             <PhoneOff color={colors.onDanger} size={22} strokeWidth={1.5} />
           </Pressable>
@@ -208,7 +243,15 @@ function PeerAvatar({ peer, speaking = false }: { peer: CallPeer; speaking?: boo
  * La llamada privada en la barra de abajo, en cualquier pestaña, con la pantalla de la llamada cerrada: con
  * quién, el estado, micrófono, audio y cortar. Tocarla vuelve a la llamada.
  */
-export function PrivateCallBar({ session, voice }: { session: PrivateCallSession; voice: VoiceRoom }) {
+export function PrivateCallBar({
+  session,
+  voice,
+  onToggleCamera,
+}: {
+  session: PrivateCallSession
+  voice: VoiceRoom
+  onToggleCamera?: () => void
+}) {
   const { state, peer, viewOpen } = session
   const status = useCallStatusLine(state, voice.connectionState)
   if (viewOpen || (state.status !== 'outgoing' && state.status !== 'active')) return null
@@ -224,6 +267,8 @@ export function PrivateCallBar({ session, voice }: { session: PrivateCallSession
       onToggleMute={voice.toggleMute}
       onToggleDeafen={voice.toggleDeafen}
       onDisconnect={session.hangUp}
+      isCameraOn={voice.isCameraOn}
+      onToggleCamera={voice.canVideo ? onToggleCamera : undefined}
     />
   )
 }
@@ -260,4 +305,28 @@ const useStyles = makeStyles(t => ({
     borderLeftColor: t.colors.lineStrong,
   },
   hangUp: { backgroundColor: t.colors.danger },
+  // Cámara prendida: el bloque invertido, como en la barra de la llamada
+  active: { backgroundColor: t.colors.inverseBackground },
+  disabled: { opacity: 0.4 },
+  // Video del otro: ocupa el ancho, 3:4 como la cámara de un teléfono; la propia, un recuadro arriba a la derecha
+  remoteVideo: {
+    width: '100%',
+    maxWidth: 360,
+    aspectRatio: 3 / 4,
+    overflow: 'hidden',
+    backgroundColor: t.colors.inverseBackground,
+    marginBottom: t.space[3],
+  },
+  localVideo: {
+    position: 'absolute',
+    top: t.space[2],
+    right: t.space[4],
+    width: 96,
+    aspectRatio: 3 / 4,
+    overflow: 'hidden',
+    backgroundColor: t.colors.inverseBackground,
+    borderWidth: t.lines.hairline,
+    borderColor: t.colors.lineStrong,
+  },
+  fill: { flex: 1 },
 }))

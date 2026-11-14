@@ -30,7 +30,7 @@ export interface Call {
   endedAt?: string;
 }
 
-/** Iniciar o aceptar: la llamada y las credenciales de su sala de LiveKit (solo micrófono). */
+/** Iniciar o aceptar: la llamada y las credenciales de su sala de LiveKit (micrófono y cámara). */
 export interface CallJoinResponse extends VoiceJoinResponse {
   call: Call;
 }
