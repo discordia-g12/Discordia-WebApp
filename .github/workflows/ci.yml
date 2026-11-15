@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -71,6 +72,7 @@ jobs:
   docker:
     # Valida el Dockerfile que usa el compose local. No se publica: en producción la web la sirve Pages.
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: test
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
