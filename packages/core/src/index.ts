@@ -49,6 +49,9 @@ export * from './admin/roles';
 export * from './admin/members';
 export * from './audit';
 
+// Búsqueda de mensajes de un servidor por texto y autor (ADR-04 de Chat-Engine)
+export * from './search';
+
 // Backoffice de staff: estado de la plataforma (health checks agregados por el backend)
 export * from './admin/platformStatus';
 export * from './admin/incidents';
