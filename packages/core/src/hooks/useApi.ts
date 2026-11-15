@@ -15,6 +15,8 @@ import {
   deleteCategory,
   reorderChannels,
   reorderCategories,
+  getMemberGrowth,
+  GetMemberGrowthOptions,
 } from '../api/servers';
 import {
   getRoles,
@@ -451,6 +453,23 @@ export function useCancelServerTransferMutation(serverId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['servers', serverId, 'transfers', 'pending'] });
     },
+  });
+}
+
+export function useMemberGrowthQuery(
+  serverId: string | undefined,
+  options?: GetMemberGrowthOptions,
+  enabled: boolean = true
+) {
+  const status = useSession((s) => s.status);
+  return useQuery({
+    queryKey: ['memberGrowth', serverId, options?.days, options?.start_date, options?.end_date],
+    queryFn: () => {
+      if (!serverId) throw new Error('serverId is required');
+      return getMemberGrowth(serverId, options);
+    },
+    enabled: status === 'authenticated' && !!serverId && enabled,
+    staleTime: 1000 * 60,
   });
 }
 

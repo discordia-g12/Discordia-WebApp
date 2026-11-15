@@ -5,7 +5,9 @@ import {
   getInvitePreview,
   imageUploadErrorMessage,
   joinServerViaInvite,
+  removeServerBanner,
   removeServerIcon,
+  updateServerBanner,
   updateServerIcon,
   useCreateServerMutation,
 } from '@discordia/core';
@@ -130,7 +132,27 @@ export function useServerIcon() {
   };
 }
 
-/** Aplica en el caché la configuración guardada desde los ajustes del servidor. */
+/** Igual que useServerIcon, para el banner. */
+export function useServerBanner() {
+  const queryClient = useQueryClient();
+
+  const apply = (updated: Server) => {
+    queryClient.setQueryData<Server[]>(['servers'], (prev = []) =>
+      prev.map((s) => (s.id === updated.id ? { ...s, banner: updated.banner } : s))
+    );
+    return updated.banner;
+  };
+
+  return {
+    change: async (serverId: string, banner: File) => apply(await updateServerBanner(serverId, banner)),
+    remove: async (serverId: string) => apply(await removeServerBanner(serverId)),
+  };
+}
+
+/**
+ * Aplica en el caché el servidor que devolvió la API al guardar sus ajustes (es el servidor completo, con
+ * los permisos de quien pide). Los demás miembros lo reciben por SERVER_UPDATED.
+ */
 export function useUpdateServer() {
   const queryClient = useQueryClient();
 
@@ -148,7 +170,7 @@ export function selectServer(serverId: string | 'home', servers: Server[]) {
   ui.setSelectedServerId(serverId);
   if (serverId === 'home') {
     ui.setAppView('home');
-    ui.setSelectedDmId(null);
+    ui.setSelectedDm(null);
   } else {
     const srv = servers.find((s) => s.id === serverId);
     if (srv) {

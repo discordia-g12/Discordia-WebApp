@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AuthView, PASSWORD_RESET_SENT_MESSAGE } from '../AuthView';
 import { useSession, authService } from '../../../platform/auth/session';
-import { AccountSuspendedError, SignupConflictError, TwoFactorRequiredError, ApiError } from '@discordia/core';
+import { AccountSuspendedError, AuthNetworkError, SignupConflictError, TwoFactorRequiredError, ApiError } from '@discordia/core';
 
 // Criterios de aceptación del acceso (lo propio del diseño está en AuthScreen.test.tsx)
 describe('AuthView - Criterios de Aceptación', () => {
@@ -237,6 +237,20 @@ describe('AuthView - Criterios de Aceptación', () => {
       fireEvent.click(screen.getByTestId('btn-submit-login'));
 
       expect(await screen.findByText(/tu cuenta se encuentra suspendida/i)).toBeTruthy();
+    });
+
+    it('sin respuesta de Auth0 (red o CORS) muestra un error de conexión, no credenciales incorrectas', async () => {
+      vi.spyOn(authService, 'loginWithCredentials').mockRejectedValue(new AuthNetworkError());
+
+      render(<AuthView />);
+      fireEvent.change(screen.getByPlaceholderText(/ejemplo@discordia.com/i), {
+        target: { value: 'user@discordia.com' },
+      });
+      fireEvent.change(screen.getByPlaceholderText(/tu contraseña/i), { target: { value: 'Password123!' } });
+      fireEvent.click(screen.getByTestId('btn-submit-login'));
+
+      expect(await screen.findByText(/no se pudo conectar con el servidor de autenticación/i)).toBeTruthy();
+      expect(screen.queryByText(/son incorrectos/i)).toBeNull();
     });
   });
   describe('Recupero de contraseña', () => {

@@ -9,3 +9,12 @@ export const apiMock = createApiMock({
   needsProfile: isMockNeedsProfile,
   onProfileCompleted: setMockProfileCompleted,
 });
+
+declare global {
+  interface Window {
+    /** El mock, para simular desde la consola o un E2E lo que haría el otro usuario (llamar, cortar). */
+    __discordiaMock?: typeof apiMock;
+  }
+}
+
+if (typeof window !== 'undefined') window.__discordiaMock = apiMock;

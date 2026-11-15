@@ -1,9 +1,16 @@
-import { getClientConfig, getWsBaseUrl } from '../api/client';
+import { getClientConfig, getWsBaseUrl, notifyAccountSuspended } from '../api/client';
+import { ACCOUNT_SUSPENDED_CLOSE_CODE, SERVER_DELETED_CLOSE_CODE, SERVER_SUSPENDED_CLOSE_CODE } from '../api/errors';
+import { isConversationId } from '../api/conversations';
 import type { MessageAttachment, MessageBackendPayload } from '../types';
 
 // Mismo backoff que la presencia de voz: 1 s, 2 s, 4 s… hasta 15 s entre intentos
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
+
+/** Espera antes del reintento número `attempts` (desde 0). */
+export function reconnectDelayMs(attempts: number): number {
+  return Math.min(RECONNECT_BASE_MS * 2 ** attempts, RECONNECT_MAX_MS);
+}
 
 /**
  * connecting: primer intento. reconnecting: estuvo abierta, se cortó y está volviendo (la interfaz lo
@@ -13,20 +20,29 @@ const RECONNECT_MAX_MS = 15000;
  */
 export type ChatSocketStatus = 'connecting' | 'open' | 'reconnecting' | 'closed' | 'removed';
 
-/** Por qué el chat cerró la conexión para siempre: baneado, o expulsado / salió del servidor. */
-export type ChatRemovalReason = 'banned' | 'removed';
+/**
+ * Por qué el chat cerró la conexión para siempre: baneado, expulsado / salió del servidor, o el staff suspendió el
+ * servidor (hasta que se levante la suspensión).
+ */
+export type ChatRemovalReason = 'banned' | 'removed' | 'server-suspended' | 'server-deleted';
 
 /**
- * Códigos de cierre de Chat Engine (SessionManager.disconnectUser). Reintentar no sirve: cada intento
- * recibiría 403.
+ * Códigos de cierre de Chat Engine (SessionManager.disconnectUser / disconnectServer). Reintentar no sirve:
+ * el servidor o la membresía ya no existen o están suspendidos.
  */
 const CLOSE_CODE_REMOVAL: Record<number, ChatRemovalReason> = {
   4003: 'banned',
   4002: 'removed',
+  [SERVER_DELETED_CLOSE_CODE]: 'server-deleted',
+  [SERVER_SUSPENDED_CLOSE_CODE]: 'server-suspended',
 };
 
 export interface ChatSocketHandlers {
   onMessage: (message: MessageBackendPayload) => void;
+  /** Un mensaje existente fue editado o sus reacciones cambiaron en este canal. */
+  onMessageUpdated?: (message: MessageBackendPayload) => void;
+  /** Un mensaje existente fue eliminado en este canal. */
+  onMessageDeleted?: (message: MessageBackendPayload) => void;
   /** Error informado por el servidor (p. ej. sin permiso para escribir). Sin handler, se loguea. */
   onError?: (message: string) => void;
   /** La conexión volvió después de un corte: los mensajes del corte llegan por last_message_id_seen. */
@@ -80,7 +96,7 @@ export function openChatSocket(
 
   const scheduleReconnect = () => {
     if (disposed) return;
-    const delay = Math.min(RECONNECT_BASE_MS * 2 ** attempts, RECONNECT_MAX_MS);
+    const delay = reconnectDelayMs(attempts);
     attempts += 1;
     reconnectTimer = setTimeout(connect, delay);
   };
@@ -127,9 +143,30 @@ export function openChatSocket(
           return;
         }
 
+        if (data.type === 'MESSAGE_UPDATED' || data.type === 'MESSAGE_REACTION_UPDATED') {
+          if (handlers.onMessageUpdated) {
+            handlers.onMessageUpdated(data as MessageBackendPayload);
+          } else {
+            handlers.onMessage(data as MessageBackendPayload);
+          }
+          return;
+        }
+
+        if (data.type === 'MESSAGE_DELETED') {
+          if (handlers.onMessageDeleted) {
+            handlers.onMessageDeleted(data as MessageBackendPayload);
+          } else if (handlers.onMessageUpdated) {
+            handlers.onMessageUpdated({ ...data, type: 'deleted', content: '' } as MessageBackendPayload);
+          } else {
+            handlers.onMessage({ ...data, type: 'deleted', content: '' } as MessageBackendPayload);
+          }
+          return;
+        }
+
         if (data.error) {
-          // Un 403 al enviar es que ya no puede escribir (por si el aviso de permisos no llegó)
-          if (data.status === 403) handlers.onPermissionsChange?.(false);
+          // Un 403 al enviar es que ya no puede escribir (por si el aviso de permisos no llegó). En un DM
+          // solo rechaza ese mensaje: el bloqueo se revisa en cada envío y la interfaz no dice "silenciado"
+          if (data.status === 403 && !isConversationId(channelId)) handlers.onPermissionsChange?.(false);
           if (handlers.onError) handlers.onError(String(data.error));
           else console.error('[WS] Server Error:', data.error);
           return;
@@ -147,6 +184,15 @@ export function openChatSocket(
     ws.onclose = (event?: { code?: number }) => {
       // Un socket reemplazado (reconnect / close) no vuelve a programar nada
       if (socket !== ws) return;
+
+      // Cuenta suspendida por el staff: no se reintenta y toda la app pasa a "suspendida"
+      if (event?.code === ACCOUNT_SUSPENDED_CLOSE_CODE) {
+        disposed = true;
+        socket = null;
+        setStatus('closed');
+        notifyAccountSuspended();
+        return;
+      }
 
       const removal = CLOSE_CODE_REMOVAL[event?.code ?? 0];
       if (removal) {

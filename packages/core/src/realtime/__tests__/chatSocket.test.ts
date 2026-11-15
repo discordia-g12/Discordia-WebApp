@@ -120,6 +120,27 @@ describe('openChatSocket', () => {
     connection.close();
   });
 
+  it('entrega MESSAGE_REACTION_UPDATED a onMessageUpdated', async () => {
+    const onMessageUpdated = vi.fn();
+    const connection = openChatSocket('c1', { onMessage: vi.fn(), onMessageUpdated });
+    await vi.advanceTimersByTimeAsync(0);
+    FakeWebSocket.instances[0].open();
+
+    const payload = {
+      type: 'MESSAGE_REACTION_UPDATED',
+      id: 'm1',
+      content: 'hola',
+      authorId: 'u1',
+      channelId: 'c1',
+      createdAt: '2026-10-20T10:00:00Z',
+      reactions: [{ emoji: '👍', count: 1, users: ['u1'] }],
+    };
+    FakeWebSocket.instances[0].receive(payload);
+
+    expect(onMessageUpdated).toHaveBeenCalledWith(payload);
+    connection.close();
+  });
+
   it('reconnect() cambia de socket al instante y el viejo no programa otra reconexión', async () => {
     const connection = openChatSocket('c1', { onMessage: vi.fn() });
     await vi.advanceTimersByTimeAsync(0);
@@ -214,10 +235,32 @@ describe('openChatSocket', () => {
     });
   });
 
+  describe('cuenta suspendida por la plataforma', () => {
+    it('al cerrar con 4010 avisa que la cuenta está suspendida y no vuelve a intentar', async () => {
+      const onAccountSuspended = vi.fn();
+      configureClient({ onAccountSuspended });
+      const onRemoved = vi.fn();
+      const connection = openChatSocket('c1', { onMessage: vi.fn(), onRemoved });
+      await vi.advanceTimersByTimeAsync(0);
+      FakeWebSocket.instances[0].open();
+
+      FakeWebSocket.instances[0].closeWith(4010);
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(onAccountSuspended).toHaveBeenCalledTimes(1);
+      expect(onRemoved).not.toHaveBeenCalled();
+      expect(FakeWebSocket.instances).toHaveLength(1);
+      connection.close();
+      configureClient({ onAccountSuspended: undefined });
+    });
+  });
+
   describe('ban o expulsión (W2)', () => {
     it.each([
       [4003, 'banned'],
       [4002, 'removed'],
+      [4011, 'server-suspended'],
+      [4004, 'server-deleted'],
     ] as const)('al cerrar con %i avisa %s y no vuelve a intentar', async (code, reason) => {
       const onRemoved = vi.fn();
       const onStatusChange = vi.fn();

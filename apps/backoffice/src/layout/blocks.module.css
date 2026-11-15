@@ -54,6 +54,13 @@
   letter-spacing: var(--font-display-letter-spacing);
 }
 
+.stats dd.statHint {
+  font-size: var(--font-meta-size);
+  line-height: inherit;
+  letter-spacing: normal;
+  color: var(--color-text-muted);
+}
+
 /* ── Ficha ── */
 
 .fields {

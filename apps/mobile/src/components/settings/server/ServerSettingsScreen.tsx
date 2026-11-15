@@ -17,8 +17,11 @@ import type { Server } from '../../../types'
 import { SettingsCell, SettingsScreen, type SettingsSection } from '../SettingsScreen'
 import { RoleSaveBar, RolesSection } from './RolesSection'
 import { BansSection, MembersSection } from './MembersSection'
+import { AuditSection } from './AuditSection'
+import { MemberGrowthChart } from '../../servers/MemberGrowthChart'
+import { ServerActivityMetrics } from '../../servers/ServerActivityMetrics'
 
-export type ServerSettingsSection = 'overview' | 'roles' | 'members' | 'bans'
+export type ServerSettingsSection = 'overview' | 'roles' | 'members' | 'bans' | 'audit'
 type Section = ServerSettingsSection
 
 // Las secciones que tienen backend: canales se maneja desde la barra de canales, y moderación,
@@ -28,6 +31,7 @@ const SECTIONS: SettingsSection<Section>[] = [
   { id: 'roles', label: 'Roles' },
   { id: 'members', label: 'Miembros' },
   { id: 'bans', label: 'Baneos' },
+  { id: 'audit', label: 'Auditoría' },
 ]
 
 /** Secciones en orden: "Ajustes del servidor" abre la primera que el usuario puede ver. */
@@ -45,6 +49,8 @@ interface ServerSettingsScreenProps {
   /** ELIMINAR (si es tuyo) o ABANDONAR en el menú: abren la confirmación de la app. */
   onDeleteServer?: () => void
   onLeaveServer?: () => void
+  /** Tocar a un miembro: abre su perfil público. */
+  onOpenProfile?: (userId: string) => void
 }
 
 type PendingConfirm = {
@@ -60,7 +66,7 @@ type PendingConfirm = {
  * BANEOS, con INVITAR y ELIMINAR / ABANDONAR en el menú. El estado y las reglas de roles, miembros y
  * baneos son de core (useRolesAdmin, useServerMembersAdmin, useServerBansAdmin), los mismos que la web.
  */
-export function ServerSettingsScreen({ visible, initialSection = 'overview', server, currentUserId, onClose, onInvite, onDeleteServer, onLeaveServer }: ServerSettingsScreenProps) {
+export function ServerSettingsScreen({ visible, initialSection = 'overview', server, currentUserId, onClose, onInvite, onDeleteServer, onLeaveServer, onOpenProfile }: ServerSettingsScreenProps) {
   const styles = useStyles()
   const [section, setSection] = useState<Section>('overview')
   const [pending, setPending] = useState<PendingConfirm | null>(null)
@@ -123,14 +129,22 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
               <Figure label="roles" value={roles.roles.length} />
             </View>
           </SettingsCell>
+          <SettingsCell title="Actividad del servidor" index={3}>
+            <ServerActivityMetrics serverId={server.id} />
+          </SettingsCell>
+          <SettingsCell title="Crecimiento de miembros" index={4}>
+            <MemberGrowthChart serverId={server.id} />
+          </SettingsCell>
         </>
       )}
 
       {section === 'roles' && <RolesSection roles={roles} onConfirm={(copy, action) => setPending({ ...copy, action })} />}
 
-      {section === 'members' && <MembersSection members={members} ownerId={server.ownerId} currentUserId={currentUserId} actions={memberActions} />}
+      {section === 'members' && <MembersSection members={members} ownerId={server.ownerId} currentUserId={currentUserId} actions={memberActions} onOpenProfile={onOpenProfile} />}
 
       {section === 'bans' && <BansSection bans={bans} />}
+
+      {section === 'audit' && <AuditSection serverId={server.id} />}
 
       <ConfirmModal
         visible={!!pending}

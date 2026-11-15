@@ -31,6 +31,7 @@ export function ServerTabsRow({ servers, activeServerId, onSelect, onAdd, onJoin
             server={server}
             active={server.id === activeServerId}
             unread={serverUnreadLabel(server)}
+            suspended={server.isSuspended}
             onPress={() => onSelect(server.id)}
           />
         ))}

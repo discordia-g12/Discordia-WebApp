@@ -13,21 +13,23 @@ interface EditChannelModalProps {
   categories?: Category[]
   onClose: () => void
   onSuccess?: (channel: Channel) => void
+  onDeleted?: () => void
   onRequestDelete?: (channel: Channel) => void
 }
 
 const NO_CATEGORY = '__none__'
 
 /** Editar un canal: nombre, tema y categoría; "_eliminar canal" abre la confirmación. */
-export default function EditChannelModal({ visible, serverId, channel, categories, onClose, onSuccess, onRequestDelete }: EditChannelModalProps) {
+export default function EditChannelModal({ visible, serverId, channel, categories, onClose, onSuccess, onDeleted, onRequestDelete }: EditChannelModalProps) {
   const styles = useStyles()
-  const { editChannel } = useData()
+  const { editChannel, deleteChannel } = useData()
   const { showToast } = useUI()
   const [name, setName] = useState('')
   const [topic, setTopic] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   // Solo categorías reales: la sección general es local y equivale a "sin categoría"
   const selectableCategories = (categories ?? []).filter(c => !isLocalCategoryId(c.id))
@@ -38,6 +40,7 @@ export default function EditChannelModal({ visible, serverId, channel, categorie
       setTopic(channel.topic ?? '')
       setCategoryId(channel.categoryId ?? null)
       setError(null)
+      setConfirmingDelete(false)
     }
   }, [visible, channel])
 
@@ -81,10 +84,60 @@ export default function EditChannelModal({ visible, serverId, channel, categorie
     }
   }
 
+  const handleConfirmDelete = async () => {
+    if (!channel) return
+    setLoading(true)
+    setError(null)
+    try {
+      await deleteChannel(serverId, channel.id)
+      showToast(`Canal •${channel.name} eliminado`, 'success')
+      onDeleted?.()
+      onClose()
+    } catch (err) {
+      const msg = (err instanceof Error && err.message) || 'Error al eliminar el canal.'
+      if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('permiso')) {
+        setError('No tenés permisos para eliminar canales en este servidor.')
+      } else {
+        setError(msg)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleClose = () => {
     if (loading) return
     setError(null)
+    setConfirmingDelete(false)
     onClose()
+  }
+
+  if (confirmingDelete) {
+    return (
+      <Modal visible={visible && !!channel} title="¿Eliminar canal?" onClose={handleClose} role="alertdialog">
+        {channel && (
+          <ModalForm>
+            <Text variant="bodySmall">Se borra •{channel.name} con todos sus mensajes. No se puede deshacer.</Text>
+            {error && (
+              <Text variant="bodySmall" bold accessibilityRole="alert">
+                / {error}
+              </Text>
+            )}
+            <ModalActions
+              submitLabel="Eliminar"
+              tone="danger"
+              onSubmit={handleConfirmDelete}
+              onCancel={() => {
+                if (loading) return
+                setError(null)
+                setConfirmingDelete(false)
+              }}
+              loading={loading}
+            />
+          </ModalForm>
+        )}
+      </Modal>
+    )
   }
 
   return (
@@ -122,13 +175,21 @@ export default function EditChannelModal({ visible, serverId, channel, categorie
             />
           </View>
           <ModalActions submitLabel="Guardar" onSubmit={handleSave} onCancel={handleClose} loading={loading} />
-          {onRequestDelete && (
-            <View style={styles.danger}>
-              <ActionLink onPress={() => onRequestDelete(channel)} disabled={loading}>
-                eliminar canal
-              </ActionLink>
-            </View>
-          )}
+          <View style={styles.danger}>
+            <ActionLink
+              onPress={() => {
+                if (onRequestDelete && !onDeleted) {
+                  onRequestDelete(channel)
+                } else {
+                  setError(null)
+                  setConfirmingDelete(true)
+                }
+              }}
+              disabled={loading}
+            >
+              eliminar canal
+            </ActionLink>
+          </View>
         </ModalForm>
       )}
     </Modal>

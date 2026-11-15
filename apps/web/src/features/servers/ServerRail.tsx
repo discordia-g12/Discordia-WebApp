@@ -57,6 +57,7 @@ export function ServerRail({
                 active={server.id === selectedServerId}
                 unread={serverUnreadLabel(server)}
                 badge={serverUnreadBadge(server)}
+                suspended={server.isSuspended}
                 onPress={() => onSelectServer(server.id)}
               />
             </li>

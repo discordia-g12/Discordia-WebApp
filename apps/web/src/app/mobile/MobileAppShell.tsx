@@ -3,6 +3,7 @@ import { Bell, ChevronLeft, Compass, Hash, MessageSquare, Plus, User as UserIcon
 import { ActionLink, ConnectionBanner, DisplayText, EmptyState, Logo, ServerStrip, Skeleton, SquareAvatar } from '../../ui';
 import { useUIStore } from '../uiStore';
 import { GlobalModals } from '../GlobalModals';
+import { IncidentBanner } from '../../features/platform-status/IncidentBanner';
 import { ToastHost } from '../ToastHost';
 import { FullScreenViews } from '../FullScreenViews';
 import { useIsReconnecting } from '../useConnectionStatus';
@@ -12,9 +13,13 @@ import { ChannelSidebarPanel } from '../../features/channels/ChannelSidebarPanel
 import { ChatPanel } from '../../features/chat/ChatPanel';
 import { VoicePanel } from '../../features/voice/VoicePanel';
 import { VoiceControlsPanel } from '../../features/voice/VoiceControls';
+import { CallControlsPanel } from '../../features/calls/CallControls';
+import { CallNotices } from '../../features/calls/CallNotices';
+import { isInCall, useCall } from '../../features/calls/callContext';
 import { useVoice } from '../../features/voice/voiceContext';
 import { MemberListPanel } from '../../features/servers/MemberListPanel';
 import { HomePanel } from '../../features/friends/HomePanel';
+import { SuspendedServerPanel } from '../../features/servers/SuspendedServerPanel';
 import { UserBarPanel } from '../../features/profile/UserBarPanel';
 import { UserMenuContent } from '../../features/profile/UserMenu';
 import { useUserPanelActions } from '../../features/profile/profileActions';
@@ -42,10 +47,11 @@ const TABS: { id: MobileTab; label: string; icon: LucideIcon }[] = [
 export function MobileAppShell() {
   const { servers, currentServer, currentChannel, isLoadingServers } = useCurrentServer();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
-  const selectedDmId = useUIStore((s) => s.selectedDmId);
+  const selectedDm = useUIStore((s) => s.selectedDm);
   const appView = useUIStore((s) => s.appView);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
   const voice = useVoice();
+  const call = useCall();
   const reconnecting = useIsReconnecting();
   const [tab, setTab] = useState<MobileTab>('servers');
   const [channelOpen, setChannelOpen] = useState(false);
@@ -60,10 +66,15 @@ export function MobileAppShell() {
 
   // En Servidores siempre hay un servidor elegido: el último, o el primero de la lista
   useEffect(() => {
-    if (tab !== 'servers' || selectedServerId !== 'home' || servers.length === 0) return;
+    if (tab !== 'servers' || selectedServerId !== 'home' || selectedDm || servers.length === 0) return;
     const target = servers.find((s) => s.id === lastServerId.current) ?? servers[0];
     selectServer(target.id, servers);
-  }, [tab, selectedServerId, servers]);
+  }, [tab, selectedServerId, selectedDm, servers]);
+
+  // Un DM que se abre desde otra pestaña (el perfil de un miembro, por ejemplo) se ve en Mensajes
+  useEffect(() => {
+    if (selectedDm) setTab('messages');
+  }, [selectedDm]);
 
   // Una llamada que se abre desde los controles (o al confirmar el cambio de canal) se ve en Servidores
   useEffect(() => {
@@ -75,6 +86,7 @@ export function MobileAppShell() {
 
   const goTo = (next: MobileTab) => {
     if (next === 'messages') selectServer('home', servers);
+    else useUIStore.getState().setSelectedDm(null);
     if (next !== tab) setChannelOpen(false);
     setTab(next);
   };
@@ -84,7 +96,8 @@ export function MobileAppShell() {
     setChannelOpen(false);
   };
 
-  const inCall = voice.room.channelId !== null;
+  const inPrivateCall = isInCall(call.state);
+  const inCall = voice.room.channelId !== null || inPrivateCall;
 
   return (
     <div className={styles.shell}>
@@ -110,7 +123,7 @@ export function MobileAppShell() {
                 </div>
               </div>
             </Screen>
-          ) : channelOpen && currentServer ? (
+          ) : channelOpen && currentServer && !currentServer.isSuspended ? (
             isMemberListOpen && appView === 'chat' ? (
               <Pane backLabel={currentChannel ? `•${currentChannel.name}` : 'Volver'} onBack={() => useUIStore.getState().toggleMemberList()}>
                 <MemberListPanel />
@@ -122,7 +135,9 @@ export function MobileAppShell() {
             )
           ) : (
             <Screen title={currentServer?.name ?? 'Servidores'} tinted>
-              {currentServer ? (
+              {currentServer?.isSuspended ? (
+                <SuspendedServerPanel server={currentServer} />
+              ) : currentServer ? (
                 <ChannelSidebarPanel onChannelOpened={() => setChannelOpen(true)} />
               ) : (
                 <div className={styles.padded}>
@@ -132,12 +147,12 @@ export function MobileAppShell() {
             </Screen>
           ))}
 
-        {tab === 'messages' && <MessagesTab dmOpen={selectedDmId !== null} />}
+        {tab === 'messages' && <MessagesTab dmOpen={selectedDm !== null} />}
 
         {tab === 'notifications' && (
           <Screen title="Avisos">
             <div className={styles.padded}>
-              <EmptyState title="por ahora no hay avisos" hint="próximamente: menciones, invitaciones y solicitudes de amistad" />
+              <EmptyState title="por ahora no hay avisos" hint="próximamente: menciones e invitaciones" />
             </div>
           </Screen>
         )}
@@ -148,6 +163,7 @@ export function MobileAppShell() {
       {inCall && (
         <div className={styles.call}>
           <VoiceControlsPanel tone="muted" />
+          <CallControlsPanel tone="muted" />
           <UserBarPanel tone="muted" />
         </div>
       )}
@@ -170,7 +186,9 @@ export function MobileAppShell() {
       <GlobalModals />
       <FullScreenViews />
       <ToastHost />
+      <CallNotices />
       <ConnectionBanner active={reconnecting} />
+      <IncidentBanner />
     </div>
   );
 }
@@ -203,6 +221,7 @@ function ServerTabsRow({
               unread={serverUnreadLabel(server)}
               badge={serverUnreadBadge(server)}
               orientation="horizontal"
+              suspended={server.isSuspended}
               onPress={() => onSelect(server.id)}
             />
           </li>
@@ -263,7 +282,7 @@ function MessagesTab({ dmOpen }: { dmOpen: boolean }) {
 
   if (dmOpen) {
     return (
-      <Pane backLabel="Mensajes" onBack={() => useUIStore.getState().setSelectedDmId(null)}>
+      <Pane backLabel="Mensajes" onBack={() => useUIStore.getState().setSelectedDm(null)}>
         {/* Sin lugar para la lista: HomePanel muestra el chat del DM */}
         <HomePanel sidebarContainer={null} />
       </Pane>
@@ -286,6 +305,7 @@ function ProfileTab() {
   const actions = useUserPanelActions();
   const reconnecting = useIsReconnecting();
   const voice = useVoice();
+  const call = useCall();
 
   return (
     <Screen title="Perfil">
@@ -294,7 +314,7 @@ function ProfileTab() {
         <div>
           <p className={styles.name}>{user.displayName}</p>
           <p className={styles.meta}>@{user.username}</p>
-          <p className={styles.meta}>{userBarStatus(user, voice.room.channelId !== null, reconnecting)}</p>
+          <p className={styles.meta}>{userBarStatus(user, voice.room.channelId !== null, reconnecting, isInCall(call.state))}</p>
         </div>
       </div>
       <UserMenuContent
@@ -304,6 +324,7 @@ function ProfileTab() {
         onEditProfile={actions.onEditProfile}
         onOpenSettings={actions.onOpenSettings}
         onOpenBackoffice={actions.onOpenBackoffice}
+        onOpenPlatformStatus={actions.onOpenPlatformStatus}
         onLogout={actions.onLogout}
       />
     </Screen>

@@ -1,0 +1,267 @@
+/* Banda de la llamada arriba del chat del DM, en el gris de "en llamada" (como la barra de usuario) */
+.panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-5);
+  flex-shrink: 0;
+  padding: var(--space-4) var(--space-5);
+  color: var(--color-text);
+  background: var(--color-decoration);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+  animation: rise var(--motion-duration-base) var(--motion-ease-enter);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--space-2)));
+  }
+}
+
+.status {
+  margin: 0;
+  font-size: var(--font-label-size);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--font-label-letter-spacing);
+}
+
+.pending {
+  animation: blink 1.2s var(--motion-ease-standard) infinite alternate;
+}
+
+@keyframes blink {
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* Las dos fichas: el avatar cuadrado y el nombre; a quien habla le pulsa el borde (como en VoiceView) */
+.tiles {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: var(--space-9);
+}
+
+.tile::after {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--space-1));
+  left: 50%;
+  width: calc(56px + var(--space-2));
+  height: calc(56px + var(--space-2));
+  border: var(--line-accent) solid var(--color-speaking);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.speaking::after {
+  opacity: 1;
+  animation: pulse 0.9s var(--motion-ease-standard) infinite alternate;
+}
+
+@keyframes pulse {
+  to {
+    opacity: 0.6;
+  }
+}
+
+/* Quien recibe todavía no atendió */
+.waiting {
+  opacity: 0.5;
+}
+
+.tileName {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--font-meta-size);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mutedIcon {
+  flex-shrink: 0;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  /* Cinco botones y cortar: más juntos, y si no entran (ventana angosta) bajan de línea en vez de cortarse */
+  gap: var(--space-3);
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  padding: 0;
+  background: none;
+  border: var(--line-hairline) solid currentColor;
+  color: inherit;
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.control:hover,
+.controlOff {
+  opacity: 1;
+}
+
+/* Apagado: el ícono invertido, como un interruptor */
+.controlOff {
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+/* Cámara prendida: el ícono entero, sin invertir (apagada no es "algo silenciado") */
+.controlOn {
+  opacity: 1;
+  border-width: var(--line-accent);
+}
+
+.control:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Con video (#54): las fichas son cuadros 4:3 con el video o el avatar en el medio */
+.withVideo .tile {
+  max-width: none;
+}
+
+.frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(120px, 22vw, 280px);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--color-inverse-background);
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+/* Quien habla: el borde va sobre el cuadro (el ::after de la ficha chica está pensado para el avatar de 56 px) */
+.withVideo .tile::after {
+  display: none;
+}
+
+.withVideo .speaking .frame {
+  outline: var(--line-accent) solid var(--color-speaking);
+  outline-offset: var(--line-accent);
+}
+
+/* Las fichas se pueden tocar para agrandar la llamada */
+.expandable {
+  cursor: zoom-in;
+}
+
+/*
+ * Pantalla completa: la llamada tapa toda la ventana. Arriba de menús y ajustes (500), abajo de los modales
+ * (600), los avisos (700) y la llamada entrante (750): un "¿cortar?" se sigue viendo encima. Con el banner de
+ * incidentes arriba baja sus 2rem, como el shell y los ajustes: el aviso no tapa el estado de la llamada.
+ */
+.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 550;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border-bottom: none;
+}
+
+.expanded .status {
+  justify-self: start;
+}
+
+.expanded .tiles {
+  grid-row: auto;
+  grid-column: auto;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  gap: var(--space-5);
+}
+
+/* Los dos cuadros lado a lado, lo más grandes que entren sin pasarse del alto disponible */
+.expanded .frame {
+  width: min(
+    calc((100vw - 2 * var(--space-5) - var(--space-5)) / 2),
+    calc((100vh - 2 * var(--space-5) - 2 * var(--space-5) - 2 * var(--space-7) - var(--space-4)) * 4 / 3)
+  );
+}
+
+.expanded .controls {
+  justify-content: center;
+}
+
+:global(body:has([data-incident-banner])) .expanded {
+  top: 2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .pending,
+  .speaking::after {
+    animation: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .panel {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .tiles {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  .frame {
+    width: calc((100vw - 2 * var(--space-4) - var(--space-4)) / 2);
+  }
+
+  /* Pantalla completa en el teléfono: los cuadros uno arriba del otro */
+  .expanded {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-4);
+  }
+
+  .expanded .tiles {
+    flex-direction: column;
+  }
+
+  .expanded .frame {
+    width: min(
+      calc(100vw - 2 * var(--space-4)),
+      calc((100vh - 2 * var(--space-4) - 2 * var(--space-5) - 2 * var(--space-7) - 2 * var(--space-4)) / 2 * 4 / 3)
+    );
+  }
+}

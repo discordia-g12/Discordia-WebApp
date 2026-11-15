@@ -12,13 +12,16 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const { servers, allServerChannels } = useCurrentServer();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
 
-  // Vuelve del canal de voz al primer canal de texto del servidor
+  // Vuelve del canal de voz al primer canal de texto del servidor (o al inicio si el servidor desapareció)
   const exitVoiceView = () => {
     if (useUIStore.getState().appView !== 'voice') return;
     const firstText = allServerChannels.find((c) => c.type === 'text');
     if (firstText) {
       useUIStore.getState().setSelectedChannelId(firstText.id);
       useUIStore.getState().setAppView('chat');
+    } else {
+      useUIStore.getState().setSelectedChannelId(null);
+      useUIStore.getState().setAppView('home');
     }
   };
 

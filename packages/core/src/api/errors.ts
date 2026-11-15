@@ -20,7 +20,31 @@ export class TimeoutError extends Error {
 export const PROBLEM_TYPES = {
   EMAIL_NOT_VERIFIED: 'https://discordia.app/problems/email-not-verified',
   PASSWORD_RESET_THROTTLED: 'https://discordia.app/problems/password-reset-throttled',
+  /** La cuenta fue suspendida por el staff de la plataforma (Kong o Auth-User, 403). */
+  ACCOUNT_SUSPENDED: 'https://discordia.app/problems/account-suspended',
+  /** El endpoint es solo para el staff de la plataforma (Auth-User, 403). */
+  STAFF_ONLY: 'https://discordia.app/problems/staff-only',
+  /** El servidor está suspendido por el staff de la plataforma (Server-Roles, 403). */
+  SERVER_SUSPENDED: 'https://discordia.app/problems/server-suspended',
 } as const;
+
+/**
+ * Código con el que Chat Engine y Voice Signaling cierran los WebSockets de una cuenta suspendida
+ * (user.suspended). Reconectar no sirve: Kong rechaza sus tokens.
+ */
+export const ACCOUNT_SUSPENDED_CLOSE_CODE = 4010;
+
+/**
+ * Código con el que Chat Engine cierra los WebSockets de los canales de un servidor suspendido por el staff
+ * (server.suspended). Reconectar no sirve hasta que se levante la suspensión.
+ */
+export const SERVER_SUSPENDED_CLOSE_CODE = 4011;
+
+/**
+ * Código con el que Chat Engine cierra los WebSockets de los canales de un servidor eliminado (server.deleted).
+ * Reconectar no sirve: el servidor ya no existe.
+ */
+export const SERVER_DELETED_CLOSE_CODE = 4004;
 
 export interface InvalidParam {
   name?: string;
@@ -31,6 +55,8 @@ export interface InvalidParam {
 export class ApiError extends Error {
   readonly status: number;
   readonly type?: string;
+  /** Código de error de negocio (extensión de RFC 7807), p. ej. DM_PENDING. */
+  readonly code?: string;
   readonly title?: string;
   readonly detail?: string;
   readonly invalidParams?: InvalidParam[];
@@ -40,6 +66,7 @@ export class ApiError extends Error {
   constructor(opts: {
     status: number;
     type?: string;
+    code?: string;
     title?: string;
     detail?: string;
     invalidParams?: InvalidParam[];
@@ -51,6 +78,7 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.status = opts.status;
     this.type = opts.type;
+    this.code = opts.code;
     this.title = opts.title;
     this.detail = opts.detail;
     this.invalidParams = opts.invalidParams;
@@ -77,6 +105,7 @@ export async function parseErrorResponse(
 ): Promise<ApiError> {
   const contentType = response.headers.get('content-type') || '';
   let type: string | undefined;
+  let code: string | undefined;
   let title: string | undefined;
   let detail: string | undefined;
   let invalidParams: InvalidParam[] | undefined;
@@ -84,6 +113,7 @@ export async function parseErrorResponse(
   if (contentType.includes('json')) {
     try {
       const data = await response.json();
+      if (typeof data.code === 'string') code = data.code;
 
       // Formato 1: RFC 7807 Problem Details (Kong)
       if (data.title || data.type || data.status) {
@@ -125,6 +155,7 @@ export async function parseErrorResponse(
   return new ApiError({
     status: response.status,
     type,
+    code,
     title: title || `Error HTTP ${response.status}`,
     detail: detail || response.statusText,
     invalidParams,

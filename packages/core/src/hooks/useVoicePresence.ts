@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { getClientConfig, getWsBaseUrl } from '../api/client';
+import { getClientConfig, getWsBaseUrl, notifyAccountSuspended } from '../api/client';
+import { ACCOUNT_SUSPENDED_CLOSE_CODE } from '../api/errors';
 
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
@@ -62,8 +63,14 @@ export function useVoicePresence(channelIds: string[]): Record<string, string[]>
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event?: { code?: number }) => {
         if (socketRef.current === ws) socketRef.current = null;
+        // Cuenta suspendida por el staff: no se reintenta y toda la app pasa a "suspendida"
+        if (event?.code === ACCOUNT_SUSPENDED_CLOSE_CODE) {
+          disposed = true;
+          notifyAccountSuspended();
+          return;
+        }
         if (!disposed) scheduleReconnect();
       };
     };

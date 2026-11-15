@@ -13,10 +13,10 @@ Las decisiones de seguridad están en [`Gateway/docs/ADR-002-Rol-Staff-Backoffic
 
 | Sección | URL | Historias (consigna) | Estado |
 |---------|-----|----------------------|--------|
-| Usuarios | `/usuarios` | Listado con filtros, suspender, reactivar | Próximamente |
-| Servidores | `/servidores` | Listado, suspender (y levantar), eliminar | Próximamente |
+| Usuarios | `/usuarios` | Listado con filtros, suspender, reactivar | **Funciona** (Auth-User `/api/v1/admin/users`): listado paginado con búsqueda por email, @usuario o nombre y filtro por estado; suspender y reactivar con confirmación, también desde cada fila |
+| Servidores | `/servidores` | Listado, suspender (y levantar), eliminar | Listado (búsqueda por nombre o id, filtro de estado, muestra el id), suspender por id, levantar y eliminar por id: listo (Server-Roles `/api/v1/admin/servers`) |
 | Expedientes | `/expedientes` | Expediente de usuario o servidor | Próximamente |
-| Métricas | `/metricas` | Métricas globales de la plataforma | Próximamente |
+| Métricas | `/metricas` | Métricas globales de la plataforma | **Funciona** (Notification-Audit-Metrics `GET /api/v1/admin/metrics`): usuarios activos, servidores creados y mensajes enviados en los últimos 7, 30 o 90 días o un rango de hasta 366 días; un dato que falta (servicio caído) dice "sin datos" |
 | Estado | `/estado` | Estado de la plataforma e incidentes | Estado de los servicios funciona (`GET /api/v1/admin/status`, cada 30 s); incidentes, próximamente |
 | Observabilidad | `/observabilidad` | Links a Grafana | Funciona |
 

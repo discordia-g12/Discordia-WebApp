@@ -20,13 +20,15 @@ interface MembersSectionProps {
   currentUserId: string
   /** Lo que el usuario puede hacer con los miembros: lo demás no se ofrece. */
   actions: MemberActions
+  /** Tocar a un miembro: abre su perfil público. */
+  onOpenProfile?: (userId: string) => void
 }
 
 /**
  * MIEMBROS: búsqueda en lo cargado y cada miembro con sus roles (× para quitar, _rol + para asignar) y
  * _silenciar, _expulsar y _banear, cada uno con su panel (motivo opcional; silenciar, con la duración).
  */
-export function MembersSection({ members: m, ownerId, currentUserId, actions }: MembersSectionProps) {
+export function MembersSection({ members: m, ownerId, currentUserId, actions, onOpenProfile }: MembersSectionProps) {
   const styles = useStyles()
   return (
     <SettingsCell title={`Miembros${m.total ? ` (${m.total})` : ''}`}>
@@ -51,6 +53,7 @@ export function MembersSection({ members: m, ownerId, currentUserId, actions }: 
             isOwner={member.userId === ownerId}
             isMe={member.userId === currentUserId}
             actions={actions}
+            onOpenProfile={onOpenProfile}
           />
         ))
       )}
@@ -69,12 +72,14 @@ function MemberRow({
   isOwner,
   isMe,
   actions,
+  onOpenProfile,
 }: {
   m: ServerMembersAdminState
   member: ServerMember
   isOwner: boolean
   isMe: boolean
   actions: MemberActions
+  onOpenProfile?: (userId: string) => void
 }) {
   const styles = useStyles()
   const name = m.displayName(member)
@@ -87,7 +92,13 @@ function MemberRow({
 
   return (
     <View style={styles.member}>
-      <View style={styles.memberMain}>
+      <Pressable
+        style={styles.memberMain}
+        onPress={() => onOpenProfile?.(member.userId)}
+        disabled={!onOpenProfile || isMe}
+        accessibilityRole={onOpenProfile && !isMe ? 'button' : undefined}
+        accessibilityLabel={onOpenProfile && !isMe ? `Ver el perfil de ${name}` : undefined}
+      >
         <SquareAvatar user={{ username: name }} size={28} />
         <Text variant="bodySmall" bold numberOfLines={1} style={styles.flex}>
           {name}
@@ -97,7 +108,7 @@ function MemberRow({
             </Text>
           )}
         </Text>
-      </View>
+      </Pressable>
       {memberRoles.length > 0 && (
         <View style={styles.chips} accessibilityLabel={`Roles de ${name}`}>
           {memberRoles.map(role => (

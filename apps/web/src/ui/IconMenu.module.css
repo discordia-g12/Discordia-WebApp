@@ -1,0 +1,64 @@
+.root {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* Panel de línea fina pegado abajo del botón, alineado a la derecha (como el menú de un participante de voz) */
+.menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  background: var(--color-background);
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  color: var(--color-text);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.item + .item {
+  border-top: var(--line-hairline) solid var(--color-line);
+}
+
+.item:hover:not(:disabled),
+.item:focus-visible {
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  outline: none;
+}
+
+/* Destructiva: rojo en reposo; al marcarla, el bloque de peligro */
+.danger {
+  color: var(--color-danger);
+}
+
+.danger:hover:not(:disabled),
+.danger:focus-visible {
+  color: var(--color-on-danger);
+  background: var(--color-danger);
+}
+
+.item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

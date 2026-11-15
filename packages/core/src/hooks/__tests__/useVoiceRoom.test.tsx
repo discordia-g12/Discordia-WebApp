@@ -889,6 +889,137 @@ describe('useVoiceRoom', () => {
     });
   });
 
+  describe('sala propia (llamada privada)', () => {
+    const callCredentials = {
+      token: 'call-token',
+      url: 'ws://livekit.call',
+      permissions: { canSpeak: true, canVideo: false, canScreenShare: false },
+    };
+    const callOptions = () => ({
+      credentials: vi.fn(async () => callCredentials),
+      onLeave: vi.fn(async () => undefined),
+    });
+
+    it('entra con sus credenciales, sin pasar por el canal, y no se muestra como canal', async () => {
+      const opts = callOptions();
+      const { result } = renderHook(() => useVoiceRoom());
+
+      await act(async () => {
+        await result.current.join('call-c1', opts);
+      });
+
+      expect(opts.credentials).toHaveBeenCalledTimes(1);
+      expect(mockJoinVoiceChannel).not.toHaveBeenCalled();
+      expect(FakeRoom.instances[0].connect).toHaveBeenCalledWith('ws://livekit.call', 'call-token');
+      expect(result.current.roomId).toBe('call-c1');
+      expect(result.current.channelId).toBeNull();
+      expect(result.current.canVideo).toBe(false);
+      expect(result.current.connectionState).toBe('connected');
+    });
+
+    it('sin opts sigue siendo un canal: roomId y channelId son el mismo', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+      expect(result.current.roomId).toBe('chan-1');
+      expect(result.current.channelId).toBe('chan-1');
+    });
+
+    it('leave avisa por onLeave y no llama a leaveVoiceChannel', async () => {
+      const opts = callOptions();
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('call-c1', opts);
+      });
+
+      await act(async () => {
+        await result.current.leave();
+      });
+
+      expect(opts.onLeave).toHaveBeenCalledTimes(1);
+      expect(opts.onLeave).toHaveBeenCalledWith(undefined);
+      expect(mockLeaveVoiceChannel).not.toHaveBeenCalled();
+      expect(result.current.roomId).toBeNull();
+    });
+
+    it('entrar a la llamada cierra el canal de voz y avisa al backend que salió del canal', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+
+      await act(async () => {
+        await result.current.join('call-c1', callOptions());
+      });
+
+      expect(FakeRoom.instances[0].disconnect).toHaveBeenCalled();
+      expect(mockLeaveVoiceChannel).toHaveBeenCalledTimes(1);
+      expect(FakeRoom.instances).toHaveLength(2);
+      expect(result.current.roomId).toBe('call-c1');
+    });
+
+    it('entrar a un canal corta la llamada (onLeave) y no saca del canal nuevo', async () => {
+      const opts = callOptions();
+      const { result } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('call-c1', opts);
+      });
+
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+
+      expect(opts.onLeave).toHaveBeenCalledTimes(1);
+      expect(mockLeaveVoiceChannel).not.toHaveBeenCalled();
+      expect(result.current.channelId).toBe('chan-1');
+    });
+
+    it('si la sala se cierra sola (ROOM_DELETED) avisa por onLeave con el motivo, no como "te sacaron del canal"', async () => {
+      const onUnexpectedDisconnect = vi.fn();
+      const opts = callOptions();
+      const { result } = renderHook(() => useVoiceRoom({ onUnexpectedDisconnect }));
+      await act(async () => {
+        await result.current.join('call-c1', opts);
+      });
+
+      await act(async () => {
+        FakeRoom.instances[0].emit('disconnected', 5);
+      });
+
+      expect(opts.onLeave).toHaveBeenCalledWith('removed');
+      expect(onUnexpectedDisconnect).not.toHaveBeenCalled();
+      expect(mockLeaveVoiceChannel).not.toHaveBeenCalled();
+      expect(result.current.roomId).toBeNull();
+    });
+
+    it('si fallan las credenciales vuelve a desconectado sin avisar la salida', async () => {
+      const opts = { ...callOptions(), credentials: vi.fn(async () => Promise.reject(new Error('503'))) };
+      const { result } = renderHook(() => useVoiceRoom());
+
+      await act(async () => {
+        await expect(result.current.join('call-c1', opts)).rejects.toThrow('503');
+      });
+
+      expect(result.current.roomId).toBeNull();
+      expect(opts.onLeave).not.toHaveBeenCalled();
+      expect(FakeRoom.instances).toHaveLength(0);
+    });
+
+    it('al desmontar avisa por onLeave', async () => {
+      const opts = callOptions();
+      const { result, unmount } = renderHook(() => useVoiceRoom());
+      await act(async () => {
+        await result.current.join('call-c1', opts);
+      });
+
+      unmount();
+
+      expect(opts.onLeave).toHaveBeenCalledTimes(1);
+      expect(mockLeaveVoiceChannel).not.toHaveBeenCalled();
+    });
+  });
+
   describe('plataforma mobile', () => {
     function registerMobileLikePlatform(overrides: Partial<Parameters<typeof setVoicePlatform>[0]> = {}) {
       const platform = {

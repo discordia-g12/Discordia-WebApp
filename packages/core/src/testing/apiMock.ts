@@ -4,8 +4,9 @@ import type { CreateServerRequest } from '../api/servers';
 import type { UserProfile } from '../api/users';
 import type { Server } from '../types';
 import { USERS, SERVERS, CURRENT_USER_ID } from './data';
+import { createDmMock, type DmMock, type DmMockOptions } from './dmMock';
 
-export interface ApiMockOptions {
+export interface ApiMockOptions extends DmMockOptions {
   /** true si el usuario simulado todavía no creó su perfil (getMyProfile responde 404). */
   needsProfile?: () => boolean;
   /** Se llama al crear el perfil simulado. */
@@ -16,8 +17,14 @@ export interface ApiMockOptions {
  * Respuestas de la API para desarrollar sin backend, con los datos de testing/data.ts. Cada app las
  * registra con setApiMock solo en modo desarrollo (la web con VITE_USE_MOCK).
  */
-export function createApiMock({ needsProfile = () => false, onProfileCompleted }: ApiMockOptions = {}): ApiMock {
+export function createApiMock({
+  needsProfile = () => false,
+  onProfileCompleted,
+  ...dmOptions
+}: ApiMockOptions = {}): ApiMock & DmMock {
   return {
+    ...createDmMock(dmOptions),
+
     async getMyProfile() {
       if (needsProfile()) {
         throw new ApiError({ status: 404, detail: 'Mock profile not found' });

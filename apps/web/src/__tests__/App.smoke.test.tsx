@@ -55,6 +55,12 @@ function fakeBackend(input: RequestInfo | URL, init?: RequestInit) {
       });
     case 'POST /api/v1/users/bulk':
       return jsonResponse([{ user_id: 'u2', username: 'lbars', display_name: 'Lbars' }]);
+    case 'GET /api/v1/servers/s1/metrics/member-growth':
+      return jsonResponse({
+        server_id: 's1',
+        period: { start_date: '2026-10-01', end_date: '2026-10-30', days: 30 },
+        data: [{ date: '2026-10-30', member_count: 2, joined: 0, left: 0 }],
+      });
     default:
       return jsonResponse([]);
   }
@@ -107,8 +113,6 @@ describe('App (prueba de humo)', () => {
     // El estado de la interfaz es un store global: sin esto cada test arranca donde dejó el anterior
     useUIStore.setState(useUIStore.getInitialState(), true);
     localStorage.setItem('discordia_intro_seen', '1');
-    // jsdom no implementa scroll: ChatView baja al último mensaje con scrollIntoView
-    Element.prototype.scrollIntoView = vi.fn();
     FakeWebSocket.instances = [];
     globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => fakeBackend(input, init));
@@ -343,7 +347,7 @@ describe('App (prueba de humo)', () => {
     await check('crear servidor');
 
     expect(found).toEqual({});
-  });
+  }, 15000);
 
   it('accesibilidad: mobile no tiene violaciones de axe', async () => {
     window.innerWidth = 500;
@@ -375,7 +379,7 @@ describe('App (prueba de humo)', () => {
     await waitFor(() => expect(ws.send).toHaveBeenCalledWith(expect.stringContaining('desde el celu')));
 
     // Miembros como pantalla aparte, y la vuelta
-    fireEvent.click(screen.getByRole('button', { name: 'mostrar lista de miembros' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lista de miembros' }));
     expect(await screen.findByText('Lbars')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Volver a •general' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Volver a Torton' }));

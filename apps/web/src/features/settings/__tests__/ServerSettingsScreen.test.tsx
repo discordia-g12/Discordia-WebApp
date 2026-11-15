@@ -50,15 +50,182 @@ describe('ServerSettingsScreen (rediseño)', () => {
     useSession.setState({ status: 'bootstrapping' });
   });
 
-  it('RESUMEN: nombre y descripción no tienen endpoint, quedan deshabilitados', () => {
-    const { onUpdateServer } = renderSettings();
+  describe('RESUMEN: nombre y descripción (Administrar configuración del servidor)', () => {
+    const rawServer = (name: string, description: string | null = null) => ({
+      id: 's1', name, description, owner_id: 'me', icon_url: null, banner_url: null, created_at: '2026-01-01T00:00:00Z',
+      channels: [], categories: [], my_permissions: 0,
+    });
+    const patchCalls = () => fetchMock.mock.calls.filter(([u, init]) => String(u).endsWith('/servers/s1') && init?.method === 'PATCH');
+    const identity = () => within(screen.getByRole('region', { name: 'Nombre y descripción' }));
 
-    const identity = screen.getByRole('region', { name: 'Nombre y descripción' });
-    expect(within(identity).getByText('próximamente')).toBeTruthy();
-    // Deshabilitados por el fieldset: en el navegador no se pueden enfocar ni cliquear
-    expect(within(identity).getByLabelText('nombre del servidor').matches(':disabled')).toBe(true);
-    expect(within(identity).getByRole('button', { name: 'Guardar /' }).matches(':disabled')).toBe(true);
-    expect(onUpdateServer).not.toHaveBeenCalled();
+    it('CA1: guarda contra la API solo lo que cambió y aplica el servidor que devuelve', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === 'PATCH' ? json(rawServer('torton 2', 'De todo un poco')) : json([])
+      );
+      const { onUpdateServer } = renderSettings();
+      const cell = identity();
+      // Sin cambios no hay nada que guardar
+      expect(cell.getByRole('button', { name: 'Guardar /' }).matches(':disabled')).toBe(true);
+
+      fireEvent.change(cell.getByLabelText('nombre del servidor'), { target: { value: '  torton 2  ' } });
+      fireEvent.change(cell.getByLabelText('descripción'), { target: { value: 'De todo un poco' } });
+      fireEvent.click(cell.getByRole('button', { name: 'Guardar /' }));
+
+      await waitFor(() => expect(onUpdateServer).toHaveBeenCalledTimes(1));
+      expect(JSON.parse(String(patchCalls()[0][1].body))).toEqual({ name: 'torton 2', description: 'De todo un poco' });
+      expect(onUpdateServer.mock.calls[0][0]).toMatchObject({ id: 's1', name: 'torton 2', description: 'De todo un poco' });
+      expect(cell.getByLabelText('nombre del servidor')).toHaveProperty('value', 'torton 2');
+      expect(cell.getByRole('status').textContent).toBe('/ guardado');
+      expect(cell.getByRole('button', { name: 'Guardar /' }).matches(':disabled')).toBe(true);
+    });
+
+    it('CA1: si solo cambió la descripción, no manda el nombre', async () => {
+      fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === 'PATCH' ? json(rawServer('torton', 'nueva')) : json([])
+      );
+      const { onUpdateServer } = renderSettings();
+
+      fireEvent.change(identity().getByLabelText('descripción'), { target: { value: 'nueva' } });
+      fireEvent.click(identity().getByRole('button', { name: 'Guardar /' }));
+
+      await waitFor(() => expect(onUpdateServer).toHaveBeenCalled());
+      expect(JSON.parse(String(patchCalls()[0][1].body))).toEqual({ description: 'nueva' });
+    });
+
+    it('CA3: un nombre vacío se avisa sin llamar a la API', () => {
+      const { onUpdateServer } = renderSettings();
+
+      fireEvent.change(identity().getByLabelText('nombre del servidor'), { target: { value: '   ' } });
+      fireEvent.click(identity().getByRole('button', { name: 'Guardar /' }));
+
+      expect(identity().getByRole('alert').textContent).toBe('/ El nombre no puede quedar vacío.');
+      expect(patchCalls()).toHaveLength(0);
+      expect(onUpdateServer).not.toHaveBeenCalled();
+    });
+
+    it('CA3: si el backend rechaza los datos (422), muestra el error y no cambia nada', async () => {
+      fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === 'PATCH'
+          ? json({ title: 'Validation Error', status: 422, detail: 'Invalid request', invalid_params: [{ name: 'name', reason: 'too long' }] }, 422)
+          : json([])
+      );
+      const { onUpdateServer } = renderSettings();
+
+      fireEvent.change(identity().getByLabelText('nombre del servidor'), { target: { value: 'otro nombre' } });
+      fireEvent.click(identity().getByRole('button', { name: 'Guardar /' }));
+
+      expect((await identity().findByRole('alert')).textContent).toBe('/ El nombre tiene que tener entre 1 y 100 caracteres.');
+      expect(onUpdateServer).not.toHaveBeenCalled();
+      // Lo escrito queda para corregirlo, y se puede volver a intentar
+      expect(identity().getByLabelText('nombre del servidor')).toHaveProperty('value', 'otro nombre');
+      expect(identity().getByRole('button', { name: 'Guardar /' }).matches(':disabled')).toBe(false);
+    });
+
+    it('CA2: si el backend dice que no tiene permiso (403), lo muestra y no cambia nada', async () => {
+      fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === 'PATCH' ? json({ detail: 'Missing required permission: MANAGE_SERVER' }, 403) : json([])
+      );
+      // El front todavía lo cree con permiso (p. ej. se lo acaban de sacar): decide el backend
+      const { onUpdateServer } = renderSettings({ server: { ...server, ownerId: 'otra', myPermissions: ['MANAGE_SERVER'] } });
+
+      fireEvent.change(identity().getByLabelText('nombre del servidor'), { target: { value: 'hackeado' } });
+      fireEvent.click(identity().getByRole('button', { name: 'Guardar /' }));
+
+      expect((await identity().findByRole('alert')).textContent).toBe(
+        '/ Necesitás el permiso Gestionar servidor para cambiar la configuración.'
+      );
+      expect(onUpdateServer).not.toHaveBeenCalled();
+    });
+
+    it('CA2: sin Gestionar servidor ni Administrador, RESUMEN no aparece', () => {
+      renderSettings({ server: { ...server, ownerId: 'otra', myPermissions: ['MANAGE_CHANNELS'] } });
+      const menu = within(screen.getByRole('navigation', { name: 'Ajustes del servidor' }));
+
+      expect(menu.queryByRole('button', { name: 'Resumen' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Nombre y descripción' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Actividad del servidor' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Banner' })).toBeNull();
+    });
+
+    it('con Administrador (sin ser dueña) puede editar y ve Actividad del servidor', () => {
+      renderSettings({ server: { ...server, ownerId: 'otra', myPermissions: ['ADMINISTRATOR'] } });
+
+      expect(identity().getByLabelText('nombre del servidor').matches(':disabled')).toBe(false);
+      expect(screen.getByRole('region', { name: 'Actividad del servidor' })).toBeTruthy();
+    });
+  });
+
+  describe('RESUMEN: banner', () => {
+    const NEW_BANNER = 'https://discordia-g12-media.s3.us-east-1.amazonaws.com/server-icons/banners/nuevo.webp';
+    const rawServer = (bannerUrl: string | null) => ({
+      id: 's1', name: 'torton', owner_id: 'me', icon_url: null, banner_url: bannerUrl, created_at: '2026-01-01T00:00:00Z',
+      channels: [], categories: [],
+    });
+    const png = () => new File([new Uint8Array([137, 80, 78, 71])], 'banner.png', { type: 'image/png' });
+    const bannerCalls = () => fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/servers/s1/banner'));
+    const cell = () => within(screen.getByRole('region', { name: 'Banner' }));
+
+    it('CA1: se sube apenas se elige y muestra el que devuelve la API', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+        String(input).endsWith('/banner') && init?.method === 'PUT' ? json(rawServer(NEW_BANNER)) : json([])
+      );
+      renderSettings();
+      expect(cell().getByText('sin banner')).toBeTruthy();
+
+      fireEvent.change(cell().getByLabelText('_cambiar banner'), { target: { files: [png()] } });
+
+      await waitFor(() => expect(cell().getByRole('img', { name: 'Banner de torton' }).getAttribute('src')).toBe(NEW_BANNER));
+      const [, init] = bannerCalls()[0];
+      expect(init.method).toBe('PUT');
+      expect(((init.body as FormData).get('banner') as File).name).toBe('banner.png');
+    });
+
+    it('_quitar banner lo borra', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+        String(input).endsWith('/banner') && init?.method === 'DELETE' ? json(rawServer(null)) : json([])
+      );
+      renderSettings({ server: { ...server, banner: 'https://x/viejo.webp' } });
+
+      fireEvent.click(cell().getByRole('button', { name: '_quitar banner' }));
+
+      await waitFor(() => expect(cell().getByText('sin banner')).toBeTruthy());
+      expect(bannerCalls()[0][1].method).toBe('DELETE');
+    });
+
+    it('CA3: una imagen que el backend rechaza (400) muestra el error y deja el banner como estaba', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) =>
+        String(input).endsWith('/banner') ? json({ detail: 'Unsupported format. Use JPEG, PNG or WebP.' }, 400) : json([])
+      );
+      renderSettings({ server: { ...server, banner: 'https://x/viejo.webp' } });
+
+      fireEvent.change(cell().getByLabelText('_cambiar banner'), { target: { files: [png()] } });
+
+      expect((await cell().findByRole('alert')).textContent).toBe(
+        '/ La imagen no es válida: usá JPEG, PNG o WebP de hasta 5 MB y 4096×4096 px.'
+      );
+      expect(cell().getByRole('img', { name: 'Banner de torton' }).getAttribute('src')).toBe('https://x/viejo.webp');
+    });
+
+    it('CA3: un archivo de más de 5 MB no se manda', () => {
+      renderSettings();
+      const big = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' });
+
+      fireEvent.change(cell().getByLabelText('_cambiar banner'), { target: { files: [big] } });
+
+      expect(cell().getByRole('alert')).toBeTruthy();
+      expect(bannerCalls()).toHaveLength(0);
+    });
+
+    it('CA2: sin permiso (403), lo dice', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) =>
+        String(input).endsWith('/banner') ? json({ detail: 'Missing required permission: MANAGE_SERVER' }, 403) : json([])
+      );
+      renderSettings({ server: { ...server, ownerId: 'otra', myPermissions: ['MANAGE_SERVER'] } });
+
+      fireEvent.change(cell().getByLabelText('_cambiar banner'), { target: { files: [png()] } });
+
+      expect((await cell().findByRole('alert')).textContent).toBe('/ Necesitás el permiso Gestionar servidor para cambiar el banner.');
+    });
   });
 
   describe('RESUMEN: ícono', () => {
@@ -291,5 +458,27 @@ describe('ServerSettingsScreen (rediseño)', () => {
     const transferCall = fetchMock.mock.calls.find(([u, i]) => String(u).includes('/transfers') && i?.method === 'POST')!;
     expect(String(transferCall[0])).toBe('http://localhost:8000/api/v1/servers/s1/transfers');
     expect(JSON.parse(transferCall[1].body)).toEqual({ target_user_id: 'u2' });
+  });
+
+  describe('Eliminar servidor', () => {
+    it('CA 1: owner ve la opción Eliminar en el menú lateral y al tocarla llama a onDeleteServer', () => {
+      const { onDeleteServer } = renderSettings({ server: { ...server, ownerId: 'me' } });
+
+      const deleteBtn = screen.getByRole('button', { name: 'Eliminar' });
+      expect(deleteBtn).toBeTruthy();
+      fireEvent.click(deleteBtn);
+      expect(onDeleteServer).toHaveBeenCalledTimes(1);
+    });
+
+    it('CA 2: usuario no owner no ve la opción Eliminar (ve Abandonar)', () => {
+      const { onLeaveServer } = renderSettings({ server: { ...server, ownerId: 'other-user' } });
+
+      expect(screen.queryByRole('button', { name: 'Eliminar' })).toBeNull();
+
+      const leaveBtn = screen.getByRole('button', { name: 'Abandonar' });
+      expect(leaveBtn).toBeTruthy();
+      fireEvent.click(leaveBtn);
+      expect(onLeaveServer).toHaveBeenCalledTimes(1);
+    });
   });
 });

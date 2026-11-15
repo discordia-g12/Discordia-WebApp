@@ -17,13 +17,23 @@ interface ServerStripProps {
    * etiqueta flotante (en táctil aparecería al tocar y quedaría colgada): el nombre está en el encabezado.
    */
   orientation?: 'vertical' | 'horizontal';
+  /** El staff suspendió el servidor: sigue en la lista, con un cartel rojo "suspended" (ADR-002 de Server-Roles). */
+  suspended?: boolean;
 }
 
 /**
  * Servidor en el rail: una franja rectangular con su imagen. Al pasar el mouse (o con foco) se despliega
  * la etiqueta negra con el nombre y la actividad.
  */
-export function ServerStrip({ server, active = false, unread, badge, onPress, orientation = 'vertical' }: ServerStripProps) {
+export function ServerStrip({
+  server,
+  active = false,
+  unread,
+  badge,
+  onPress,
+  orientation = 'vertical',
+  suspended = false,
+}: ServerStripProps) {
   const horizontal = orientation === 'horizontal';
   // Posición de la etiqueta (fixed): el rail scrollea y una etiqueta absoluta quedaría recortada
   const [open, setOpen] = useState<{ top: number; left: number } | null>(null);
@@ -35,29 +45,41 @@ export function ServerStrip({ server, active = false, unread, badge, onPress, or
     if (rect) setOpen({ top: rect.top, left: rect.right });
   };
   const image = server.banner || server.iconUrl || server.icon;
-  const activity = typeof unread === 'string' ? unread : unread ? 'Actividad nueva' : null;
+  // Suspendido no tiene actividad: no se puede leer ni escribir
+  const activity = suspended ? null : typeof unread === 'string' ? unread : unread ? 'Actividad nueva' : null;
+  const ariaLabel = suspended
+    ? `Servidor ${server.name}, suspendido`
+    : activity
+      ? `Servidor ${server.name}, ${activity.toLowerCase()}`
+      : `Servidor ${server.name}`;
 
   return (
     <div
       ref={rootRef}
-      className={`${styles.root} ${active ? styles.active : ''} ${horizontal ? styles.horizontal : ''}`}
+      className={`${styles.root} ${active ? styles.active : ''} ${horizontal ? styles.horizontal : ''} ${suspended ? styles.suspended : ''}`}
       onMouseEnter={() => show()}
       onMouseLeave={() => setOpen(null)}
     >
       <button
         type="button"
         className={styles.strip}
-        aria-label={activity ? `Servidor ${server.name}, ${activity.toLowerCase()}` : `Servidor ${server.name}`}
+        aria-label={ariaLabel}
         aria-current={active ? 'true' : undefined}
         onClick={onPress}
         onFocus={() => show()}
         onBlur={() => setOpen(null)}
       >
         {image ? <img src={image} alt="" className={styles.image} /> : <span className={styles.placeholder} aria-hidden="true">{server.name.slice(0, 2)}</span>}
-        {unread && (
-          <span className={styles.unread} data-testid="server-unread" aria-hidden="true">
-            {badge}
+        {suspended ? (
+          <span className={styles.suspendedTag} data-testid="server-suspended" aria-hidden="true">
+            suspended
           </span>
+        ) : (
+          unread && (
+            <span className={styles.unread} data-testid="server-unread" aria-hidden="true">
+              {badge}
+            </span>
+          )
         )}
       </button>
       <AnimatePresence>
@@ -73,6 +95,7 @@ export function ServerStrip({ server, active = false, unread, badge, onPress, or
             transition={reduce ? transitions.reduced : transitions.fast}
           >
             <span className={styles.name}>: {server.name}</span>
+            {suspended && <span className={`${styles.activity} ${styles.suspendedActivity}`}>Suspendido</span>}
             {activity && <span className={styles.activity}>{activity}</span>}
           </motion.div>
         )}

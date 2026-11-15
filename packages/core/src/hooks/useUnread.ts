@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '../auth/session';
+import { isConversationId } from '../api/conversations';
 import { getUnread, markAllRead, markChannelRead, type ChannelUnread } from '../api/readStates';
-import type { Channel, Server } from '../types';
+import type { Channel, Conversation, Server } from '../types';
+import { conversationsQueryKey } from './inboxCache';
 
 /** Cada cuánto se vuelven a pedir los no leídos. El chat abierto no depende de esto (lo marca al momento). */
 export const UNREAD_POLL_MS = 30_000;
@@ -63,7 +65,8 @@ export function applyUnread(
 }
 
 /**
- * Marca un canal como leído. Optimista: el canal sale de los no leídos al momento y vuelve si falla.
+ * Marca un canal o una conversación como leídos. Optimista: sale de los no leídos al momento y vuelve si
+ * falla. Los no leídos de una conversación están en la lista de conversaciones, no en /unread.
  */
 export function useMarkChannelReadMutation() {
   const queryClient = useQueryClient();
@@ -75,10 +78,20 @@ export function useMarkChannelReadMutation() {
       await queryClient.cancelQueries({ queryKey: unreadQueryKey });
       const previous = queryClient.getQueryData<ChannelUnread[]>(unreadQueryKey);
       queryClient.setQueryData<ChannelUnread[]>(unreadQueryKey, (old) => old?.filter((u) => u.channelId !== channelId));
-      return { previous };
+
+      const previousConversations = queryClient.getQueryData<Conversation[]>(conversationsQueryKey);
+      if (isConversationId(channelId)) {
+        queryClient.setQueryData<Conversation[]>(conversationsQueryKey, (old) =>
+          old?.map((c) => (c.id === channelId ? { ...c, unreadCount: 0 } : c))
+        );
+      }
+      return { previous, previousConversations };
     },
-    onError: (_error, _vars, context) => {
+    onError: (_error, { channelId }, context) => {
       queryClient.setQueryData(unreadQueryKey, context?.previous);
+      if (isConversationId(channelId)) {
+        queryClient.setQueryData(conversationsQueryKey, context?.previousConversations);
+      }
     },
   });
 }

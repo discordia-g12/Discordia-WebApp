@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, type ComponentRef } from 'react'
 import { Animated, KeyboardAvoidingView, Modal as RNModal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from 'lucide-react-native'
@@ -20,6 +20,9 @@ interface ModalProps {
   /** alertdialog: confirmaciones de acciones que no se pueden deshacer. */
   role?: 'dialog' | 'alertdialog'
   children: React.ReactNode
+  scrollRef?: React.RefObject<ComponentRef<typeof ScrollView> | null>
+  /** Encabezado fijo adicional bajo el título que no scrollea con el contenido. */
+  pinnedHeader?: React.ReactNode
 }
 
 /**
@@ -27,7 +30,7 @@ interface ModalProps {
  * desde arriba como una cortina, con el título en display y el contenido debajo. Se cierra con la ×,
  * tocando afuera o con el botón atrás de Android; sale subiendo.
  */
-export function Modal({ visible, title, description, onClose, role = 'dialog', children }: ModalProps) {
+export function Modal({ visible, title, description, onClose, role = 'dialog', children, scrollRef, pinnedHeader }: ModalProps) {
   const styles = useStyles()
   const { colors } = useTheme()
   const reduce = useReducedMotion()
@@ -45,8 +48,8 @@ export function Modal({ visible, title, description, onClose, role = 'dialog', c
       easing: easing(visible ? 'enter' : 'exit'),
       useNativeDriver,
     })
-    animation.start(({ finished }) => {
-      if (finished && !visible) setMounted(false)
+    animation.start(() => {
+      if (!visible) setMounted(false)
     })
     return () => animation.stop()
   }, [visible, reduce, progress])
@@ -60,13 +63,13 @@ export function Modal({ visible, title, description, onClose, role = 'dialog', c
 
   return (
     <RNModal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
-      <Animated.View style={[styles.scrim, { opacity: progress }]}>
+      <Animated.View style={[styles.scrim, { opacity: progress }]} pointerEvents={visible ? 'auto' : 'none'}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Cerrar" accessibilityRole="button" />
       </Animated.View>
-      <KeyboardAvoidingView behavior={keyboardAvoidingBehavior} pointerEvents="box-none" style={styles.layer}>
+      <KeyboardAvoidingView behavior={keyboardAvoidingBehavior} pointerEvents={visible ? 'box-none' : 'none'} style={styles.layer}>
         <Animated.View
           style={[styles.panel, { paddingTop: insets.top, maxHeight: height * 0.9 }, panelMotion]}
-          accessibilityViewIsModal
+          accessibilityViewIsModal={visible}
           accessibilityRole={role === 'alertdialog' ? 'alert' : undefined}
           accessibilityLabel={title}
         >
@@ -87,7 +90,8 @@ export function Modal({ visible, title, description, onClose, role = 'dialog', c
               <X color={colors.text} size={22} strokeWidth={1.5} />
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" bounces={false}>
+          {pinnedHeader}
+          <ScrollView ref={scrollRef} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" bounces={false}>
             {children}
           </ScrollView>
         </Animated.View>

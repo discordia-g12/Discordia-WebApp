@@ -1,9 +1,8 @@
 import { useMemo, type ReactNode } from 'react';
-import { useChannelMessagesQuery, useSession, useUserProfiles } from '@discordia/core';
+import { useChannelMessagesQuery, useConversationsQuery, useSession, useUserProfiles } from '@discordia/core';
 import type { User } from '../types';
 import { useUIStore } from './uiStore';
 import { useCurrentUser } from '../features/profile/currentUserStore';
-import { useDmStore } from '../features/friends/dmStore';
 import { useVoice } from '../features/voice/voiceContext';
 import { UsersContext } from './usersContext';
 import { placeholderUser, useServerMemberUsers } from '../features/servers/useCurrentServer';
@@ -17,7 +16,8 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   const linkedUserId = useSession((s) => s.profile?.user_id);
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
-  const directMessages = useDmStore((s) => s.directMessages);
+  const selectedDm = useUIStore((s) => s.selectedDm);
+  const { data: conversations } = useConversationsQuery();
   const memberUsers = useServerMemberUsers();
   const { room, presence } = useVoice();
   const { data: realMessages } = useChannelMessagesQuery(selectedServerId !== 'home' ? selectedChannelId : null);
@@ -25,7 +25,8 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   const fetchedUsers = useUserProfiles(
     [
       ...memberUsers.map((u) => u.id),
-      ...directMessages.map((dm) => dm.recipientId || dm.userId || ''),
+      ...(conversations ?? []).map((conversation) => conversation.otherUserId),
+      ...(selectedDm?.type === 'chat' ? [selectedDm.userId] : []),
       ...(realMessages ?? []).map((msg) => msg.authorId),
       ...room.participants.map((p) => p.id),
       ...Object.values(presence).flat(),

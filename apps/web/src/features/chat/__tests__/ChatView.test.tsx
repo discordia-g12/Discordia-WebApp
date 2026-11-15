@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
+import { useUIStore } from '../../../app/uiStore';
+import { dmActions, dmHeaderActions } from '@discordia/core';
 import { ChatView } from '../ChatView';
-import type { Channel, DirectMessage, Message, User } from '../../../types';
+import type { Channel, Message, User } from '../../../types';
 
 const users: Record<string, User> = {
   me: { id: 'me', username: 'mar', displayName: 'Mar', status: 'online' } as User,
@@ -24,9 +26,30 @@ const MESSAGES = [
 ];
 
 describe('ChatView (rediseño)', () => {
-  beforeEach(() => {
-    // jsdom no implementa scroll: el chat baja al último mensaje con scrollIntoView
-    Element.prototype.scrollIntoView = vi.fn();
+  it('queda abajo mientras se está abajo, se suelta al subir a leer y vuelve abajo al enviar', () => {
+    const { rerender } = render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" />);
+    // jsdom no calcula alturas: un historial de 1000 px en una ventana de 400
+    const log = screen.getByRole('log');
+    let top = 0;
+    Object.defineProperty(log, 'scrollHeight', { configurable: true, get: () => 1000 });
+    Object.defineProperty(log, 'clientHeight', { configurable: true, get: () => 400 });
+    Object.defineProperty(log, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => (top = v) });
+    const withMessage = (m: Message) => (
+      <ChatView channel={channel} messages={[...MESSAGES, m]} users={users} currentUserId="me" />
+    );
+
+    rerender(withMessage(msg('m4', 'u2', 'llegó uno', '2025-10-21T17:00:00')));
+    expect(top).toBe(1000);
+
+    // Sube a leer: lo que llega de otros no lo mueve
+    top = 200;
+    fireEvent.scroll(log);
+    rerender(withMessage(msg('m5', 'u2', 'otro más', '2025-10-21T17:01:00')));
+    expect(top).toBe(200);
+
+    // Lo que envía uno mismo sí baja
+    rerender(withMessage(msg('m6', 'me', 'respondo', '2025-10-21T17:02:00')));
+    expect(top).toBe(1000);
   });
 
   it('muestra los mensajes con autor, fecha y separadores por día', () => {
@@ -134,32 +157,168 @@ describe('ChatView (rediseño)', () => {
     expect(onEditMessage).toHaveBeenCalledWith('m2', 'chat no llego (editado)');
   });
 
-  it('los enlaces del encabezado alternan la lista de miembros y los fijados', () => {
+  it('el autor y los moderadores con permiso pueden eliminar mensajes con confirmación previa', () => {
+    const onDeleteMessage = vi.fn();
+    const { rerender } = render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onDeleteMessage={onDeleteMessage} />
+    );
+
+    const mine = screen.getByText('chat no llego').closest('li')!;
+    const others = screen.getByText('m!skip').closest('li')!;
+
+    // 1. El autor ve _eliminar en su mensaje
+    const deleteBtn = within(mine).getByRole('button', { name: '_eliminar' });
+    expect(deleteBtn).toBeTruthy();
+
+    // 2. Un usuario común no ve _eliminar en mensajes ajenos
+    expect(within(others).queryByRole('button', { name: '_eliminar' })).toBeNull();
+
+    // 3. Al clickear _eliminar se abre el diálogo de confirmación
+    fireEvent.click(deleteBtn);
+    const confirmState = useUIStore.getState().confirm;
+    expect(confirmState.action).toBe('delete-message');
+
+    // Confirmar ejecuta onDeleteMessage con el id del mensaje
+    confirmState.onConfirm?.();
+    expect(onDeleteMessage).toHaveBeenCalledWith('m2');
+
+    // 4. Si el usuario tiene canManageMessages, puede eliminar mensajes ajenos
+    rerender(
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        canManageMessages
+        onDeleteMessage={onDeleteMessage}
+      />
+    );
+    const othersModerated = screen.getByText('m!skip').closest('li')!;
+    expect(within(othersModerated).getByRole('button', { name: '_eliminar' })).toBeTruthy();
+  });
+
+  it('muestra el tombstone de mensaje eliminado sin botones de acción', () => {
+    const deletedMessages = [
+      ...MESSAGES,
+      msg('m4', 'u2', '', '2025-10-21T17:30:00', { type: 'deleted' }),
+    ];
+    render(<ChatView channel={channel} messages={deletedMessages} users={users} currentUserId="me" />);
+
+    const tombstone = screen.getByText('/ este mensaje fue eliminado');
+    expect(tombstone).toBeTruthy();
+
+    const row = tombstone.closest('li')!;
+    expect(within(row).queryByRole('button', { name: '_editar' })).toBeNull();
+    expect(within(row).queryByRole('button', { name: '_eliminar' })).toBeNull();
+    expect(within(row).queryByRole('button', { name: '_responder' })).toBeNull();
+  });
+
+  it('si el primer mensaje de un usuario fue eliminado, los siguientes mensajes suyos muestran su autor y avatar', () => {
+    const list = [
+      msg('m1', 'u2', 'hola de u2', '2025-10-21T17:00:00'),
+      msg('m2', 'me', '', '2025-10-21T17:01:00', { type: 'deleted' }),
+      msg('m3', 'me', 'segundo mensaje mio', '2025-10-21T17:02:00'),
+    ];
+    render(<ChatView channel={channel} messages={list} users={users} currentUserId="me" />);
+
+    const row3 = screen.getByText('segundo mensaje mio').closest('li')!;
+    expect(within(row3).getByText('Mar')).toBeTruthy();
+    expect(within(row3).getByLabelText('Ver perfil de Mar')).toBeTruthy();
+  });
+
+  it('los íconos del encabezado alternan la lista de miembros, los fijados y las notificaciones', () => {
     const onToggleMemberList = vi.fn();
     render(
       <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" isMemberListOpen onToggleMemberList={onToggleMemberList} />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'ocultar lista de miembros' }));
+    const members = screen.getByRole('button', { name: 'Lista de miembros' });
+    expect(members.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(members);
     expect(onToggleMemberList).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByRole('button', { name: 'mensajes fijados' }));
+    const pins = screen.getByRole('button', { name: 'Mensajes fijados' });
+    fireEvent.click(pins);
+    expect(pins.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('dialog', { name: 'Mensajes fijados' }).textContent).toContain('todavía no hay mensajes fijados');
+
+    const bell = screen.getByRole('button', { name: 'Silenciar notificaciones' });
+    fireEvent.click(bell);
+    expect(bell.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('en un DM el encabezado tiene _perfil, _llamar y videollamada, sin lista de miembros', () => {
+  it('en un DM el encabezado tiene íconos (dmHeaderActions) y el menú "más", sin lista de miembros', () => {
     const onOpenUserProfile = vi.fn();
-    const onStartVoiceCall = vi.fn();
-    const dm = { id: 'd1', recipientId: 'u2', recipient: users.u2 } as DirectMessage;
+    const onAction = vi.fn();
+    const actions = dmActions({ relationship: 'friend', conversation: { id: 'dm-1', status: 'accepted', requestedBy: 'u2', otherUserId: 'u2', unreadCount: 0 } });
     render(
-      <ChatView directMessage={dm} messages={[]} users={users} currentUserId="me" onOpenUserProfile={onOpenUserProfile} onStartVoiceCall={onStartVoiceCall} onToggleMemberList={vi.fn()} />
+      <ChatView
+        directChat={{ conversationId: 'dm-1', user: { ...users.u2, status: 'online' } }}
+        directHeader={{
+          layout: (pinned) => dmHeaderActions({ name: 'lbars', actions, hasConversation: true, pinned }),
+          onAction,
+        }}
+        messages={[]}
+        users={users}
+        currentUserId="me"
+        onOpenUserProfile={onOpenUserProfile}
+        onToggleMemberList={vi.fn()}
+      />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'perfil' }));
-    fireEvent.click(screen.getByRole('button', { name: 'llamar' }));
+    const header = within(screen.getByRole('navigation', { name: 'Acciones del chat' }));
+    expect(screen.getByText('Conectado/')).toBeTruthy();
+
+    // Perfil y fijados los resuelve la vista; el resto va a onAction
+    fireEvent.click(header.getByRole('button', { name: 'Ver el perfil de lbars' }));
     expect(onOpenUserProfile).toHaveBeenCalledWith('u2');
-    expect(onStartVoiceCall).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('button', { name: /lista de miembros/ })).toBeNull();
+    fireEvent.click(header.getByRole('button', { name: 'Mensajes fijados' }));
+    expect(screen.getByRole('dialog', { name: 'Mensajes fijados' })).toBeTruthy();
+    fireEvent.click(header.getByRole('button', { name: 'Llamar a lbars' }));
+    expect(onAction).toHaveBeenCalledWith('call');
+
+    // Las destructivas, en el menú "más"
+    expect(header.queryByRole('button', { name: 'Bloquear a lbars' })).toBeNull();
+    fireEvent.click(header.getByRole('button', { name: 'Más opciones' }));
+    const menu = screen.getByRole('menu', { name: 'Más opciones' });
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Eliminar amigo', 'Bloquear a lbars']);
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Bloquear a lbars' }));
+    expect(onAction).toHaveBeenCalledWith('block');
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    expect(header.queryByRole('button', { name: /lista de miembros/i })).toBeNull();
+    expect(screen.getByPlaceholderText('Enviar mensaje a @lbars')).toBeTruthy();
+  });
+
+  it('el menú "más" se maneja con el teclado y se cierra con Escape', () => {
+    const actions = dmActions({ relationship: 'friend', conversation: { id: 'dm-1', status: 'accepted', requestedBy: 'u2', otherUserId: 'u2', unreadCount: 0 } });
+    render(
+      <ChatView
+        directChat={{ conversationId: 'dm-1', user: users.u2 }}
+        directHeader={{ layout: () => dmHeaderActions({ name: 'lbars', actions, hasConversation: true }), onAction: vi.fn() }}
+        messages={[]}
+        users={users}
+        currentUserId="me"
+      />
+    );
+
+    const more = screen.getByRole('button', { name: 'Más opciones' });
+    fireEvent.click(more);
+    const items = screen.getAllByRole('menuitem');
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(items[0], { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[1]);
+    fireEvent.keyDown(items[1], { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(items[0], { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(more);
+  });
+
+  it('en un chat sin conversación no ofrece adjuntar: el primer mensaje es solo texto', () => {
+    render(<ChatView directChat={{ conversationId: null, user: users.u2 }} messages={[]} users={users} currentUserId="me" />);
+
+    expect(screen.queryByRole('button', { name: 'Adjuntar archivo' })).toBeNull();
     expect(screen.getByPlaceholderText('Enviar mensaje a @lbars')).toBeTruthy();
   });
 
@@ -167,5 +326,154 @@ describe('ChatView (rediseño)', () => {
     render(<ChatView channel={channel} messages={[]} users={users} currentUserId="me" isLoading />);
 
     expect(screen.getByRole('status', { name: 'Cargando mensajes' })).toBeTruthy();
+  });
+
+  it('con canAddReactions muestra los 4 emojis rápidos y reaccionar en las herramientas del mensaje', () => {
+    const onToggleReaction = vi.fn();
+    render(
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        canAddReactions
+        onToggleReaction={onToggleReaction}
+      />
+    );
+
+    const firstMsg = screen.getByText('m!skip').closest('li')!;
+    expect(within(firstMsg).getByRole('button', { name: 'Reaccionar con 👍' })).toBeTruthy();
+    expect(within(firstMsg).getByRole('button', { name: 'Reaccionar con ❤️' })).toBeTruthy();
+    expect(within(firstMsg).getByRole('button', { name: 'Reaccionar con 😂' })).toBeTruthy();
+    expect(within(firstMsg).getByRole('button', { name: 'Reaccionar con 🔥' })).toBeTruthy();
+    expect(within(firstMsg).getByRole('button', { name: '_reaccionar' })).toBeTruthy();
+
+    fireEvent.click(within(firstMsg).getByRole('button', { name: 'Reaccionar con 🔥' }));
+    expect(onToggleReaction).toHaveBeenCalledWith('m1', '🔥');
+  });
+
+  it('sin permiso canAddReactions no muestra emojis rápidos ni botón reaccionar', () => {
+    const onToggleReaction = vi.fn();
+    render(
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        canAddReactions={false}
+        onToggleReaction={onToggleReaction}
+      />
+    );
+
+    const firstMsg = screen.getByText('m!skip').closest('li')!;
+    expect(within(firstMsg).queryByRole('button', { name: 'Reaccionar con 👍' })).toBeNull();
+    expect(within(firstMsg).queryByRole('button', { name: 'Reaccionar con 🔥' })).toBeNull();
+    expect(within(firstMsg).queryByRole('button', { name: '_reaccionar' })).toBeNull();
+  });
+
+  it('permite abrir el selector de emojis categorizado y seleccionar uno', () => {
+    const onToggleReaction = vi.fn();
+    render(
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        canAddReactions
+        onToggleReaction={onToggleReaction}
+      />
+    );
+
+    const firstMsg = screen.getByText('m!skip').closest('li')!;
+    fireEvent.click(within(firstMsg).getByRole('button', { name: '_reaccionar' }));
+
+    expect(screen.getByText('Frecuentes / Populares')).toBeTruthy();
+    expect(screen.getByText('Caritas y Emociones')).toBeTruthy();
+    expect(screen.getByText(/Próximamente: emojis personalizados/)).toBeTruthy();
+
+    const popover = screen.getByRole('dialog', { name: 'Reacciones' });
+    const emojiBtn = within(popover).getAllByRole('button', { name: '🚀' })[0];
+    fireEvent.click(emojiBtn);
+    expect(onToggleReaction).toHaveBeenCalledWith('m1', '🚀');
+  });
+
+  it('cierra el popover al hacer clic afuera', () => {
+    render(
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        canAddReactions
+      />
+    );
+
+    const firstMsg = screen.getByText('m!skip').closest('li')!;
+    fireEvent.click(within(firstMsg).getByRole('button', { name: '_reaccionar' }));
+    expect(screen.getByRole('dialog', { name: 'Reacciones' })).toBeTruthy();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('dialog', { name: 'Reacciones' })).toBeNull();
+
+    // También con el selector de emojis del composer
+    fireEvent.click(screen.getByRole('button', { name: 'Emojis' }));
+    expect(screen.getByRole('dialog', { name: 'Emojis' })).toBeTruthy();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('dialog', { name: 'Emojis' })).toBeNull();
+  });
+
+  it('abrir un selector cierra cualquier otro popover abierto y el del composer se alinea a la derecha', () => {
+    render(
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        canAddReactions
+      />
+    );
+
+    const firstMsg = screen.getByText('m!skip').closest('li')!;
+    fireEvent.click(within(firstMsg).getByRole('button', { name: '_reaccionar' }));
+    expect(screen.getByRole('dialog', { name: 'Reacciones' })).toBeTruthy();
+
+    // Al abrir el picker del composer, se cierra el de reacciones
+    const smileBtn = screen.getByRole('button', { name: 'Emojis' });
+    fireEvent.click(smileBtn);
+    expect(screen.queryByRole('dialog', { name: 'Reacciones' })).toBeNull();
+    const composerPopover = screen.getByRole('dialog', { name: 'Emojis' });
+    expect(composerPopover).toBeTruthy();
+    expect(composerPopover.className).toContain('composerEmojiPopover');
+
+    // Al volver a abrir reacciones, se cierra el del composer
+    fireEvent.click(within(firstMsg).getByRole('button', { name: '_reaccionar' }));
+    expect(screen.queryByRole('dialog', { name: 'Emojis' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Reacciones' })).toBeTruthy();
+  });
+
+  it('muestra la barra de navegación de categorías y permite navegar directamente', () => {
+    render(
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        canAddReactions
+      />
+    );
+
+    const firstMsg = screen.getByText('m!skip').closest('li')!;
+    fireEvent.click(within(firstMsg).getByRole('button', { name: '_reaccionar' }));
+
+    const nav = screen.getByLabelText('Categorías de emojis');
+    expect(nav).toBeTruthy();
+
+    const catBtn = within(nav).getByRole('button', { name: 'Caritas y Emociones' });
+    expect(catBtn).toBeTruthy();
+    expect(catBtn.textContent).toBe('😀');
+
+    fireEvent.click(catBtn);
+    expect(screen.getByText('Caritas y Emociones')).toBeTruthy();
   });
 });

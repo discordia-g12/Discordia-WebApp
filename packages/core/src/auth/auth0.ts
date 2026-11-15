@@ -1,6 +1,6 @@
 import type { AuthUser } from './adapter';
 import { getAuthConfig } from './config';
-import { SignupConflictError, toAuthDenialError } from './errors';
+import { AuthNetworkError, SignupConflictError, toAuthDenialError } from './errors';
 
 /**
  * Authentication API de Auth0 (login con usuario y contraseña, y registro), igual en web y mobile:
@@ -26,6 +26,19 @@ export function roleFromAccessToken(token: unknown): string {
 export function subFromAccessToken(token: unknown): string {
   const sub = decodeJwtPayload(token)?.sub;
   return typeof sub === 'string' && sub ? sub : '';
+}
+
+/** fetch a la Authentication API de Auth0. Un fallo de red o de CORS sale como AuthNetworkError. */
+async function auth0Fetch(url: string, body: unknown): Promise<Response> {
+  try {
+    return await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new AuthNetworkError();
+  }
 }
 
 export interface PasswordLoginResult {
@@ -66,18 +79,14 @@ export function decodeJwtPayload(token: unknown): Record<string, unknown> | null
  */
 export async function passwordRealmLogin(credentials: { email: string; password: string }): Promise<PasswordLoginResult> {
   const { domain, clientId, audience, connection } = getAuthConfig();
-  const res = await fetch(`https://${domain}/oauth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'http://auth0.com/oauth/grant-type/password-realm',
-      client_id: clientId,
-      username: credentials.email,
-      password: credentials.password,
-      realm: connection,
-      audience,
-      scope: 'openid profile email',
-    }),
+  const res = await auth0Fetch(`https://${domain}/oauth/token`, {
+    grant_type: 'http://auth0.com/oauth/grant-type/password-realm',
+    client_id: clientId,
+    username: credentials.email,
+    password: credentials.password,
+    realm: connection,
+    audience,
+    scope: 'openid profile email',
   });
 
   const data = await res.json();
@@ -130,21 +139,17 @@ export async function passwordRealmLogin(credentials: { email: string; password:
  */
 export async function databaseSignup(signupData: SignupData): Promise<void> {
   const { domain, clientId, connection } = getAuthConfig();
-  const res = await fetch(`https://${domain}/dbconnections/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: clientId,
-      email: signupData.email,
-      password: signupData.password,
-      connection,
+  const res = await auth0Fetch(`https://${domain}/dbconnections/signup`, {
+    client_id: clientId,
+    email: signupData.email,
+    password: signupData.password,
+    connection,
+    username: signupData.username,
+    // La Action devuelve el username en el ID token tras verificar el email
+    user_metadata: {
+      name: signupData.displayName || signupData.username,
       username: signupData.username,
-      // La Action devuelve el username en el ID token tras verificar el email
-      user_metadata: {
-        name: signupData.displayName || signupData.username,
-        username: signupData.username,
-      },
-    }),
+    },
   });
 
   const data = await res.json();

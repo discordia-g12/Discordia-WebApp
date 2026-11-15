@@ -26,6 +26,11 @@ export * from './api/attachments';
 export * from './api/readStates';
 export * from './api/voice';
 export * from './api/twoFactor';
+export * from './api/friends';
+export * from './api/blocks';
+export * from './api/conversations';
+export * from './api/presence';
+export * from './api/calls';
 
 // Hooks de React (React Query y perfiles), los mismos en web y mobile
 export * from './hooks/useApi';
@@ -33,21 +38,47 @@ export * from './hooks/messageCache';
 export * from './hooks/useUnread';
 export * from './hooks/useUserProfiles';
 export * from './hooks/useChatSocket';
+export * from './hooks/inboxCache';
+export * from './hooks/useFriends';
+export * from './hooks/useConversations';
+export * from './hooks/useInbox';
 
 // Ajustes del servidor: roles, miembros y baneos (estado y reglas compartidos)
 export * from './admin/permissions';
 export * from './admin/roles';
 export * from './admin/members';
+export * from './audit';
 
 // Backoffice de staff: estado de la plataforma (health checks agregados por el backend)
 export * from './admin/platformStatus';
+export * from './admin/incidents';
+export * from './admin/platformMetrics';
+// Backoffice de staff: suspender y reactivar cuentas (Auth-User, ADR-002)
+export * from './admin/userSuspensions';
+export * from './admin/serverSuspensions';
+export * from './api/serverMetrics';
 
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';
 export * from './chat/mentions';
+export * from './chat/emojis';
 export * from './realtime/chatSocket';
+export * from './realtime/inboxSocket';
+export * from './realtime/callEvents';
+
+// Mensajes directos: las reglas de producto, iguales en web y mobile
+export * from './dm/inboxList';
+export * from './dm/headerActions';
+export * from './dm/actions';
+export * from './dm/errors';
+export * from './dm/friendRequestJoke';
 
 // Voz: la sala y la presencia son las mismas en web y mobile; cada app registra su VoicePlatform
 export * from './voice/platform';
 export * from './hooks/useVoiceRoom';
 export * from './hooks/useVoicePresence';
+
+// Llamadas privadas 1 a 1: la máquina, los textos y el hook que une API, inbox y sala
+export * from './calls/machine';
+export * from './calls/messages';
+export * from './hooks/usePrivateCall';

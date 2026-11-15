@@ -7,6 +7,12 @@
   color: var(--color-text);
 }
 
+/* Con el aviso de incidentes abierto (IncidentBanner, 2rem), la pantalla baja para no quedar tapada */
+:global(body:has([data-incident-banner])) .shell {
+  height: calc(100dvh - 2rem);
+  margin-top: 2rem;
+}
+
 /* ── Tira de servidores (arriba) ── */
 
 .strips {
@@ -163,7 +169,12 @@
 
 /* ── Mensajes ── */
 
+/* Con muchas conversaciones la lista se desliza sola y Amigos sigue a la vista */
 .dmSlot {
+  display: flex;
+  flex-direction: column;
+  max-height: 50%;
+  min-height: 0;
   border-bottom: var(--line-hairline) solid var(--color-line-strong);
 }
 

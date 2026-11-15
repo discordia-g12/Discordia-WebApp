@@ -4,9 +4,9 @@ import { AuthView } from './features/auth/AuthView';
 import { DawnIntro } from './features/auth/DawnIntro';
 import { useCurrentUserStore } from './features/profile/currentUserStore';
 import { VoiceProvider } from './features/voice/VoiceProvider';
+import { CallProvider } from './features/calls/CallProvider';
 import { ChatConnectionProvider } from './features/chat/ChatConnectionProvider';
 import { UsersProvider } from './app/UsersProvider';
-import { useUsers } from './app/usersContext';
 import { useUIStore } from './app/uiStore';
 import { useIsMobile } from './app/useIsMobile';
 import { DesktopLayout } from './app/DesktopLayout';
@@ -60,11 +60,13 @@ export default function App() {
     <>
       {intro}
       <VoiceProvider>
-        <ChatConnectionProvider>
-          <UsersProvider>
-            <AuthenticatedApp />
-          </UsersProvider>
-        </ChatConnectionProvider>
+        <CallProvider>
+          <ChatConnectionProvider>
+            <UsersProvider>
+              <AuthenticatedApp />
+            </UsersProvider>
+          </ChatConnectionProvider>
+        </CallProvider>
       </VoiceProvider>
     </>
   );
@@ -72,19 +74,7 @@ export default function App() {
 
 function AuthenticatedApp() {
   const isMobile = useIsMobile();
-  const { usersMap } = useUsers();
   useEnsureChannelSelected();
-
-  // Llamada entrante simulada para testing
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Simular llamada de Sofia después de 12 segundos
-      if (usersMap['u1']) {
-        useUIStore.getState().setIncomingCaller(usersMap['u1']);
-      }
-    }, 12000);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Shell móvil para pantallas menores a 768px
   return isMobile ? <MobileLayout /> : <DesktopLayout />;

@@ -1,13 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { makeStyles } from '../theme'
-import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink, keyboardAvoidingBehavior } from '../ui'
+import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink, Text, keyboardAvoidingBehavior } from '../ui'
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
-import * as ImagePicker from 'expo-image-picker'
 import ChatHeader from './chat/ChatHeader'
 import Composer, { type PendingAttachment } from './chat/Composer'
 import ConfirmModal from './shared/ConfirmModal'
@@ -16,7 +15,11 @@ import CreateChannelModal from './channels/CreateChannelModal'
 import CreateCategoryModal from './channels/CreateCategoryModal'
 import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
+import MessageActionsModal from './chat/MessageActionsModal'
+import EditMessageModal from './chat/EditMessageModal'
 import EditProfileModal from './profile/EditProfileModal'
+import PublicProfileModal from './profile/PublicProfileModal'
+import FriendsTab from './friends/FriendsTab'
 import Toast from './shared/Toast'
 import {
   SERVER_SETTINGS_SECTIONS,
@@ -27,6 +30,7 @@ import { UserSettingsScreen } from './settings/user/UserSettingsScreen'
 import VoiceScreen, { type VoiceScreenParticipant } from './voice/VoiceScreen'
 import VoiceParticipantActions, { type VoiceParticipantTarget } from './voice/VoiceParticipantActions'
 import { BottomTabs, type ShellTab } from './shell/BottomTabs'
+import { CallLayer, PrivateCallBar } from './calls/CallLayer'
 import { CallBar } from './shell/CallBar'
 import { ProfileTab } from './shell/ProfileTab'
 import { ServerMenu } from './shell/ServerMenu'
@@ -34,6 +38,9 @@ import { ServerTabsRow } from './shell/ServerTabsRow'
 import { Padded, Pane, Screen } from './shell/ShellScreen'
 import { useUserDisplay } from '../hooks/useUserProfiles'
 import { useAppActive } from '../hooks/useAppActive'
+import { useDmInbox } from '../hooks/useDmInbox'
+import { usePrivateCallSession } from '../hooks/usePrivateCallSession'
+import { usePickAttachment } from '../hooks/usePickAttachment'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
 import { isVoiceSupported } from '../utils/voice'
 import {
@@ -47,6 +54,7 @@ import {
   useChatSocket,
   useVoicePresence,
   useVoiceRoom,
+  canInChannel,
   canInServer,
   canSeeSettingsSection,
   isVoiceChannelLocked,
@@ -56,8 +64,9 @@ import {
   useMarkAllReadMutation,
   useMarkChannelReadMutation,
   useUnreadQuery,
-  validateAttachmentFile,
   uploadAttachment,
+  SUSPENDED_SERVER_MESSAGE,
+  SUSPENDED_SERVER_TITLE,
   type MessageAttachment,
 } from '@discordia/core'
 
@@ -94,17 +103,20 @@ export default function MobileShell() {
     messages,
     currentUserId,
     sendMessage,
+    deleteMessage,
     fetchChannelMessages,
     fetchOlderChannelMessages,
     hasOlderMessages,
     loadingOlderMessages,
     leaveServer,
     deleteServer,
+    removeServerLocally,
     reorderChannels,
     reorderCategories,
     addOptimisticMessage,
     confirmOptimisticMessage,
     failOptimisticMessage,
+    toggleReaction,
     refreshServers,
   } = useData()
   const { selectedServerId, selectedChannelId, selectChannel, selectServer, showToast } = useUI()
@@ -112,6 +124,79 @@ export default function MobileShell() {
   const [screen, setScreen] = useState<MobileScreen>('channels')
   const keyboardVisible = useKeyboardVisible()
   const appActive = useAppActive()
+  const pickAttachment = usePickAttachment()
+  // Pestaña Amigos: el usuario del chat abierto (null: las listas)
+  const [dmUserId, setDmUserId] = useState<string | null>(null)
+  // Perfil público abierto, desde cualquier pestaña
+  const [profileUserId, setProfileUserId] = useState<string | null>(null)
+  const notifiedDeletedServersRef = useRef(new Set<string>())
+  const activeServerIdRef = useRef<string | null>(null)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [draft, setDraft] = useState('')
+  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null)
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
+  const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
+  const [createServerMode, setCreateServerMode] = useState<'create' | 'join'>('create')
+  const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
+  const [createCategoryModalOpen, setCreateCategoryModalOpen] = useState(false)
+  // Modo ordenar canales y categorías (flechas subir/bajar)
+  const [reorderMode, setReorderMode] = useState(false)
+  // Un reorden por vez: cada pedido manda el orden completo y no deben pisarse
+  const reorderInFlight = useRef(false)
+  const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
+  // Ajustes del servidor abiertos, en qué sección (null: cerrados)
+  const [serverSettings, setServerSettings] = useState<ServerSettingsSection | null>(null)
+  const [deleteServerConfirmOpen, setDeleteServerConfirmOpen] = useState(false)
+  const [deleteMessageConfirm, setDeleteMessageConfirm] = useState<Message | null>(null)
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
+  const [leaveServerConfirmOpen, setLeaveServerConfirmOpen] = useState(false)
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [editChannelModalOpen, setEditChannelModalOpen] = useState(false)
+  const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
+  const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
+  const [editProfileOpen, setEditProfileOpen] = useState(false)
+  const [actionTargetMessage, setActionTargetMessage] = useState<Message | null>(null)
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
+  const [userSettingsOpen, setUserSettingsOpen] = useState(false)
+  // Canal de voz al que se quiere pasar estando conectado a otro (pide confirmación)
+  const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
+  // Participante sobre el que se mantuvo presionado (menú para silenciarlo solo para vos)
+  const [voiceActionTarget, setVoiceActionTarget] = useState<VoiceParticipantTarget | null>(null)
+
+  const clearDeletedServerUi = useCallback(
+    (deletedServerId: string, notify: boolean) => {
+      removeServerLocally(deletedServerId)
+      if (activeServerIdRef.current === deletedServerId) {
+        setServerSettings(null)
+        setDeleteServerConfirmOpen(false)
+        setLeaveServerConfirmOpen(false)
+        setInviteModalOpen(false)
+        setCreateChannelModalOpen(false)
+        setCreateCategoryModalOpen(false)
+        setEditChannelModalOpen(false)
+        setDeleteChannelModalOpen(false)
+        selectChannel(null)
+        setScreen('channels')
+        if (notify && !notifiedDeletedServersRef.current.has(deletedServerId)) {
+          notifiedDeletedServersRef.current.add(deletedServerId)
+          showToast(chatRemovalMessage('server-deleted'), 'error')
+        }
+      }
+    },
+    [removeServerLocally, selectChannel, showToast],
+  )
+
+  const inbox = useDmInbox({
+    activeUserId: tab === 'messages' ? dmUserId : null,
+    appActive,
+    onServerUpdated: () => {
+      refreshServers().catch(() => undefined)
+    },
+    onServerDeleted: deletedServerId => {
+      clearDeletedServerUi(deletedServerId, true)
+      refreshServers().catch(() => undefined)
+    },
+  })
 
   // No leídos de cada canal y servidor. El chat abierto no cuenta: ya se está leyendo
   const { data: unread } = useUnreadQuery()
@@ -130,38 +215,23 @@ export default function MobileShell() {
       showToast(voiceDisconnectMessage(reason), reason === 'duplicate' ? 'info' : 'error')
     },
   })
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  const [draft, setDraft] = useState('')
-  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null)
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
-  const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
-  const [createServerMode, setCreateServerMode] = useState<'create' | 'join'>('create')
-  const [createChannelModalOpen, setCreateChannelModalOpen] = useState(false)
-  const [createCategoryModalOpen, setCreateCategoryModalOpen] = useState(false)
-  // Modo ordenar canales y categorías (flechas subir/bajar)
-  const [reorderMode, setReorderMode] = useState(false)
-  // Un reorden por vez: cada pedido manda el orden completo y no deben pisarse
-  const reorderInFlight = useRef(false)
-  const [channelModalCategoryId, setChannelModalCategoryId] = useState<string | null>(null)
-  // Ajustes del servidor abiertos, en qué sección (null: cerrados)
-  const [serverSettings, setServerSettings] = useState<ServerSettingsSection | null>(null)
-  const [deleteServerConfirmOpen, setDeleteServerConfirmOpen] = useState(false)
-  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
-  const [leaveServerConfirmOpen, setLeaveServerConfirmOpen] = useState(false)
-  const [inviteModalOpen, setInviteModalOpen] = useState(false)
-  const [editChannelModalOpen, setEditChannelModalOpen] = useState(false)
-  const [deleteChannelModalOpen, setDeleteChannelModalOpen] = useState(false)
-  const [targetChannelForAction, setTargetChannelForAction] = useState<Channel | null>(null)
-  const [editProfileOpen, setEditProfileOpen] = useState(false)
-  const [userSettingsOpen, setUserSettingsOpen] = useState(false)
-  // Canal de voz al que se quiere pasar estando conectado a otro (pide confirmación)
-  const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
-  // Participante sobre el que se mantuvo presionado (menú para silenciarlo solo para vos)
-  const [voiceActionTarget, setVoiceActionTarget] = useState<VoiceParticipantTarget | null>(null)
+  // Llamada privada 1 a 1, con la misma sala: entrar a una cierra el canal de voz y al revés
+  const privateCall = usePrivateCallSession({ voice, enabled: appActive })
 
   const server = servers.find(s => s.id === selectedServerId) ?? servers[0]
+  activeServerIdRef.current = server?.id ?? null
   const allChannels: Channel[] = server ? server.categories.flatMap(c => c.channels) : []
   const channel = allChannels.find(c => c.id === selectedChannelId) ?? null
+
+  useEffect(() => {
+    if (!serversLoaded) return
+    if (selectedServerId && !servers.some(s => s.id === selectedServerId)) {
+      selectServer(servers[0]?.id ?? null)
+      selectChannel(null)
+      setServerSettings(null)
+      setScreen('channels')
+    }
+  }, [serversLoaded, servers, selectedServerId, selectServer, selectChannel])
   const channelMessages: Message[] = channel ? messages[channel.id] ?? [] : []
   // El propio usuario (llega con el perfil de la sesión)
   const me: User = users[currentUserId] ?? { id: currentUserId, username: 'usuario', displayName: 'Usuario', status: 'online' }
@@ -242,6 +312,11 @@ export default function MobileShell() {
         confirmOptimisticMessage(channel.id, payload)
       }
     },
+    onMessageUpdated: payload => {
+      if (channel) {
+        confirmOptimisticMessage(channel.id, payload)
+      }
+    },
     onError: errMsg => {
       if (channel) {
         failOptimisticMessage(channel.id)
@@ -256,9 +331,17 @@ export default function MobileShell() {
       }
     },
     onRemoved: reason => {
-      // Lo sacaron del servidor (ban o expulsión): el chat no reintenta y el servidor sale de la lista
+      // Lo sacaron del servidor (ban, expulsión o eliminación): el chat no reintenta y el servidor sale de la lista.
+      // Si el staff suspendió el servidor, sigue en la lista y la pantalla de canales muestra el aviso
+      if (reason === 'server-deleted' && server) {
+        notifiedDeletedServersRef.current.add(server.id)
+      }
       showToast(chatRemovalMessage(reason), 'error')
       setScreen('channels')
+      selectChannel(null)
+      if (reason !== 'server-suspended' && server) {
+        clearDeletedServerUi(server.id, false)
+      }
       refreshServers().catch(() => undefined)
     },
   })
@@ -267,6 +350,24 @@ export default function MobileShell() {
   const isServerOwner = !!server && server.ownerId === currentUserId
   // Qué acciones se ofrecen en el servidor elegido (el backend vuelve a chequear cada una)
   const canManageChannels = canInServer(server, currentUserId, 'MANAGE_CHANNELS')
+  const canManageMessages = channel && server
+    ? canInChannel(server, channel, currentUserId, 'MANAGE_MESSAGES')
+    : false
+  const canAddReactions = channel && server
+    ? canInChannel(server, channel, currentUserId, 'ADD_REACTIONS')
+    : true
+
+  const handleToggleReaction = useCallback(
+    async (channelId: string, messageId: string, emoji: string) => {
+      try {
+        await toggleReaction(channelId, messageId, emoji)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'No se pudo actualizar la reacción'
+        showToast(msg, 'error')
+      }
+    },
+    [toggleReaction, showToast]
+  )
   const canInvite = canInServer(server, currentUserId, 'CREATE_INSTANT_INVITE')
   const canOpenSettingsSection = (section: ServerSettingsSection) => canSeeSettingsSection(server, currentUserId, section)
   const isChannelLocked = (ch: Channel) => isVoiceChannelLocked(server, ch, currentUserId)
@@ -292,6 +393,8 @@ export default function MobileShell() {
       }
     }
     setTargetChannelForAction(null)
+    setEditChannelModalOpen(false)
+    setDeleteChannelModalOpen(false)
   }
 
   const handleSelectServer = (id: string) => selectServer(id)
@@ -398,35 +501,8 @@ export default function MobileShell() {
   }
 
   const handlePickAttachment = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 1,
-      })
-
-      if (result.canceled || !result.assets || !result.assets[0]) return
-
-      const asset = result.assets[0]
-      const name = asset.fileName || `imagen-${Date.now()}.jpg`
-      const type = asset.mimeType || 'image/jpeg'
-      const size = asset.fileSize
-
-      const error = validateAttachmentFile({ name, type, size })
-      if (error) {
-        showToast(error, 'error')
-        return
-      }
-
-      setPendingAttachment({
-        uri: asset.uri,
-        name,
-        type,
-        size,
-      })
-    } catch {
-      showToast('No se pudo seleccionar la imagen', 'error')
-    }
+    const picked = await pickAttachment()
+    if (picked) setPendingAttachment(picked)
   }
 
   const handleSend = async () => {
@@ -515,8 +591,24 @@ export default function MobileShell() {
   )
 
   const goTo = (next: ShellTab) => {
-    if (next !== tab) setScreen('channels')
+    if (next !== tab) {
+      setScreen('channels')
+      setDmUserId(null)
+    }
     setTab(next)
+  }
+
+  // El propio perfil no se abre: se edita desde la pestaña Perfil
+  const openProfile = useCallback(
+    (userId: string) => {
+      if (userId !== currentUserId) setProfileUserId(userId)
+    },
+    [currentUserId],
+  )
+
+  const openDirectMessage = (userId: string) => {
+    goTo('messages')
+    setDmUserId(userId)
   }
 
   const pickServer = (id: string) => {
@@ -606,6 +698,28 @@ export default function MobileShell() {
       )
     }
 
+    // Suspendido por el staff: sigue en la tira con el cartel rojo; adentro, solo el aviso (ADR-002 de Server-Roles).
+    // Va antes del chat y la voz: si tenía un canal abierto cuando llegó la suspensión, también se reemplaza
+    if (server?.isSuspended) {
+      return (
+        <Screen title={server.name} tinted>
+          <Padded>
+            <View style={styles.suspendedTag}>
+              <Text variant="meta" tone="onDanger" bold>
+                SUSPENDED
+              </Text>
+            </View>
+            <EmptyState title={SUSPENDED_SERVER_TITLE} hint={SUSPENDED_SERVER_MESSAGE} />
+            {!isServerOwner && (
+              <View style={styles.links}>
+                <ActionLink onPress={() => setLeaveServerConfirmOpen(true)}>salir del servidor</ActionLink>
+              </View>
+            )}
+          </Padded>
+        </Screen>
+      )
+    }
+
     if (screen === 'voice' && voice.channelId) {
       return (
         <Pane backLabel={server?.name ?? 'Servidores'} onBack={() => setScreen('channels')}>
@@ -632,6 +746,7 @@ export default function MobileShell() {
           <MessageList
             channelName={channel.name}
             messages={channelMessages}
+            currentUserId={currentUserId}
             describeUser={describeUser}
             hasOlder={!!hasOlderMessages[channel.id]}
             loadingOlder={!!loadingOlderMessages[channel.id]}
@@ -640,6 +755,9 @@ export default function MobileShell() {
                 showToast('No se pudieron cargar los mensajes anteriores', 'error'),
               )
             }}
+            onPressAuthor={openProfile}
+            onLongPressMessage={setActionTargetMessage}
+            onToggleReaction={(messageId, emoji) => handleToggleReaction(channel.id, messageId, emoji)}
           />
           <Composer
             channelName={channel.name}
@@ -713,17 +831,22 @@ export default function MobileShell() {
           {tab === 'servers' && serversContent()}
 
           {tab === 'messages' && (
-            <Screen title="Amigos">
-              <Padded>
-                <EmptyState title="por ahora no hay amigos" hint="próximamente: amigos y mensajes directos" />
-              </Padded>
-            </Screen>
+            <FriendsTab
+              openUserId={dmUserId}
+              inboxConnected={inbox.isConnected}
+              onOpenChat={setDmUserId}
+              onCloseChat={() => setDmUserId(null)}
+              onOpenProfile={openProfile}
+              onLongPressMessage={setActionTargetMessage}
+              onCall={privateCall.requestCall}
+              callConversationId={privateCall.callConversationId}
+            />
           )}
 
           {tab === 'notifications' && (
             <Screen title="Notificaciones">
               <Padded>
-                <EmptyState title="por ahora no hay notificaciones" hint="próximamente: menciones, invitaciones y solicitudes de amistad" />
+                <EmptyState title="por ahora no hay notificaciones" hint="próximamente: menciones e invitaciones" />
               </Padded>
             </Screen>
           )}
@@ -759,10 +882,13 @@ export default function MobileShell() {
             onBlocked={message => showToast(message, 'info')}
           />
         )}
-        {showBars && <BottomTabs value={tab} onChange={goTo} />}
+        {showBars && <PrivateCallBar session={privateCall} voice={voice} onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined} />}
+        {showBars && <BottomTabs value={tab} onChange={goTo} unread={{ messages: inbox.unread > 0 }} />}
       </SafeAreaView>
 
-      <ConnectionBanner active={!!activeSocketChannelId && screen === 'chat' && socket.isReconnecting} />
+      <ConnectionBanner
+        active={(!!activeSocketChannelId && screen === 'chat' && socket.isReconnecting) || (!!dmUserId && inbox.isReconnecting)}
+      />
 
       <CreateServerModal
         visible={createServerModalOpen}
@@ -805,6 +931,10 @@ export default function MobileShell() {
             setServerSettings(null)
             setLeaveServerConfirmOpen(true)
           }}
+          onOpenProfile={userId => {
+            setServerSettings(null)
+            openProfile(userId)
+          }}
         />
       )}
       <UserSettingsScreen
@@ -821,10 +951,52 @@ export default function MobileShell() {
         }}
       />
       <EditProfileModal visible={editProfileOpen} onClose={() => setEditProfileOpen(false)} />
+      <PublicProfileModal userId={profileUserId} onClose={() => setProfileUserId(null)} onMessage={openDirectMessage} />
+      <MessageActionsModal
+        visible={!!actionTargetMessage}
+        message={actionTargetMessage}
+        isAuthor={actionTargetMessage?.authorId === currentUserId}
+        canManageMessages={canManageMessages}
+        canAddReactions={canAddReactions}
+        onToggleReaction={(messageId, emoji) => {
+          const targetChannelId = actionTargetMessage?.channelId ?? channel?.id
+          if (targetChannelId) {
+            handleToggleReaction(targetChannelId, messageId, emoji)
+          }
+        }}
+        onEdit={() => {
+          if (actionTargetMessage) setEditingMessage(actionTargetMessage)
+        }}
+        onReply={() => {
+          if (actionTargetMessage) {
+            const authorUser = users[actionTargetMessage.authorId]
+            const name = authorUser?.displayName || authorUser?.username || 'usuario'
+            setDraft(prev => (prev ? `${prev} @${name} ` : `@${name} `))
+          }
+        }}
+        onDelete={() => {
+          if (actionTargetMessage) {
+            setDeleteMessageConfirm(actionTargetMessage)
+          }
+        }}
+        onClose={() => setActionTargetMessage(null)}
+      />
+      <EditMessageModal
+        visible={!!editingMessage}
+        message={editingMessage}
+        channelId={editingMessage?.channelId ?? channel?.id}
+        onClose={() => setEditingMessage(null)}
+      />
       <InviteModal visible={inviteModalOpen} server={server || undefined} onClose={() => setInviteModalOpen(false)} />
 
       {channelActionModals}
       {voiceParticipantActions}
+      <CallLayer
+        session={privateCall}
+        voice={voice}
+        voiceChannelName={voiceLocation?.channel.name}
+        onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined}
+      />
 
       <ConfirmModal
         visible={leaveServerConfirmOpen}
@@ -858,6 +1030,11 @@ export default function MobileShell() {
         onCancel={() => setDeleteServerConfirmOpen(false)}
         onConfirm={async () => {
           if (!server) return
+          if (!isServerOwner) {
+            setDeleteServerConfirmOpen(false)
+            showToast('Solo quien creó el servidor puede eliminarlo.', 'error')
+            return
+          }
           try {
             await deleteServer(server.id)
             setDeleteServerConfirmOpen(false)
@@ -898,6 +1075,26 @@ export default function MobileShell() {
           logout()
         }}
       />
+      <ConfirmModal
+        visible={!!deleteMessageConfirm}
+        title="¿Eliminar mensaje?"
+        message="¿Seguro que querés eliminar este mensaje? No se puede deshacer."
+        confirmLabel="Eliminar"
+        tone="danger"
+        onCancel={() => setDeleteMessageConfirm(null)}
+        onConfirm={async () => {
+          const target = deleteMessageConfirm
+          setDeleteMessageConfirm(null)
+          if (!target) return
+          const targetChannelId = target.channelId || channel?.id
+          if (!targetChannelId) return
+          try {
+            await deleteMessage(targetChannelId, target.id)
+          } catch {
+            showToast('No se pudo eliminar el mensaje', 'error')
+          }
+        }}
+      />
     </View>
   )
 }
@@ -906,4 +1103,11 @@ const useStyles = makeStyles(t => ({
   root: { flex: 1 },
   content: { flex: 1 },
   links: { flexDirection: 'row', flexWrap: 'wrap', columnGap: t.space[5], rowGap: t.space[2] },
+  // Cartel rojo "suspended", igual que en la franja de la tira de servidores
+  suspendedTag: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: t.space[1],
+    marginBottom: t.space[2],
+    backgroundColor: t.colors.danger,
+  },
 }))

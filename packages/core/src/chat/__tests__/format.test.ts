@@ -38,4 +38,9 @@ describe('placeMessage', () => {
     expect(nextDay.newDay).not.toBeNull();
     expect(nextDay.grouped).toBe(false);
   });
+
+  it('no agrupa mensajes eliminados ni mensajes que siguen a uno eliminado', () => {
+    expect(placeMessage({ authorId: 'a', timestamp: at(10, 0), type: 'deleted' }, { authorId: 'a', timestamp: at(10, 1) }).grouped).toBe(false);
+    expect(placeMessage({ authorId: 'a', timestamp: at(10, 0) }, { authorId: 'a', timestamp: at(10, 1), type: 'deleted' }).grouped).toBe(false);
+  });
 });

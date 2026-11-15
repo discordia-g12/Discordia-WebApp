@@ -1,6 +1,6 @@
-import { Fragment, useCallback, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Paperclip, Smile } from 'lucide-react';
+import { Bell, BellOff, Paperclip, Pin, Smile, Users } from 'lucide-react';
 import { distances } from '@discordia/tokens';
 import {
   formatDayLabel,
@@ -12,26 +12,41 @@ import {
   splitMentions,
   ATTACHMENT_ACCEPT,
   formatAttachmentSize,
+  type DmHeaderActionId,
+  type DmHeaderLayout,
   type MessageMentions,
 } from '@discordia/core';
-import type { Channel, DirectMessage, Message, MessageAttachment, Role, User } from '../../types';
-import { ActionLink, Skeleton, SquareAvatar, transitions } from '../../ui';
+import type { Channel, Message, MessageAttachment, Role, Status, User } from '../../types';
+import { ActionLink, IconButton, IconMenu, Skeleton, SquareAvatar, transitions } from '../../ui';
+import { showToast } from '../../app/uiStore';
 import {
-  POPULAR_EMOJIS,
+  EMOJI_CATEGORIES,
   QUICK_EMOJIS,
   mentionLabel,
   sanitizeText,
   useChatViewState,
   type ChatViewState,
+  type DirectChat,
   type Mentionables,
 } from './useChatViewState';
+import { DM_HEADER_ICONS } from './dmHeaderIcons';
 import styles from './ChatView.module.css';
 
 export interface ChatViewProps {
   /** Canal activo si la vista corresponde a un servidor. */
   channel?: Channel | null;
-  /** Conversación directa activa si la vista corresponde a un DM. */
-  directMessage?: DirectMessage | null;
+  /** Chat directo activo si la vista corresponde a un DM. */
+  directChat?: DirectChat | null;
+  /**
+   * Encabezado de un DM: qué va como ícono y qué al menú "más" (dmHeaderActions de core, con el estado de los
+   * mensajes fijados, que es de esta vista) y qué hacer con cada acción. Fijados y perfil los resuelve ChatView.
+   */
+  directHeader?: {
+    layout: (pinned: { count: number; open: boolean }) => DmHeaderLayout;
+    onAction: (id: DmHeaderActionId) => void;
+  };
+  /** Algo entre el encabezado y los mensajes (en un DM, la llamada en curso). */
+  banner?: ReactNode;
   /** Lista opcional de mensajes. Si no se provee, usa los datos mock. */
   messages?: Message[];
   /** ID del usuario actualmente autenticado. */
@@ -46,6 +61,10 @@ export interface ChatViewProps {
   onSendMessage?: (content: string, attachment?: MessageAttachment, replyToId?: string) => void;
   /** Callback al alternar una reacción emoji. */
   onToggleReaction?: (messageId: string, emoji: string) => void;
+  /** Si el usuario actual tiene permiso para reaccionar a mensajes en este canal. */
+  canAddReactions?: boolean;
+  /** Si el usuario actual puede moderar/eliminar mensajes ajenos en este canal. */
+  canManageMessages?: boolean;
   /** Callback al eliminar un mensaje. */
   onDeleteMessage?: (messageId: string) => void;
   /** Callback al confirmar la edición de un mensaje existente. */
@@ -58,10 +77,6 @@ export interface ChatViewProps {
   onToggleMemberList?: () => void;
   /** Estado de visibilidad de la barra lateral de miembros. */
   isMemberListOpen?: boolean;
-  /** Callback para iniciar llamada de voz directa. */
-  onStartVoiceCall?: () => void;
-  /** Callback para iniciar videollamada directa. */
-  onStartVideoCall?: () => void;
   /**
    * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: el input queda
    * deshabilitado y se muestra esto. null o sin definir: se puede escribir.
@@ -153,6 +168,74 @@ function useLoadOlder(
   return { loadOlder, onScroll };
 }
 
+/** Distancia al final (px) que todavía cuenta como "estar abajo". */
+const NEAR_BOTTOM = 80;
+
+/**
+ * Mantiene el chat abajo de todo mientras se esté abajo: al abrirlo, cuando llega un mensaje y cuando el
+ * contenido crece después de dibujarse (una imagen que termina de cargar). Un solo scroll al último
+ * mensaje no alcanza: las imágenes cargan después y lo dejaban corto. Subir a leer lo suelta; volver
+ * abajo, enviar un mensaje o cambiar de chat lo vuelve a pegar.
+ */
+function useStickToBottom(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  chatKey: string,
+  lastMessage: Pick<Message, 'id' | 'authorId'> | undefined,
+  currentUserId: string | undefined,
+  layoutKey: string
+) {
+  const stick = useRef(true);
+  const lastScrollTop = useRef(0);
+
+  const toBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || !stick.current) return;
+    el.scrollTop = el.scrollHeight;
+    // Sin esperar al evento de scroll: el próximo scroll del usuario se compara contra esta posición
+    lastScrollTop.current = el.scrollTop;
+  }, [scrollRef]);
+
+  useLayoutEffect(() => {
+    stick.current = true;
+    lastScrollTop.current = 0;
+  }, [chatKey]);
+
+  // Antes de pintar, para que no se vea el salto. Un mensaje propio baja aunque se estuviera leyendo arriba.
+  const lastId = lastMessage?.id;
+  const lastIsMine = Boolean(currentUserId) && lastMessage?.authorId === currentUserId;
+  useLayoutEffect(() => {
+    if (lastIsMine) stick.current = true;
+    toBottom();
+  }, [lastId, lastIsMine, toBottom]);
+
+  // Lo que crece después de dibujarse. layoutKey cambia cuando se reemplazan los hijos (skeleton → mensajes)
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(toBottom);
+    observer.observe(el);
+    Array.from(el.children).forEach((child) => observer.observe(child));
+    return () => observer.disconnect();
+  }, [scrollRef, toBottom, layoutKey]);
+
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const fromBottom = el.scrollHeight - el.clientHeight - el.scrollTop;
+    // Solo un scroll hacia arriba lo suelta: crecer el contenido o bajar por código no
+    if (el.scrollTop < lastScrollTop.current - 1 && fromBottom > NEAR_BOTTOM) stick.current = false;
+    if (fromBottom <= NEAR_BOTTOM) stick.current = true;
+    lastScrollTop.current = el.scrollTop;
+  }, [scrollRef]);
+
+  /** Suelta el final: cargar mensajes anteriores no tiene que volver a bajar. */
+  const release = useCallback(() => {
+    stick.current = false;
+  }, []);
+
+  return { onScroll, release };
+}
+
 /**
  * Chat del rediseño (PDF, págs. 7 y 9), para canales y mensajes directos. Encabezado con el nombre y
  * enlaces de texto; mensajes con avatar cuadrado, metadato chico y texto grande, separados por día;
@@ -162,7 +245,8 @@ function useLoadOlder(
 export function ChatView(props: ChatViewProps) {
   const {
     channel,
-    directMessage,
+    directChat,
+    directHeader,
     messages,
     isLoading = false,
     currentUserId,
@@ -170,20 +254,36 @@ export function ChatView(props: ChatViewProps) {
     onOpenUserProfile,
     onToggleMemberList,
     isMemberListOpen = true,
-    onStartVoiceCall,
-    onStartVideoCall,
     hasOlderMessages = false,
     isLoadingOlder = false,
     onLoadOlder,
   } = props;
   const chat = useChatViewState({ ...props, messages });
-  const history = useHistoryIds(channel?.id ?? directMessage?.id ?? 'chat', chat.localMessages, isLoading);
+  const chatKey = channel?.id ?? directChat?.conversationId ?? directChat?.user.id ?? 'chat';
+  const history = useHistoryIds(chatKey, chat.localMessages, isLoading);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const showOlder = hasOlderMessages && !isLoading;
+  const stick = useStickToBottom(
+    scrollRef,
+    chatKey,
+    chat.localMessages[chat.localMessages.length - 1],
+    currentUserId,
+    `${isLoading}-${showOlder}`
+  );
   const older = useLoadOlder(scrollRef, chat.localMessages[0]?.id, {
-    hasOlder: hasOlderMessages && !isLoading,
+    hasOlder: showOlder,
     isLoadingOlder,
-    onLoadOlder,
+    onLoadOlder: onLoadOlder
+      ? () => {
+          stick.release();
+          onLoadOlder();
+        }
+      : undefined,
   });
+  const onScroll = () => {
+    stick.onScroll();
+    older.onScroll();
+  };
   const names = useMentionNames(users, props.mentionables?.roles);
   const myRoleIds = props.mentionables?.myRoleIds;
 
@@ -192,32 +292,45 @@ export function ChatView(props: ChatViewProps) {
       <header className={styles.header}>
         <div className={styles.titleGroup}>
           <h1 className={styles.title}>{chat.isDirectMessage ? chat.chatTitle : `•${chat.chatTitle}`}</h1>
+          {directChat && <span className={styles.presence}>{PRESENCE_LABEL[directChat.user.status] ?? PRESENCE_LABEL.offline}/</span>}
           {chat.chatTopic !== 'No topic set.' && <p className={styles.topic}>{chat.chatTopic}</p>}
         </div>
         <nav className={styles.links} aria-label="Acciones del chat">
           {chat.isDirectMessage ? (
-            <>
-              {directMessage?.recipientId && (
-                <HeaderLink onPress={() => onOpenUserProfile?.(directMessage.recipientId)}>perfil</HeaderLink>
-              )}
-              <HeaderLink onPress={onStartVoiceCall}>llamar</HeaderLink>
-              <HeaderLink onPress={onStartVideoCall}>videollamada</HeaderLink>
-            </>
+            directChat && directHeader && (
+              <DirectHeaderActions
+                layout={directHeader.layout({ count: chat.pinnedMessages.length, open: chat.isPinnedPanelOpen })}
+                onAction={(id) => {
+                  if (id === 'pins') chat.setIsPinnedPanelOpen((v) => !v);
+                  else if (id === 'profile') onOpenUserProfile?.(directChat.user.id);
+                  else directHeader.onAction(id);
+                }}
+              />
+            )
           ) : (
-            <HeaderLink pressed={chat.isNotificationsMuted} onPress={() => chat.setIsNotificationsMuted((v) => !v)}>
-              {chat.isNotificationsMuted ? 'activar notificaciones' : 'silenciar notificaciones'}
-            </HeaderLink>
-          )}
-          <HeaderLink pressed={chat.isPinnedPanelOpen} onPress={() => chat.setIsPinnedPanelOpen((v) => !v)}>
-            {`mensajes fijados${chat.pinnedMessages.length ? ` (${chat.pinnedMessages.length})` : ''}`}
-          </HeaderLink>
-          {!chat.isDirectMessage && onToggleMemberList && (
-            <HeaderLink pressed={isMemberListOpen} onPress={onToggleMemberList}>
-              {isMemberListOpen ? 'ocultar lista de miembros' : 'mostrar lista de miembros'}
-            </HeaderLink>
+            <>
+              <IconButton
+                icon={chat.isNotificationsMuted ? BellOff : Bell}
+                label="Silenciar notificaciones"
+                pressed={chat.isNotificationsMuted}
+                onPress={() => chat.setIsNotificationsMuted((v) => !v)}
+              />
+              <IconButton
+                icon={Pin}
+                label="Mensajes fijados"
+                badge={chat.pinnedMessages.length}
+                pressed={chat.isPinnedPanelOpen}
+                onPress={() => chat.setIsPinnedPanelOpen((v) => !v)}
+              />
+              {onToggleMemberList && (
+                <IconButton icon={Users} label="Lista de miembros" pressed={isMemberListOpen} onPress={onToggleMemberList} />
+              )}
+            </>
           )}
         </nav>
       </header>
+
+      {props.banner}
 
       {chat.isPinnedPanelOpen && <PinnedPanel chat={chat} users={users} names={names} />}
 
@@ -226,9 +339,9 @@ export function ChatView(props: ChatViewProps) {
         className={styles.scroll}
         role="log"
         aria-label={`Mensajes de ${chat.chatTitle}`}
-        onScroll={older.onScroll}
+        onScroll={onScroll}
       >
-        {hasOlderMessages && !isLoading ? (
+        {showOlder ? (
           <div className={styles.older}>
             {isLoadingOlder ? (
               <p className={styles.welcomeText} role="status">
@@ -272,6 +385,8 @@ export function ChatView(props: ChatViewProps) {
                     chat={chat}
                     users={users}
                     currentUserId={currentUserId}
+                    canManageMessages={props.canManageMessages}
+                    canAddReactions={props.canAddReactions ?? true}
                     myRoleIds={myRoleIds}
                     names={names}
                     consecutive={consecutive}
@@ -283,7 +398,6 @@ export function ChatView(props: ChatViewProps) {
             })}
           </ol>
         )}
-        <div ref={chat.messagesEndRef} />
       </div>
 
       <Composer chat={chat} users={users} writeBlock={props.writeBlock ?? null} />
@@ -291,11 +405,42 @@ export function ChatView(props: ChatViewProps) {
   );
 }
 
-function HeaderLink({ children, pressed, onPress }: { children: string; pressed?: boolean; onPress?: () => void }) {
+/** Presencia al lado del nombre en un DM, como en la lista de mensajes directos. */
+const PRESENCE_LABEL: Record<Status, string> = {
+  online: 'Conectado',
+  idle: 'Ausente',
+  dnd: 'No molestar',
+  invisible: 'Desconectado',
+  offline: 'Desconectado',
+};
+
+/** Las acciones de un DM: íconos y, si hace falta, el menú "más" con las raras o destructivas. */
+function DirectHeaderActions({ layout, onAction }: { layout: DmHeaderLayout; onAction: (id: DmHeaderActionId) => void }) {
   return (
-    <button type="button" className={styles.headerLink} onClick={onPress} aria-pressed={pressed}>
-      {children}
-    </button>
+    <>
+      {layout.icons.map((action) => (
+        <IconButton
+          key={action.id}
+          icon={DM_HEADER_ICONS[action.icon]}
+          label={action.label}
+          pressed={action.pressed}
+          badge={action.badge}
+          disabled={action.disabled}
+          tone={action.destructive ? 'danger' : 'default'}
+          onPress={() => onAction(action.id)}
+        />
+      ))}
+      <IconMenu
+        items={layout.menu.map((action) => ({
+          id: action.id,
+          icon: DM_HEADER_ICONS[action.icon],
+          label: action.label,
+          tone: action.destructive ? 'danger' : 'default',
+          disabled: action.disabled,
+          onPress: () => onAction(action.id),
+        }))}
+      />
+    </>
   );
 }
 
@@ -308,6 +453,8 @@ function MessageRow({
   chat,
   users,
   currentUserId,
+  canManageMessages,
+  canAddReactions = true,
   myRoleIds,
   names,
   consecutive,
@@ -318,6 +465,8 @@ function MessageRow({
   chat: ChatViewState;
   users: Record<string, User>;
   currentUserId?: string;
+  canManageMessages?: boolean;
+  canAddReactions?: boolean;
   myRoleIds?: string[];
   names: MentionNames;
   consecutive: boolean;
@@ -330,6 +479,21 @@ function MessageRow({
     animate: { opacity: 1, y: 0 },
     transition: reduce ? transitions.reduced : transitions.base,
   } as const;
+
+  const rowRef = useRef<HTMLLIElement | null>(null);
+  const [openUpwards, setOpenUpwards] = useState(false);
+  const menuOpen = chat.activeContextMenuMessageId === msg.id;
+  const pickerOpen = chat.reactionPickerMessageId === msg.id;
+
+  useLayoutEffect(() => {
+    if (pickerOpen || menuOpen) {
+      if (rowRef.current && typeof window !== 'undefined') {
+        const rect = rowRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        setOpenUpwards(spaceBelow < 320);
+      }
+    }
+  }, [pickerOpen, menuOpen]);
 
   if (msg.type === 'deleted') {
     return (
@@ -353,16 +517,16 @@ function MessageRow({
 
   const author = msg.author || users[msg.authorId] || { id: msg.authorId, ...UNKNOWN_USER };
   const isAuthor = msg.authorId === (currentUserId || '');
+  const canDelete = isAuthor || !!canManageMessages;
   // Lo que dice Chat-Engine que notificó: un @everyone sin permiso no resalta
   const mentionsMe = !isAuthor && mentionsUser(msg.mentions, currentUserId ?? '', myRoleIds);
   const isEditing = chat.editingMessageId === msg.id;
   const isReplying = chat.replyingTo?.id === msg.id;
-  const menuOpen = chat.activeContextMenuMessageId === msg.id;
-  const pickerOpen = chat.reactionPickerMessageId === msg.id;
   const openProfile = () => onOpenUserProfile?.(author.id);
 
   return (
     <motion.li
+      ref={rowRef}
       className={[
         styles.message,
         consecutive ? styles.compact : '',
@@ -415,7 +579,7 @@ function MessageRow({
               names={names}
               onOpenUserProfile={onOpenUserProfile}
             />
-            {msg.editedTimestamp && <span className={styles.edited}> (editado)</span>}
+            {(msg.editedTimestamp || msg.edited) && <span className={styles.edited}> (editado)</span>}
           </p>
         )}
 
@@ -453,7 +617,13 @@ function MessageRow({
                   key={r.emoji}
                   type="button"
                   className={`${styles.reaction} ${active ? styles.reactionActive : ''}`}
-                  onClick={() => chat.handleToggleReaction(msg.id, r.emoji)}
+                  onClick={() => {
+                    if (!active && !canAddReactions) {
+                      showToast('No tenés permiso para agregar reacciones', 'danger');
+                      return;
+                    }
+                    chat.handleToggleReaction(msg.id, r.emoji);
+                  }}
                   aria-pressed={active}
                   aria-label={`${r.emoji} ${r.count}`}
                 >
@@ -468,22 +638,30 @@ function MessageRow({
       {/* Acciones al pasar el mouse o con foco dentro del mensaje */}
       {!isEditing && (
         <div className={styles.tools}>
-          {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              className={styles.toolEmoji}
-              onClick={() => chat.handleToggleReaction(msg.id, emoji)}
-              aria-label={`Reaccionar con ${emoji}`}
-            >
-              {emoji}
-            </button>
-          ))}
-          <ActionLink onPress={() => chat.setReactionPickerMessageId(pickerOpen ? null : msg.id)} aria-expanded={pickerOpen}>
-            reaccionar
-          </ActionLink>
+          {canAddReactions &&
+            QUICK_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className={styles.toolEmoji}
+                onClick={() => chat.handleToggleReaction(msg.id, emoji)}
+                aria-label={`Reaccionar con ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          {canAddReactions && (
+            <ActionLink onPress={() => chat.setReactionPickerMessageId(pickerOpen ? null : msg.id)} aria-expanded={pickerOpen}>
+              reaccionar
+            </ActionLink>
+          )}
           <ActionLink onPress={() => chat.setReplyingTo(msg)}>responder</ActionLink>
           {isAuthor && <ActionLink onPress={() => chat.handleStartEdit(msg)}>editar</ActionLink>}
+          {canDelete && (
+            <ActionLink className={styles.dangerLink} onPress={() => chat.promptDeleteMessage(msg.id)}>
+              eliminar
+            </ActionLink>
+          )}
           <ActionLink onPress={() => chat.setActiveContextMenuMessageId(menuOpen ? null : msg.id)} aria-expanded={menuOpen}>
             más
           </ActionLink>
@@ -491,13 +669,21 @@ function MessageRow({
       )}
 
       {pickerOpen && (
-        <Popover className={styles.messagePopover} label="Reacciones" onClose={() => chat.setReactionPickerMessageId(null)}>
+        <Popover
+          className={`${styles.messagePopover} ${openUpwards ? styles.messagePopoverUp : ''}`}
+          label="Reacciones"
+          onClose={() => chat.setReactionPickerMessageId(null)}
+        >
           <EmojiGrid onPick={(emoji) => chat.handleToggleReaction(msg.id, emoji)} />
         </Popover>
       )}
 
       {menuOpen && (
-        <Popover className={styles.messagePopover} label="Más acciones" onClose={() => chat.setActiveContextMenuMessageId(null)}>
+        <Popover
+          className={`${styles.messagePopover} ${openUpwards ? styles.messagePopoverUp : ''}`}
+          label="Más acciones"
+          onClose={() => chat.setActiveContextMenuMessageId(null)}
+        >
           <ul className={styles.menu}>
             <li>
               <button type="button" onClick={() => chat.handleCopyText(mentionsToText(msg.content, names), msg.id)}>
@@ -507,11 +693,6 @@ function MessageRow({
             <li>
               <button type="button" onClick={() => chat.handleTogglePin(msg)}>
                 {msg.isPinned ? 'desfijar mensaje' : 'fijar mensaje'}
-              </button>
-            </li>
-            <li>
-              <button type="button" onClick={() => chat.handleDeleteMessage(msg.id)}>
-                eliminar mensaje
               </button>
             </li>
           </ul>
@@ -709,7 +890,7 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
       )}
 
       {chat.isEmojiPickerOpen && (
-        <Popover className={styles.composerPopover} label="Emojis" onClose={() => chat.setIsEmojiPickerOpen(false)}>
+        <Popover className={styles.composerEmojiPopover} label="Emojis" onClose={() => chat.setIsEmojiPickerOpen(false)}>
           <EmojiGrid
             onPick={(emoji) => {
               chat.setInputText((prev) => prev + emoji);
@@ -721,23 +902,27 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
       )}
 
       <div className={styles.composerRow}>
-        <button
-          type="button"
-          className={styles.composerIcon}
-          onClick={chat.handleAttachClick}
-          aria-label="Adjuntar archivo"
-          title="Adjuntar archivo"
-          disabled={chat.isUploading}
-        >
-          <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
-        </button>
-        <input
-          type="file"
-          ref={chat.fileInputRef}
-          style={{ display: 'none' }}
-          accept={ATTACHMENT_ACCEPT}
-          onChange={chat.handleFileChange}
-        />
+        {chat.canAttach && (
+          <>
+            <button
+              type="button"
+              className={styles.composerIcon}
+              onClick={chat.handleAttachClick}
+              aria-label="Adjuntar archivo"
+              title="Adjuntar archivo"
+              disabled={chat.isUploading}
+            >
+              <Paperclip size={16} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+            <input
+              type="file"
+              ref={chat.fileInputRef}
+              style={{ display: 'none' }}
+              accept={ATTACHMENT_ACCEPT}
+              onChange={chat.handleFileChange}
+            />
+          </>
+        )}
         <input
           ref={chat.composerInputRef}
           className={styles.composerInput}
@@ -776,21 +961,90 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
 // ==========================================
 
 function EmojiGrid({ onPick }: { onPick: (emoji: string) => void }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const handleJumpToCategory = (catId: string) => {
+    if (!containerRef.current) return;
+    const target = containerRef.current.querySelector<HTMLElement>(`[data-category="${catId}"]`);
+    if (target) {
+      const top = target.offsetTop - containerRef.current.offsetTop;
+      if (typeof containerRef.current.scrollTo === 'function') {
+        containerRef.current.scrollTo({ top, behavior: 'smooth' });
+      } else {
+        containerRef.current.scrollTop = top;
+      }
+    }
+  };
+
   return (
-    <div className={styles.emojiGrid}>
-      {POPULAR_EMOJIS.map((emoji) => (
-        <button key={emoji} type="button" className={styles.emoji} onClick={() => onPick(emoji)} aria-label={emoji}>
-          {emoji}
-        </button>
-      ))}
+    <div>
+      <nav className={styles.categoryNav} aria-label="Categorías de emojis">
+        {EMOJI_CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            type="button"
+            className={styles.categoryNavButton}
+            onClick={() => handleJumpToCategory(cat.id)}
+            title={cat.name}
+            aria-label={cat.name}
+          >
+            {cat.icon}
+          </button>
+        ))}
+      </nav>
+
+      <div ref={containerRef} className={styles.emojiPicker}>
+        {EMOJI_CATEGORIES.map((cat) => (
+          <div key={cat.id} data-category={cat.id} className={styles.emojiCategory}>
+            <div className={styles.emojiCategoryTitle}>{cat.name}</div>
+            {cat.isPlaceholder ? (
+              <div className={styles.emojiPlaceholder}>{cat.description}</div>
+            ) : (
+              <div className={styles.emojiGrid}>
+                {cat.emojis.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className={styles.emoji}
+                    onClick={() => onPick(emoji)}
+                    aria-label={emoji}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-/** Panel flotante de línea fina; se cierra con Escape. */
+/** Panel flotante de línea fina; se cierra al hacer clic afuera o con Escape. */
 function Popover({ children, className, label, onClose }: { children: ReactNode; className: string; label: string; onClose: () => void }) {
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handlePointerDown(e: MouseEvent | TouchEvent) {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (popoverRef.current && popoverRef.current.contains(target)) return;
+      if (target.closest('[aria-expanded="true"]')) return;
+      onClose();
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [onClose]);
+
   return (
     <div
+      ref={popoverRef}
       className={`${styles.popover} ${className}`}
       role="dialog"
       aria-label={label}

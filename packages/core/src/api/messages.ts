@@ -1,5 +1,6 @@
 import { api } from './client';
 import { resolveAttachmentUrl } from './attachments';
+import { getApiMock } from './mock';
 import { Message, MessageAttachment } from '../types';
 
 /**
@@ -8,6 +9,10 @@ import { Message, MessageAttachment } from '../types';
  */
 export function normalizeMessage(message: Message): Message {
   const time = message.timestamp ?? message.createdAt ?? '';
+  const editedAt = (message as { editedAt?: string }).editedAt;
+  const editedTimestamp = message.editedTimestamp ?? (editedAt ? String(editedAt) : null);
+  const edited = message.edited ?? Boolean(editedTimestamp);
+  const isDeleted = message.type === 'deleted' || (message as { isDeleted?: boolean }).isDeleted === true;
   const attachments = message.attachments?.map((att) => ({
     ...att,
     url: resolveAttachmentUrl(att.url),
@@ -18,7 +23,13 @@ export function normalizeMessage(message: Message): Message {
     ...message,
     timestamp: time,
     createdAt: message.createdAt ?? time,
-    ...(attachments ? { attachments } : {}),
+    type: isDeleted ? 'deleted' : (message.type ?? 'normal'),
+    content: isDeleted ? '' : message.content,
+    edited: isDeleted ? false : edited,
+    editedTimestamp: isDeleted ? null : editedTimestamp,
+    attachments: isDeleted ? undefined : attachments,
+    reactions: isDeleted ? [] : (message.reactions ?? []),
+    ...(editedAt && !isDeleted ? { editedAt: String(editedAt) } : {}),
   };
 }
 
@@ -34,6 +45,9 @@ export async function getMessages(
   channelId: string,
   options: GetMessagesOptions = {}
 ): Promise<Message[]> {
+  const mock = getApiMock();
+  if (mock?.getMessages) return mock.getMessages(channelId, options);
+
   const { before, limit = 50 } = options;
   const response = await api.get<{ messages: Message[] } | Message[]>(`/api/v1/chat/channels/${channelId}/messages`, {
     query: { before, limit },
@@ -51,6 +65,9 @@ export async function sendMessage(
   clientMessageId?: string,
   attachments?: MessageAttachment[]
 ): Promise<Message> {
+  const mock = getApiMock();
+  if (mock?.sendMessage) return mock.sendMessage(channelId, content, attachments);
+
   const idempotencyKey =
     clientMessageId ||
     (typeof crypto !== 'undefined' && crypto.randomUUID
@@ -62,4 +79,54 @@ export async function sendMessage(
     { idempotencyKey }
   );
   return normalizeMessage(sent);
+}
+
+/**
+ * Modifica el contenido de un mensaje existente vía PATCH.
+ */
+export async function editMessage(
+  channelId: string,
+  messageId: string,
+  content: string
+): Promise<Message> {
+  const updated = await api.patch<Message>(
+    `/api/v1/chat/channels/${channelId}/messages/${messageId}`,
+    { content }
+  );
+  return normalizeMessage(updated);
+}
+
+/**
+ * Elimina un mensaje existente vía DELETE (soft-delete).
+ */
+export async function deleteMessage(
+  channelId: string,
+  messageId: string
+): Promise<Message> {
+  const mock = getApiMock();
+  if (mock?.deleteMessage) return mock.deleteMessage(channelId, messageId);
+
+  const deleted = await api.delete<Message>(
+    `/api/v1/chat/channels/${channelId}/messages/${messageId}`
+  );
+  return normalizeMessage(deleted);
+}
+
+/**
+ * Alterna una reacción con emoji en un mensaje existente vía PUT.
+ * Si el usuario ya había reaccionado con ese emoji, se retira; si no, se agrega.
+ */
+export async function toggleReaction(
+  channelId: string,
+  messageId: string,
+  emoji: string
+): Promise<Message> {
+  const mock = getApiMock();
+  if (mock?.toggleReaction) return mock.toggleReaction(channelId, messageId, emoji);
+
+  const updated = await api.put<Message>(
+    `/api/v1/chat/channels/${channelId}/messages/${messageId}/reactions`,
+    { emoji }
+  );
+  return normalizeMessage(updated);
 }

@@ -10,7 +10,6 @@ export type {
   Channel,
   ChannelBackendResponse,
   ChannelType,
-  DirectMessage,
   Message,
   MessageAttachment,
   MessageBackendPayload,
@@ -55,13 +54,13 @@ export type Modal =
   | 'join-server'
   | 'user-profile'
   | 'invite'
-  | 'incoming-call'
   | 'confirm-action'
   | 'search'
   | 'edit-message'
   | 'create-channel'
   | 'edit-channel'
   | 'create-category'
+  | 'platform-status'
   | null;
 
 /** Acciones críticas que requieren confirmación explícita del usuario. */
@@ -73,8 +72,20 @@ export type ConfirmAction =
   | 'leave-server'
   | 'transfer-ownership'
   | 'switch-voice-channel'
+  | 'start-call'
   | 'delete-category'
   | 'logout'
+  | 'block-user'
+  | 'remove-friend'
+  | 'delete-message'
+  // Backoffice (apps/backoffice usa el mismo ConfirmDialog)
+  | 'suspend-user'
+  | 'reactivate-user'
+  | 'suspend-server'
+  | 'lift-server-suspension'
+  | 'delete-server-staff'
+  | 'publish-incident'
+  | 'resolve-incident'
   | null;
 
 /** Errores de validación durante la edición del perfil de usuario. */

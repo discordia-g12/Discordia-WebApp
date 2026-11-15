@@ -1,162 +1,189 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { updateCachedMessages } from '@discordia/core';
+import {
+  deleteMessage as apiDeleteMessage,
+  editMessage as apiEditMessage,
+  toggleReaction as apiToggleReaction,
+  updateCachedMessages,
+} from '@discordia/core';
 import type { Message, MessageAttachment, Reaction } from '../../types';
-import { showToast, useUIStore } from '../../app/uiStore';
+import { showToast } from '../../app/uiStore';
 import { useCurrentUser } from '../profile/currentUserStore';
-import { useDmStore } from '../friends/dmStore';
 import { useSendChannelMessage } from './chatConnectionContext';
 
 /**
- * Acciones sobre los mensajes del canal o DM seleccionado. En un canal de servidor el envío va por
- * WebSocket y el resto se aplica sobre el caché de React Query (editar y borrar todavía no están en el
- * backend); en un DM, todo es local (dmStore).
+ * Acciones sobre los mensajes de un canal o una conversación (`dm-…`). El envío al canal va por WebSocket
+ * (el de un DM está en useDirectChat) y el resto se aplica sobre el caché de React Query: editar y borrar
+ * todavía no están en el backend.
  */
-export function useMessageActions() {
+export function useMessageActions(channelId: string | null) {
   const queryClient = useQueryClient();
   const currentUser = useCurrentUser();
   const sendMessageWs = useSendChannelMessage();
-  const selectedServerId = useUIStore((s) => s.selectedServerId);
-  const selectedChannelId = useUIStore((s) => s.selectedChannelId);
-  const selectedDmId = useUIStore((s) => s.selectedDmId);
-  const updateDmMessages = useDmStore((s) => s.updateMessages);
-  const setDmLastMessage = useDmStore((s) => s.setLastMessage);
 
-  const isHome = selectedServerId === 'home';
-  const activeKey = isHome ? selectedDmId : selectedChannelId;
+  const updateMessages = (update: (old: Message[]) => Message[]) => {
+    if (channelId) updateCachedMessages(queryClient, channelId, update);
+  };
 
-  const updateChannelMessages = (channelId: string, update: (old: Message[]) => Message[]) =>
-    updateCachedMessages(queryClient, channelId, update);
-
-  // Enviar mensaje en canal o DM
-  const sendMessage = async (content: string, attachment?: MessageAttachment, replyToId?: string) => {
-    if (!isHome) {
-      if (!selectedChannelId) return;
-      const send = async () => {
-        try {
-          await sendMessageWs(content, attachment ? [attachment] : undefined);
-        } catch {
-          showToast('No se pudo enviar el mensaje', 'danger', { label: 'reintentar', onPress: send });
-        }
-      };
-      await send();
-      return;
-    }
-
-    const key = selectedDmId;
-    if (!key) return;
-
-    const newMsg: Message = {
-      id: `msg-${Date.now()}`,
-      channelId: key,
-      authorId: currentUser.id,
-      userId: currentUser.id,
-      content,
-      timestamp: new Date().toISOString(),
-      type: 'normal',
-      replyToId: replyToId || null,
-      attachments: attachment ? [attachment] : undefined,
-      fileAttachment: attachment
-        ? {
-          name: attachment.name,
-          size: typeof attachment.size === 'number' ? `${(attachment.size / 1024).toFixed(1)} KB` : (attachment.size || '0 KB'),
-          type: attachment.type,
-        }
-        : undefined,
+  // Enviar mensaje al canal seleccionado
+  const sendMessage = async (content: string, attachment?: MessageAttachment) => {
+    if (!channelId) return;
+    const send = async () => {
+      try {
+        await sendMessageWs(content, attachment ? [attachment] : undefined);
+      } catch {
+        showToast('No se pudo enviar el mensaje', 'danger', { label: 'reintentar', onPress: send });
+      }
     };
-
-    updateDmMessages(key, (messages) => [...messages, newMsg]);
-    setDmLastMessage(key, content);
+    await send();
   };
 
   // Alternar reacción emoji
-  const toggleReaction = (messageId: string, emoji: string) => {
-    const key = activeKey;
-    if (!key) return;
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    if (!channelId) return;
 
-    const updater = (list: Message[]) => {
-      return list.map((msg) => {
-        if (msg.id !== messageId) return msg;
-        const reactions = msg.reactions || [];
+    let previousReactions: Reaction[] | undefined;
+
+    updateMessages((list) => {
+      const msg = list.find((m) => m.id === messageId);
+      if (msg) {
+        previousReactions = msg.reactions ? [...msg.reactions] : [];
+      }
+      return list.map((m) => {
+        if (m.id !== messageId) return m;
+        const reactions = m.reactions || [];
         const existing = reactions.find((r) => r.emoji === emoji);
+        const hasReacted = existing
+          ? (existing.hasReacted ?? existing.reacted ?? existing.users.includes(currentUser.id))
+          : false;
+
         let nextReactions: Reaction[];
-        if (existing) {
-          if (existing.reacted) {
-            nextReactions = reactions
-              .map((r) =>
-                r.emoji === emoji
-                  ? {
+        if (existing && hasReacted) {
+          nextReactions = reactions
+            .map((r) =>
+              r.emoji === emoji
+                ? {
                     ...r,
                     count: r.count - 1,
                     reacted: false,
+                    hasReacted: false,
                     users: (r.users || []).filter((u) => u !== currentUser.id),
                   }
-                  : r,
-              )
-              .filter((r) => r.count > 0);
-          } else {
-            nextReactions = reactions.map((r) =>
-              r.emoji === emoji
-                ? {
+                : r
+            )
+            .filter((r) => r.count > 0);
+        } else if (existing) {
+          nextReactions = reactions.map((r) =>
+            r.emoji === emoji
+              ? {
                   ...r,
                   count: r.count + 1,
                   reacted: true,
+                  hasReacted: true,
                   users: [...(r.users || []), currentUser.id],
                 }
-                : r,
-            );
-          }
+              : r
+          );
         } else {
           nextReactions = [
             ...reactions,
-            { emoji, count: 1, reacted: true, users: [currentUser.id] },
+            { emoji, count: 1, reacted: true, hasReacted: true, users: [currentUser.id] },
           ];
         }
-        return { ...msg, reactions: nextReactions };
+        return { ...m, reactions: nextReactions };
       });
-    };
+    });
 
-    if (!isHome) {
-      updateChannelMessages(key, updater);
-      return;
+    try {
+      const updated = await apiToggleReaction(channelId, messageId, emoji);
+      updateMessages((list) =>
+        list.map((m) => (m.id === messageId ? { ...m, reactions: updated.reactions } : m))
+      );
+    } catch (err: unknown) {
+      if (previousReactions !== undefined) {
+        updateMessages((list) =>
+          list.map((m) => (m.id === messageId ? { ...m, reactions: previousReactions } : m))
+        );
+      }
+      const message = err instanceof Error ? err.message : 'No se pudo actualizar la reacción';
+      showToast(message, 'danger');
     }
-
-    updateDmMessages(key, updater);
   };
 
   // Eliminar mensaje
-  const deleteMessage = (messageId: string) => {
-    const key = activeKey;
-    if (!key) return;
+  const deleteMessage = async (messageId: string) => {
+    if (!channelId) return;
 
-    const markDeleted = (list: Message[]) =>
-      list.map((m) => (m.id === messageId ? { ...m, type: 'deleted' as const, content: '' } : m));
+    let previousMessage: Message | undefined;
 
-    if (!isHome) {
-      updateChannelMessages(key, markDeleted);
-      showToast('Backend deletion not implemented yet', 'info');
-      return;
+    // 1. Actualización optimista
+    updateMessages((list) => {
+      previousMessage = list.find((m) => m.id === messageId);
+      return list.map((m) =>
+        m.id === messageId
+          ? { ...m, type: 'deleted' as const, content: '', attachments: [] }
+          : m,
+      );
+    });
+
+    // 2. Llamada al backend
+    try {
+      await apiDeleteMessage(channelId, messageId);
+    } catch (err: unknown) {
+      // Rollback en caso de error
+      if (previousMessage) {
+        updateMessages((list) =>
+          list.map((m) => (m.id === messageId ? previousMessage! : m)),
+        );
+      }
+      const message = err instanceof Error ? err.message : 'No se pudo eliminar el mensaje';
+      showToast(message, 'danger');
     }
-
-    updateDmMessages(key, markDeleted);
-    showToast('Mensaje eliminado', 'info');
   };
 
   // Editar mensaje
-  const editMessage = (messageId: string, newContent: string) => {
-    const key = activeKey;
-    if (!key) return;
+  const editMessage = async (messageId: string, newContent: string) => {
+    if (!channelId) return;
 
-    const applyEdit = (list: Message[]) =>
-      list.map((m) => (m.id === messageId ? { ...m, content: newContent, edited: true } : m));
+    let previousContent = '';
+    let previousEdited = false;
+    let previousEditedTimestamp: string | null | undefined = null;
 
-    if (!isHome) {
-      updateChannelMessages(key, applyEdit);
-      showToast('Backend editing not implemented yet', 'info');
-      return;
+    // 1. Actualización optimista
+    updateMessages((list) =>
+      list.map((m) => {
+        if (m.id === messageId) {
+          previousContent = m.content;
+          previousEdited = m.edited ?? false;
+          previousEditedTimestamp = m.editedTimestamp;
+          return { ...m, content: newContent, edited: true };
+        }
+        return m;
+      })
+    );
+
+    // 2. Llamada al backend
+    try {
+      const updated = await apiEditMessage(channelId, messageId, newContent);
+      updateMessages((list) =>
+        list.map((m) => (m.id === messageId ? { ...m, ...updated } : m))
+      );
+    } catch (err: unknown) {
+      // Rollback en caso de error
+      updateMessages((list) =>
+        list.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                content: previousContent,
+                edited: previousEdited,
+                editedTimestamp: previousEditedTimestamp,
+              }
+            : m
+        )
+      );
+      const message = err instanceof Error ? err.message : 'No se pudo editar el mensaje';
+      showToast(message, 'danger');
     }
-
-    updateDmMessages(key, applyEdit);
-    showToast('Mensaje editado', 'success');
   };
 
   return { sendMessage, toggleReaction, deleteMessage, editMessage };

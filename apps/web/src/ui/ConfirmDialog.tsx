@@ -7,9 +7,9 @@ import { UnderlineInput } from './UnderlineInput';
 
 export interface ConfirmDialogProps {
   action: NonNullable<ConfirmAction>;
-  /** Lo que se confirma: servidor, canal, usuario o el canal de voz de destino. */
+  /** Lo que se confirma: servidor, canal, usuario, el canal de voz de destino o a quién se llama. */
   targetName: string;
-  /** Al cambiar de canal de voz, el canal actual. */
+  /** Al cambiar de canal de voz o llamar, el canal actual. */
   targetDetail?: string;
   /** Si devuelve una promesa, el botón queda cargando hasta que termine. */
   onConfirm: () => void | Promise<void>;
@@ -37,12 +37,34 @@ function copyFor(action: NonNullable<ConfirmAction>, name: string, detail?: stri
       return { title: '¿Eliminar canal?', text: `Se borra •${name} con todos sus mensajes. No se puede deshacer.`, confirm: 'Eliminar', danger: true };
     case 'switch-voice-channel':
       return { title: '¿Cambiar de canal?', text: `Estás conectado a ${detail || 'otro canal de voz'}. Si entrás a ${name}, salís de ese canal.`, confirm: 'Cambiar', danger: false };
+    case 'start-call':
+      return { title: '¿Llamar?', text: `Estás conectado a ${detail || 'otro canal de voz'}. Si llamás a ${name}, salís de ese canal.`, confirm: 'Llamar', danger: false };
     case 'delete-category':
       return { title: '¿Eliminar categoría?', text: `Se borra la categoría ${name}. Sus canales quedan sin categoría.`, confirm: 'Eliminar', danger: true };
     case 'logout':
       return { title: '¿Cerrar sesión?', text: 'Vas a salir de Discordia en este navegador.', confirm: 'Cerrar sesión', danger: false };
     case 'transfer-ownership':
       return { title: '¿Transferir el servidor?', text: `El servidor pasa a ser de @${name} y perdés el control total sobre él.`, confirm: 'Transferir', danger: true };
+    case 'block-user':
+      return { title: '¿Bloquear?', text: `No van a poder escribirse con ${name} hasta que lo desbloquees. El historial se conserva y, si eran amigos, dejan de serlo.`, confirm: 'Bloquear', danger: true };
+    case 'remove-friend':
+      return { title: '¿Eliminar amigo?', text: `${name} deja de ser tu amigo. La conversación y el historial se conservan.`, confirm: 'Eliminar', danger: true };
+    case 'delete-message':
+      return { title: '¿Eliminar mensaje?', text: '¿Seguro que querés eliminar este mensaje? No se puede deshacer.', confirm: 'Eliminar', danger: true };
+    case 'suspend-user':
+      return { title: '¿Suspender la cuenta?', text: `${name} no va a poder iniciar sesión, se cierran sus sesiones abiertas y su perfil deja de estar disponible.`, confirm: 'Suspender', danger: true };
+    case 'reactivate-user':
+      return { title: '¿Reactivar la cuenta?', text: `${name} vuelve a poder iniciar sesión y su perfil vuelve a estar disponible.`, confirm: 'Reactivar', danger: false };
+    case 'suspend-server':
+      return { title: '¿Suspender el servidor?', text: `Ningún miembro del servidor ${name} va a poder entrar ni usarlo, y se cortan sus chats y llamadas. El contenido se conserva hasta que levantes la suspensión.`, confirm: 'Suspender', danger: true };
+    case 'lift-server-suspension':
+      return { title: '¿Levantar la suspensión?', text: `Los miembros de ${name} vuelven a tener acceso normal al servidor y a todo su contenido.`, confirm: 'Levantar', danger: false };
+    case 'delete-server-staff':
+      return { title: '¿Eliminar el servidor?', text: `Se borra ${name} con todos sus canales, mensajes y roles de forma permanente. No se puede deshacer.`, confirm: 'Eliminar servidor', danger: true };
+    case 'publish-incident':
+      return { title: '¿Publicar el incidente?', text: `Todos los usuarios con sesión van a ver el aviso "${name}" en la app hasta que lo resuelvas.`, confirm: 'Publicar', danger: false };
+    case 'resolve-incident':
+      return { title: '¿Resolver el incidente?', text: `El aviso "${name}" desaparece para todos los usuarios. No se puede reabrir: si vuelve a pasar, publicá otro.`, confirm: 'Resolver', danger: false };
   }
 }
 

@@ -1,0 +1,73 @@
+.customForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.dateField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-label-size);
+  color: var(--color-text-muted);
+}
+
+.dateInput {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  color: var(--color-text);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-body-small-size);
+  font-family: inherit;
+}
+
+.chartsStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.chartTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-label-size);
+  text-transform: uppercase;
+  letter-spacing: var(--font-label-letter-spacing);
+  color: var(--color-text-muted);
+}
+
+.chartSwatch {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+}
+
+.chartTotal {
+  font-size: var(--font-body-small-size);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.partialNotice {
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid #f0b232;
+  background: rgba(240, 178, 50, 0.08);
+  font-size: var(--font-body-small-size);
+  color: var(--color-text-muted);
+}
+
+.emptyPanel {
+  padding: var(--space-4);
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}

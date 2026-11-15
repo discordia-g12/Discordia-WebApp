@@ -8,15 +8,24 @@ import {
 } from '../realtime/chatSocket';
 import type { Message, MessageAttachment, MessageBackendPayload } from '../types';
 import { normalizeMessage } from '../api/messages';
-import { appendMessage, messagesQueryKey, type MessagePages } from './messageCache';
+import {
+  appendMessage,
+  updateCachedMessages,
+  messagesQueryKey,
+  type MessagePages,
+} from './messageCache';
 
 export interface UseChatSocketOptions {
-  /** Canal al que conectarse; null para no conectar (p. ej. DMs, que todavía no van por el backend). */
+  /** Canal o conversación (`dm-…`) al que conectarse; null para no conectar. */
   channelId: string | null;
   userId: string;
   /** Último mensaje que la app ya tiene; el servidor reenvía los posteriores al (re)conectar. */
   lastMessageIdSeen?: string;
   onMessage: (message: MessageBackendPayload) => void;
+  /** Un mensaje existente fue editado en este canal. */
+  onMessageUpdated?: (message: MessageBackendPayload) => void;
+  /** Un mensaje existente fue eliminado en este canal. */
+  onMessageDeleted?: (message: MessageBackendPayload) => void;
   onError?: (message: string) => void;
   onReconnect?: () => void;
   /** El usuario ya no está en el servidor (ban o expulsión). La conexión no se reintenta. */
@@ -47,6 +56,8 @@ export function useChatSocket({
   userId,
   lastMessageIdSeen,
   onMessage,
+  onMessageUpdated,
+  onMessageDeleted,
   onError,
   onReconnect,
   onRemoved,
@@ -57,8 +68,8 @@ export function useChatSocket({
   const connectionRef = useRef<ChatSocketConnection | null>(null);
 
   // Callbacks y último id en refs: cambiarlos no debe reconectar
-  const handlersRef = useRef({ onMessage, onError, onReconnect, onRemoved });
-  handlersRef.current = { onMessage, onError, onReconnect, onRemoved };
+  const handlersRef = useRef({ onMessage, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved });
+  handlersRef.current = { onMessage, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved };
   const lastMessageIdRef = useRef(lastMessageIdSeen);
   lastMessageIdRef.current = lastMessageIdSeen;
 
@@ -72,6 +83,8 @@ export function useChatSocket({
       channelId,
       {
         onMessage: (message) => handlersRef.current.onMessage(message),
+        onMessageUpdated: (message) => handlersRef.current.onMessageUpdated?.(message),
+        onMessageDeleted: (message) => handlersRef.current.onMessageDeleted?.(message),
         onError: handlersRef.current.onError
           ? (message) => handlersRef.current.onError?.(message)
           : undefined,
@@ -141,6 +154,26 @@ export function useChatWebSocket(
         appendMessage(old, normalizeMessage(data as unknown as Message))
       );
     },
+    onMessageUpdated: (data) => {
+      const normalized = normalizeMessage(data as unknown as Message);
+      if (channelId) {
+        updateCachedMessages(queryClient, channelId, (list) =>
+          list.map((m) => (m.id === normalized.id ? { ...m, ...normalized } : m))
+        );
+      }
+    },
+    onMessageDeleted: (data) => {
+      const normalized = normalizeMessage(data as unknown as Message);
+      if (channelId) {
+        updateCachedMessages(queryClient, channelId, (list) =>
+          list.map((m) =>
+            m.id === normalized.id
+              ? { ...m, ...normalized, type: 'deleted' as const, content: '', attachments: [] }
+              : m
+          )
+        );
+      }
+    },
     onReconnect: () => {
       // Reconexión: los mensajes enviados durante el corte no llegaron por el socket
       queryClient.invalidateQueries({ queryKey: ['messages', channelId] });
@@ -157,7 +190,10 @@ export function useChatWebSocket(
 
 /** Texto para mostrar cuando el chat cerró la conexión porque sacaron al usuario del servidor. */
 export function chatRemovalMessage(reason: ChatRemovalReason): string {
-  return reason === 'banned' ? 'Te banearon de este servidor.' : 'Ya no sos miembro de este servidor.';
+  if (reason === 'banned') return 'Te banearon de este servidor.';
+  if (reason === 'server-suspended') return 'La plataforma suspendió este servidor.';
+  if (reason === 'server-deleted') return 'Este servidor fue eliminado.';
+  return 'Ya no sos miembro de este servidor.';
 }
 
 /** Lo que muestra el input cuando Chat Engine dice que no puede escribir (mute o rol sin permiso). */

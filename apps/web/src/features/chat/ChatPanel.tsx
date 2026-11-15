@@ -6,7 +6,6 @@ import { useUsers } from '../../app/usersContext';
 import { useCurrentServer, useServerMemberUsers } from '../servers/useCurrentServer';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { openUserProfile } from '../profile/profileActions';
-import { useVoice } from '../voice/voiceContext';
 import { ChatView } from './ChatView';
 import type { Mentionables } from './useChatViewState';
 import { useMessageActions } from './useMessageActions';
@@ -14,17 +13,22 @@ import { useChatWriteBlock } from './chatConnectionContext';
 
 /** Chat del canal de texto seleccionado. */
 export function ChatPanel() {
-  const { currentServer, currentChannel, allServerChannels } = useCurrentServer();
+  const { currentServer, currentChannel } = useCurrentServer();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
   const toggleMemberList = useUIStore((s) => s.toggleMemberList);
   const currentUser = useCurrentUser();
   const { usersMap } = useUsers();
-  const voice = useVoice();
-  const actions = useMessageActions();
-  const writeBlock = useChatWriteBlock();
   const channelId = selectedServerId !== 'home' ? selectedChannelId : null;
+  const actions = useMessageActions(channelId);
+  const writeBlock = useChatWriteBlock();
+  const canManageMessages = currentChannel
+    ? canInChannel(currentServer, currentChannel, currentUser.id, 'MANAGE_MESSAGES')
+    : false;
+  const canAddReactions = currentChannel
+    ? canInChannel(currentServer, currentChannel, currentUser.id, 'ADD_REACTIONS')
+    : true;
   const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder } = useChannelMessagesQuery(channelId);
 
   // Menciones: miembros (con su perfil si ya llegó), roles del servidor y si puede usar @everyone y roles
@@ -53,6 +57,8 @@ export function ChatPanel() {
   return (
     <ChatView
       channel={currentChannel}
+      canManageMessages={canManageMessages}
+      canAddReactions={canAddReactions}
       messages={realMessages || []}
       isLoading={isLoading}
       hasOlderMessages={hasOlder}
@@ -73,10 +79,6 @@ export function ChatPanel() {
       onDeleteMessage={actions.deleteMessage}
       onEditMessage={actions.editMessage}
       onOpenUserProfile={openUserProfile}
-      onStartVoiceCall={() => {
-        const vChan = allServerChannels.find((c) => c.type === 'voice');
-        if (vChan) voice.join(vChan.id);
-      }}
     />
   );
 }

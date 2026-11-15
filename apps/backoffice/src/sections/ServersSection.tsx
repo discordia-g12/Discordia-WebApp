@@ -1,88 +1,123 @@
 import { useState } from 'react';
-import { ActionLink, BlockButton, SquareAvatar, UnderlineInput } from '@web/ui';
-import { Cell, Note } from '../layout/Cell';
-import { DataTable, type Column } from '../layout/blocks';
-import { StateTag } from './StateTag';
-import { formatDate, type PlatformServerRow } from './types';
+import { ActionLink, Choice, ConfirmDialog, UnderlineInput } from '@web/ui';
+import {
+  SERVER_STATE_FILTER_OPTIONS,
+  serverSuspensionErrorMessage,
+  useLiftServerSuspension,
+  type AdminServer,
+  type ServerStateFilter,
+} from '@discordia/core';
+import { Cell } from '../layout/Cell';
+import { DialogPortal } from '../layout/DialogPortal';
+import { DeleteServerCell } from './DeleteServerCell';
+import { ServersTable } from './ServersTable';
+import { SuspendServerCell } from './SuspendServerCell';
+import { SuspendedServersCell } from './SuspendedServersCell';
 import styles from './sections.module.css';
 
-const COLUMNS: Column<PlatformServerRow>[] = [
-  {
-    key: 'name',
-    label: 'servidor',
-    render: (s) => (
-      <span className={styles.links}>
-        <SquareAvatar user={{ displayName: s.name, username: s.name }} size={24} />
-        <strong>{s.name}</strong>
-      </span>
-    ),
-  },
-  { key: 'members', label: 'miembros', render: (s) => s.members },
-  { key: 'createdAt', label: 'creado', render: (s) => formatDate(s.createdAt) },
-  { key: 'state', label: 'estado', render: (s) => <StateTag state={s.state} /> },
-  {
-    key: 'actions',
-    label: 'acciones',
-    render: (s) => (
-      <span className={styles.links}>
-        <ActionLink>{s.state === 'active' ? 'suspender' : 'levantar suspensión'}</ActionLink>
-        <ActionLink>eliminar</ActionLink>
-        <ActionLink>expediente</ActionLink>
-      </span>
-    ),
-  },
-];
-
 /**
- * SERVIDORES: "Ver listado de servidores de la plataforma" (nombre, miembros y fecha de creación, con
- * búsqueda por nombre), "Suspender servidor completo" (y levantar la suspensión) y "Eliminar servidor desde
- * el backoffice". Endpoints en Server-Roles.
+ * SERVIDORES: "Ver listado de servidores de la plataforma" (nombre, id, miembros y fecha de creación, con
+ * búsqueda por nombre o id y filtro de estado), "Suspender servidor completo" (y levantar la suspensión) y
+ * "Eliminar servidor desde el backoffice". Endpoints en Server-Roles (/api/v1/admin/servers).
+ *
+ * Suspender y eliminar van por id porque el nombre no es único (ADR-002 de Server-Roles). Desde el listado:
+ * "_suspender" o "_eliminar" completan el formulario correspondiente con el id del servidor, y
+ * "_levantar suspensión" pide confirmación y la levanta ahí mismo.
  */
 export function ServersSection() {
   const [search, setSearch] = useState('');
-  const [suspendTarget, setSuspendTarget] = useState('');
-  const [suspendReason, setSuspendReason] = useState('');
-  const [deleteName, setDeleteName] = useState('');
-  const [deleteReason, setDeleteReason] = useState('');
-  const servers: PlatformServerRow[] = [];
+  const [state, setState] = useState<ServerStateFilter>('all');
+  // Cada pedido de "_suspender" o "_eliminar" lleva un número nuevo, así el formulario se completa aunque sea el mismo servidor
+  const [suspendPrefill, setSuspendPrefill] = useState<{ serverId: string; name: string; key: number } | null>(null);
+  const [deletePrefill, setDeletePrefill] = useState<{ serverId: string; name: string; key: number } | null>(null);
+  const [liftTarget, setLiftTarget] = useState<AdminServer | null>(null);
+  const lift = useLiftServerSuspension();
+
+  const confirmLift = async () => {
+    if (!liftTarget) return;
+    try {
+      await lift.mutateAsync(liftTarget.id);
+    } catch {
+      // El error queda en lift.error y se muestra abajo de la tabla
+    } finally {
+      setLiftTarget(null);
+    }
+  };
 
   return (
     <>
       <Cell title="Servidores de la plataforma" feature="servers.list" wide>
-        <UnderlineInput label="buscar" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="nombre del servidor" />
-        <DataTable
-          caption="Servidores de la plataforma"
-          columns={COLUMNS}
-          rows={servers}
-          rowKey={(s) => s.id}
-          empty={{ title: 'sin servidores para mostrar', hint: 'el listado aparece cuando se conecte con la plataforma' }}
+        <div className={styles.filters}>
+          <UnderlineInput
+            label="buscar"
+            type="search"
+            value={search}
+            maxLength={100}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="nombre o id del servidor"
+          />
+          <Choice label="Estado del servidor" options={SERVER_STATE_FILTER_OPTIONS} value={state} onChange={setState} />
+        </div>
+
+        <ServersTable
+          search={search}
+          state={state}
+          renderActions={(server) => (
+            <span className={styles.links}>
+              {server.isSuspended ? (
+                <ActionLink
+                  onPress={() => {
+                    lift.reset();
+                    setLiftTarget(server);
+                  }}
+                  aria-label={`Levantar la suspensión de ${server.name}`}
+                >
+                  levantar suspensión
+                </ActionLink>
+              ) : (
+                <ActionLink
+                  onPress={() => setSuspendPrefill({ serverId: server.id, name: server.name, key: Date.now() })}
+                  aria-label={`Suspender ${server.name}`}
+                >
+                  suspender
+                </ActionLink>
+              )}
+              <ActionLink
+                onPress={() => setDeletePrefill({ serverId: server.id, name: server.name, key: Date.now() })}
+                aria-label={`Eliminar ${server.name}`}
+              >
+                eliminar
+              </ActionLink>
+            </span>
+          )}
         />
+
+        {lift.isError && (
+          <p role="alert" className={styles.statusError}>
+            {serverSuspensionErrorMessage(lift.error, 'lift')}
+          </p>
+        )}
+        {lift.isSuccess && lift.data && (
+          <p role="status" className={styles.success}>
+            {lift.data.name} volvió a estar activo.
+          </p>
+        )}
       </Cell>
 
-      <Cell title="Suspender servidor" feature="servers.suspend">
-        <UnderlineInput label="servidor" value={suspendTarget} onChange={(e) => setSuspendTarget(e.target.value)} placeholder="nombre o id" />
-        <UnderlineInput
-          label="motivo"
-          value={suspendReason}
-          maxLength={512}
-          onChange={(e) => setSuspendReason(e.target.value)}
-          hint="por ejemplo, la denuncia que se investiga"
-        />
-        <BlockButton tone="danger">Suspender</BlockButton>
-        <Note>Ningún miembro puede entrar mientras dure. El contenido se conserva y se puede levantar la suspensión desde el listado.</Note>
-      </Cell>
+      <SuspendServerCell prefill={suspendPrefill} />
+      <SuspendedServersCell />
+      <DeleteServerCell prefill={deletePrefill} />
 
-      <Cell title="Eliminar servidor" feature="servers.delete">
-        <UnderlineInput
-          label="nombre del servidor"
-          value={deleteName}
-          onChange={(e) => setDeleteName(e.target.value)}
-          hint="escribilo completo para confirmar"
-        />
-        <UnderlineInput label="motivo" value={deleteReason} maxLength={512} onChange={(e) => setDeleteReason(e.target.value)} />
-        <BlockButton tone="danger">Eliminar servidor</BlockButton>
-        <Note>Se borran para siempre sus canales, mensajes y roles. No se puede deshacer.</Note>
-      </Cell>
+      {liftTarget && (
+        <DialogPortal>
+          <ConfirmDialog
+            action="lift-server-suspension"
+            targetName={liftTarget.name}
+            onConfirm={confirmLift}
+            onCancel={() => setLiftTarget(null)}
+          />
+        </DialogPortal>
+      )}
     </>
   );
 }

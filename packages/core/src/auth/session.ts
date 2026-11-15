@@ -117,6 +117,7 @@ configureClient({
     return activeAdapter.getToken(opts);
   },
   onAuthFailure: () => handleAuthFailure(),
+  onAccountSuspended: () => markAccountSuspended(),
 });
 
 /**
@@ -135,6 +136,20 @@ function applyAuthDenial(denial: AuthDenial, email?: string | null) {
     profile: null,
     error: { title: 'Acceso Denegado', message: 'Tu cuenta se encuentra suspendida.' },
   });
+}
+
+/**
+ * El staff suspendió la cuenta en plena sesión: Kong respondió 403 account-suspended o Chat / Voz cerraron el
+ * WebSocket con 4010. Se borra lo cargado y se muestra la pantalla de cuenta suspendida (la misma que cuando
+ * Auth0 rechaza el login de una cuenta bloqueada). Solo una vez: varios pedidos pueden fallar a la vez.
+ */
+export function markAccountSuspended() {
+  const { status, isMock } = useSession.getState();
+  if (isMock || status === 'suspended') return;
+  if (onClearQueryCache) {
+    onClearQueryCache();
+  }
+  applyAuthDenial('suspended');
 }
 
 /**
@@ -253,6 +268,11 @@ async function runBootstrap(): Promise<void> {
     const profile = await getMyProfile();
     useSession.getState().setStatus('authenticated', { profile, error: null, role });
   } catch (err) {
+    // Suspendida por el staff (Kong o Auth-User): su pantalla, no "error al cargar el perfil"
+    if (isProblemType(err, PROBLEM_TYPES.ACCOUNT_SUSPENDED)) {
+      applyAuthDenial('suspended');
+      return;
+    }
     if (err instanceof ApiError && err.status === 404) {
       // Usuario autenticado en Auth0 sin perfil en Discordia: auto-aprovisionar con datos de registro o Auth0
       let authUser: Awaited<ReturnType<AuthAdapter['getUser']>>;

@@ -1,5 +1,7 @@
 /* Chat del rediseño (PDF, págs. 7 y 9): encabezado de 48 px alineado con la barra lateral */
 .chat {
+  /* Para las reglas de chat angosto, al final */
+  container: chat / inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -48,33 +50,20 @@
 }
 
 /* Enlaces de texto separados por líneas verticales ("hilos | mensajes fijados | ...") */
+.presence {
+  flex-shrink: 0;
+  font-size: var(--font-meta-size);
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+/* Acciones como íconos (IconButton), pegadas al borde derecho y del alto del encabezado */
 .links {
   display: flex;
+  align-self: stretch;
   align-items: center;
   flex-shrink: 0;
-}
-
-.headerLink {
-  padding: 0 var(--space-3);
-  background: none;
-  border: 0;
-  border-left: var(--line-hairline) solid var(--color-line-strong);
-  font-family: inherit;
-  font-size: var(--font-meta-size);
-  line-height: var(--font-meta-line-height);
-  color: var(--color-text);
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.headerLink:first-child {
-  border-left: 0;
-}
-
-.headerLink:hover,
-.headerLink[aria-pressed='true'] {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  margin-right: calc(-1 * var(--space-5));
 }
 
 /* ── Lista de mensajes ── */
@@ -434,6 +423,11 @@
   right: var(--space-5);
 }
 
+.messagePopoverUp {
+  top: auto;
+  bottom: calc(100% - var(--space-2));
+}
+
 .pinned {
   top: calc(var(--space-7) - 1px);
   right: var(--space-5);
@@ -480,6 +474,66 @@
   text-underline-offset: 2px;
 }
 
+.dangerLink {
+  color: var(--color-danger);
+}
+
+.categoryNav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.categoryNavButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.categoryNavButton:hover {
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+}
+
+.emojiPicker {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-right: var(--space-1);
+}
+
+.emojiCategory {
+  display: flex;
+  flex-direction: column;
+}
+
+.emojiCategoryTitle {
+  font-size: var(--font-label-size);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-1);
+}
+
+.emojiPlaceholder {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+  font-style: italic;
+  padding: var(--space-1) 0;
+}
+
 .emojiGrid {
   display: grid;
   grid-template-columns: repeat(8, var(--space-6));
@@ -522,6 +576,12 @@
 .composerPopover {
   bottom: calc(100% + var(--space-2));
   left: var(--space-5);
+}
+
+.composerEmojiPopover {
+  bottom: calc(100% + var(--space-2));
+  right: var(--space-5);
+  left: auto;
 }
 
 .mentionOption[aria-selected='true'] {
@@ -612,22 +672,33 @@
   cursor: default;
 }
 
-/* ── Pantalla chica (mobile web) ── */
-@media (max-width: 767px) {
-  /* El encabezado se desliza de costado: el canal y sus enlaces no entran en una fila */
+/*
+ * ── Chat angosto ──
+ * Depende del ancho del chat y no de la pantalla: en mobile web, pero también en una notebook con la
+ * barra lateral y la lista de miembros abiertas, donde el chat queda en ~400 px.
+ */
+@container chat (max-width: 640px) {
+  /*
+   * Una sola fila: el nombre se corta con puntos suspensivos y los íconos quedan enteros a la derecha. En
+   * pantallas angostas el DM muestra menos íconos y el resto va al menú "más" (DM_HEADER_COMPACT_ICONS).
+   */
   .header {
-    overflow-x: auto;
-    scrollbar-width: none;
+    gap: var(--space-3);
     padding: 0 var(--space-4);
   }
 
-  .header::-webkit-scrollbar {
-    display: none;
+  .titleGroup {
+    flex: 1;
+    gap: var(--space-3);
   }
 
-  .titleGroup,
   .title {
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .links {
+    margin-right: calc(-1 * var(--space-4));
   }
 
   .topic {

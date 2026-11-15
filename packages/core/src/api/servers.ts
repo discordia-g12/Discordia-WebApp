@@ -15,6 +15,7 @@ import {
   Server,
   Category,
   Channel,
+  MutualServer,
   ServerBackendResponse,
   ChannelBackendResponse,
   CategoryBackendResponse,
@@ -22,6 +23,7 @@ import {
   ServerMemberPage,
   ServerMemberBackendResponse,
   ServerMemberPageBackendResponse,
+  MemberGrowthResponse,
 } from '../types';
 
 export interface CreateServerRequest {
@@ -108,9 +110,11 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
   }));
 
   const categories: Category[] = [];
+  const isSuspended = raw.is_suspended === true;
 
-  // Si hay canales sin categoría, o si no hay ninguna categoría creada aún, mostramos la sección general
-  if (uncategorizedChannels.length > 0 || mappedCategories.length === 0) {
+  // Si hay canales sin categoría, o si no hay ninguna categoría creada aún, mostramos la sección general.
+  // Un servidor suspendido no tiene contenido para mostrar: ni siquiera la sección vacía
+  if (!isSuspended && (uncategorizedChannels.length > 0 || mappedCategories.length === 0)) {
     categories.push({
       id: `${LOCAL_CATEGORY_PREFIX}${raw.id}-general`,
       serverId: raw.id,
@@ -128,6 +132,7 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
     myPermissions: raw.my_permissions === undefined ? undefined : bitmaskToPermissions(raw.my_permissions),
     iconUrl: raw.icon_url || undefined,
     icon: raw.icon_url || undefined,
+    banner: raw.banner_url || undefined,
     description: raw.description || undefined,
     channels,
     categories,
@@ -136,8 +141,15 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
     boostLevel: 0,
     boostCount: 0,
     createdAt: raw.created_at,
+    isSuspended,
   };
 }
+
+/** Texto del panel de un servidor suspendido, igual en web y mobile. */
+export const SUSPENDED_SERVER_TITLE = 'Servidor suspendido';
+export const SUSPENDED_SERVER_MESSAGE =
+  'La plataforma suspendió este servidor mientras revisa una denuncia. Su contenido se conserva: vas a poder ' +
+  'volver a usarlo cuando se levante la suspensión.';
 
 /**
  * Consulta la lista de servidores a los que pertenece el usuario.
@@ -148,6 +160,17 @@ export async function getServers(): Promise<Server[]> {
 
   const rawServers = await api.get<ServerBackendResponse[]>('/api/v1/servers');
   return (rawServers || []).map(mapServerFromBackend);
+}
+
+/** Servidores del usuario autenticado donde también está `userId`. */
+export async function getMutualServers(userId: string): Promise<MutualServer[]> {
+  const mock = getApiMock();
+  if (mock?.getMutualServers) return mock.getMutualServers(userId);
+
+  const raw = await api.get<{ id: string; name: string; icon_url?: string | null }[]>(
+    `/api/v1/servers/mutual/${encodeURIComponent(userId)}`
+  );
+  return (raw || []).map(({ id, name, icon_url }) => ({ id, name, ...(icon_url ? { iconUrl: icon_url } : {}) }));
 }
 
 /**
@@ -190,6 +213,90 @@ export async function removeServerIcon(serverId: string): Promise<Server> {
 export function serverIconErrorMessage(err: unknown): string {
   if (err instanceof ApiError && err.status === 403) {
     return 'Necesitás el permiso Gestionar servidor para cambiar el ícono.';
+  }
+  return imageUploadErrorMessage(err);
+}
+
+/** Mismos límites que valida Server-Roles (PATCH /servers/{id}). */
+export const SERVER_NAME_MAX_LENGTH = 100;
+export const SERVER_DESCRIPTION_MAX_LENGTH = 1000;
+
+export interface UpdateServerRequest {
+  name?: string;
+  /** Vacía la borra. */
+  description?: string;
+}
+
+/**
+ * Error de validación de la configuración del servidor, o null si se puede mandar. Se valida antes de
+ * mandar para avisar enseguida; Server-Roles vuelve a validar y es el que decide.
+ */
+export function serverSettingsValidationError(payload: UpdateServerRequest): string | null {
+  if (payload.name !== undefined) {
+    const name = payload.name.trim();
+    if (!name) return 'El nombre no puede quedar vacío.';
+    if (name.length > SERVER_NAME_MAX_LENGTH) return `El nombre puede tener hasta ${SERVER_NAME_MAX_LENGTH} caracteres.`;
+    if (name.includes('\u0000')) return 'El nombre tiene caracteres no permitidos.';
+  }
+  if (payload.description !== undefined) {
+    const description = payload.description.trim();
+    if (description.length > SERVER_DESCRIPTION_MAX_LENGTH) {
+      return `La descripción puede tener hasta ${SERVER_DESCRIPTION_MAX_LENGTH} caracteres.`;
+    }
+    if (description.includes('\u0000')) return 'La descripción tiene caracteres no permitidos.';
+  }
+  return null;
+}
+
+/**
+ * Cambia el nombre y/o la descripción (PATCH /servers/{id}, solo los campos que se mandan, con trim). Hace
+ * falta ser el dueño o tener Gestionar servidor. Los demás miembros lo ven por el evento SERVER_UPDATED.
+ */
+export async function updateServer(serverId: string, payload: UpdateServerRequest): Promise<Server> {
+  const body: UpdateServerRequest = {};
+  if (payload.name !== undefined) body.name = payload.name.trim();
+  if (payload.description !== undefined) body.description = payload.description.trim();
+  return mapServerFromBackend(await api.patch<ServerBackendResponse>(`/api/v1/servers/${serverId}`, body));
+}
+
+/** Mensaje para mostrar si no se pudo guardar el nombre o la descripción. */
+export function serverSettingsErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 403) return 'Necesitás el permiso Gestionar servidor para cambiar la configuración.';
+    if (err.status === 404) return 'El servidor ya no existe.';
+    if (err.status === 422) {
+      const fields = (err.invalidParams ?? []).map((p) => p.name ?? p.loc?.[p.loc.length - 1]);
+      if (fields.includes('description')) {
+        return `La descripción puede tener hasta ${SERVER_DESCRIPTION_MAX_LENGTH} caracteres.`;
+      }
+      return `El nombre tiene que tener entre 1 y ${SERVER_NAME_MAX_LENGTH} caracteres.`;
+    }
+  }
+  return 'No se pudo guardar la configuración. Probá de nuevo.';
+}
+
+/**
+ * Reemplaza el banner (PUT /servers/{id}/banner, campo "banner"). Server-Roles lo recorta al centro a 16:9.
+ * Mismos permisos que el ícono.
+ */
+export async function updateServerBanner(serverId: string, banner: UploadableFile): Promise<Server> {
+  const formData = new FormData();
+  appendFile(formData, 'banner', banner, 'banner');
+  const rawServer = await api.put<ServerBackendResponse>(`/api/v1/servers/${serverId}/banner`, formData, {
+    timeoutMs: UPLOAD_TIMEOUT_MS,
+  });
+  return mapServerFromBackend(rawServer);
+}
+
+/** Quita el banner (la franja vuelve a mostrar el ícono). */
+export async function removeServerBanner(serverId: string): Promise<Server> {
+  return mapServerFromBackend(await api.delete<ServerBackendResponse>(`/api/v1/servers/${serverId}/banner`));
+}
+
+/** Mensaje para mostrar si no se pudo cambiar o quitar el banner. */
+export function serverBannerErrorMessage(err: unknown): string {
+  if (err instanceof ApiError && err.status === 403) {
+    return 'Necesitás el permiso Gestionar servidor para cambiar el banner.';
   }
   return imageUploadErrorMessage(err);
 }
@@ -320,3 +427,28 @@ export async function reorderChannels(serverId: string, categories: Category[]):
 export async function reorderCategories(serverId: string, categories: Category[]): Promise<void> {
   await api.put(`/api/v1/servers/${serverId}/categories/order`, { category_ids: toCategoryOrder(categories) });
 }
+
+export interface GetMemberGrowthOptions {
+  days?: number;
+  start_date?: string;
+  end_date?: string;
+}
+
+export async function getMemberGrowth(
+  serverId: string,
+  options?: GetMemberGrowthOptions
+): Promise<MemberGrowthResponse> {
+  const params = new URLSearchParams();
+  if (options?.days !== undefined) {
+    params.set('days', String(options.days));
+  }
+  if (options?.start_date) {
+    params.set('start_date', options.start_date);
+  }
+  if (options?.end_date) {
+    params.set('end_date', options.end_date);
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return await api.get<MemberGrowthResponse>(`/api/v1/servers/${serverId}/metrics/member-growth${query}`);
+}
+

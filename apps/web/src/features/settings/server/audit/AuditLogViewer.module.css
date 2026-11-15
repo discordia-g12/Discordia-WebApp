@@ -1,0 +1,214 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.searchBar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.searchInputWrapper {
+  flex: 1;
+}
+
+.searchMeta {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: var(--space-3);
+}
+
+.filterChip {
+  padding: 4px 10px;
+  font-size: var(--font-meta-size);
+  font-family: inherit;
+  font-weight: 500;
+  border: 1px solid var(--color-line);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 120ms ease;
+  border-radius: 2px;
+}
+
+.filterChip:hover {
+  border-color: var(--color-line-strong);
+  color: var(--color-text);
+}
+
+.filterChipActive {
+  background: var(--color-inverse-background);
+  color: var(--color-inverse-text);
+  border-color: var(--color-inverse-background);
+  font-weight: 700;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  background: rgba(0, 0, 0, 0.02);
+  transition: border-color 120ms ease;
+}
+
+.row:hover {
+  border-color: var(--color-line-strong);
+}
+
+.rowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.actorInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.actorButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.actorButton:hover .actorName {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.actorName {
+  margin: 0;
+  font-weight: 700;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+}
+
+.actionTag {
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.targetName {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.time {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.reason {
+  margin: 0;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.diffToggle {
+  margin-top: 2px;
+  align-self: flex-start;
+}
+
+.diffContainer {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  background: rgba(0, 0, 0, 0.04);
+  font-size: var(--font-meta-size);
+}
+
+.diffTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.diffKey {
+  font-weight: 700;
+  padding: 4px 8px 4px 0;
+  color: var(--color-text-muted);
+  width: 25%;
+  vertical-align: top;
+}
+
+.diffValues {
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-family: monospace;
+}
+
+.diffOld {
+  color: var(--color-danger);
+  text-decoration: line-through;
+  background: rgba(192, 57, 43, 0.1);
+  padding: 1px 4px;
+  border-radius: 2px;
+  word-break: break-all;
+}
+
+.diffNew {
+  color: var(--color-speaking);
+  background: rgba(21, 128, 61, 0.1);
+  padding: 1px 4px;
+  border-radius: 2px;
+  word-break: break-all;
+}
+
+.diffArrow {
+  color: var(--color-text-muted);
+}
+
+.loadMore {
+  align-self: center;
+  margin-top: var(--space-3);
+}
+
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}

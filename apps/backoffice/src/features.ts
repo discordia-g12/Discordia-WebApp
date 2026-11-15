@@ -9,17 +9,17 @@
 export type FeatureStatus = 'soon' | 'ready';
 
 const FEATURES = {
-  'users.list': 'soon', // Ver listado de usuarios con filtros (Auth-User)
-  'users.suspend': 'soon', // Suspender usuario a nivel plataforma (Auth-User, ADR-002 de Auth-User)
-  'users.reactivate': 'soon', // Reactivar usuario suspendido
-  'servers.list': 'soon', // Ver listado de servidores de la plataforma (Server-Roles)
-  'servers.suspend': 'soon', // Suspender servidor completo
-  'servers.delete': 'soon', // Eliminar servidor desde el backoffice
+  'users.list': 'ready', // Ver listado de usuarios con filtros (Auth-User)
+  'users.suspend': 'ready', // Suspender usuario a nivel plataforma (Auth-User, ADR-002 de Auth-User)
+  'users.reactivate': 'ready', // Reactivar usuario suspendido
+  'servers.list': 'ready', // Ver listado de servidores de la plataforma (GET /api/v1/admin/servers, Server-Roles)
+  'servers.suspend': 'ready', // Suspender servidor completo y levantar la suspensión (Server-Roles, ADR-002)
+  'servers.delete': 'ready', // Eliminar servidor desde el backoffice (DELETE /api/v1/admin/servers/{id}, Server-Roles)
   'cases.user': 'soon', // Ver expediente de investigación de un usuario
   'cases.server': 'soon', // Ver expediente de investigación de un servidor
-  'metrics.global': 'soon', // Ver métricas globales de la plataforma (Notification-Audit-Metrics)
+  'metrics.global': 'ready', // Ver métricas globales de la plataforma (GET /api/v1/admin/metrics, Notification-Audit-Metrics)
   'status.services': 'ready', // Estado de cada servicio (GET /api/v1/admin/status, Notification)
-  'status.incidents': 'soon', // Publicar y resolver incidentes
+  'status.incidents': 'ready', // Publicar, resolver y sugerir incidentes (/api/v1/admin/incidents, Notification)
   'observability.grafana': 'ready', // Links a Grafana: no dependen de ningún endpoint
 } satisfies Record<string, FeatureStatus>;
 
