@@ -143,13 +143,15 @@ describe('ServerSettingsScreen (rediseño)', () => {
 
       expect(menu.queryByRole('button', { name: 'Resumen' })).toBeNull();
       expect(screen.queryByRole('region', { name: 'Nombre y descripción' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Actividad del servidor' })).toBeNull();
       expect(screen.queryByRole('region', { name: 'Banner' })).toBeNull();
     });
 
-    it('con Administrador (sin ser dueña) puede editar', () => {
+    it('con Administrador (sin ser dueña) puede editar y ve Actividad del servidor', () => {
       renderSettings({ server: { ...server, ownerId: 'otra', myPermissions: ['ADMINISTRATOR'] } });
 
       expect(identity().getByLabelText('nombre del servidor').matches(':disabled')).toBe(false);
+      expect(screen.getByRole('region', { name: 'Actividad del servidor' })).toBeTruthy();
     });
   });
 

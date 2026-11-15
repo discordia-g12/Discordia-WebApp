@@ -56,6 +56,7 @@ export * from './admin/platformMetrics';
 // Backoffice de staff: suspender y reactivar cuentas (Auth-User, ADR-002)
 export * from './admin/userSuspensions';
 export * from './admin/serverSuspensions';
+export * from './api/serverMetrics';
 
 // Chat: fechas y agrupado de los mensajes; tiempo real sin React
 export * from './chat/format';

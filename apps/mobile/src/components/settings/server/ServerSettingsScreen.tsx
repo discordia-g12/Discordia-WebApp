@@ -19,6 +19,7 @@ import { RoleSaveBar, RolesSection } from './RolesSection'
 import { BansSection, MembersSection } from './MembersSection'
 import { AuditSection } from './AuditSection'
 import { MemberGrowthChart } from '../../servers/MemberGrowthChart'
+import { ServerActivityMetrics } from '../../servers/ServerActivityMetrics'
 
 export type ServerSettingsSection = 'overview' | 'roles' | 'members' | 'bans' | 'audit'
 type Section = ServerSettingsSection
@@ -128,7 +129,10 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
               <Figure label="roles" value={roles.roles.length} />
             </View>
           </SettingsCell>
-          <SettingsCell title="Crecimiento de miembros" index={3}>
+          <SettingsCell title="Actividad del servidor" index={3}>
+            <ServerActivityMetrics serverId={server.id} />
+          </SettingsCell>
+          <SettingsCell title="Crecimiento de miembros" index={4}>
             <MemberGrowthChart serverId={server.id} />
           </SettingsCell>
         </>

@@ -27,13 +27,14 @@ import { PERMISSION_CATEGORIES, PRESET_ROLE_COLORS } from './shared';
 import { useServerSettingsState, type ServerSettingsState } from './useServerSettingsState';
 import { useUIStore } from '../../../app/uiStore';
 import { MemberGrowthChart } from '../../servers/MemberGrowthChart';
+import { ServerActivityMetrics } from '../../servers/ServerActivityMetrics';
 import { AuditLogViewer } from './audit';
 import styles from './ServerSettingsScreen.module.css';
 
 type Section = 'overview' | 'roles' | 'members' | 'bans' | 'channels' | 'moderation' | 'notifications' | 'emojis' | 'boost';
 
 const SECTIONS: SettingsSection<Section>[] = [
-  { id: 'overview', label: 'Resumen', items: ['Ícono', 'Banner', 'Nombre y descripción', 'Números', 'Crecimiento de miembros'] },
+  { id: 'overview', label: 'Resumen', items: ['Ícono', 'Banner', 'Nombre y descripción', 'Números', 'Actividad del servidor', 'Crecimiento de miembros'] },
   { id: 'roles', label: 'Roles', items: ['Crear rol', 'Roles', 'Editar rol', 'Permisos'] },
   { id: 'members', label: 'Miembros', items: ['Asignar roles', 'Silenciar', 'Expulsar', 'Banear'] },
   { id: 'bans', label: 'Baneos', items: ['Usuarios baneados', 'Revocar'] },
@@ -253,6 +254,9 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
         </dl>
       </SettingsCell>
 
+      <SettingsCell title="Actividad del servidor" wide>
+        <ServerActivityMetrics serverId={s.serverState.id} />
+      </SettingsCell>
       <SettingsCell title="Crecimiento de miembros" wide>
         <MemberGrowthChart serverId={s.serverState.id} />
       </SettingsCell>
