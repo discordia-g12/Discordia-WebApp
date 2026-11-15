@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Bell, BellOff, Paperclip, Pin, Smile, Users } from 'lucide-react';
+import { Bell, BellOff, Paperclip, Pin, Search, Smile, Users } from 'lucide-react';
 import { distances } from '@discordia/tokens';
 import {
   formatDayLabel,
@@ -77,6 +77,8 @@ export interface ChatViewProps {
   onToggleMemberList?: () => void;
   /** Estado de visibilidad de la barra lateral de miembros. */
   isMemberListOpen?: boolean;
+  /** Abre la búsqueda de mensajes del servidor. Sin esto (DMs) no se muestra el botón. */
+  onOpenSearch?: () => void;
   /**
    * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: el input queda
    * deshabilitado y se muestra esto. null o sin definir: se puede escribir.
@@ -254,6 +256,7 @@ export function ChatView(props: ChatViewProps) {
     onOpenUserProfile,
     onToggleMemberList,
     isMemberListOpen = true,
+    onOpenSearch,
     hasOlderMessages = false,
     isLoadingOlder = false,
     onLoadOlder,
@@ -309,6 +312,7 @@ export function ChatView(props: ChatViewProps) {
             )
           ) : (
             <>
+              {onOpenSearch && <IconButton icon={Search} label="Buscar mensajes" onPress={onOpenSearch} />}
               <IconButton
                 icon={chat.isNotificationsMuted ? BellOff : Bell}
                 label="Silenciar notificaciones"

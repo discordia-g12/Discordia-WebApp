@@ -1,0 +1,105 @@
+/* Búsqueda de mensajes: el formulario arriba y los resultados como filas de una línea fina */
+
+.selectField {
+  display: flex;
+  flex-direction: column;
+}
+
+.fieldLabel {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-label-size);
+  font-weight: 700;
+  letter-spacing: var(--font-label-letter-spacing);
+}
+
+.selectField select {
+  padding: var(--space-1) var(--space-5);
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  border-top: var(--line-hairline) solid var(--color-line);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+  border-radius: var(--radius);
+}
+
+.results {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list li + li {
+  border-top: var(--line-hairline) solid var(--color-line);
+}
+
+.result {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.result:hover .content,
+.result:focus-visible .content {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+}
+
+.meta strong {
+  color: var(--color-text);
+}
+
+.content {
+  overflow-wrap: anywhere;
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  /* Los mensajes largos se cortan a tres líneas: el resultado completo está en el canal */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.loadMore {
+  align-self: center;
+}
+
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}

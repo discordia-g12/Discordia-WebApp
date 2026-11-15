@@ -3,7 +3,8 @@ import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { makeStyles } from '../theme'
-import { Background, ConnectionBanner, EmptyState, Skeleton, ActionLink, Text, keyboardAvoidingBehavior } from '../ui'
+import { Search, Settings } from 'lucide-react-native'
+import { Background, ConnectionBanner, EmptyState, IconButton, Skeleton, ActionLink, Text, keyboardAvoidingBehavior } from '../ui'
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
@@ -16,6 +17,7 @@ import CreateCategoryModal from './channels/CreateCategoryModal'
 import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
 import MessageActionsModal from './chat/MessageActionsModal'
+import MessageSearchModal from './chat/MessageSearchModal'
 import EditMessageModal from './chat/EditMessageModal'
 import EditProfileModal from './profile/EditProfileModal'
 import PublicProfileModal from './profile/PublicProfileModal'
@@ -158,6 +160,8 @@ export default function MobileShell() {
   const [actionTargetMessage, setActionTargetMessage] = useState<Message | null>(null)
   const [editingMessage, setEditingMessage] = useState<Message | null>(null)
   const [userSettingsOpen, setUserSettingsOpen] = useState(false)
+  // Búsqueda de mensajes del servidor abierto
+  const [messageSearchOpen, setMessageSearchOpen] = useState(false)
   // Canal de voz al que se quiere pasar estando conectado a otro (pide confirmación)
   const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
   // Participante sobre el que se mantuvo presionado (menú para silenciarlo solo para vos)
@@ -175,6 +179,7 @@ export default function MobileShell() {
         setCreateCategoryModalOpen(false)
         setEditChannelModalOpen(false)
         setDeleteChannelModalOpen(false)
+        setMessageSearchOpen(false)
         selectChannel(null)
         setScreen('channels')
         if (notify && !notifiedDeletedServersRef.current.has(deletedServerId)) {
@@ -741,7 +746,12 @@ export default function MobileShell() {
           <ChatHeader
             channelName={channel.name}
             socketConnected={activeSocketChannelId ? socket.isConnected : undefined}
-            onOpenSettings={() => handleOpenEditChannel(channel)}
+            actions={
+              <>
+                <IconButton icon={Search} label="Buscar mensajes" onPress={() => setMessageSearchOpen(true)} />
+                <IconButton icon={Settings} label={`Editar el canal ${channel.name}`} onPress={() => handleOpenEditChannel(channel)} />
+              </>
+            }
           />
           <MessageList
             channelName={channel.name}
@@ -987,6 +997,19 @@ export default function MobileShell() {
         channelId={editingMessage?.channelId ?? channel?.id}
         onClose={() => setEditingMessage(null)}
       />
+      {server && (
+        <MessageSearchModal
+          visible={messageSearchOpen}
+          serverId={server.id}
+          serverName={server.name}
+          channels={allChannels}
+          onClose={() => setMessageSearchOpen(false)}
+          onOpenMessage={message => {
+            const target = allChannels.find(c => c.id === message.channelId)
+            if (target) handleSelectChannel(target)
+          }}
+        />
+      )}
       <InviteModal visible={inviteModalOpen} server={server || undefined} onClose={() => setInviteModalOpen(false)} />
 
       {channelActionModals}
