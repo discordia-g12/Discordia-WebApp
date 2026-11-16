@@ -21,7 +21,7 @@ describe('mock de llamadas', () => {
     const { call, token, permissions } = await mock.startCall('dm-u1');
     expect(call).toMatchObject({ callerId: CURRENT_USER_ID, calleeId: 'u1', status: 'ringing' });
     expect(token).toBeTruthy();
-    expect(permissions).toEqual({ canSpeak: true, canVideo: true, canScreenShare: false });
+    expect(permissions).toEqual({ canSpeak: true, canVideo: true, canScreenShare: true });
 
     await vi.advanceTimersByTimeAsync(3_000);
     expect(await mock.getCurrentCall()).toMatchObject({ id: call.id, status: 'active' });
