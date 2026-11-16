@@ -19,6 +19,7 @@ export function useVoiceParticipants() {
     isMuted: p.isMuted,
     isDeafened: p.isLocal && room.isDeafened,
     videoTrack: p.videoTrack,
+    screenShareTrack: p.screenShareTrack,
   }));
 
   // Sidebar: presencia de todos los canales; en el canal propio, los datos de LiveKit (quién habla, mute)

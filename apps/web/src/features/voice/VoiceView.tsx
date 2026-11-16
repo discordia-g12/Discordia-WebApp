@@ -1,6 +1,6 @@
-import { useCallback, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { MicOff, Shapes } from 'lucide-react';
+import { Maximize2, MicOff, Minimize2, MonitorUp, Shapes } from 'lucide-react';
 import { transitions } from '../../ui';
 import type { VoiceParticipant } from '../channels/ChannelSidebar';
 import { VoiceParticipantMenu } from './VoiceParticipantMenu';
@@ -75,8 +75,29 @@ export function VoiceView({
 }: VoiceViewProps) {
   const reduce = useReducedMotion();
   const [contextMenu, setContextMenu] = useState<{ user: VoiceParticipant['user']; x: number; y: number } | null>(null);
+  const [expandedScreenUserId, setExpandedScreenUserId] = useState<string | null>(null);
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
-  const columns = columnsFor(participants.length + 1);
+
+  const screenShares = participants.filter(
+    (p): p is VoiceParticipant & { screenShareTrack: NonNullable<VoiceParticipant['screenShareTrack']> } =>
+      Boolean(p.screenShareTrack)
+  );
+  const activeExpandedScreenId =
+    expandedScreenUserId && screenShares.some((s) => s.user.id === expandedScreenUserId)
+      ? expandedScreenUserId
+      : null;
+
+  // Escape vuelve de la pantalla compartida ampliada al mosaico
+  useEffect(() => {
+    if (!activeExpandedScreenId) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) setExpandedScreenUserId(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [activeExpandedScreenId]);
+
+  const columns = activeExpandedScreenId ? 1 : columnsFor(participants.length + screenShares.length + 1);
   const layoutTransition = reduce ? transitions.reduced : transitions.slow;
 
   return (
@@ -93,6 +114,49 @@ export function VoiceView({
 
       <ul className={styles.grid} data-columns={columns} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} aria-label={`Participantes de ${channelName}`}>
         <AnimatePresence initial={false}>
+          {screenShares.map(({ user, screenShareTrack }) => {
+            const isMe = user.id === currentUserId;
+            const expanded = activeExpandedScreenId === user.id;
+            const hidden = activeExpandedScreenId !== null && !expanded;
+            const displayName = user.displayName || user.username;
+            return (
+              <motion.li
+                key={`${user.id}-screen`}
+                layout={!reduce}
+                hidden={hidden}
+                className={`${styles.tile} ${styles.screenTile} ${expanded ? styles.screenExpanded : ''}`}
+                initial={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
+                transition={layoutTransition}
+              >
+                <button
+                  type="button"
+                  className={styles.tileButton}
+                  onClick={() => setExpandedScreenUserId(expanded ? null : user.id)}
+                  aria-label={
+                    expanded
+                      ? `Reducir pantalla compartida de ${displayName}`
+                      : `Ampliar pantalla compartida de ${displayName}`
+                  }
+                  aria-pressed={expanded}
+                >
+                  <ParticipantVideo track={screenShareTrack} fit="contain" />
+                </button>
+                <span className={styles.screenBadge} aria-hidden="true">
+                  {expanded ? <Minimize2 size={14} strokeWidth={1.5} /> : <Maximize2 size={14} strokeWidth={1.5} />}
+                </span>
+                <span className={styles.label}>
+                  <MonitorUp size={12} strokeWidth={1.5} aria-hidden="true" />
+                  <span>
+                    {displayName}
+                    {isMe && ' (vos)'} · pantalla
+                  </span>
+                </span>
+              </motion.li>
+            );
+          })}
+
           {participants.map(({ user, isSpeaking, isMuted, videoTrack }) => {
             const isMe = user.id === currentUserId;
             const locallyMuted = !isMe && Boolean(locallyMutedUsers[user.id]);
@@ -100,6 +164,7 @@ export function VoiceView({
               <motion.li
                 key={user.id}
                 layout={!reduce}
+                hidden={activeExpandedScreenId !== null}
                 className={`${styles.tile} ${isSpeaking ? styles.speaking : ''}`}
                 initial={{ opacity: 0, scale: reduce ? 1 : 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -145,7 +210,13 @@ export function VoiceView({
             );
           })}
 
-          <motion.li key="invite" layout={!reduce} className={`${styles.tile} ${styles.inviteTile}`} transition={layoutTransition}>
+          <motion.li
+            key="invite"
+            layout={!reduce}
+            hidden={activeExpandedScreenId !== null}
+            className={`${styles.tile} ${styles.inviteTile}`}
+            transition={layoutTransition}
+          >
             <div className={styles.invite}>
               <button type="button" className={styles.inviteAction} onClick={onInvite} disabled={!onInvite}>
                 Invitar a la llamada <strong aria-hidden="true">+</strong>

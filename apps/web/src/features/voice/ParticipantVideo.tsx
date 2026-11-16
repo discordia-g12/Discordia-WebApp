@@ -6,13 +6,15 @@ interface ParticipantVideoProps {
   track: VideoTrack;
   /** La cámara propia se muestra en espejo, como en un espejo de verdad. */
   mirrored?: boolean;
+  /** cover para cámara; contain para pantalla compartida sin recortar bordes. */
+  fit?: 'cover' | 'contain';
 }
 
 /**
- * Cámara de un participante llenando su ficha. LiveKit maneja el elemento <video>: attach() lo
+ * Video de un participante llenando su ficha. LiveKit maneja el elemento <video>: attach() lo
  * conecta al track (y, con adaptiveStream, ajusta la calidad recibida al tamaño de la ficha).
  */
-export function ParticipantVideo({ track, mirrored = false }: ParticipantVideoProps) {
+export function ParticipantVideo({ track, mirrored = false, fit = 'cover' }: ParticipantVideoProps) {
   const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -25,5 +27,13 @@ export function ParticipantVideo({ track, mirrored = false }: ParticipantVideoPr
   }, [track]);
 
   // muted: el audio va por su propio track (el <audio> de la plataforma), no por el video
-  return <video ref={ref} className={`${styles.video} ${mirrored ? styles.mirrored : ''}`} autoPlay playsInline muted />;
+  return (
+    <video
+      ref={ref}
+      className={`${styles.video} ${fit === 'contain' ? styles.videoContain : ''} ${mirrored ? styles.mirrored : ''}`}
+      autoPlay
+      playsInline
+      muted
+    />
+  );
 }
