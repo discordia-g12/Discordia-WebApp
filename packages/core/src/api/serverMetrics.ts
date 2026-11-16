@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSession } from '../auth/session';
 import { api } from './client';
 import { ApiError, NetworkError, TimeoutError } from './errors';
@@ -79,10 +79,8 @@ export function normalizeServerActivityMetrics(raw: unknown): ServerActivityMetr
   };
 }
 
-export async function getServerActivityMetrics(
-  serverId: string,
-  range: ServerActivityRange = { days: 30 },
-): Promise<ServerActivityMetrics> {
+/** Path de las métricas con el período (`from`/`to` o `days`) y, si se pide, el formato. */
+function serverMetricsPath(serverId: string, range: ServerActivityRange, format?: 'csv'): string {
   const params = new URLSearchParams();
   if (range.from && range.to) {
     params.set('from', range.from);
@@ -90,10 +88,59 @@ export async function getServerActivityMetrics(
   } else if (typeof range.days === 'number') {
     params.set('days', String(range.days));
   }
+  if (format) params.set('format', format);
   const qs = params.toString();
-  const path = `/api/v1/servers/${encodeURIComponent(serverId)}/metrics${qs ? `?${qs}` : ''}`;
-  const raw = await api.get<unknown>(path);
+  return `/api/v1/servers/${encodeURIComponent(serverId)}/metrics${qs ? `?${qs}` : ''}`;
+}
+
+export async function getServerActivityMetrics(
+  serverId: string,
+  range: ServerActivityRange = { days: 30 },
+): Promise<ServerActivityMetrics> {
+  const raw = await api.get<unknown>(serverMetricsPath(serverId, range));
   return normalizeServerActivityMetrics(raw);
+}
+
+export interface ServerMetricsCsvFile {
+  filename: string;
+  content: string;
+}
+
+const DAY_MS = 86_400_000;
+
+/** "Mi Servidor Ñandú" → "mi-servidor-nandu" (solo letras, números y guiones). */
+function slugify(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * `metricas-<servidor>-<primer día>_<último día>.csv`, con los días que entran en el período (`to` es excluido),
+ * igual que el nombre que propone Notification-Audit-Metrics (ADR-06), pero con el nombre del servidor.
+ */
+export function serverMetricsCsvFilename(serverName: string, range: ServerActivityRange, now = new Date()): string {
+  const to = range.from && range.to ? new Date(range.to) : now;
+  const from = range.from && range.to ? new Date(range.from) : new Date(now.getTime() - (range.days ?? 30) * DAY_MS);
+  const lastIncluded = new Date(to.getTime() - 1);
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  return `metricas-${slugify(serverName) || 'servidor'}-${day(from)}_${day(lastIncluded)}.csv`;
+}
+
+/**
+ * Las métricas del período como CSV (`?format=csv`, ADR-06 de Notification-Audit-Metrics). Mismos permisos
+ * que verlas; si alguna fuente no respondió, el backend contesta 503 en lugar de un archivo incompleto.
+ */
+export async function exportServerActivityMetricsCsv(
+  serverId: string,
+  range: ServerActivityRange,
+  serverName: string,
+): Promise<ServerMetricsCsvFile> {
+  const content = await api.get<string>(serverMetricsPath(serverId, range, 'csv'));
+  return { filename: serverMetricsCsvFilename(serverName, range), content: typeof content === 'string' ? content : '' };
 }
 
 export function isServerMetricsForbidden(error: unknown): boolean {
@@ -117,6 +164,13 @@ export function serverMetricsErrorMessage(error: unknown): string {
     return error.message;
   }
   return 'No pudimos cargar las métricas del servidor.';
+}
+
+/** Exportar las métricas del período a CSV. La plataforma decide cómo guardar el archivo (onSuccess). */
+export function useExportServerActivityMetricsMutation(serverId: string, serverName: string) {
+  return useMutation({
+    mutationFn: (range: ServerActivityRange) => exportServerActivityMetricsCsv(serverId, range, serverName),
+  });
 }
 
 export function useServerActivityMetricsQuery(

@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main, develop]
 
+# Un push nuevo a un PR cancela el run anterior del mismo PR. Cada push a main/develop tiene su propio grupo
+# (el run_id), así nunca se cancela ni se descarta.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -64,13 +70,20 @@ jobs:
       - name: Build backoffice
         run: npm run build:backoffice
 
-      # Que Metro pueda armar el bundle que cargan Expo Go y el APK
+      # Que Metro pueda armar el bundle que cargan Expo Go y el APK. En los PRs solo Android (casi todos los
+      # errores de bundle son comunes a las dos plataformas) para ahorrar minutos; en push a main/develop, las dos.
       - name: Bundle mobile
         working-directory: apps/mobile
-        run: npx expo export --platform android --platform ios --output-dir "$RUNNER_TEMP/expo-export"
+        run: |
+          platforms="--platform android"
+          if [ "$GITHUB_EVENT_NAME" = push ]; then platforms="$platforms --platform ios"; fi
+          npx expo export $platforms --output-dir "$RUNNER_TEMP/expo-export"
 
   docker:
     # Valida el Dockerfile que usa el compose local. No se publica: en producción la web la sirve Pages.
+    # Solo en push a main/develop y en los PRs de Dependabot que cambian la imagen base: no hace falta
+    # construirla en cada push a un PR.
+    if: github.event_name == 'push' || startsWith(github.head_ref, 'dependabot/docker/')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: test

@@ -18,6 +18,7 @@ export function ChatPanel() {
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
   const toggleMemberList = useUIStore((s) => s.toggleMemberList);
+  const setActiveModal = useUIStore((s) => s.setActiveModal);
   const currentUser = useCurrentUser();
   const { usersMap } = useUsers();
   const channelId = selectedServerId !== 'home' ? selectedChannelId : null;
@@ -73,6 +74,7 @@ export function ChatPanel() {
       mentionables={mentionables}
       isMemberListOpen={isMemberListOpen}
       onToggleMemberList={toggleMemberList}
+      onOpenSearch={currentServer ? () => setActiveModal('search') : undefined}
       onSendMessage={actions.sendMessage}
       writeBlock={writeBlock}
       onToggleReaction={actions.toggleReaction}

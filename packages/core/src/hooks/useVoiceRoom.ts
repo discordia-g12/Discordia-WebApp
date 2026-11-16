@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   ConnectionState,
   DisconnectReason,
+  LocalTrack,
   Participant,
   RemoteParticipant,
   RemoteTrack,
   Room,
+  Track,
   VideoTrack,
 } from 'livekit-client';
 import {
@@ -26,6 +28,8 @@ export interface VoiceRoomParticipant {
   isMuted: boolean;
   /** Track de la cámara si la tiene prendida; null si no (la interfaz muestra su foto o iniciales). */
   videoTrack: VideoTrack | null;
+  /** Track de la pantalla compartida si la está transmitiendo; null si no. */
+  screenShareTrack: VideoTrack | null;
 }
 
 /** Fuera de una llamada (y si el voice-service no informa permisos) se puede publicar todo. */
@@ -106,13 +110,24 @@ function notifyLeave(target: RoomTarget, reason?: VoiceDisconnectReason): Promis
  */
 export const SPEAKING_HOLD_MS = 600;
 
-function cameraTrackOf(participant: Participant, lk: LiveKitModule | null): VideoTrack | null {
-  const source = lk?.Track.Source?.Camera;
+function videoTrackOf(participant: Participant, source: Track.Source | undefined): VideoTrack | null {
   if (!source) return null;
   const publication = participant.getTrackPublication?.(source);
-  // Una cámara apagada (mute) o todavía no recibida (remota sin suscribir) no tiene imagen que mostrar
+  // Una cámara o pantalla apagada (mute) o todavía no recibida (remota sin suscribir) no tiene imagen que mostrar
   if (!publication?.track || publication.isMuted) return null;
   return publication.track as VideoTrack;
+}
+
+async function unpublishScreenShare(room: Room, lk: LiveKitModule): Promise<void> {
+  const sources = [lk.Track.Source?.ScreenShare, lk.Track.Source?.ScreenShareAudio].filter(
+    (source): source is Track.Source => Boolean(source)
+  );
+  await Promise.all(
+    sources.map(async (source) => {
+      const track = room.localParticipant.getTrackPublication?.(source)?.track;
+      if (track) await room.localParticipant.unpublishTrack(track);
+    })
+  );
 }
 
 function toParticipant(participant: Participant, isLocal: boolean, lk: LiveKitModule | null): VoiceRoomParticipant {
@@ -121,7 +136,8 @@ function toParticipant(participant: Participant, isLocal: boolean, lk: LiveKitMo
     isLocal,
     isSpeaking: participant.isSpeaking,
     isMuted: !participant.isMicrophoneEnabled,
-    videoTrack: cameraTrackOf(participant, lk),
+    videoTrack: videoTrackOf(participant, lk?.Track.Source?.Camera),
+    screenShareTrack: videoTrackOf(participant, lk?.Track.Source?.ScreenShare),
   };
 }
 
@@ -162,10 +178,13 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const mutedBeforeDeafenRef = useRef(initialPrefs.mutedBeforeDeafen);
   const locallyMutedRef = useRef<Record<string, boolean>>({});
   const cameraOnRef = useRef(false);
+  const screenShareOnRef = useRef(false);
   // Qué permiten publicar los roles en la llamada actual (lo informa el join)
   const publishRef = useRef<VoicePublishPermissions>(PUBLISH_ALL);
   // Sala con un cambio de cámara en curso (permiso, crear o publicar el track): se ignoran los toques que lleguen mientras
   const cameraBusyRoomRef = useRef<Room | null>(null);
+  // Sala con un cambio de pantalla compartida en curso: evita aperturas duplicadas del selector nativo
+  const screenShareBusyRoomRef = useRef<Room | null>(null);
   // Hasta cuándo sigue "hablando" cada participante (retención del indicador) y el timer que lo apaga
   const speakingUntilRef = useRef<Record<string, number>>({});
   const speakingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -178,11 +197,16 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const [isDeafened, setIsDeafened] = useState(initialPrefs.deafened);
   const [locallyMutedUsers, setLocallyMutedUsers] = useState<Record<string, boolean>>({});
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const [isScreenShareOn, setIsScreenShareOn] = useState(false);
   const [publishPermissions, setPublishPermissions] = useState<VoicePublishPermissions>(PUBLISH_ALL);
 
   const applyVolume = useCallback((participant: RemoteParticipant) => {
     const silenced = deafenedRef.current || locallyMutedRef.current[participant.identity];
-    participant.setVolume(silenced ? 0 : 1);
+    const volume = silenced ? 0 : 1;
+    // Silenciar también el audio de la pantalla compartida antes del micrófono por defecto
+    const screenAudio = livekitRef.current?.Track.Source?.ScreenShareAudio;
+    if (screenAudio) participant.setVolume(volume, screenAudio);
+    participant.setVolume(volume);
   }, []);
 
   const syncParticipants = useCallback(() => {
@@ -251,9 +275,11 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     setParticipants([]);
     clearTimeout(speakingTimerRef.current);
     speakingUntilRef.current = {};
-    // La cámara arranca apagada en cada llamada
+    // La cámara y la pantalla compartida arrancan apagadas en cada llamada
     cameraOnRef.current = false;
     setIsCameraOn(false);
+    screenShareOnRef.current = false;
+    setIsScreenShareOn(false);
     publishRef.current = PUBLISH_ALL;
     setPublishPermissions(PUBLISH_ALL);
   }, []);
@@ -287,7 +313,19 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
         .on(RoomEvent.TrackPublished, syncIfCurrent)
         .on(RoomEvent.TrackUnpublished, syncIfCurrent)
         .on(RoomEvent.LocalTrackPublished, syncIfCurrent)
-        .on(RoomEvent.LocalTrackUnpublished, syncIfCurrent)
+        .on(RoomEvent.LocalTrackUnpublished, () => {
+          if (roomRef.current !== room) return;
+          // Si el usuario detuvo la transmisión desde la barra del sistema/navegador, reflejarlo en el estado
+          const screenSource = lk.Track.Source?.ScreenShare;
+          const stillSharing = screenSource
+            ? Boolean(room.localParticipant.getTrackPublication?.(screenSource)?.track)
+            : false;
+          if (screenShareOnRef.current && !stillSharing) {
+            screenShareOnRef.current = false;
+            setIsScreenShareOn(false);
+          }
+          syncIfCurrent();
+        })
         .on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
           if (roomRef.current === room) setConnectionState(toConnectionState(state, lk));
         })
@@ -330,9 +368,11 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
       setTarget(next);
       setConnectionState('connecting');
       setParticipants([]);
-      // Al cerrar la sala anterior se cierra su cámara: en la nueva arranca apagada
+      // Al cerrar la sala anterior se cierran cámara y pantalla: en la nueva arrancan apagadas
       cameraOnRef.current = false;
       setIsCameraOn(false);
+      screenShareOnRef.current = false;
+      setIsScreenShareOn(false);
       clearTimeout(speakingTimerRef.current);
       speakingUntilRef.current = {};
       if (previous) await disconnectRoom(previous);
@@ -544,6 +584,78 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     }
   }, [platform, syncParticipants]);
 
+  /**
+   * Inicia o detiene compartir pantalla (solo estando conectado y con permiso SCREEN_SHARE).
+   * Apagarla no corta el micrófono ni la cámara. Devuelve false si no hay permiso o el usuario
+   * cancela el selector nativo.
+   */
+  const toggleScreenShare = useCallback(async (): Promise<boolean> => {
+    const room = roomRef.current;
+    const lk = livekitRef.current;
+    if (!room || !lk || room.state !== lk.ConnectionState.Connected) return false;
+    if (screenShareBusyRoomRef.current === room) return true;
+
+    const next = !screenShareOnRef.current;
+    if (next && !publishRef.current.canScreenShare) return false;
+
+    screenShareBusyRoomRef.current = room;
+    const isCurrent = () => roomRef.current === room;
+    try {
+      if (next) {
+        const tracks = await lk.createLocalScreenTracks({ audio: true });
+        if (!isCurrent()) {
+          tracks.forEach((t) => t.stop());
+          return true;
+        }
+        const published: LocalTrack[] = [];
+        try {
+          for (const track of tracks) {
+            await room.localParticipant.publishTrack(track);
+            published.push(track);
+          }
+        } catch (err) {
+          tracks.forEach((t) => t.stop());
+          await Promise.all(
+            published.map((t) => room.localParticipant.unpublishTrack(t).catch(() => undefined))
+          );
+          throw err;
+        }
+        if (!isCurrent()) {
+          tracks.forEach((t) => t.stop());
+          return true;
+        }
+
+        const videoTrack = tracks.find((t) => t.kind === lk.Track.Kind.Video) ?? tracks[0];
+        const mediaTrack = (videoTrack as { mediaStreamTrack?: MediaStreamTrack })?.mediaStreamTrack;
+        mediaTrack?.addEventListener?.(
+          'ended',
+          () => {
+            if (!isCurrent()) return;
+            void unpublishScreenShare(room, lk).catch(() => undefined);
+            if (screenShareOnRef.current) {
+              screenShareOnRef.current = false;
+              setIsScreenShareOn(false);
+              syncParticipants();
+            }
+          },
+          { once: true }
+        );
+      } else {
+        await unpublishScreenShare(room, lk);
+      }
+      screenShareOnRef.current = next;
+      setIsScreenShareOn(next);
+      syncParticipants();
+      return true;
+    } catch (err) {
+      if (!isCurrent()) return true;
+      console.error('[Voice] No se pudo compartir la pantalla:', err);
+      return false;
+    } finally {
+      if (screenShareBusyRoomRef.current === room) screenShareBusyRoomRef.current = null;
+    }
+  }, [syncParticipants]);
+
   // Al desmontar (p. ej. logout) cerrar la sala y avisar al backend
   useEffect(() => {
     return () => {
@@ -568,6 +680,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     isMuted: isMuted || !publishPermissions.canSpeak,
     isDeafened,
     isCameraOn,
+    isScreenShareOn,
     /** Lo que los roles dejan publicar en la llamada actual (en la interfaz, botones deshabilitados). */
     canSpeak: publishPermissions.canSpeak,
     canVideo: publishPermissions.canVideo,
@@ -579,5 +692,6 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
     toggleDeafen,
     toggleLocalMute,
     toggleCamera,
+    toggleScreenShare,
   };
 }

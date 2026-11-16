@@ -1,4 +1,4 @@
-import { MonitorUp, PhoneOff, Video, VideoOff, type LucideIcon } from 'lucide-react';
+import { MonitorOff, MonitorUp, PhoneOff, Video, VideoOff, type LucideIcon } from 'lucide-react';
 import { useUIStore } from '../../app/uiStore';
 import { useVoice } from './voiceContext';
 import { useVoiceParticipants } from './useVoiceParticipants';
@@ -20,12 +20,18 @@ export interface VoiceControlsProps {
   onToggleCamera?: () => void;
   /** Sus roles no le dejan usar la cámara en este canal: el botón queda deshabilitado y lo explica. */
   cannotUseCamera?: boolean;
+  /** Pantalla compartida propia activa. */
+  isScreenShareOn?: boolean;
+  /** Inicia o detiene compartir pantalla; sin esta función el botón queda deshabilitado. */
+  onToggleScreenShare?: () => void;
+  /** Sus roles no le dejan compartir pantalla en este canal: el botón queda deshabilitado y lo explica. */
+  cannotScreenShare?: boolean;
 }
 
 /**
  * Controles de la llamada en la barra lateral, entre la marca de agua y la barra de usuario (PDF,
  * pág. 10): en qué canal estás, el estado de la conexión, y cámara, pantalla y colgar. Micrófono y audio
- * están en la barra de usuario. Compartir pantalla todavía no existe.
+ * están en la barra de usuario.
  */
 export function VoiceControls({
   channelName,
@@ -37,9 +43,13 @@ export function VoiceControls({
   isCameraOn = false,
   onToggleCamera,
   cannotUseCamera = false,
+  isScreenShareOn = false,
+  onToggleScreenShare,
+  cannotScreenShare = false,
 }: VoiceControlsProps) {
-  // La cámara se publica en la sala: solo se puede usar con la conexión establecida
+  // Cámara y pantalla se publican en la sala: solo se pueden usar con la conexión establecida
   const cameraUsable = Boolean(onToggleCamera) && connectionState === 'connected' && !cannotUseCamera;
+  const screenShareUsable = Boolean(onToggleScreenShare) && connectionState === 'connected' && !cannotScreenShare;
   return (
     <div className={`${styles.controls} ${styles[tone]}`} role="group" aria-label="Llamada en curso">
       <button type="button" className={styles.where} onClick={onOpenCall} disabled={!onOpenCall}>
@@ -61,7 +71,19 @@ export function VoiceControls({
           disabled={!cameraUsable}
           onPress={onToggleCamera}
         />
-        <Control icon={MonitorUp} label="Compartir pantalla: próximamente" disabled />
+        <Control
+          icon={isScreenShareOn ? MonitorOff : MonitorUp}
+          label={
+            cannotScreenShare
+              ? 'No tenés permiso para compartir pantalla en este canal'
+              : isScreenShareOn
+                ? 'Dejar de compartir pantalla'
+                : 'Compartir pantalla'
+          }
+          pressed={isScreenShareOn}
+          disabled={!screenShareUsable}
+          onPress={onToggleScreenShare}
+        />
         <Control icon={PhoneOff} label="Salir del canal de voz" onPress={onDisconnect} />
       </div>
     </div>
@@ -113,6 +135,9 @@ export function VoiceControlsPanel({ tone }: { tone: VoiceControlsProps['tone'] 
       isCameraOn={voice.room.isCameraOn}
       onToggleCamera={voice.toggleCamera}
       cannotUseCamera={!voice.room.canVideo}
+      isScreenShareOn={voice.room.isScreenShareOn}
+      onToggleScreenShare={voice.toggleScreenShare}
+      cannotScreenShare={!voice.room.canScreenShare}
       onOpenCall={
         activeVoice
           ? () => {

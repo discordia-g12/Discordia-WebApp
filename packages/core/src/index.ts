@@ -46,8 +46,12 @@ export * from './hooks/useInbox';
 // Ajustes del servidor: roles, miembros y baneos (estado y reglas compartidos)
 export * from './admin/permissions';
 export * from './admin/roles';
+export * from './admin/channelOverrides';
 export * from './admin/members';
 export * from './audit';
+
+// Búsqueda de mensajes de un servidor por texto y autor (ADR-04 de Chat-Engine)
+export * from './search';
 
 // Backoffice de staff: estado de la plataforma (health checks agregados por el backend)
 export * from './admin/platformStatus';

@@ -1,5 +1,5 @@
 import { PERMISSION_BITS } from '../api/roles';
-import type { Channel, Server } from '../types';
+import type { Channel, ChannelType, Server } from '../types';
 
 /**
  * Permisos de un rol tal como se muestran en los ajustes del servidor (web y mobile), agrupados. Los ids
@@ -48,6 +48,62 @@ export const PERMISSION_CATEGORIES = [
     ],
   },
 ];
+
+/**
+ * Permisos que se pueden sobrescribir para un rol en un canal (#18), según el tipo de canal. Solo los que
+ * se chequean por canal; ADMINISTRATOR y los de servidor no (el backend rechaza ADMINISTRATOR).
+ */
+const TEXT_CHANNEL_OVERRIDE_PERMISSIONS = [
+  { id: 'VIEW_CHANNELS', name: 'Ver canal', desc: 'Leer el canal y su historial.' },
+  { id: 'SEND_MESSAGES', name: 'Enviar mensajes', desc: 'Escribir en el canal.' },
+  { id: 'ATTACH_FILES', name: 'Adjuntar archivos', desc: 'Subir imágenes, videos, audios y documentos.' },
+  { id: 'ADD_REACTIONS', name: 'Reaccionar', desc: 'Agregar reacciones nuevas a los mensajes.' },
+  { id: 'MENTION_EVERYONE', name: 'Mencionar @everyone y roles', desc: 'Avisar a todos con @everyone y mencionar roles.' },
+  { id: 'MANAGE_MESSAGES', name: 'Gestionar mensajes', desc: 'Borrar y fijar mensajes de otros miembros.' },
+];
+
+export const CHANNEL_OVERRIDE_PERMISSIONS: Record<ChannelType, { id: string; name: string; desc: string }[]> = {
+  text: TEXT_CHANNEL_OVERRIDE_PERMISSIONS,
+  announcement: TEXT_CHANNEL_OVERRIDE_PERMISSIONS,
+  voice: [
+    { id: 'VIEW_CHANNELS', name: 'Ver canal', desc: 'Ver el canal en la lista.' },
+    { id: 'CONNECT', name: 'Conectarse', desc: 'Entrar al canal y escuchar.' },
+    { id: 'SPEAK', name: 'Hablar', desc: 'Transmitir el micrófono.' },
+    { id: 'VIDEO', name: 'Video', desc: 'Prender la cámara.' },
+    { id: 'SCREEN_SHARE', name: 'Compartir pantalla', desc: 'Transmitir la pantalla.' },
+    { id: 'MUTE_MEMBERS', name: 'Silenciar miembros', desc: 'Silenciar a otros en el canal.' },
+    { id: 'DEAFEN_MEMBERS', name: 'Ensordecer miembros', desc: 'Quitarles el audio a otros en el canal.' },
+    { id: 'MOVE_MEMBERS', name: 'Mover miembros', desc: 'Pasar gente de este canal a otro.' },
+  ],
+};
+
+/** Estado de un permiso en la excepción de un rol en un canal. */
+export type OverrideState = 'inherit' | 'allow' | 'deny';
+
+export function overrideStateOf(override: { allow: string[]; deny: string[] }, permission: string): OverrideState {
+  if (override.allow.includes(permission)) return 'allow';
+  if (override.deny.includes(permission)) return 'deny';
+  return 'inherit';
+}
+
+/** La excepción con `permission` pasado a `state` (un permiso nunca queda permitido y negado a la vez). */
+export function withOverrideState(
+  override: { allow: string[]; deny: string[] },
+  permission: string,
+  state: OverrideState
+): { allow: string[]; deny: string[] } {
+  const allow = override.allow.filter((p) => p !== permission);
+  const deny = override.deny.filter((p) => p !== permission);
+  if (state === 'allow') allow.push(permission);
+  if (state === 'deny') deny.push(permission);
+  return { allow, deny };
+}
+
+/** Las dos excepciones tienen los mismos permisos (sin importar el orden). */
+export function sameOverride(a: { allow: string[]; deny: string[] }, b: { allow: string[]; deny: string[] }): boolean {
+  const same = (x: string[], y: string[]) => x.length === y.length && x.every((p) => y.includes(p));
+  return same(a.allow, b.allow) && same(a.deny, b.deny);
+}
 
 /**
  * El usuario puede hacer algo en el servidor: es el dueño, tiene ADMINISTRATOR o el permiso (permisos a

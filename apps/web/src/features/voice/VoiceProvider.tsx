@@ -84,6 +84,14 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleScreenShare = async () => {
+    const turningOn = !room.isScreenShareOn;
+    const ok = await room.toggleScreenShare();
+    if (!ok && turningOn) {
+      showToast('No se pudo compartir la pantalla: revisá los permisos del navegador', 'info');
+    }
+  };
+
   const disconnect = () => {
     room.leave();
     exitVoiceView();
@@ -91,6 +99,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <VoiceContext.Provider value={{ room, presence, join, disconnect, isSwitching, toggleCamera }}>{children}</VoiceContext.Provider>
+    <VoiceContext.Provider value={{ room, presence, join, disconnect, isSwitching, toggleCamera, toggleScreenShare }}>
+      {children}
+    </VoiceContext.Provider>
   );
 }

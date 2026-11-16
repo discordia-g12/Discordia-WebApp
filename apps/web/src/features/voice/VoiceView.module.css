@@ -218,6 +218,33 @@
   background: var(--color-inverse-background);
 }
 
+/* Pantalla compartida: sin recortar bordes para leer texto y ventanas */
+.videoContain {
+  object-fit: contain;
+}
+
+.screenTile {
+  background: var(--color-inverse-background);
+}
+
+.screenTile[hidden],
+.tile[hidden] {
+  display: none;
+}
+
+.screenBadge {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  pointer-events: none;
+}
+
 /* La cámara propia, en espejo */
 .mirrored {
   transform: scaleX(-1);

@@ -247,6 +247,19 @@ describe('ChatView (rediseño)', () => {
     expect(bell.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('el ícono de búsqueda abre la búsqueda de mensajes, y sin onOpenSearch no aparece', () => {
+    const onOpenSearch = vi.fn();
+    const { rerender } = render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onOpenSearch={onOpenSearch} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar mensajes' }));
+    expect(onOpenSearch).toHaveBeenCalledTimes(1);
+
+    rerender(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" />);
+    expect(screen.queryByRole('button', { name: 'Buscar mensajes' })).toBeNull();
+  });
+
   it('en un DM el encabezado tiene íconos (dmHeaderActions) y el menú "más", sin lista de miembros', () => {
     const onOpenUserProfile = vi.fn();
     const onAction = vi.fn();

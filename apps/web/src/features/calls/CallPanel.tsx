@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Headphones, HeadphoneOff, Maximize2, Mic, MicOff, Minimize2, Video, VideoOff, type LucideIcon } from 'lucide-react';
+import {
+  Headphones,
+  HeadphoneOff,
+  Maximize2,
+  Mic,
+  MicOff,
+  Minimize2,
+  MonitorOff,
+  MonitorUp,
+  Video,
+  VideoOff,
+  type LucideIcon,
+} from 'lucide-react';
 import type { VideoTrack } from 'livekit-client';
 import { callRoomId, type PrivateCallState } from '@discordia/core';
 import { BlockButton, SquareAvatar } from '../../ui';
@@ -47,18 +59,9 @@ export function CallPanel({ conversationId, peer }: { conversationId: string; pe
 
 function CallPanelView({ state, peer, me }: { state: InCallState; peer: User; me: User }) {
   const { hangUp } = useCall();
-  const { room, toggleCamera } = useVoice();
+  const { room, toggleCamera, toggleScreenShare } = useVoice();
   const [expanded, setExpanded] = useState(false);
-
-  // Escape sale de la pantalla completa (un modal abierto encima, como "¿cortar?", lo cierra primero)
-  useEffect(() => {
-    if (!expanded) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !event.defaultPrevented) setExpanded(false);
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [expanded]);
+  const [focusedScreenSide, setFocusedScreenSide] = useState<'local' | 'remote' | null>(null);
 
   // Los datos de LiveKit (quién habla, mute del otro) solo si la sala es la de esta llamada
   const inRoom = state.call !== null && room.roomId === callRoomId(state.call.id);
@@ -66,13 +69,37 @@ function CallPanelView({ state, peer, me }: { state: InCallState; peer: User; me
   const remote = inRoom ? room.participants.find((p) => !p.isLocal) : undefined;
   const localVideo = local?.videoTrack ?? null;
   const remoteVideo = remote?.videoTrack ?? null;
-  const withVideo = Boolean(localVideo || remoteVideo);
+  const localScreen = local?.screenShareTrack ?? null;
+  const remoteScreen = remote?.screenShareTrack ?? null;
+  const withScreen = Boolean(localScreen || remoteScreen);
+  const activeFocusedScreen =
+    expanded && ((focusedScreenSide === 'local' && localScreen) || (focusedScreenSide === 'remote' && remoteScreen))
+      ? focusedScreenSide
+      : null;
+
+  // Escape primero reduce una pantalla enfocada al mosaico; si ya está en mosaico, sale de pantalla completa
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (activeFocusedScreen) {
+        setFocusedScreenSide(null);
+      } else {
+        setExpanded(false);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [expanded, activeFocusedScreen]);
+  const withVideo = Boolean(localVideo || remoteVideo || withScreen);
   // En pantalla completa las fichas siempre son cuadros grandes, con o sin video
   const framed = withVideo || expanded;
-  // La cámara se publica en la sala: con la conexión establecida y si el token la deja (Voice viejo: no)
+  // Cámara y pantalla se publican en la sala: con la conexión establecida y si el token lo deja
   const cameraUsable = inRoom && room.connectionState === 'connected' && room.canVideo;
+  const screenShareUsable = inRoom && room.connectionState === 'connected' && room.canScreenShare;
 
   const peerName = peer.displayName || peer.username;
+  const myName = me.displayName || me.username;
   const connecting = state.status === 'active' && inRoom && isPending(room.connectionState);
   const status =
     state.status === 'outgoing'
@@ -81,9 +108,23 @@ function CallPanelView({ state, peer, me }: { state: InCallState; peer: User; me
         ? CONNECTION_LABEL[room.connectionState]
         : null;
 
+  const toggleScreenFocus = (side: 'local' | 'remote') => {
+    if (!expanded) {
+      setExpanded(true);
+      setFocusedScreenSide(side);
+      return;
+    }
+    setFocusedScreenSide((current) => (current === side ? null : side));
+  };
+
+  const toggleExpanded = () => {
+    if (expanded) setFocusedScreenSide(null);
+    setExpanded((current) => !current);
+  };
+
   return (
     <section
-      className={`${styles.panel} ${framed ? styles.withVideo : ''} ${expanded ? styles.expanded : ''}`}
+      className={`${styles.panel} ${framed ? styles.withVideo : ''} ${withScreen ? styles.withScreen : ''} ${activeFocusedScreen ? styles.withFocusedScreen : ''} ${expanded ? styles.expanded : ''}`}
       aria-label={`Llamada con ${peerName}`}
     >
       <p className={`${styles.status} ${state.status === 'outgoing' || connecting ? styles.pending : ''}`} role="status">
@@ -98,12 +139,13 @@ function CallPanelView({ state, peer, me }: { state: InCallState; peer: User; me
       >
         <Tile
           user={me}
-          label={`${me.displayName || me.username} (vos)`}
+          label={`${myName} (vos)`}
           speaking={Boolean(local?.isSpeaking)}
           muted={room.isMuted}
           framed={framed}
           video={localVideo}
           mirrored
+          hidden={Boolean(activeFocusedScreen)}
         />
         <Tile
           user={peer}
@@ -113,7 +155,36 @@ function CallPanelView({ state, peer, me }: { state: InCallState; peer: User; me
           waiting={state.status === 'outgoing'}
           framed={framed}
           video={remoteVideo}
+          hidden={Boolean(activeFocusedScreen)}
         />
+        {localScreen && (
+          <Tile
+            user={me}
+            label={`${myName} (vos) · pantalla`}
+            speaking={false}
+            muted={false}
+            framed
+            video={localScreen}
+            screen
+            hidden={Boolean(activeFocusedScreen && activeFocusedScreen !== 'local')}
+            screenFocused={activeFocusedScreen === 'local'}
+            onToggleScreenFocus={() => toggleScreenFocus('local')}
+          />
+        )}
+        {remoteScreen && (
+          <Tile
+            user={peer}
+            label={`${peerName} · pantalla`}
+            speaking={false}
+            muted={false}
+            framed
+            video={remoteScreen}
+            screen
+            hidden={Boolean(activeFocusedScreen && activeFocusedScreen !== 'remote')}
+            screenFocused={activeFocusedScreen === 'remote'}
+            onToggleScreenFocus={() => toggleScreenFocus('remote')}
+          />
+        )}
       </ul>
 
       <div className={styles.controls}>
@@ -138,11 +209,19 @@ function CallPanelView({ state, peer, me }: { state: InCallState; peer: User; me
           onPress={toggleCamera}
         />
         <Control
+          icon={room.isScreenShareOn ? MonitorOff : MonitorUp}
+          label={room.isScreenShareOn ? 'Dejar de compartir pantalla' : 'Compartir pantalla'}
+          pressed={room.isScreenShareOn}
+          inverted={false}
+          disabled={!screenShareUsable}
+          onPress={toggleScreenShare}
+        />
+        <Control
           icon={expanded ? Minimize2 : Maximize2}
           label={expanded ? 'Salir de pantalla completa' : 'Pantalla completa'}
           pressed={expanded}
           inverted={false}
-          onPress={() => setExpanded((current) => !current)}
+          onPress={toggleExpanded}
         />
         <BlockButton tone="danger" onPress={hangUp} aria-label={state.status === 'outgoing' ? 'Cancelar llamada' : 'Cortar llamada'}>
           Cortar
@@ -163,18 +242,61 @@ interface TileProps {
   video?: VideoTrack | null;
   /** La cámara propia, en espejo. */
   mirrored?: boolean;
+  /** Ficha dedicada a pantalla compartida (16:9, sin recorte). */
+  screen?: boolean;
+  hidden?: boolean;
+  screenFocused?: boolean;
+  onToggleScreenFocus?: () => void;
 }
 
-function Tile({ user, label, speaking, muted, waiting = false, framed = false, video = null, mirrored = false }: TileProps) {
-  const detail = [waiting ? ', sonando' : speaking ? ', hablando' : muted ? ', silenciado' : '', video ? ', con cámara' : ''].join('');
+function Tile({
+  user,
+  label,
+  speaking,
+  muted,
+  waiting = false,
+  framed = false,
+  video = null,
+  mirrored = false,
+  screen = false,
+  hidden = false,
+  screenFocused = false,
+  onToggleScreenFocus,
+}: TileProps) {
+  const detail = screen
+    ? ''
+    : [waiting ? ', sonando' : speaking ? ', hablando' : muted ? ', silenciado' : '', video ? ', con cámara' : ''].join('');
   return (
     <li
-      className={`${styles.tile} ${speaking ? styles.speaking : ''} ${waiting ? styles.waiting : ''}`}
+      hidden={hidden}
+      className={`${styles.tile} ${speaking ? styles.speaking : ''} ${waiting ? styles.waiting : ''} ${screen ? styles.screenTile : ''}`}
       aria-label={`${label}${detail}`}
     >
       {framed ? (
-        <span className={styles.frame}>
-          {video ? <ParticipantVideo track={video} mirrored={mirrored} /> : <SquareAvatar user={user} size={56} />}
+        <span className={`${styles.frame} ${screen ? styles.screenFrame : ''}`}>
+          {screen && video && onToggleScreenFocus ? (
+            <>
+              <button
+                type="button"
+                className={styles.screenZoomButton}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleScreenFocus();
+                }}
+                aria-label={screenFocused ? `Reducir ${label}` : `Ampliar ${label}`}
+                aria-pressed={screenFocused}
+              >
+                <ParticipantVideo track={video} mirrored={mirrored} fit="contain" />
+              </button>
+              <span className={styles.screenBadge} aria-hidden="true">
+                {screenFocused ? <Minimize2 size={14} strokeWidth={1.5} /> : <Maximize2 size={14} strokeWidth={1.5} />}
+              </span>
+            </>
+          ) : video ? (
+            <ParticipantVideo track={video} mirrored={mirrored} fit={screen ? 'contain' : 'cover'} />
+          ) : (
+            <SquareAvatar user={user} size={56} />
+          )}
         </span>
       ) : (
         <SquareAvatar user={user} size={56} />

@@ -15,9 +15,16 @@ class FakeParticipant {
   isSpeaking = false;
   isMicrophoneEnabled = false;
   setVolume = vi.fn();
-  // Publicación de la cámara: { track, isMuted } o nada si no la publicó
+  // Publicación de la cámara y de pantalla: { track, isMuted } o nada si no la publicó
   cameraPublication: { track: object; isMuted: boolean } | undefined;
-  getTrackPublication = vi.fn((source: string) => (source === 'camera' ? this.cameraPublication : undefined));
+  screenPublication: { track: object; isMuted: boolean } | undefined;
+  screenAudioPublication: { track: object; isMuted: boolean } | undefined;
+  getTrackPublication = vi.fn((source: string) => {
+    if (source === 'camera') return this.cameraPublication;
+    if (source === 'screen_share') return this.screenPublication;
+    if (source === 'screen_share_audio') return this.screenAudioPublication;
+    return undefined;
+  });
   constructor(public identity: string) {}
 }
 
@@ -26,12 +33,24 @@ class FakeLocalParticipant extends FakeParticipant {
     if (FakeRoom.micDenied) throw new Error('NotAllowedError');
     this.isMicrophoneEnabled = enabled;
   });
-  publishTrack = vi.fn(async (track: object) => {
-    this.cameraPublication = { track, isMuted: false };
+  publishTrack = vi.fn(async (track: { source?: string }) => {
+    if (track.source === 'screen_share') {
+      this.screenPublication = { track, isMuted: false };
+    } else if (track.source === 'screen_share_audio') {
+      this.screenAudioPublication = { track, isMuted: false };
+    } else {
+      this.cameraPublication = { track, isMuted: false };
+    }
   });
-  unpublishTrack = vi.fn(async (track: { stop: () => void }) => {
+  unpublishTrack = vi.fn(async (track: { stop: () => void; source?: string }) => {
     track.stop();
-    this.cameraPublication = undefined;
+    if (track.source === 'screen_share' || this.screenPublication?.track === track) {
+      this.screenPublication = undefined;
+    } else if (track.source === 'screen_share_audio' || this.screenAudioPublication?.track === track) {
+      this.screenAudioPublication = undefined;
+    } else {
+      this.cameraPublication = undefined;
+    }
   });
 }
 
@@ -39,6 +58,7 @@ class FakeRoom {
   static instances: FakeRoom[] = [];
   static micDenied = false;
   static cameraDenied = false;
+  static screenDenied = false;
 
   state = 'disconnected';
   localParticipant = new FakeLocalParticipant('me');
@@ -107,11 +127,27 @@ const fakeLiveKit = {
     Reconnecting: 'reconnecting',
     SignalReconnecting: 'signalReconnecting',
   },
-  Track: { Kind: { Audio: 'audio', Video: 'video' }, Source: { Camera: 'camera', Microphone: 'microphone' } },
+  Track: {
+    Kind: { Audio: 'audio', Video: 'video' },
+    Source: {
+      Camera: 'camera',
+      Microphone: 'microphone',
+      ScreenShare: 'screen_share',
+      ScreenShareAudio: 'screen_share_audio',
+    },
+  },
   // En la web acá el navegador pide el permiso de cámara
   createLocalVideoTrack: vi.fn(async () => {
     if (FakeRoom.cameraDenied) throw new Error('NotAllowedError');
     return { kind: 'video', sid: 'local-cam', stop: vi.fn() };
+  }),
+  createLocalScreenTracks: vi.fn(async () => {
+    if (FakeRoom.screenDenied) throw new Error('NotAllowedError');
+    const mediaStreamTrack = new EventTarget();
+    return [
+      { kind: 'video', source: 'screen_share', sid: 'local-screen', mediaStreamTrack, stop: vi.fn() },
+      { kind: 'audio', source: 'screen_share_audio', sid: 'local-screen-audio', stop: vi.fn() },
+    ];
   }),
   // Los mismos valores que el enum de @livekit/protocol
   DisconnectReason: { UNKNOWN_REASON: 0, CLIENT_INITIATED: 1, DUPLICATE_IDENTITY: 2, PARTICIPANT_REMOVED: 4, ROOM_DELETED: 5 },
@@ -132,6 +168,7 @@ describe('useVoiceRoom', () => {
     FakeRoom.instances = [];
     FakeRoom.micDenied = false;
     FakeRoom.cameraDenied = false;
+    FakeRoom.screenDenied = false;
     localStorage.clear();
     registerWebLikePlatform();
     mockJoinVoiceChannel.mockResolvedValue({ token: 'lk-token', url: 'ws://livekit.test' });
@@ -154,7 +191,7 @@ describe('useVoiceRoom', () => {
     expect(result.current.channelId).toBe('chan-1');
     expect(result.current.connectionState).toBe('connected');
     expect(result.current.participants).toEqual([
-      { id: 'me', isLocal: true, isSpeaking: false, isMuted: false, videoTrack: null },
+      { id: 'me', isLocal: true, isSpeaking: false, isMuted: false, videoTrack: null, screenShareTrack: null },
     ]);
   });
 
@@ -730,6 +767,140 @@ describe('useVoiceRoom', () => {
       const { result } = renderHook(() => useVoiceRoom());
       await join(result);
       expect(fakeLiveKit.Room).toHaveBeenCalledWith({ adaptiveStream: true, dynacast: true });
+    });
+  });
+
+  describe('compartir pantalla', () => {
+    const join = async (result: { current: ReturnType<typeof useVoiceRoom> }) => {
+      await act(async () => {
+        await result.current.join('chan-1');
+      });
+    };
+    const me = (result: { current: ReturnType<typeof useVoiceRoom> }) =>
+      result.current.participants.find((p) => p.isLocal)!;
+
+    it('inicia y detiene compartir pantalla sin cortar el micrófono ni la cámara', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+      await act(async () => {
+        await result.current.toggleCamera();
+      });
+      expect(result.current.isScreenShareOn).toBe(false);
+      expect(me(result).screenShareTrack).toBeNull();
+
+      let ok: boolean | undefined;
+      await act(async () => {
+        ok = await result.current.toggleScreenShare();
+      });
+      expect(ok).toBe(true);
+      expect(result.current.isScreenShareOn).toBe(true);
+      expect(me(result).screenShareTrack).toMatchObject({ kind: 'video', sid: 'local-screen' });
+      expect(me(result).videoTrack).toMatchObject({ kind: 'video', sid: 'local-cam' });
+      expect(me(result).isMuted).toBe(false);
+
+      await act(async () => {
+        await result.current.toggleScreenShare();
+      });
+      expect(result.current.isScreenShareOn).toBe(false);
+      expect(me(result).screenShareTrack).toBeNull();
+      expect(me(result).videoTrack).toMatchObject({ kind: 'video', sid: 'local-cam' });
+      expect(me(result).isMuted).toBe(false);
+    });
+
+    it('sin permiso SCREEN_SHARE no comparte pantalla y no llama a createLocalScreenTracks', async () => {
+      mockJoinVoiceChannel.mockResolvedValue({
+        token: 't',
+        url: 'ws://lk',
+        permissions: { canSpeak: true, canVideo: true, canScreenShare: false },
+      });
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+
+      let ok: boolean | undefined;
+      await act(async () => {
+        ok = await result.current.toggleScreenShare();
+      });
+      expect(ok).toBe(false);
+      expect(result.current.canScreenShare).toBe(false);
+      expect(fakeLiveKit.createLocalScreenTracks).not.toHaveBeenCalled();
+    });
+
+    it('si el usuario cancela o rechaza el selector nativo, sigue apagado y devuelve false', async () => {
+      FakeRoom.screenDenied = true;
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+
+      let ok: boolean | undefined;
+      await act(async () => {
+        ok = await result.current.toggleScreenShare();
+      });
+      expect(ok).toBe(false);
+      expect(result.current.isScreenShareOn).toBe(false);
+    });
+
+    it('si se detiene desde la barra nativa del navegador (ended / localTrackUnpublished), actualiza el estado', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+
+      await act(async () => {
+        await result.current.toggleScreenShare();
+      });
+      expect(result.current.isScreenShareOn).toBe(true);
+
+      const videoTrack = me(result).screenShareTrack as unknown as {
+        mediaStreamTrack: EventTarget;
+        stop: ReturnType<typeof vi.fn>;
+      };
+      await act(async () => {
+        videoTrack.mediaStreamTrack.dispatchEvent(new Event('ended'));
+      });
+
+      expect(result.current.isScreenShareOn).toBe(false);
+      expect(me(result).screenShareTrack).toBeNull();
+      expect(videoTrack.stop).toHaveBeenCalled();
+    });
+
+    it('muestra la pantalla compartida de otro participante y la oculta al dejar de transmitir', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+      let remote!: FakeParticipant;
+      act(() => {
+        remote = FakeRoom.instances[0].addRemote('auth0|otro');
+      });
+      const other = () => result.current.participants.find((p) => p.id === 'auth0|otro')!;
+      expect(other().screenShareTrack).toBeNull();
+
+      remote.screenPublication = { track: { kind: 'video', sid: 'remote-screen' }, isMuted: false };
+      act(() => FakeRoom.instances[0].emit('trackSubscribed', { kind: 'video' }, {}, remote));
+      expect(other().screenShareTrack).toEqual({ kind: 'video', sid: 'remote-screen' });
+
+      remote.screenPublication = undefined;
+      act(() => FakeRoom.instances[0].emit('trackUnpublished'));
+      expect(other().screenShareTrack).toBeNull();
+    });
+
+    it('al salir o cambiar de canal vuelve a quedar apagada', async () => {
+      const { result } = renderHook(() => useVoiceRoom());
+      await join(result);
+      await act(async () => {
+        await result.current.toggleScreenShare();
+      });
+      expect(result.current.isScreenShareOn).toBe(true);
+
+      await act(async () => {
+        await result.current.join('chan-2');
+      });
+      expect(result.current.isScreenShareOn).toBe(false);
+
+      await act(async () => {
+        await result.current.toggleScreenShare();
+      });
+      expect(result.current.isScreenShareOn).toBe(true);
+
+      await act(async () => {
+        await result.current.leave();
+      });
+      expect(result.current.isScreenShareOn).toBe(false);
     });
   });
 

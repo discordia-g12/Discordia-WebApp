@@ -21,6 +21,8 @@ export interface VoiceParticipant {
   isDeafened?: boolean;
   /** Cámara prendida (solo en la sala en la que estoy): se muestra en su ficha. */
   videoTrack?: VideoTrack | null;
+  /** Pantalla compartida activa (solo en la sala en la que estoy): se muestra en su ficha dedicada. */
+  screenShareTrack?: VideoTrack | null;
 }
 
 export interface ChannelSidebarProps {

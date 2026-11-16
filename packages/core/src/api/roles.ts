@@ -1,5 +1,12 @@
 import { api } from './client';
-import { Role, RoleBackendResponse, RoleMember, RoleMemberBackendResponse } from '../types';
+import {
+  ChannelRoleOverride,
+  ChannelRoleOverrideBackendResponse,
+  Role,
+  RoleBackendResponse,
+  RoleMember,
+  RoleMemberBackendResponse,
+} from '../types';
 
 export interface CreateRoleRequest {
   name: string;
@@ -180,4 +187,51 @@ export async function reorderRoles(serverId: string, roleIds: string[]): Promise
     role_ids: roleIds,
   });
   return (raw || []).map(mapRoleFromBackend);
+}
+
+/**
+ * Adaptador: excepción de permisos de un rol en un canal, del backend (bitmasks) al modelo de la UI.
+ */
+export function mapChannelRoleOverrideFromBackend(raw: ChannelRoleOverrideBackendResponse): ChannelRoleOverride {
+  return {
+    channelId: raw.channel_id,
+    roleId: raw.role_id,
+    allow: bitmaskToPermissions(raw.allow_bitmask),
+    deny: bitmaskToPermissions(raw.deny_bitmask),
+  };
+}
+
+/**
+ * Excepciones de permisos de los roles en un canal. Requiere permisos para gestionar roles.
+ */
+export async function getChannelRoleOverrides(serverId: string, channelId: string): Promise<ChannelRoleOverride[]> {
+  const raw = await api.get<ChannelRoleOverrideBackendResponse[]>(
+    `/api/v1/servers/${serverId}/channels/${channelId}/permissions/roles`
+  );
+  return (raw || []).map(mapChannelRoleOverrideFromBackend);
+}
+
+/**
+ * Crea o reemplaza la excepción de permisos de un rol en un canal: solo vale en ese canal, los permisos
+ * generales del rol no cambian. El backend rechaza ADMINISTRATOR (400) y un permiso a la vez permitido y
+ * negado (422).
+ */
+export async function setChannelRoleOverride(
+  serverId: string,
+  channelId: string,
+  roleId: string,
+  override: { allow: string[]; deny: string[] }
+): Promise<ChannelRoleOverride> {
+  const raw = await api.put<ChannelRoleOverrideBackendResponse>(
+    `/api/v1/servers/${serverId}/channels/${channelId}/permissions/roles/${roleId}`,
+    { allow_bitmask: permissionsToBitmask(override.allow), deny_bitmask: permissionsToBitmask(override.deny) }
+  );
+  return mapChannelRoleOverrideFromBackend(raw);
+}
+
+/**
+ * Quita la excepción: el rol vuelve a tener en el canal sus permisos generales. 404 si no tenía.
+ */
+export async function deleteChannelRoleOverride(serverId: string, channelId: string, roleId: string): Promise<void> {
+  await api.delete(`/api/v1/servers/${serverId}/channels/${channelId}/permissions/roles/${roleId}`);
 }
