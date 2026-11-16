@@ -255,7 +255,7 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
       </SettingsCell>
 
       <SettingsCell title="Actividad del servidor" wide>
-        <ServerActivityMetrics serverId={s.serverState.id} />
+        <ServerActivityMetrics serverId={s.serverState.id} serverName={s.serverState.name} />
       </SettingsCell>
       <SettingsCell title="Crecimiento de miembros" wide>
         <MemberGrowthChart serverId={s.serverState.id} />

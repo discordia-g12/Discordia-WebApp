@@ -6,7 +6,9 @@ import { useSession } from '../../auth/session';
 import { configureClient } from '../client';
 import { ApiError } from '../errors';
 import {
+  exportServerActivityMetricsCsv,
   isServerMetricsForbidden,
+  serverMetricsCsvFilename,
   normalizeServerActivityMetrics,
   serverMetricsErrorMessage,
   useServerActivityMetricsQuery,
@@ -117,5 +119,57 @@ describe('useServerActivityMetricsQuery', () => {
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(isServerMetricsForbidden(result.current.error)).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Exportación de métricas a CSV', () => {
+  const fetchMock = vi.fn();
+  const CSV = 'fecha,miembros_activos,mensajes_enviados,nuevos_miembros\r\n2026-11-10,6,15,2\r\n';
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
+    configureClient({ baseUrl: 'http://api.test', getToken: async () => 'jwt', onAuthFailure: () => {} });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+  });
+
+  it('pide format=csv con el período y devuelve el texto con el nombre del archivo', async () => {
+    fetchMock.mockResolvedValue(new Response(CSV, { status: 200, headers: { 'content-type': 'text/csv; charset=utf-8' } }));
+
+    const file = await exportServerActivityMetricsCsv(
+      SERVER_ID,
+      { from: '2026-11-10T00:00:00.000Z', to: '2026-11-13T00:00:00.000Z' },
+      'Mi Servidor Ñandú',
+    );
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe(
+      `http://api.test/api/v1/servers/${SERVER_ID}/metrics?from=2026-11-10T00%3A00%3A00.000Z&to=2026-11-13T00%3A00%3A00.000Z&format=csv`,
+    );
+    expect(file).toEqual({ filename: 'metricas-mi-servidor-nandu-2026-11-10_2026-11-12.csv', content: CSV });
+  });
+
+  it('propaga el 503 del backend (fuente caída) como ApiError', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        { type: 'about:blank', title: 'Service Unavailable', status: 503, detail: 'Probá exportar de nuevo en unos minutos.' },
+        503,
+        'application/problem+json',
+      ),
+    );
+
+    const err = await exportServerActivityMetricsCsv(SERVER_ID, { days: 7 }, 'srv').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(serverMetricsErrorMessage(err)).toBe('Probá exportar de nuevo en unos minutos.');
+  });
+
+  it('serverMetricsCsvFilename usa los días incluidos y un nombre seguro', () => {
+    const now = new Date('2026-11-15T15:00:00.000Z');
+    expect(serverMetricsCsvFilename('Gamers!!', { days: 7 }, now)).toBe('metricas-gamers-2026-11-08_2026-11-15.csv');
+    expect(serverMetricsCsvFilename('¿¿??', { from: '2026-11-01T00:00:00.000Z', to: '2026-11-02T00:00:00.000Z' })).toBe(
+      'metricas-servidor-2026-11-01_2026-11-01.csv',
+    );
   });
 });

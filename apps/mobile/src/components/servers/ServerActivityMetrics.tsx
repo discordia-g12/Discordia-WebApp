@@ -5,13 +5,18 @@ import {
   formatMetricValue,
   isServerMetricsForbidden,
   serverMetricsErrorMessage,
+  useExportServerActivityMetricsMutation,
   useServerActivityMetricsQuery,
 } from '@discordia/core'
 import { makeStyles, useTheme } from '../../theme'
-import { ActionLink, EmptyState, Skeleton, Text } from '../../ui'
+import { ActionLink, BlockButton, EmptyState, Skeleton, Text } from '../../ui'
+import { useUI } from '../../providers/AppProviders'
+import { shareTextFile } from '../../utils/shareFile'
 
 interface ServerActivityMetricsProps {
   serverId: string
+  /** Para el nombre del archivo exportado. */
+  serverName?: string
 }
 
 const PRESET_DAYS: Array<{ label: string; value: 7 | 14 | 30 | 90 }> = [
@@ -147,11 +152,52 @@ function MetricTrendChart({ title, unitLabel, color, total, points }: MetricChar
   )
 }
 
-export function ServerActivityMetrics({ serverId }: ServerActivityMetricsProps) {
+export function ServerActivityMetrics({ serverId, serverName = 'servidor' }: ServerActivityMetricsProps) {
   const [days, setDays] = useState<7 | 14 | 30 | 90>(30)
   const styles = useStyles()
+  const { showToast } = useUI()
 
   const { data, isLoading, isError, error, refetch } = useServerActivityMetricsQuery(serverId, { days })
+
+  // Exportar a CSV (ADR-06 de Notification-Audit-Metrics): se confirma el período y se comparte el archivo
+  const [exportConfirmOpen, setExportConfirmOpen] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const exportMutation = useExportServerActivityMetricsMutation(serverId, serverName)
+  const exporting = exportMutation.isPending || sharing
+  const exportError = exportMutation.isError ? serverMetricsErrorMessage(exportMutation.error) : shareError
+
+  const selectDays = (value: 7 | 14 | 30 | 90) => {
+    setDays(value)
+    setExportConfirmOpen(false)
+  }
+
+  const openExportConfirm = () => {
+    exportMutation.reset()
+    setShareError(null)
+    setExportConfirmOpen(true)
+  }
+
+  const handleConfirmExport = () => {
+    setShareError(null)
+    exportMutation.mutate(
+      { days },
+      {
+        onSuccess: async (file) => {
+          setSharing(true)
+          try {
+            await shareTextFile(file.filename, file.content, 'text/csv')
+            setExportConfirmOpen(false)
+            showToast(`Se generó ${file.filename}`, 'success')
+          } catch (err) {
+            setShareError(err instanceof Error && err.message ? err.message : 'No se pudo compartir el archivo.')
+          } finally {
+            setSharing(false)
+          }
+        },
+      },
+    )
+  }
 
   if (isError && isServerMetricsForbidden(error)) {
     return (
@@ -172,7 +218,7 @@ export function ServerActivityMetrics({ serverId }: ServerActivityMetricsProps) 
           return (
             <Pressable
               key={opt.value}
-              onPress={() => setDays(opt.value)}
+              onPress={() => selectDays(opt.value)}
               style={[styles.periodBtn, active && styles.periodBtnActive]}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
@@ -184,6 +230,32 @@ export function ServerActivityMetrics({ serverId }: ServerActivityMetricsProps) 
           )
         })}
       </View>
+
+      <ActionLink onPress={openExportConfirm} disabled={!data || isLoading || exportConfirmOpen}>
+        exportar CSV
+      </ActionLink>
+
+      {exportConfirmOpen && (
+        <View style={styles.exportConfirm} accessibilityLabel="Exportar métricas">
+          <Text variant="bodySmall">
+            / Se va a generar un archivo CSV con las métricas diarias de los últimos {days} días: miembros activos,
+            mensajes enviados y nuevos miembros. Después elegís dónde guardarlo o a quién mandarlo.
+          </Text>
+          {exportError && (
+            <Text variant="bodySmall" style={styles.errorText} accessibilityRole="alert">
+              {exportError}
+            </Text>
+          )}
+          <View style={styles.exportActions}>
+            <ActionLink onPress={() => setExportConfirmOpen(false)} disabled={exporting}>
+              cancelar
+            </ActionLink>
+            <BlockButton onPress={handleConfirmExport} loading={exporting}>
+              Exportar CSV
+            </BlockButton>
+          </View>
+        </View>
+      )}
 
       {isLoading && <Skeleton lines={3} label="Cargando métricas de actividad" />}
 
@@ -318,6 +390,18 @@ const useStyles = makeStyles((t) => ({
   },
   errorWrap: {
     gap: t.space[2],
+  },
+  exportConfirm: {
+    gap: t.space[3],
+    padding: t.space[3],
+    borderWidth: t.lines.hairline,
+    borderColor: t.colors.lineStrong,
+  },
+  exportActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: t.space[4],
   },
   errorText: {
     color: t.colors.danger,

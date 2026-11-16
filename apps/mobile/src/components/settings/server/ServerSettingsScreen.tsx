@@ -130,7 +130,7 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
             </View>
           </SettingsCell>
           <SettingsCell title="Actividad del servidor" index={3}>
-            <ServerActivityMetrics serverId={server.id} />
+            <ServerActivityMetrics serverId={server.id} serverName={server.name} />
           </SettingsCell>
           <SettingsCell title="Crecimiento de miembros" index={4}>
             <MemberGrowthChart serverId={server.id} />
