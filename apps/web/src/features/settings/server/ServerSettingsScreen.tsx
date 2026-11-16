@@ -11,12 +11,14 @@ import {
   errorMessageFor,
   memberActionsIn,
   isLocalCategoryId,
+  OVERRIDE_CHOICES,
+  useChannelOverridesAdmin,
   useCreateCategoryMutation,
   useCreateChannelMutation,
   useDeleteCategoryMutation,
   useDeleteChannelMutation,
 } from '@discordia/core';
-import type { MemberActions } from '@discordia/core';
+import type { MemberActions, OverrideState } from '@discordia/core';
 import type { Category, Channel, ChannelType, Role, Server, ServerMember } from '../../../types';
 import { ActionLink, BlockButton, ConfirmDialog, EmptyState, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
 import { useServerMembersAdmin } from '../../moderation/useServerMembersAdmin';
@@ -94,7 +96,7 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
       onClose={() => props.onClose?.()}
     >
       {section === 'overview' && <OverviewSection s={s} />}
-      {section === 'roles' && <RolesSection s={s} />}
+      {section === 'roles' && <RolesSection s={s} server={server} />}
       {section === 'members' && (
         <MembersSection
           serverId={s.serverState.id}
@@ -288,8 +290,9 @@ function ColorSwatches({ value, onChange, disabled }: { value: string | null; on
   );
 }
 
-function RolesSection({ s }: { s: ServerSettingsState }) {
+function RolesSection({ s, server }: { s: ServerSettingsState; server: Server }) {
   const role = s.activeRole as Role | undefined;
+  const channels = (server.categories ?? []).flatMap((cat) => cat.channels);
   return (
     <>
       <SettingsCell title="Crear rol">
@@ -466,7 +469,87 @@ function RolesSection({ s }: { s: ServerSettingsState }) {
           )}
         </SettingsCell>
       )}
+
+      {/* key: al cambiar de rol se descarta lo que no se guardó */}
+      {role && <ChannelOverridesCell key={role.id} serverId={server.id} role={role} channels={channels} />}
     </>
+  );
+}
+
+/**
+ * Excepciones de permisos del rol en un canal (#18): cada permiso se permite, se niega o se hereda de los
+ * permisos generales del rol. Solo vale en ese canal; los permisos del rol no cambian. Estado y reglas en
+ * core (useChannelOverridesAdmin), los mismos que mobile.
+ */
+function ChannelOverridesCell({ serverId, role, channels }: { serverId: string; role: Role; channels: Channel[] }) {
+  const o = useChannelOverridesAdmin(serverId, role, channels);
+  const { channel, overridesQuery } = o;
+
+  return (
+    <SettingsCell title={`Permisos por canal — ${role.name}`} wide>
+      {channels.length === 0 ? (
+        <p className={styles.meta}>/ el servidor no tiene canales.</p>
+      ) : (
+        <div className={styles.form}>
+          <p className={styles.meta}>
+            Lo que cambies acá vale solo en el canal elegido: los permisos generales del rol no cambian.
+          </p>
+          <label className={styles.selectField}>
+            <span className={styles.fieldLabel}>canal</span>
+            <select value={o.channelId} onChange={(e) => o.selectChannel(e.target.value)} disabled={o.busy} data-testid="override-channel">
+              {channels.map((ch) => (
+                <option key={ch.id} value={ch.id}>
+                  •{ch.name} ({ch.type === 'voice' ? 'voz' : 'texto'})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {overridesQuery.isLoading && <Skeleton lines={3} label="Cargando permisos del canal" />}
+          {overridesQuery.isError && (
+            <Feedback tone="error">
+              / No se pudieron cargar los permisos del canal.{' '}
+              <ActionLink onPress={() => overridesQuery.refetch()}>reintentar</ActionLink>
+            </Feedback>
+          )}
+
+          {channel && overridesQuery.isSuccess && (
+            <div className={styles.permissions}>
+              {o.permissions.map((perm) => (
+                <SettingsRow key={perm.id} title={perm.name} description={perm.desc}>
+                  <Choice<OverrideState>
+                    label={`${perm.name} en •${channel.name}`}
+                    options={OVERRIDE_CHOICES}
+                    value={o.stateOf(perm.id)}
+                    onChange={(state) => o.setState(perm.id, state)}
+                  />
+                </SettingsRow>
+              ))}
+            </div>
+          )}
+
+          <p className={styles.links}>
+            {o.hasOverride && !o.dirty && (
+              <ActionLink onPress={o.handleRemove} disabled={o.busy}>
+                quitar excepción
+              </ActionLink>
+            )}
+            {o.dirty && (
+              <ActionLink onPress={o.discard} disabled={o.busy}>
+                descartar
+              </ActionLink>
+            )}
+          </p>
+          {o.dirty && (
+            <BlockButton onPress={o.handleSave} loading={o.busy}>
+              Guardar permisos del canal
+            </BlockButton>
+          )}
+          {o.error && <Feedback tone="error">/ {o.error}</Feedback>}
+          {o.notice && <Feedback>{o.notice}</Feedback>}
+        </div>
+      )}
+    </SettingsCell>
   );
 }
 

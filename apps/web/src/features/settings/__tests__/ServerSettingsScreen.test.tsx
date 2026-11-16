@@ -422,6 +422,81 @@ describe('ServerSettingsScreen (rediseño)', () => {
     });
   });
 
+  describe('ROLES: permisos por canal (Sobrescribir permisos de un rol en un canal)', () => {
+    const rolesList = [{ id: 'r0', name: '@everyone', color: null, position: 0, permissions_bitmask: 0, is_default: true }];
+    const overridesUrl = 'http://localhost:8000/api/v1/servers/s1/channels/c1/permissions/roles';
+    let overrides: unknown[];
+
+    beforeEach(() => {
+      overrides = [];
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith('/servers/s1/roles')) return json(rolesList);
+        if (url === overridesUrl) return json(overrides);
+        if (url === `${overridesUrl}/r0` && init?.method === 'PUT') {
+          const body = JSON.parse(String(init.body));
+          overrides = [{ channel_id: 'c1', role_id: 'r0', ...body }];
+          return json(overrides[0]);
+        }
+        if (url === `${overridesUrl}/r0` && init?.method === 'DELETE') {
+          overrides = [];
+          return new Response(null, { status: 204 });
+        }
+        return json([]);
+      });
+    });
+
+    const openCell = async () => {
+      renderSettings();
+      fireEvent.click(screen.getByRole('button', { name: 'Roles' }));
+      fireEvent.click(await screen.findByTestId('role-item-@everyone'));
+      const cell = within(await screen.findByRole('region', { name: 'Permisos por canal — @everyone' }));
+      await cell.findByRole('radiogroup', { name: 'Enviar mensajes en •general' });
+      return cell;
+    };
+
+    it('CA1: niega un permiso solo en ese canal y lo guarda con PUT', async () => {
+      const cell = await openCell();
+      const send = cell.getByRole('radiogroup', { name: 'Enviar mensajes en •general' });
+      expect(within(send).getByRole('radio', { name: 'heredar' }).getAttribute('aria-checked')).toBe('true');
+
+      fireEvent.click(within(send).getByRole('radio', { name: 'denegar' }));
+      fireEvent.click(cell.getByRole('button', { name: 'Guardar permisos del canal /' }));
+
+      expect(await cell.findByText('Se guardaron los permisos de @everyone en •general.')).toBeTruthy();
+      const put = fetchMock.mock.calls.find(([u, i]) => String(u) === `${overridesUrl}/r0` && i?.method === 'PUT')!;
+      expect(JSON.parse(String(put[1].body))).toEqual({ allow_bitmask: 0, deny_bitmask: 1 << 9 });
+      // Solo se tocó la excepción del canal, no los permisos del rol
+      expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/roles/r0/permissions'))).toBe(false);
+    });
+
+    it('quitar excepción hace DELETE y el rol vuelve a heredar', async () => {
+      overrides = [{ channel_id: 'c1', role_id: 'r0', allow_bitmask: 0, deny_bitmask: 1 << 9 }];
+      const cell = await openCell();
+      const send = cell.getByRole('radiogroup', { name: 'Enviar mensajes en •general' });
+      expect(within(send).getByRole('radio', { name: 'denegar' }).getAttribute('aria-checked')).toBe('true');
+
+      fireEvent.click(cell.getByRole('button', { name: '_quitar excepción' }));
+
+      await waitFor(() =>
+        expect(fetchMock.mock.calls.some(([u, i]) => String(u) === `${overridesUrl}/r0` && i?.method === 'DELETE')).toBe(true)
+      );
+      await waitFor(() =>
+        expect(within(send).getByRole('radio', { name: 'heredar' }).getAttribute('aria-checked')).toBe('true')
+      );
+    });
+
+    it('CA2: sin permisos muestra el error del backend', async () => {
+      const cell = await openCell();
+      fetchMock.mockImplementation(async () => json({ detail: 'forbidden' }, 403));
+
+      fireEvent.click(within(cell.getByRole('radiogroup', { name: 'Enviar mensajes en •general' })).getByRole('radio', { name: 'permitir' }));
+      fireEvent.click(cell.getByRole('button', { name: 'Guardar permisos del canal /' }));
+
+      expect(await cell.findByText('/ No tenés permisos para cambiar los permisos de los canales.')).toBeTruthy();
+    });
+  });
+
   it('MIEMBROS: dueña puede iniciar transferencia de propiedad pidiendo confirmación', async () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);

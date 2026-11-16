@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { canInChannel, canInServer, canSeeSettingsSection, isVoiceChannelLocked, memberActionsIn } from '../permissions';
+import {
+  CHANNEL_OVERRIDE_PERMISSIONS,
+  canInChannel,
+  canInServer,
+  canSeeSettingsSection,
+  isVoiceChannelLocked,
+  memberActionsIn,
+  overrideStateOf,
+  sameOverride,
+  withOverrideState,
+} from '../permissions';
+import { PERMISSION_BITS } from '../../api/roles';
 
 const server = (myPermissions?: string[]) => ({ ownerId: 'owner', myPermissions });
 
@@ -58,5 +69,35 @@ describe('memberActionsIn', () => {
       kick: false,
       ban: false,
     });
+  });
+});
+
+describe('excepciones de un rol en un canal', () => {
+  const override = { allow: ['SEND_MESSAGES'], deny: ['VIEW_CHANNELS'] };
+
+  it('overrideStateOf dice si el permiso se permite, se niega o se hereda', () => {
+    expect(overrideStateOf(override, 'SEND_MESSAGES')).toBe('allow');
+    expect(overrideStateOf(override, 'VIEW_CHANNELS')).toBe('deny');
+    expect(overrideStateOf(override, 'ATTACH_FILES')).toBe('inherit');
+  });
+
+  it('withOverrideState mueve el permiso sin dejarlo permitido y negado a la vez', () => {
+    expect(withOverrideState(override, 'VIEW_CHANNELS', 'allow')).toEqual({ allow: ['SEND_MESSAGES', 'VIEW_CHANNELS'], deny: [] });
+    expect(withOverrideState(override, 'SEND_MESSAGES', 'inherit')).toEqual({ allow: [], deny: ['VIEW_CHANNELS'] });
+    expect(withOverrideState(override, 'ATTACH_FILES', 'deny')).toEqual({ allow: ['SEND_MESSAGES'], deny: ['VIEW_CHANNELS', 'ATTACH_FILES'] });
+  });
+
+  it('sameOverride compara sin importar el orden', () => {
+    expect(sameOverride({ allow: ['A', 'B'], deny: [] }, { allow: ['B', 'A'], deny: [] })).toBe(true);
+    expect(sameOverride({ allow: ['A'], deny: [] }, { allow: [], deny: ['A'] })).toBe(false);
+  });
+
+  it('solo ofrece permisos con bit en el backend y nunca ADMINISTRATOR', () => {
+    for (const permissions of Object.values(CHANNEL_OVERRIDE_PERMISSIONS)) {
+      for (const { id } of permissions) {
+        expect(PERMISSION_BITS[id]).toBeDefined();
+        expect(id).not.toBe('ADMINISTRATOR');
+      }
+    }
   });
 });

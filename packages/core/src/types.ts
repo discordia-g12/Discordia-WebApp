@@ -107,6 +107,25 @@ export interface RoleMemberBackendResponse {
   joined_at: string;
 }
 
+/** DTO de la excepción de permisos de un rol en un canal (Server-Roles-Core-Service) */
+export interface ChannelRoleOverrideBackendResponse {
+  channel_id: string;
+  role_id: string;
+  allow_bitmask: number;
+  deny_bitmask: number;
+}
+
+/**
+ * Excepción de permisos de un rol en un canal: lo que permite y lo que niega además de los permisos del
+ * rol (ids de PERMISSION_BITS). Lo que no está en ninguna de las dos se hereda del rol.
+ */
+export interface ChannelRoleOverride {
+  channelId: string;
+  roleId: string;
+  allow: string[];
+  deny: string[];
+}
+
 /** Miembro de un servidor que tiene asignado un rol determinado. */
 export interface RoleMember {
   id: string;

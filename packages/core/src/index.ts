@@ -46,6 +46,7 @@ export * from './hooks/useInbox';
 // Ajustes del servidor: roles, miembros y baneos (estado y reglas compartidos)
 export * from './admin/permissions';
 export * from './admin/roles';
+export * from './admin/channelOverrides';
 export * from './admin/members';
 export * from './audit';
 
