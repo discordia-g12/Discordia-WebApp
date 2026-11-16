@@ -4,15 +4,20 @@ import {
   formatMetricValue,
   isServerMetricsForbidden,
   serverMetricsErrorMessage,
+  useExportServerActivityMetricsMutation,
   useServerActivityMetricsQuery,
   type ServerActivityRange,
 } from '@discordia/core';
 import { ActionLink, BlockButton, EmptyState, Skeleton } from '../../ui';
+import { showToast } from '../../app/uiStore';
+import { downloadFile } from '../../platform/download';
 import growthStyles from './MemberGrowthChart.module.css';
 import activityStyles from './ServerActivityMetrics.module.css';
 
 interface ServerActivityMetricsProps {
   serverId: string;
+  /** Para el nombre del archivo exportado. */
+  serverName?: string;
 }
 
 type PeriodOption = 7 | 14 | 30 | 90 | 'custom';
@@ -35,6 +40,21 @@ function todayInputValue(offsetDays = 0): string {
 function shortDate(isoDate: string): string {
   const parts = isoDate.split('-');
   return parts.length === 3 ? `${parts[2]}/${parts[1]}` : isoDate;
+}
+
+/** YYYY-MM-DD (o el inicio de un ISO) → DD/MM/YYYY. */
+function longDate(isoDate: string): string {
+  const [y, m, d] = isoDate.slice(0, 10).split('-');
+  return d && m && y ? `${d}/${m}/${y}` : isoDate;
+}
+
+/** El período en palabras, para confirmar qué se exporta. En `to` (excluido) se muestra el día anterior. */
+function periodLabel(range: ServerActivityRange): string {
+  if (range.from && range.to) {
+    const lastIncluded = new Date(new Date(range.to).getTime() - 1).toISOString();
+    return `del ${longDate(range.from)} al ${longDate(lastIncluded)}`;
+  }
+  return `de los últimos ${range.days ?? 30} días`;
 }
 
 /** Convierte YYYY-MM-DD..YYYY-MM-DD a límites UTC exactos [00:00Z, día siguiente 00:00Z) para evitar un día fantasma al final. */
@@ -174,7 +194,7 @@ function MetricTrendChart({ title, ariaLabel, unitLabel, color, total, points }:
   );
 }
 
-export function ServerActivityMetrics({ serverId }: ServerActivityMetricsProps) {
+export function ServerActivityMetrics({ serverId, serverName = 'servidor' }: ServerActivityMetricsProps) {
   const [period, setPeriod] = useState<PeriodOption>(30);
   const [fromInput, setFromInput] = useState(() => todayInputValue(-6));
   const [toInput, setToInput] = useState(() => todayInputValue(0));
@@ -185,15 +205,36 @@ export function ServerActivityMetrics({ serverId }: ServerActivityMetricsProps) 
     period === 'custom' && customDates ? customDates : { days: period === 'custom' ? 30 : period };
 
   const { data, isLoading, isError, error, refetch } = useServerActivityMetricsQuery(serverId, queryRange);
+  const [exportConfirmOpen, setExportConfirmOpen] = useState(false);
+  const exportMutation = useExportServerActivityMetricsMutation(serverId, serverName);
+  // Personalizado sin aplicar todavía: no hay un período elegido para exportar
+  const canExport = Boolean(data) && !isLoading && !(period === 'custom' && !customDates);
+
+  const openExportConfirm = () => {
+    exportMutation.reset();
+    setExportConfirmOpen(true);
+  };
+
+  const handleConfirmExport = () => {
+    exportMutation.mutate(queryRange, {
+      onSuccess: (file) => {
+        downloadFile(file.filename, file.content, 'text/csv;charset=utf-8');
+        setExportConfirmOpen(false);
+        showToast(`Se descargó ${file.filename}`, 'success');
+      },
+    });
+  };
 
   const handleSelectPreset = (days: 7 | 14 | 30 | 90) => {
     setPeriod(days);
     setValidationError(null);
+    setExportConfirmOpen(false);
   };
 
   const handleSelectCustom = () => {
     setPeriod('custom');
     setValidationError(null);
+    setExportConfirmOpen(false);
     const initial = customRange(fromInput, toInput);
     if (!initial.error && initial.range) {
       setCustomDates(toUtcDayBounds(fromInput, toInput));
@@ -244,7 +285,32 @@ export function ServerActivityMetrics({ serverId }: ServerActivityMetricsProps) 
             Personalizado
           </button>
         </div>
+        <ActionLink onPress={openExportConfirm} disabled={!canExport || exportConfirmOpen}>
+          exportar CSV
+        </ActionLink>
       </div>
+
+      {exportConfirmOpen && (
+        <div className={activityStyles.exportConfirm} role="region" aria-label="Exportar métricas">
+          <p className={activityStyles.exportText}>
+            / Se va a descargar un archivo CSV con las métricas diarias {periodLabel(queryRange)}: miembros
+            activos, mensajes enviados y nuevos miembros.
+          </p>
+          {exportMutation.isError && (
+            <p className={growthStyles.errorFeedback} role="alert">
+              {serverMetricsErrorMessage(exportMutation.error)}
+            </p>
+          )}
+          <div className={activityStyles.exportActions}>
+            <ActionLink onPress={() => setExportConfirmOpen(false)} disabled={exportMutation.isPending}>
+              cancelar
+            </ActionLink>
+            <BlockButton onPress={handleConfirmExport} loading={exportMutation.isPending}>
+              Descargar CSV
+            </BlockButton>
+          </div>
+        </div>
+      )}
 
       {period === 'custom' && (
         <form className={activityStyles.customForm} onSubmit={handleApplyCustom}>

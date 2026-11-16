@@ -71,3 +71,25 @@
   background: rgba(0, 0, 0, 0.15);
   border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
 }
+
+/* Confirmación de la exportación a CSV: el período que se descarga y las dos acciones */
+.exportConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.exportText {
+  margin: 0;
+  font-size: var(--font-body-small-size);
+  color: var(--color-text);
+}
+
+.exportActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}

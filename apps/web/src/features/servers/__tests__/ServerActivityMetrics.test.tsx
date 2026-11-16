@@ -3,6 +3,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { configureClient, useSession } from '@discordia/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ServerActivityMetrics } from '../ServerActivityMetrics';
+import { downloadFile } from '../../../platform/download';
+
+vi.mock('../../../platform/download', () => ({ downloadFile: vi.fn() }));
 
 const SERVER_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -142,4 +145,96 @@ describe('ServerActivityMetrics', () => {
     const forbidden = await screen.findByTestId('server-activity-forbidden');
     expect(forbidden.textContent).toContain('No tenés permisos de administración para ver las métricas de este servidor.');
   });
+
+  describe('Exportar a CSV', () => {
+    const METRICS = {
+      serverId: SERVER_ID,
+      from: '2026-11-08T00:00:00.000Z',
+      to: '2026-11-15T00:00:00.000Z',
+      activeMembers: 3,
+      messagesSent: 10,
+      newMembers: 1,
+      hasActivity: true,
+      partial: false,
+      series: [{ date: '2026-11-14', activeMembers: 3, messagesSent: 10, newMembers: 1 }],
+    };
+    const CSV = 'fecha,miembros_activos,mensajes_enviados,nuevos_miembros\r\n2026-11-14,3,10,1\r\n';
+
+    function renderWithName() {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      return render(
+        <QueryClientProvider client={client}>
+          <ServerActivityMetrics serverId={SERVER_ID} serverName="Mi Server" />
+        </QueryClientProvider>,
+      );
+    }
+
+    afterEach(() => vi.mocked(downloadFile).mockReset());
+
+    it('CA 1: al confirmar, descarga un CSV con las métricas del período elegido', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) =>
+        String(input).includes('format=csv')
+          ? new Response(CSV, { status: 200, headers: { 'content-type': 'text/csv; charset=utf-8' } })
+          : json(METRICS),
+      );
+      renderWithName();
+      await screen.findByTestId('metric-active-members');
+
+      fireEvent.click(screen.getByRole('button', { name: '7 días' }));
+      // Mientras carga el período nuevo no se puede exportar
+      const exportButton = screen.getByRole('button', { name: '_exportar CSV' }) as HTMLButtonElement;
+      await waitFor(() => expect(exportButton.disabled).toBe(false));
+      fireEvent.click(exportButton);
+
+      const confirm = screen.getByRole('region', { name: 'Exportar métricas' });
+      expect(confirm.textContent).toContain('de los últimos 7 días');
+      // No exporta hasta que se confirma
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes('format=csv'))).toBe(false);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Descargar CSV /' }));
+
+      await waitFor(() => expect(downloadFile).toHaveBeenCalledTimes(1));
+      const csvCall = fetchMock.mock.calls.find(([url]) => String(url).includes('format=csv'));
+      expect(String(csvCall?.[0])).toContain(`/api/v1/servers/${SERVER_ID}/metrics?days=7&format=csv`);
+      const [filename, content, mime] = vi.mocked(downloadFile).mock.calls[0];
+      expect(filename).toMatch(/^metricas-mi-server-\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}\.csv$/);
+      expect(content).toBe(CSV);
+      expect(mime).toBe('text/csv;charset=utf-8');
+      expect(screen.queryByRole('region', { name: 'Exportar métricas' })).toBeNull();
+    });
+
+    it('cancelar cierra la confirmación sin exportar', async () => {
+      fetchMock.mockResolvedValue(json(METRICS));
+      renderWithName();
+      await screen.findByTestId('metric-active-members');
+
+      fireEvent.click(screen.getByRole('button', { name: '_exportar CSV' }));
+      fireEvent.click(screen.getByRole('button', { name: '_cancelar' }));
+
+      expect(screen.queryByRole('region', { name: 'Exportar métricas' })).toBeNull();
+      expect(downloadFile).not.toHaveBeenCalled();
+    });
+
+    it('si el backend no puede armar el archivo, muestra el motivo y deja reintentar', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) =>
+        String(input).includes('format=csv')
+          ? json(
+              { type: 'about:blank', title: 'Service Unavailable', status: 503, detail: 'Probá exportar de nuevo en unos minutos.' },
+              503,
+              'application/problem+json',
+            )
+          : json(METRICS),
+      );
+      renderWithName();
+      await screen.findByTestId('metric-active-members');
+
+      fireEvent.click(screen.getByRole('button', { name: '_exportar CSV' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Descargar CSV /' }));
+
+      expect((await screen.findByRole('alert')).textContent).toBe('Probá exportar de nuevo en unos minutos.');
+      expect(downloadFile).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Descargar CSV /' })).toBeTruthy();
+    });
+  });
 });
+
