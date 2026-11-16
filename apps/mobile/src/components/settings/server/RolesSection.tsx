@@ -1,10 +1,11 @@
 import React from 'react'
 import { Pressable, View } from 'react-native'
 import { ArrowDown, ArrowUp } from 'lucide-react-native'
-import { PERMISSION_CATEGORIES, PRESET_ROLE_COLORS, hasBackendBit, type RolesAdminState } from '@discordia/core'
+import { PERMISSION_CATEGORIES, PRESET_ROLE_COLORS, hasBackendBit, type Channel, type RolesAdminState } from '@discordia/core'
 import { makeStyles, useTheme } from '../../../theme'
 import { ActionLink, BlockButton, Skeleton, Text, UnderlineInput } from '../../../ui'
 import { Feedback, SettingsCell, SettingsRow, Switch } from '../SettingsScreen'
+import { ChannelOverridesSection } from './ChannelOverridesSection'
 
 /** Color de un rol: un cuadrado chico (el color nunca va como color de texto). */
 export function RoleSwatch({ color, size = 10 }: { color?: string | null; size?: number }) {
@@ -36,12 +37,15 @@ function ColorPicker({ value, onChange, label }: { value: string | null; onChang
 
 interface RolesSectionProps {
   roles: RolesAdminState
+  /** Id del servidor (vacío con la pantalla cerrada: así no se piden las excepciones de los canales). */
+  serverId: string
+  channels: Channel[]
   /** Pide confirmación antes de hacer un rol el de por defecto o borrarlo (modal de la pantalla). */
   onConfirm: (copy: { title: string; message: string; confirmLabel: string; tone: 'default' | 'danger' }, action: () => Promise<void>) => void
 }
 
-/** ROLES: crear (con color), la lista, editar el elegido (nombre, color, por defecto, borrar, miembros) y sus permisos. */
-export function RolesSection({ roles: r, onConfirm }: RolesSectionProps) {
+/** ROLES: crear (con color), la lista, editar el elegido (nombre, color, por defecto, borrar, miembros), sus permisos generales y sus permisos por canal. */
+export function RolesSection({ roles: r, serverId, channels, onConfirm }: RolesSectionProps) {
   const styles = useStyles()
   const { colors } = useTheme()
   const role = r.activeRole
@@ -220,6 +224,11 @@ export function RolesSection({ roles: r, onConfirm }: RolesSectionProps) {
             })}
           </SettingsCell>
         ))}
+
+      {/* key: al cambiar de rol se descarta lo que no se guardó */}
+      {role && (
+        <ChannelOverridesSection key={role.id} serverId={serverId} role={role} channels={channels} index={3 + PERMISSION_CATEGORIES.length} />
+      )}
     </>
   )
 }

@@ -138,7 +138,7 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
         </>
       )}
 
-      {section === 'roles' && <RolesSection roles={roles} onConfirm={(copy, action) => setPending({ ...copy, action })} />}
+      {section === 'roles' && <RolesSection roles={roles} serverId={serverId} channels={channels} onConfirm={(copy, action) => setPending({ ...copy, action })} />}
 
       {section === 'members' && <MembersSection members={members} ownerId={server.ownerId} currentUserId={currentUserId} actions={memberActions} onOpenProfile={onOpenProfile} />}
 
