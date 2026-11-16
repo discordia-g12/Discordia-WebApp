@@ -29,6 +29,9 @@ import {
   updateRoleInfo,
   setDefaultRole,
   reorderRoles,
+  getChannelRoleOverrides,
+  setChannelRoleOverride,
+  deleteChannelRoleOverride,
   CreateRoleRequest,
   UpdateRoleInfoRequest,
 } from '../api/roles';
@@ -399,6 +402,42 @@ export function useReorderRolesMutation(serverId: string) {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['roles', serverId] });
     },
+  });
+}
+
+export function useChannelRoleOverridesQuery(serverId: string | null, channelId: string | null) {
+  const status = useSession((s) => s.status);
+  return useQuery({
+    queryKey: ['channel-role-overrides', serverId, channelId],
+    queryFn: () => getChannelRoleOverrides(serverId as string, channelId as string),
+    enabled: status === 'authenticated' && Boolean(serverId) && Boolean(channelId),
+  });
+}
+
+/** Cambiar una excepción cambia los permisos en el canal (myPermissions viene con los servidores). */
+function useInvalidateChannelOverrides(serverId: string) {
+  const queryClient = useQueryClient();
+  return (channelId: string) => {
+    queryClient.invalidateQueries({ queryKey: ['channel-role-overrides', serverId, channelId] });
+    queryClient.invalidateQueries({ queryKey: ['servers'] });
+  };
+}
+
+export function useSetChannelRoleOverrideMutation(serverId: string) {
+  const invalidate = useInvalidateChannelOverrides(serverId);
+  return useMutation({
+    mutationFn: ({ channelId, roleId, allow, deny }: { channelId: string; roleId: string; allow: string[]; deny: string[] }) =>
+      setChannelRoleOverride(serverId, channelId, roleId, { allow, deny }),
+    onSuccess: (_data, { channelId }) => invalidate(channelId),
+  });
+}
+
+export function useDeleteChannelRoleOverrideMutation(serverId: string) {
+  const invalidate = useInvalidateChannelOverrides(serverId);
+  return useMutation({
+    mutationFn: ({ channelId, roleId }: { channelId: string; roleId: string }) =>
+      deleteChannelRoleOverride(serverId, channelId, roleId),
+    onSuccess: (_data, { channelId }) => invalidate(channelId),
   });
 }
 

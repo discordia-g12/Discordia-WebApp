@@ -8,7 +8,10 @@ import {
   removeRoleFromMember,
   bitmaskToPermissions,
   createRole,
+  deleteChannelRoleOverride,
   deleteRole,
+  getChannelRoleOverrides,
+  setChannelRoleOverride,
   reorderRoles,
   getRoleMembers,
   getRoles,
@@ -400,5 +403,65 @@ describe('API de roles', () => {
     expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/roles/order');
     expect(init.method).toBe('PUT');
     expect(JSON.parse(init.body as string)).toEqual({ role_ids: ['role-2', 'role-1'] });
+  });
+});
+
+describe('excepciones de permisos de un rol en un canal', () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    configureClient({
+      baseUrl: 'http://localhost:8000',
+      getToken: vi.fn().mockResolvedValue('jwt-token'),
+      onAuthFailure: vi.fn(),
+      timeoutMs: 500,
+    });
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const SEND = 1 << 9;
+  const VIEW = 1 << 0;
+
+  it('getChannelRoleOverrides pide las del canal y convierte los bitmasks', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse([{ channel_id: 'ch-1', role_id: 'r-1', allow_bitmask: SEND, deny_bitmask: VIEW }]));
+    globalThis.fetch = fetchMock;
+
+    const overrides = await getChannelRoleOverrides('srv-1', 'ch-1');
+
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8000/api/v1/servers/srv-1/channels/ch-1/permissions/roles');
+    expect(overrides).toEqual([{ channelId: 'ch-1', roleId: 'r-1', allow: ['SEND_MESSAGES'], deny: ['VIEW_CHANNELS'] }]);
+  });
+
+  it('setChannelRoleOverride hace PUT con los bitmasks de allow y deny', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ channel_id: 'ch-1', role_id: 'r-1', allow_bitmask: 0, deny_bitmask: SEND }));
+    globalThis.fetch = fetchMock;
+
+    const override = await setChannelRoleOverride('srv-1', 'ch-1', 'r-1', { allow: [], deny: ['SEND_MESSAGES'] });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://localhost:8000/api/v1/servers/srv-1/channels/ch-1/permissions/roles/r-1');
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body)).toEqual({ allow_bitmask: 0, deny_bitmask: SEND });
+    expect(override.deny).toEqual(['SEND_MESSAGES']);
+  });
+
+  it('deleteChannelRoleOverride hace DELETE y propaga el 404 si no había excepción', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    globalThis.fetch = fetchMock;
+
+    await deleteChannelRoleOverride('srv-1', 'ch-1', 'r-1');
+
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8000/api/v1/servers/srv-1/channels/ch-1/permissions/roles/r-1');
+    expect(fetchMock.mock.calls[0][1].method).toBe('DELETE');
+
+    globalThis.fetch = vi.fn().mockResolvedValue(jsonResponse({ detail: 'nope' }, 404));
+    await expect(deleteChannelRoleOverride('srv-1', 'ch-1', 'r-1')).rejects.toBeInstanceOf(ApiError);
   });
 });
