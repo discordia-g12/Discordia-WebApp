@@ -18,7 +18,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.discordia_g12.discordia"
+      "package": "com.discordia_g12.discordia",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +45,14 @@
           }
         }
       ],
-      "@livekit/react-native-expo-plugin",
+      [
+        "@livekit/react-native-expo-plugin",
+        {
+          "android": {
+            "enableScreenShareService": true
+          }
+        }
+      ],
       [
         "@config-plugins/react-native-webrtc",
         {

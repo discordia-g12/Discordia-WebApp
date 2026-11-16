@@ -277,6 +277,7 @@ export default function MobileShell() {
     isMuted: p.isMuted,
     isLocallyMuted: !p.isLocal && !!voice.locallyMutedUsers[p.id],
     videoTrack: p.videoTrack,
+    screenShareTrack: p.screenShareTrack,
   }))
 
   // Lista de canales: presencia de todos; en el canal propio, los datos de LiveKit (quién habla, mute)
@@ -457,6 +458,14 @@ export default function MobileShell() {
     const ok = await voice.toggleCamera()
     if (!ok && turningOn) {
       showToast('No se pudo prender la cámara: revisá los permisos de la app', 'info')
+    }
+  }
+
+  const handleToggleScreenShare = async () => {
+    const turningOn = !voice.isScreenShareOn
+    const ok = await voice.toggleScreenShare()
+    if (!ok && turningOn) {
+      showToast('No se pudo compartir la pantalla: revisá los permisos de la app', 'info')
     }
   }
 
@@ -887,12 +896,22 @@ export default function MobileShell() {
             onDisconnect={handleDisconnectVoice}
             isCameraOn={voice.isCameraOn}
             onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined}
+            isScreenShareOn={voice.isScreenShareOn}
+            onToggleScreenShare={isVoiceSupported ? handleToggleScreenShare : undefined}
             cannotSpeak={!voice.canSpeak}
             cannotUseCamera={!voice.canVideo}
+            cannotScreenShare={!voice.canScreenShare}
             onBlocked={message => showToast(message, 'info')}
           />
         )}
-        {showBars && <PrivateCallBar session={privateCall} voice={voice} onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined} />}
+        {showBars && (
+          <PrivateCallBar
+            session={privateCall}
+            voice={voice}
+            onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined}
+            onToggleScreenShare={isVoiceSupported ? handleToggleScreenShare : undefined}
+          />
+        )}
         {showBars && <BottomTabs value={tab} onChange={goTo} unread={{ messages: inbox.unread > 0 }} />}
       </SafeAreaView>
 
@@ -1019,6 +1038,7 @@ export default function MobileShell() {
         voice={voice}
         voiceChannelName={voiceLocation?.channel.name}
         onToggleCamera={isVoiceSupported ? handleToggleCamera : undefined}
+        onToggleScreenShare={isVoiceSupported ? handleToggleScreenShare : undefined}
       />
 
       <ConfirmModal
