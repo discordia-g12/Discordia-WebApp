@@ -216,7 +216,15 @@ function renderNotices(state: PrivateCallState, overrides: Partial<CallContextVa
     dismiss: vi.fn(),
     ...overrides,
   };
-  const voice = { room: fakeRoom(), presence: {}, join: async () => {}, disconnect: () => {}, isSwitching: () => false, toggleCamera: async () => {} };
+  const voice = {
+    room: fakeRoom(),
+    presence: {},
+    join: async () => {},
+    disconnect: () => {},
+    isSwitching: () => false,
+    toggleCamera: async () => {},
+    toggleScreenShare: async () => {},
+  };
   render(
     <UsersContext.Provider value={{ usersMap: USERS, userOrFallback: (id) => USERS[id] }}>
       <VoiceContext.Provider value={voice}>
@@ -283,7 +291,15 @@ describe('aviso de fin de llamada', () => {
       hangUp: vi.fn(async () => {}),
       dismiss: vi.fn(),
     };
-    const voice = { room: fakeRoom('v1'), presence: {}, join: async () => {}, disconnect: () => {}, isSwitching: () => true, toggleCamera: async () => {} };
+    const voice = {
+      room: fakeRoom('v1'),
+      presence: {},
+      join: async () => {},
+      disconnect: () => {},
+      isSwitching: () => true,
+      toggleCamera: async () => {},
+      toggleScreenShare: async () => {},
+    };
     render(
       <UsersContext.Provider value={{ usersMap: USERS, userOrFallback: (id) => USERS[id] }}>
         <VoiceContext.Provider value={voice}>
@@ -311,7 +327,15 @@ describe('llamar estando en un canal de voz', () => {
     useUIStore.setState({ activeModal: null, confirm: { action: null, targetName: '', targetDetail: '' } });
     const client = new QueryClient();
     client.setQueryData(['servers'], [{ id: 's1', categories: [{ channels: [{ id: 'v1', name: 'general-voz' }] }] }]);
-    const voice = { room: fakeRoom('v1'), presence: {}, join: async () => {}, disconnect: () => {}, isSwitching: () => true, toggleCamera: async () => {} };
+    const voice = {
+      room: fakeRoom('v1'),
+      presence: {},
+      join: async () => {},
+      disconnect: () => {},
+      isSwitching: () => true,
+      toggleCamera: async () => {},
+      toggleScreenShare: async () => {},
+    };
     let ctx: CallContextValue | null = null;
     const Capture = () => {
       ctx = useContext(CallContext);
@@ -345,14 +369,28 @@ describe('cámara en la llamada', () => {
   const active: PrivateCallState = { status: 'active', conversationId: 'dm-u1', call: ACTIVE_CALL, role: 'caller', finished: [] };
   const fakeTrack = () => ({ attach: vi.fn(), detach: vi.fn() });
 
-  function renderPanel(room: Partial<ReturnType<typeof useVoiceRoom>>, toggleCamera = vi.fn(async () => {})) {
+  function renderPanel(
+    room: Partial<ReturnType<typeof useVoiceRoom>>,
+    toggleCamera = vi.fn(async () => {}),
+    toggleScreenShare = vi.fn(async () => {})
+  ) {
     const voice = {
-      room: { ...fakeRoom(), roomId: 'call-c1', connectionState: 'connected', canVideo: true, isCameraOn: false, ...room } as ReturnType<typeof useVoiceRoom>,
+      room: {
+        ...fakeRoom(),
+        roomId: 'call-c1',
+        connectionState: 'connected',
+        canVideo: true,
+        canScreenShare: true,
+        isCameraOn: false,
+        isScreenShareOn: false,
+        ...room,
+      } as ReturnType<typeof useVoiceRoom>,
       presence: {},
       join: async () => {},
       disconnect: () => {},
       isSwitching: () => false,
       toggleCamera,
+      toggleScreenShare,
     };
     const value: CallContextValue = {
       state: active,
@@ -370,7 +408,7 @@ describe('cámara en la llamada', () => {
         </CallContext.Provider>
       </VoiceContext.Provider>
     );
-    return { ...result, toggleCamera };
+    return { ...result, toggleCamera, toggleScreenShare };
   }
 
   it('CA 1: prender la cámara pide toggleCamera', () => {
@@ -418,12 +456,13 @@ describe('cámara en la llamada', () => {
     expect(container.querySelectorAll('video')).toHaveLength(1);
 
     const voice = {
-      room: { ...fakeRoom(), roomId: 'call-c1', connectionState: 'connected', canVideo: true, isCameraOn: false, participants: participants(null) } as unknown as ReturnType<typeof useVoiceRoom>,
+      room: { ...fakeRoom(), roomId: 'call-c1', connectionState: 'connected', canVideo: true, canScreenShare: true, isCameraOn: false, participants: participants(null) } as unknown as ReturnType<typeof useVoiceRoom>,
       presence: {},
       join: async () => {},
       disconnect: () => {},
       isSwitching: () => false,
       toggleCamera: async () => {},
+      toggleScreenShare: async () => {},
     };
     rerender(
       <VoiceContext.Provider value={voice}>
@@ -485,6 +524,46 @@ describe('cámara en la llamada', () => {
       ] as unknown as ReturnType<typeof useVoiceRoom>['participants'],
     });
     expect(await a11yViolations(container)).toEqual([]);
+  });
+
+  it('compartir pantalla en llamada privada (#53): alterna el botón y muestra la ficha dedicada', async () => {
+    const remoteScreen = fakeTrack();
+    const toggleScreenShare = vi.fn(async () => {});
+    const { container } = renderPanel(
+      {
+        isScreenShareOn: true,
+        participants: [
+          { identity: 'me', isLocal: true, isSpeaking: false, isMuted: false, videoTrack: null, screenShareTrack: null },
+          { identity: 'u1', isLocal: false, isSpeaking: false, isMuted: false, videoTrack: null, screenShareTrack: remoteScreen },
+        ] as unknown as ReturnType<typeof useVoiceRoom>['participants'],
+      },
+      vi.fn(async () => {}),
+      toggleScreenShare
+    );
+
+    const stopBtn = screen.getByRole('button', { name: 'Dejar de compartir pantalla' });
+    expect(stopBtn.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(stopBtn);
+    expect(toggleScreenShare).toHaveBeenCalledTimes(1);
+
+    const region = screen.getByRole('region', { name: 'Llamada con Sofia Rossi' });
+    expect(region.className).toMatch(/withScreen/);
+    expect(screen.getByRole('listitem', { name: 'Sofia Rossi · pantalla' })).toBeTruthy();
+    const video = container.querySelector('video')!;
+    expect(video.className).toMatch(/videoContain/);
+    expect(video.className).not.toMatch(/mirrored/);
+    expect(await a11yViolations(container)).toEqual([]);
+
+    // Ampliar pantalla compartida directamente y volver con Escape
+    const zoomBtn = screen.getByRole('button', { name: 'Ampliar Sofia Rossi · pantalla' });
+    fireEvent.click(zoomBtn);
+    expect(region.className).toMatch(/expanded/);
+    expect(region.className).toMatch(/withFocusedScreen/);
+    expect(screen.getByRole('button', { name: 'Reducir Sofia Rossi · pantalla' }).getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(region.className).toMatch(/expanded/);
+    expect(region.className).not.toMatch(/withFocusedScreen/);
   });
 });
 

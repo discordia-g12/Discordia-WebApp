@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Animated, Image, LayoutAnimation, Pressable, ScrollView, View } from 'react-native'
-import { MicOff, VolumeX } from 'lucide-react-native'
+import { Animated, Image, LayoutAnimation, Modal as RNModal, Pressable, ScrollView, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { Maximize2, MicOff, MonitorUp, VolumeX, X } from 'lucide-react-native'
 import type { VoiceConnectionState } from '@discordia/core'
 import type { VideoTrack } from 'livekit-client'
 import { makeStyles, useTheme } from '../../theme'
@@ -19,6 +20,8 @@ export interface VoiceScreenParticipant {
   isLocallyMuted?: boolean
   /** Cámara prendida: llena la ficha en vez de la foto. */
   videoTrack?: VideoTrack | null
+  /** Pantalla compartida activa: se muestra en una ficha dedicada expandible. */
+  screenShareTrack?: VideoTrack | null
 }
 
 interface VoiceScreenProps {
@@ -41,11 +44,20 @@ interface VoiceScreenProps {
  */
 export default function VoiceScreen({ channelName, serverName, connectionState, participants, onInvite, onLongPressParticipant }: VoiceScreenProps) {
   const styles = useStyles()
+  const { colors } = useTheme()
   const reduce = useReducedMotion()
   const [width, setWidth] = useState(0)
+  const [expandedScreenId, setExpandedScreenId] = useState<string | null>(null)
+
+  const screenShares = participants.filter(
+    (p): p is VoiceScreenParticipant & { screenShareTrack: VideoTrack } => Boolean(p.screenShareTrack),
+  )
+  const expandedScreen = expandedScreenId
+    ? screenShares.find(p => p.id === expandedScreenId) ?? null
+    : null
 
   // Al entrar o salir alguien, las fichas se reacomodan animadas
-  const ids = participants.map(p => p.id).join(',')
+  const ids = `${participants.map(p => p.id).join(',')}|${screenShares.map(p => p.id).join(',')}`
   const previous = useRef(ids)
   if (previous.current !== ids) {
     previous.current = ids
@@ -53,7 +65,7 @@ export default function VoiceScreen({ channelName, serverName, connectionState, 
   }
 
   // Una columna con una sola persona; dos con más (en un teléfono, tres quedan muy chicas)
-  const tiles = participants.length + (onInvite ? 1 : 0)
+  const tiles = participants.length + screenShares.length + (onInvite ? 1 : 0)
   const columns = tiles <= 1 ? 1 : 2
   const side = width > 0 ? Math.floor(width / columns) : 0
   const tileStyle = { width: side, height: columns === 1 ? Math.round(side * 1.1) : side }
@@ -70,6 +82,15 @@ export default function VoiceScreen({ channelName, serverName, connectionState, 
 
       <ScrollView onLayout={e => setWidth(e.nativeEvent.layout.width)} contentContainerStyle={styles.grid}>
         {side > 0 &&
+          screenShares.map(p => (
+            <ScreenShareTile
+              key={`${p.id}-screen`}
+              participant={p}
+              style={tileStyle}
+              onPress={() => setExpandedScreenId(p.id)}
+            />
+          ))}
+        {side > 0 &&
           participants.map(p => (
             <Tile key={p.id} participant={p} style={tileStyle} onLongPress={p.isLocal ? undefined : onLongPressParticipant} />
           ))}
@@ -84,7 +105,70 @@ export default function VoiceScreen({ channelName, serverName, connectionState, 
           </View>
         )}
       </ScrollView>
+
+      <RNModal
+        visible={expandedScreen !== null}
+        animationType="fade"
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        onRequestClose={() => setExpandedScreenId(null)}
+      >
+        <SafeAreaView style={styles.fullscreen}>
+          <View style={styles.fullscreenHeader}>
+            <View style={styles.fullscreenTitle}>
+              <MonitorUp color={colors.inverseText} size={16} strokeWidth={1.5} />
+              <Text variant="bodySmall" tone="inverse" bold numberOfLines={1}>
+                {expandedScreen ? `${expandedScreen.name}${expandedScreen.isLocal ? ' (vos)' : ''} · pantalla` : ''}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setExpandedScreenId(null)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar pantalla ampliada"
+            >
+              <X color={colors.inverseText} size={22} strokeWidth={1.5} />
+            </Pressable>
+          </View>
+          {expandedScreen && (
+            <ParticipantVideo track={expandedScreen.screenShareTrack} objectFit="contain" style={styles.fullscreenVideo} />
+          )}
+        </SafeAreaView>
+      </RNModal>
     </View>
+  )
+}
+
+function ScreenShareTile({
+  participant: p,
+  style,
+  onPress,
+}: {
+  participant: VoiceScreenParticipant & { screenShareTrack: VideoTrack }
+  style: { width: number; height: number }
+  onPress: () => void
+}) {
+  const styles = useStyles()
+  const { colors } = useTheme()
+  return (
+    <Pressable
+      style={[styles.tile, styles.screenTile, style]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Ampliar pantalla compartida de ${p.name}${p.isLocal ? ' (vos)' : ''}`}
+    >
+      <ParticipantVideo track={p.screenShareTrack} objectFit="contain" style={styles.photo} />
+      <View style={styles.expandBadge}>
+        <Maximize2 color={colors.inverseText} size={14} strokeWidth={1.5} />
+      </View>
+      <View style={styles.label}>
+        <MonitorUp color={colors.inverseText} size={12} strokeWidth={1.5} />
+        <Text variant="meta" tone="inverse" bold numberOfLines={1} style={styles.labelName}>
+          {p.name}
+          {p.isLocal ? ' (vos)' : ''} · pantalla
+        </Text>
+      </View>
+    </Pressable>
   )
 }
 
@@ -200,4 +284,23 @@ const useStyles = makeStyles(t => ({
   // Verde (token speaking, como la web): se distingue de las líneas y se ve sobre fotos, iniciales y video
   speaking: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 4, borderColor: t.colors.speaking },
   inviteTile: { justifyContent: 'flex-end', gap: t.space[1], padding: t.space[4], backgroundColor: 'transparent' },
+  screenTile: { backgroundColor: t.colors.inverseBackground },
+  expandBadge: {
+    position: 'absolute',
+    top: t.space[2],
+    right: t.space[2],
+    padding: t.space[1],
+    backgroundColor: t.colors.inverseBackground,
+  },
+  fullscreen: { flex: 1, backgroundColor: t.colors.inverseBackground },
+  fullscreenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: t.space[3],
+    paddingHorizontal: t.space[4],
+    paddingVertical: t.space[3],
+  },
+  fullscreenTitle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: t.space[2] },
+  fullscreenVideo: { flex: 1 },
 }))

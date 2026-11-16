@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Animated, Pressable, View } from 'react-native'
-import { Headphones, HeadphoneOff, Mic, MicOff, PhoneOff, Video, VideoOff } from 'lucide-react-native'
+import { Headphones, HeadphoneOff, Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Video, VideoOff } from 'lucide-react-native'
 import type { VoiceConnectionState } from '@discordia/core'
 import { makeStyles, useTheme } from '../../theme'
 import { Text, useNativeDriver, useReducedMotion } from '../../ui'
@@ -19,9 +19,14 @@ interface CallBarProps {
   isCameraOn?: boolean
   /** Prende o apaga la cámara; sin esta función no se muestra el botón (p. ej. en Expo Go). */
   onToggleCamera?: () => void
-  /** Sus roles no le dejan hablar / usar la cámara en este canal: el botón se ve atenuado. */
+  /** Pantalla compartida propia activa. */
+  isScreenShareOn?: boolean
+  /** Inicia o detiene compartir pantalla; sin esta función no se muestra el botón. */
+  onToggleScreenShare?: () => void
+  /** Sus roles no le dejan hablar / usar la cámara / compartir pantalla en este canal: el botón se ve atenuado. */
   cannotSpeak?: boolean
   cannotUseCamera?: boolean
+  cannotScreenShare?: boolean
   /** Tocar un botón bloqueado: la app explica por qué (en el teléfono no hay tooltip). */
   onBlocked?: (message: string) => void
   /** Llamada privada: el nombre del otro va sin "•" y sin servidor. */
@@ -32,6 +37,7 @@ interface CallBarProps {
 
 const CANNOT_SPEAK = 'No tenés permiso para hablar en este canal'
 const CANNOT_USE_CAMERA = 'No tenés permiso para usar la cámara en este canal'
+const CANNOT_SCREEN_SHARE = 'No tenés permiso para compartir pantalla en este canal'
 
 const STATE_LABEL: Record<VoiceConnectionState, string> = {
   connecting: 'conectando',
@@ -57,8 +63,11 @@ export function CallBar({
   onDisconnect,
   isCameraOn = false,
   onToggleCamera,
+  isScreenShareOn = false,
+  onToggleScreenShare,
   cannotSpeak = false,
   cannotUseCamera = false,
+  cannotScreenShare = false,
   onBlocked,
   direct = false,
   status,
@@ -68,8 +77,9 @@ export function CallBar({
   const MicIcon = isMuted ? MicOff : Mic
   const AudioIcon = isDeafened ? HeadphoneOff : Headphones
   const CameraIcon = isCameraOn ? Video : VideoOff
-  // La cámara se publica en la sala: solo con la conexión establecida
-  const cameraUsable = connectionState === 'connected'
+  const ScreenIcon = isScreenShareOn ? MonitorOff : MonitorUp
+  // Cámara y pantalla se publican en la sala: solo con la conexión establecida
+  const mediaUsable = connectionState === 'connected'
 
   return (
     <View style={styles.bar}>
@@ -105,14 +115,32 @@ export function CallBar({
       </Pressable>
       {onToggleCamera && (
         <Pressable
-          style={[styles.control, isCameraOn && styles.active, (!cameraUsable || cannotUseCamera) && styles.disabled]}
+          style={[styles.control, isCameraOn && styles.active, (!mediaUsable || cannotUseCamera) && styles.disabled]}
           onPress={cannotUseCamera ? () => onBlocked?.(CANNOT_USE_CAMERA) : onToggleCamera}
-          disabled={!cameraUsable}
+          disabled={!mediaUsable}
           accessibilityRole="button"
           accessibilityLabel={cannotUseCamera ? CANNOT_USE_CAMERA : isCameraOn ? 'Apagar cámara' : 'Prender cámara'}
-          accessibilityState={{ selected: isCameraOn, disabled: !cameraUsable || cannotUseCamera }}
+          accessibilityState={{ selected: isCameraOn, disabled: !mediaUsable || cannotUseCamera }}
         >
           <CameraIcon color={isCameraOn ? colors.inverseText : colors.text} size={18} strokeWidth={1.5} />
+        </Pressable>
+      )}
+      {onToggleScreenShare && (
+        <Pressable
+          style={[styles.control, isScreenShareOn && styles.active, (!mediaUsable || cannotScreenShare) && styles.disabled]}
+          onPress={cannotScreenShare ? () => onBlocked?.(CANNOT_SCREEN_SHARE) : onToggleScreenShare}
+          disabled={!mediaUsable}
+          accessibilityRole="button"
+          accessibilityLabel={
+            cannotScreenShare
+              ? CANNOT_SCREEN_SHARE
+              : isScreenShareOn
+                ? 'Dejar de compartir pantalla'
+                : 'Compartir pantalla'
+          }
+          accessibilityState={{ selected: isScreenShareOn, disabled: !mediaUsable || cannotScreenShare }}
+        >
+          <ScreenIcon color={isScreenShareOn ? colors.inverseText : colors.text} size={18} strokeWidth={1.5} />
         </Pressable>
       )}
       <Pressable style={[styles.control, styles.hangUp]} onPress={onDisconnect} accessibilityRole="button" accessibilityLabel="Colgar">
@@ -159,7 +187,7 @@ const useStyles = makeStyles(t => ({
     borderTopColor: t.colors.lineStrong,
     backgroundColor: t.colors.line,
   },
-  info: { flex: 1, justifyContent: 'center', paddingHorizontal: t.space[4] },
+  info: { flex: 1, minWidth: 0, justifyContent: 'center', paddingHorizontal: t.space[3] },
   control: {
     width: t.layout.userBarHeight,
     alignItems: 'center',

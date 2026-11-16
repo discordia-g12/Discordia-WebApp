@@ -83,7 +83,7 @@ En la compu, la web se sigue abriendo como `http://localhost:5173`: el navegador
 
 Los agregan los config plugins al generar el build:
 
-- Android: `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, entre otros (`@config-plugins/react-native-webrtc`).
+- Android: `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `FOREGROUND_SERVICE` y `FOREGROUND_SERVICE_MEDIA_PROJECTION` (compartir pantalla, `@config-plugins/react-native-webrtc` y `@livekit/react-native-expo-plugin`).
 - iOS: `NSMicrophoneUsageDescription` / `NSCameraUsageDescription` con los textos definidos en `app.json`.
 
 ## HTTP sin cifrar (Android)

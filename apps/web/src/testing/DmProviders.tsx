@@ -18,7 +18,15 @@ setVoicePlatform({
 /** La sala de voz real (sin LiveKit) sin la presencia ni los servidores de VoiceProvider. */
 function Voice({ children }: { children: ReactNode }) {
   const room = useVoiceRoom();
-  const value = { room, presence: {}, join: async () => {}, disconnect: () => {}, isSwitching: () => false, toggleCamera: async () => {} };
+  const value = {
+    room,
+    presence: {},
+    join: async () => {},
+    disconnect: () => {},
+    isSwitching: () => false,
+    toggleCamera: async () => {},
+    toggleScreenShare: async () => {},
+  };
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>;
 }
 

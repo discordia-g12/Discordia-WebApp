@@ -8,19 +8,21 @@ interface ParticipantVideoProps {
   track: VideoTrack
   /** La cámara propia se muestra en espejo. */
   mirrored?: boolean
+  /** cover para cámara; contain para pantalla compartida sin recortar bordes. */
+  objectFit?: 'cover' | 'contain'
   style?: ViewStyle
 }
 
 /**
- * Cámara de un participante llenando su ficha. Solo se renderiza con un track de video, que solo
+ * Video de un participante llenando su ficha. Solo se renderiza con un track de video, que solo
  * existe si la app tiene WebRTC nativo: por eso @livekit/react-native se carga recién acá (con un
  * import arriba se cargaría también en Expo Go, donde no está el módulo nativo).
  *
  * Usa VideoView (recibe el track directo); VideoTrack, su reemplazo, pide una TrackReference de
  * @livekit/components-react que la sala compartida no expone.
  */
-export default function ParticipantVideo({ track, mirrored = false, style }: ParticipantVideoProps) {
+export default function ParticipantVideo({ track, mirrored = false, objectFit = 'cover', style }: ParticipantVideoProps) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { VideoView } = require('@livekit/react-native') as LiveKitReactNative
-  return <VideoView videoTrack={track} objectFit="cover" mirror={mirrored} style={style} />
+  return <VideoView videoTrack={track} objectFit={objectFit} mirror={mirrored} style={style} />
 }

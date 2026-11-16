@@ -34,7 +34,7 @@ const DEFAULT_ANSWERS: Record<string, MockCallAnswer> = { u1: 'accept', u2: 'dec
 const FAKE_CREDENTIALS = {
   token: 'mock-livekit-token',
   url: 'ws://livekit.mock',
-  permissions: { canSpeak: true, canVideo: true, canScreenShare: false },
+  permissions: { canSpeak: true, canVideo: true, canScreenShare: true },
 };
 
 /**

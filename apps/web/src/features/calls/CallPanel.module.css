@@ -40,6 +40,8 @@
 /* Las dos fichas: el avatar cuadrado y el nombre; a quien habla le pulsa el borde (como en VoiceView) */
 .tiles {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-4);
   margin: 0;
   padding: 0;
@@ -162,6 +164,39 @@
   border: var(--line-hairline) solid var(--color-line-strong);
 }
 
+.screenFrame {
+  position: relative;
+  width: clamp(180px, 32vw, 380px);
+  aspect-ratio: 16 / 9;
+}
+
+.screenZoomButton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.screenBadge {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+  pointer-events: none;
+}
+
+.tile[hidden] {
+  display: none;
+}
+
 /* Quien habla: el borde va sobre el cuadro (el ::after de la ficha chica está pensado para el avatar de 56 px) */
 .withVideo .tile::after {
   display: none;
@@ -216,6 +251,50 @@
   );
 }
 
+/* Con pantalla compartida en pantalla completa: todos lado a lado en una fila sin empujarse abajo */
+.expanded.withScreen .tiles {
+  flex-wrap: nowrap;
+}
+
+.expanded.withScreen .tile {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.expanded.withScreen .screenTile {
+  flex: 1.5 1 0;
+}
+
+.expanded.withScreen .frame {
+  width: min(
+    100%,
+    calc((100vh - 2 * var(--space-5) - 2 * var(--space-5) - 2 * var(--space-7) - var(--space-4)) * 4 / 3)
+  );
+}
+
+.expanded.withScreen .screenFrame {
+  width: min(
+    100%,
+    calc((100vh - 2 * var(--space-5) - 2 * var(--space-5) - 2 * var(--space-7) - var(--space-4)) * 16 / 9)
+  );
+}
+
+/* Al ampliar una pantalla compartida concreta, ocupa todo el viewport como en los canales de voz */
+.expanded.withFocusedScreen .screenTile {
+  flex: 1 1 100%;
+}
+
+.expanded.withFocusedScreen .screenFrame {
+  width: min(
+    calc(100vw - 2 * var(--space-5)),
+    calc((100vh - 2 * var(--space-5) - 2 * var(--space-5) - 2 * var(--space-7) - var(--space-4)) * 16 / 9)
+  );
+}
+
+.expanded.withFocusedScreen .screenZoomButton {
+  cursor: zoom-out;
+}
+
 .expanded .controls {
   justify-content: center;
 }
@@ -262,6 +341,27 @@
     width: min(
       calc(100vw - 2 * var(--space-4)),
       calc((100vh - 2 * var(--space-4) - 2 * var(--space-5) - 2 * var(--space-7) - 2 * var(--space-4)) / 2 * 4 / 3)
+    );
+  }
+
+  .expanded.withScreen .tile,
+  .expanded.withScreen .screenTile {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .expanded.withScreen .frame,
+  .expanded.withScreen .screenFrame {
+    width: min(
+      calc(100vw - 2 * var(--space-4)),
+      calc((100vh - 2 * var(--space-4) - 2 * var(--space-5) - 2 * var(--space-7) - 3 * var(--space-4)) / 3 * 4 / 3)
+    );
+  }
+
+  .expanded.withFocusedScreen .screenFrame {
+    width: min(
+      calc(100vw - 2 * var(--space-4)),
+      calc((100vh - 2 * var(--space-4) - 2 * var(--space-5) - 2 * var(--space-7) - var(--space-4)) * 16 / 9)
     );
   }
 }

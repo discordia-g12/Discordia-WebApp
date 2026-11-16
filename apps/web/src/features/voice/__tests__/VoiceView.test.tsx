@@ -67,7 +67,7 @@ describe('VoiceControls', () => {
     expect(onOpenCall).toHaveBeenCalledTimes(1);
     expect(onDisconnect).toHaveBeenCalledTimes(1);
     expect((within(group).getByRole('button', { name: 'Prender cámara' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((within(group).getByRole('button', { name: 'Compartir pantalla: próximamente' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(group).getByRole('button', { name: 'Compartir pantalla' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('prende la cámara y la muestra como activa', () => {
@@ -84,6 +84,45 @@ describe('VoiceControls', () => {
       <VoiceControls channelName="meet core" connectionState="connected" onDisconnect={vi.fn()} onToggleCamera={onToggleCamera} isCameraOn />
     );
     expect(screen.getByRole('button', { name: 'Apagar cámara' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('comparte pantalla y la muestra como activa', () => {
+    const onToggleScreenShare = vi.fn();
+    const { rerender } = render(
+      <VoiceControls channelName="meet core" connectionState="connected" onDisconnect={vi.fn()} onToggleScreenShare={onToggleScreenShare} />
+    );
+    const off = screen.getByRole('button', { name: 'Compartir pantalla' });
+    expect(off.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(off);
+    expect(onToggleScreenShare).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <VoiceControls
+        channelName="meet core"
+        connectionState="connected"
+        onDisconnect={vi.fn()}
+        onToggleScreenShare={onToggleScreenShare}
+        isScreenShareOn
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Dejar de compartir pantalla' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('sin permiso SCREEN_SHARE, compartir pantalla queda deshabilitado y lo explica', () => {
+    const onToggleScreenShare = vi.fn();
+    render(
+      <VoiceControls
+        channelName="meet core"
+        connectionState="connected"
+        onDisconnect={vi.fn()}
+        onToggleScreenShare={onToggleScreenShare}
+        cannotScreenShare
+      />
+    );
+    const btn = screen.getByRole('button', { name: 'No tenés permiso para compartir pantalla en este canal' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    fireEvent.click(btn);
+    expect(onToggleScreenShare).not.toHaveBeenCalled();
   });
 
   it('sin permiso de video, la cámara queda deshabilitada y lo explica', () => {
@@ -132,5 +171,45 @@ describe('VoiceView - cámara', () => {
     unmount();
     expect(mine.detach).toHaveBeenCalled();
     expect(theirs.detach).toHaveBeenCalled();
+  });
+});
+
+describe('VoiceView - compartir pantalla', () => {
+  const fakeTrack = () => ({ attach: vi.fn(), detach: vi.fn() });
+
+  it('muestra la ficha dedicada de pantalla sin pisar la cámara y se puede ampliar / salir con Escape', () => {
+    const myCam = fakeTrack();
+    const myScreen = fakeTrack();
+    const { container } = render(
+      <VoiceView
+        currentUserId="me"
+        participants={[
+          { user: u('me', 'Mar'), videoTrack: myCam as never, screenShareTrack: myScreen as never },
+          { user: u('u2', 'lbars') },
+        ]}
+      />
+    );
+
+    // Su cámara (en espejo) y su pantalla (sin espejo, contain) conviven en fichas distintas
+    const videos = container.querySelectorAll('video');
+    expect(videos).toHaveLength(2);
+    expect(myScreen.attach).toHaveBeenCalledWith(videos[0]);
+    expect(videos[0].className).toMatch(/videoContain/);
+    expect(videos[0].className).not.toMatch(/mirrored/);
+    expect(myCam.attach).toHaveBeenCalledWith(videos[1]);
+    expect(videos[1].className).toMatch(/mirrored/);
+    expect(screen.getByText('Mar (vos) · pantalla')).toBeTruthy();
+
+    const expandBtn = screen.getByRole('button', { name: 'Ampliar pantalla compartida de Mar' });
+    fireEvent.click(expandBtn);
+
+    const grid = screen.getByRole('list');
+    expect(grid.style.gridTemplateColumns).toBe('repeat(1, minmax(0, 1fr))');
+    const shrinkBtn = screen.getByRole('button', { name: 'Reducir pantalla compartida de Mar' });
+    expect(shrinkBtn.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(grid.style.gridTemplateColumns).toBe('repeat(2, minmax(0, 1fr))');
+    expect(screen.getByRole('button', { name: 'Ampliar pantalla compartida de Mar' }).getAttribute('aria-pressed')).toBe('false');
   });
 });
