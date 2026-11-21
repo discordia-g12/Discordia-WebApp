@@ -44,7 +44,10 @@ export function ServerRail({
       <div className={styles.logo}>
         <button
           type="button"
+          className={styles.logoButton}
           onClick={() => onSelectServer('home')}
+          aria-label="Ir al inicio"
+          data-label="Ir al inicio"
         >
           <Logo size={22} />
         </button>
