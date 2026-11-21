@@ -60,6 +60,27 @@ Variables de `apps/web/.env` (Vite las toma al arrancar `npm run dev`):
 En producción, Cloudflare Pages compila con `VITE_API_URL=https://api.discordia.lol` y los valores de Auth0
 (Terraform del orquestador, `infra/terraform/pages.tf`).
 
+### Compartir pantalla con audio
+
+El audio de la pantalla compartida lo captura el navegador (`getDisplayMedia`), no la app. `useVoiceRoom` lo
+pide siempre (`createLocalScreenTracks({ audio: true })`), pero si el navegador no devuelve un track de audio,
+la pantalla se comparte igual, solo con video y sin error.
+
+| Navegador | Pestaña | Ventana | Pantalla completa |
+|---|---|---|---|
+| Chrome / Edge en Windows o ChromeOS | Sí | No | Sí (audio del sistema) |
+| Chrome / Edge en macOS o Linux | Sí | No | No |
+| Firefox | No | No | No |
+| Safari | No | No | No |
+| Mobile (React Native) | — | — | No: solo video |
+
+- En Chrome y Edge, el audio de una pestaña se comparte solo si se marca **"Compartir también el audio de la
+  pestaña"** en el selector. Sin ese checkbox no hay audio, aunque la pestaña esté sonando.
+- Quien comparte no escucha su propio audio. Para probarlo hacen falta dos clientes: en el otro tiene que
+  sonar.
+- Para revisar si el audio llega: en el receptor, `chrome://webrtc-internals` tiene que mostrar un segundo
+  `inbound-rtp` de audio con `bytesReceived` subiendo.
+
 ## Backoffice
 
 ```bash
