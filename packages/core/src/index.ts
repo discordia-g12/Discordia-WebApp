@@ -35,6 +35,7 @@ export * from './api/calls';
 // Hooks de React (React Query y perfiles), los mismos en web y mobile
 export * from './hooks/useApi';
 export * from './hooks/messageCache';
+export * from './hooks/usePinnedMessages';
 export * from './hooks/useUnread';
 export * from './hooks/useUserProfiles';
 export * from './hooks/useChatSocket';
@@ -66,6 +67,7 @@ export * from './api/serverMetrics';
 export * from './chat/format';
 export * from './chat/mentions';
 export * from './chat/emojis';
+export * from './chat/pins';
 export * from './realtime/chatSocket';
 export * from './realtime/inboxSocket';
 export * from './realtime/callEvents';

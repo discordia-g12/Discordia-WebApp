@@ -13,6 +13,7 @@ export function normalizeMessage(message: Message): Message {
   const editedTimestamp = message.editedTimestamp ?? (editedAt ? String(editedAt) : null);
   const edited = message.edited ?? Boolean(editedTimestamp);
   const isDeleted = message.type === 'deleted' || (message as { isDeleted?: boolean }).isDeleted === true;
+  const pinned = (message as { pinned?: boolean }).pinned ?? message.isPinned ?? false;
   const attachments = message.attachments?.map((att) => ({
     ...att,
     url: resolveAttachmentUrl(att.url),
@@ -29,6 +30,10 @@ export function normalizeMessage(message: Message): Message {
     editedTimestamp: isDeleted ? null : editedTimestamp,
     attachments: isDeleted ? undefined : attachments,
     reactions: isDeleted ? [] : (message.reactions ?? []),
+    // Siempre definido: al mergear un MESSAGE_UPDATED de un desfijado tiene que pisar el true anterior
+    isPinned: !isDeleted && pinned,
+    pinnedAt: !isDeleted && pinned ? (message.pinnedAt ?? null) : null,
+    pinnedBy: !isDeleted && pinned ? (message.pinnedBy ?? null) : null,
     ...(editedAt && !isDeleted ? { editedAt: String(editedAt) } : {}),
   };
 }
@@ -129,4 +134,26 @@ export async function toggleReaction(
     { emoji }
   );
   return normalizeMessage(updated);
+}
+
+/**
+ * Fija (PUT) o desfija (DELETE) un mensaje. En un canal de servidor requiere MANAGE_MESSAGES; en un DM puede
+ * cualquiera de los dos. Es idempotente. Con el límite de fijados alcanzado responde 409.
+ */
+export async function setMessagePinned(channelId: string, messageId: string, pinned: boolean): Promise<Message> {
+  const mock = getApiMock();
+  if (mock?.setMessagePinned) return mock.setMessagePinned(channelId, messageId, pinned);
+
+  const path = `/api/v1/chat/channels/${channelId}/messages/${messageId}/pin`;
+  const updated = pinned ? await api.put<Message>(path) : await api.delete<Message>(path);
+  return normalizeMessage(updated);
+}
+
+/** Mensajes fijados de un canal o DM, del fijado más reciente al más viejo (como mucho PINNED_LIMIT). */
+export async function getPinnedMessages(channelId: string): Promise<Message[]> {
+  const mock = getApiMock();
+  if (mock?.getPinnedMessages) return mock.getPinnedMessages(channelId);
+
+  const list = await api.get<Message[]>(`/api/v1/chat/channels/${channelId}/pins`);
+  return (list ?? []).map(normalizeMessage);
 }

@@ -106,6 +106,11 @@ function MessageItem({
             </Text>
           </View>
         )}
+        {message.isPinned && (
+          <Text variant="meta" tone="muted">
+            / fijado
+          </Text>
+        )}
         <Text>
           {mentionsToText(message.content, { user: mentionName ?? (() => 'usuario'), role: () => 'rol' })}
           {(message.edited || message.editedTimestamp) && (

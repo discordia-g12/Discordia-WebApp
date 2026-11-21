@@ -1,5 +1,12 @@
 import { useEffect } from 'react';
-import { DM_HEADER_COMPACT_ICONS, dmHeaderActions, useAutoMarkChannelRead, type DmHeaderActionId } from '@discordia/core';
+import {
+  DM_HEADER_COMPACT_ICONS,
+  canPinMessages,
+  dmHeaderActions,
+  useAutoMarkChannelRead,
+  usePinnedMessagesQuery,
+  type DmHeaderActionId,
+} from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { useIsMobile } from '../../app/useIsMobile';
 import { usePageVisible } from '../../app/usePageVisible';
@@ -29,6 +36,7 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
   const { conversation, profile, actions, user, messages } = chat;
   const isRequest = actions.composer === 'message_request';
   const messageActions = useMessageActions(conversation?.id ?? null);
+  const pinned = usePinnedMessagesQuery(conversation?.id ?? null, { enabled: !isRequest });
   const call = useCall();
   // Pantalla angosta (mobile web): menos íconos, el resto al menú "más"
   const compact = useIsMobile();
@@ -152,6 +160,9 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
       onToggleReaction={messageActions.toggleReaction}
       onDeleteMessage={messageActions.deleteMessage}
       onEditMessage={messageActions.editMessage}
+      onPinMessage={messageActions.togglePin}
+      pinnedMessages={pinned.data ?? []}
+      canPinMessages={Boolean(conversation) && canPinMessages({ isDirect: true })}
       onOpenUserProfile={onOpenUserProfile}
     />
   );

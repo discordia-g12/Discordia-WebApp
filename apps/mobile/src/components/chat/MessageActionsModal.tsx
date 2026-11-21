@@ -17,6 +17,9 @@ interface MessageActionsModalProps {
   onEdit: () => void
   onReply?: () => void
   onDelete?: () => void
+  /** Si puede fijar este mensaje (canPinMessage de core). */
+  canPin?: boolean
+  onTogglePin?: () => void
   onClose: () => void
 }
 
@@ -31,6 +34,8 @@ export default function MessageActionsModal({
   onEdit,
   onReply,
   onDelete,
+  canPin = false,
+  onTogglePin,
   onClose,
 }: MessageActionsModalProps) {
   const styles = useStyles()
@@ -191,6 +196,18 @@ export default function MessageActionsModal({
                   }}
                 >
                   responder
+                </ActionLink>
+              )}
+
+              {canPin && onTogglePin && (
+                <ActionLink
+                  size="bodySmall"
+                  onPress={() => {
+                    handleClose()
+                    onTogglePin()
+                  }}
+                >
+                  {message.isPinned ? 'desfijar mensaje' : 'fijar mensaje'}
                 </ActionLink>
               )}
 

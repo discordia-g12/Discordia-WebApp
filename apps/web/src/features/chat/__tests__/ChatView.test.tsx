@@ -247,6 +247,49 @@ describe('ChatView (rediseño)', () => {
     expect(bell.getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('fija desde el menú "más" con onPinMessage, y sin permiso no ofrece la opción', () => {
+    const onPinMessage = vi.fn();
+    const { rerender } = render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onPinMessage={onPinMessage} pinnedMessages={[]} canPinMessages />
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: '_más' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'fijar mensaje' }));
+    expect(onPinMessage).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }));
+
+    rerender(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onPinMessage={onPinMessage} pinnedMessages={[]} canPinMessages={false} />
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: '_más' })[0]);
+    expect(screen.queryByRole('button', { name: /fijar mensaje/ })).toBeNull();
+  });
+
+  it('el panel de fijados muestra los del servidor y permite desfijar si tiene permiso', () => {
+    const onPinMessage = vi.fn();
+    const pinned = msg('old', 'u2', 'un fijado viejo que no está cargado', '2025-01-01T10:00:00', { isPinned: true });
+    const renderWith = (canPinMessages: boolean) => (
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        onPinMessage={onPinMessage}
+        pinnedMessages={[pinned]}
+        canPinMessages={canPinMessages}
+      />
+    );
+    const { rerender } = render(renderWith(true));
+
+    // El badge cuenta los fijados del servidor, no los de los mensajes cargados
+    fireEvent.click(screen.getByRole('button', { name: 'Mensajes fijados (1)' }));
+    const panel = screen.getByRole('dialog', { name: 'Mensajes fijados' });
+    expect(panel.textContent).toContain('un fijado viejo que no está cargado');
+    fireEvent.click(within(panel).getByRole('button', { name: '_desfijar' }));
+    expect(onPinMessage).toHaveBeenCalledWith(pinned);
+
+    rerender(renderWith(false));
+    expect(within(screen.getByRole('dialog', { name: 'Mensajes fijados' })).queryByRole('button', { name: '_desfijar' })).toBeNull();
+  });
+
   it('el ícono de búsqueda abre la búsqueda de mensajes, y sin onOpenSearch no aparece', () => {
     const onOpenSearch = vi.fn();
     const { rerender } = render(

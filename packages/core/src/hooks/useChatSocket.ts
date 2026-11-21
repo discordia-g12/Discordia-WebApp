@@ -10,7 +10,9 @@ import type { Message, MessageAttachment, MessageBackendPayload } from '../types
 import { normalizeMessage } from '../api/messages';
 import {
   appendMessage,
-  updateCachedMessages,
+  markCachedMessageDeleted,
+  mergeCachedMessage,
+  pinnedMessagesQueryKey,
   messagesQueryKey,
   type MessagePages,
 } from './messageCache';
@@ -155,28 +157,16 @@ export function useChatWebSocket(
       );
     },
     onMessageUpdated: (data) => {
-      const normalized = normalizeMessage(data as unknown as Message);
-      if (channelId) {
-        updateCachedMessages(queryClient, channelId, (list) =>
-          list.map((m) => (m.id === normalized.id ? { ...m, ...normalized } : m))
-        );
-      }
+      // Edición, reacción o fijado: actualiza el historial y la lista de fijados
+      if (channelId) mergeCachedMessage(queryClient, channelId, normalizeMessage(data as unknown as Message));
     },
     onMessageDeleted: (data) => {
-      const normalized = normalizeMessage(data as unknown as Message);
-      if (channelId) {
-        updateCachedMessages(queryClient, channelId, (list) =>
-          list.map((m) =>
-            m.id === normalized.id
-              ? { ...m, ...normalized, type: 'deleted' as const, content: '', attachments: [] }
-              : m
-          )
-        );
-      }
+      if (channelId) markCachedMessageDeleted(queryClient, channelId, normalizeMessage(data as unknown as Message));
     },
     onReconnect: () => {
-      // Reconexión: los mensajes enviados durante el corte no llegaron por el socket
+      // Reconexión: los mensajes enviados durante el corte no llegaron por el socket, ni los fijados de mensajes viejos
       queryClient.invalidateQueries({ queryKey: ['messages', channelId] });
+      queryClient.invalidateQueries({ queryKey: pinnedMessagesQueryKey(channelId) });
     },
     onRemoved: (reason) => {
       // Ya no es miembro: la lista de servidores tiene que dejar de mostrarlo

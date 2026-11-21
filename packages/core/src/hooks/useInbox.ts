@@ -17,7 +17,13 @@ import {
   conversationWithQueryKey,
   upsertConversation,
 } from './inboxCache';
-import { appendMessage, messagesQueryKey, updateCachedMessages, type MessagePages } from './messageCache';
+import {
+  appendMessage,
+  markCachedMessageDeleted,
+  mergeCachedMessage,
+  messagesQueryKey,
+  type MessagePages,
+} from './messageCache';
 
 export interface UseInboxOptions {
   /** La conversación abierta: lo que llega ahí no suma no leídos. */
@@ -89,9 +95,7 @@ export function useInbox({
       if (event.type === 'DM_MESSAGE_UPDATED') {
         const { conversationId } = event;
         const message = normalizeMessage(event.message as unknown as Message);
-        updateCachedMessages(queryClient, conversationId, (messages) =>
-          messages.map((m) => (m.id === message.id ? { ...m, ...message } : m))
-        );
+        mergeCachedMessage(queryClient, conversationId, message);
         const conversations = queryClient.getQueryData<Conversation[]>(conversationsQueryKey);
         if (conversations?.some((c) => c.id === conversationId)) {
           queryClient.setQueryData<Conversation[]>(
@@ -116,13 +120,7 @@ export function useInbox({
       if (event.type === 'DM_MESSAGE_DELETED') {
         const { conversationId } = event;
         const message = normalizeMessage(event.message as unknown as Message);
-        updateCachedMessages(queryClient, conversationId, (messages) =>
-          messages.map((m) =>
-            m.id === message.id
-              ? { ...m, ...message, type: 'deleted' as const, content: '', attachments: [] }
-              : m
-          )
-        );
+        markCachedMessageDeleted(queryClient, conversationId, message);
         const conversations = queryClient.getQueryData<Conversation[]>(conversationsQueryKey);
         if (conversations?.some((c) => c.id === conversationId)) {
           queryClient.setQueryData<Conversation[]>(
@@ -146,10 +144,7 @@ export function useInbox({
 
       if (event.type === 'DM_MESSAGE_REACTION_UPDATED') {
         const { conversationId } = event;
-        const message = normalizeMessage(event.message as unknown as Message);
-        updateCachedMessages(queryClient, conversationId, (messages) =>
-          messages.map((m) => (m.id === message.id ? { ...m, ...message } : m))
-        );
+        mergeCachedMessage(queryClient, conversationId, normalizeMessage(event.message as unknown as Message));
         return;
       }
 

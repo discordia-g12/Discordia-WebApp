@@ -7,7 +7,7 @@ import { acceptFriendRequest, sendFriendRequest } from '../../api/friends';
 import type { Conversation, FriendRequest, Message, PublicProfile } from '../../types';
 import type { InboxEvent, InboxSocketHandlers, InboxSocketStatus } from '../../realtime/inboxSocket';
 import { conversationsQueryKey, conversationWithQueryKey } from '../inboxCache';
-import { messagesQueryKey, type MessagePages } from '../messageCache';
+import { messagesQueryKey, pinnedMessagesQueryKey, type MessagePages } from '../messageCache';
 import { useMarkChannelReadMutation } from '../useUnread';
 import {
   friendsQueryKey,
@@ -236,6 +236,33 @@ describe('useInbox', () => {
 
     const pages = queryClient.getQueryData<MessagePages>(messagesQueryKey('dm-1'));
     expect(pages?.pages[0][0].reactions).toEqual([{ emoji: '❤️', count: 1, users: ['other'] }]);
+  });
+
+  it('DM_MESSAGE_UPDATED de un fijado actualiza el historial y la lista de fijados', () => {
+    const { queryClient, wrapper } = setup();
+    queryClient.setQueryData<MessagePages>(messagesQueryKey('dm-1'), {
+      pages: [[{ id: 'm1', content: 'hola', authorId: 'other', channelId: 'dm-1', timestamp: '2026-05-01T00:00:00.000Z' }]],
+      pageParams: [undefined],
+    });
+    queryClient.setQueryData<Message[]>(pinnedMessagesQueryKey('dm-1'), []);
+    renderHook(() => useInbox(), { wrapper });
+
+    const base = { id: 'm1', content: 'hola', authorId: 'other', channelId: 'dm-1', createdAt: '2026-05-01T00:00:00.000Z' };
+    act(() =>
+      lastConnection().handlers.onEvent({
+        type: 'DM_MESSAGE_UPDATED',
+        conversationId: 'dm-1',
+        message: { ...base, pinned: true, pinnedAt: '2026-05-02T00:00:00.000Z', pinnedBy: 'me' },
+      })
+    );
+    expect(queryClient.getQueryData<MessagePages>(messagesQueryKey('dm-1'))?.pages[0][0].isPinned).toBe(true);
+    expect(queryClient.getQueryData<Message[]>(pinnedMessagesQueryKey('dm-1'))?.map((m) => m.id)).toEqual(['m1']);
+
+    act(() =>
+      lastConnection().handlers.onEvent({ type: 'DM_MESSAGE_UPDATED', conversationId: 'dm-1', message: { ...base, pinned: false } })
+    );
+    expect(queryClient.getQueryData<MessagePages>(messagesQueryKey('dm-1'))?.pages[0][0].isPinned).toBe(false);
+    expect(queryClient.getQueryData<Message[]>(pinnedMessagesQueryKey('dm-1'))).toEqual([]);
   });
 
   it('solo pide las conversaciones de nuevo si la conexión volvió, no la primera vez', () => {

@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import {
   DM_HEADER_COMPACT_ICONS,
+  canPinMessages,
   dmHeaderActions,
   uploadAttachment,
   useAutoMarkChannelRead,
   useFriendRequestsQuery,
+  usePinnedMessagesQuery,
   usePresenceQuery,
   type DmHeaderAction,
   type DmHeaderActionId,
@@ -22,6 +24,7 @@ import { ACTION_ICONS, IconButton, Skeleton } from '../../ui'
 import ChatHeader from '../chat/ChatHeader'
 import Composer, { type PendingAttachment } from '../chat/Composer'
 import MessageList from '../chat/MessageList'
+import PinnedMessagesModal from '../chat/PinnedMessagesModal'
 import ConfirmModal from '../shared/ConfirmModal'
 import { MoreMenu } from '../shared/MoreMenu'
 import { Pane } from '../shell/ShellScreen'
@@ -51,7 +54,7 @@ interface DmChatScreenProps {
 export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile, onLongPressMessage, onCall, callConversationId }: DmChatScreenProps) {
   const styles = useStyles()
   const { showToast } = useUI()
-  const { currentUserId, toggleReaction } = useData()
+  const { currentUserId, toggleReaction, togglePin } = useData()
   const appActive = useAppActive()
   const pickAttachment = usePickAttachment()
   const { profileQuery, withQuery, conversation, actions } = useDmConversation(userId)
@@ -60,12 +63,13 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
   const relation = useRelationshipActions(userId, profile)
   const { data: friendRequests } = useFriendRequestsQuery()
   const { data: presence } = usePresenceQuery([userId])
-  const describeUser = useUserDisplay([userId, ...messages.map(m => m.authorId)])
+  const describeUser = useUserDisplay([userId, currentUserId, ...messages.map(m => m.authorId)])
   const [draft, setDraft] = useState('')
   const [attachment, setAttachment] = useState<PendingAttachment | null>(null)
   const [uploading, setUploading] = useState(false)
   const [blockConfirmOpen, setBlockConfirmOpen] = useState(false)
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
+  const [pinnedOpen, setPinnedOpen] = useState(false)
 
   const name = profile?.displayName ?? describeUser(userId).name
   const friendRequest = actions.canRespondFriendRequest
@@ -134,21 +138,31 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
     if ((await relation.declineRequest()) && !conversationId) onBack()
   }
 
+  // Fijados: la lista del servidor (incluye los de páginas no cargadas). En un DM puede fijar cualquiera de los dos
+  const pinnedQuery = usePinnedMessagesQuery(conversationId)
+  const canPin = !!conversationId && canPinMessages({ isDirect: true })
+  const handleUnpin = (message: Message) => {
+    if (!conversationId) return
+    togglePin(conversationId, message).catch(err =>
+      showToast(err instanceof Error ? err.message : 'No se pudo desfijar el mensaje', 'error'),
+    )
+  }
+
   // Acciones del encabezado (las mismas reglas que la web): íconos y, lo raro o destructivo, en "más".
-  // Sin panel de fijados en mobile; el perfil se abre tocando el nombre
+  // El perfil se abre tocando el nombre
   const header = dmHeaderActions({
     name,
     actions,
     hasConversation: !!conversationId,
     inCallHere: !!conversationId && callConversationId === conversationId,
-    pinned: undefined,
+    pinned: { count: pinnedQuery.data?.length ?? 0, open: pinnedOpen },
     showProfile: false,
     friendRequestSending: relation.requestSent,
     maxIcons: DM_HEADER_COMPACT_ICONS,
   })
   const runAction: Record<DmHeaderActionId, (() => void) | undefined> = {
     call: conversationId && onCall ? () => onCall(conversationId, name) : undefined,
-    pins: undefined,
+    pins: conversationId ? () => setPinnedOpen(true) : undefined,
     'add-friend': relation.addFriend,
     'accept-friend': relation.acceptRequest,
     'decline-friend': handleDeclineFriend,
@@ -275,6 +289,14 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
         }
       />
       {body()}
+      <PinnedMessagesModal
+        visible={pinnedOpen}
+        channelId={conversationId}
+        describeUser={describeUser}
+        canPin={canPin}
+        onUnpin={handleUnpin}
+        onClose={() => setPinnedOpen(false)}
+      />
       <ConfirmModal
         visible={blockConfirmOpen}
         title={`¿Bloquear a ${name}?`}

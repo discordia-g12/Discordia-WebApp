@@ -263,6 +263,10 @@ export interface MessageBackendPayload {
     users: string[];
     emojiId?: string;
   }>;
+  /** Fijado en el canal o DM (Chat-Engine ADR-05). Siempre viene, también en false. */
+  pinned?: boolean;
+  pinnedAt?: string | null;
+  pinnedBy?: string | null;
 }
 
 /** Canal individual perteneciente a una categoría de servidor. */
@@ -347,7 +351,11 @@ export interface Message {
   mentions?: MessageMentions;
   replyToId?: string | null;
   replyTo?: Message | null;
+  /** Fijado en el canal o DM. normalizeMessage lo completa con el `pinned` de Chat-Engine. */
   isPinned?: boolean;
+  /** Cuándo se fijó: ordena la lista de fijados (el más reciente primero). */
+  pinnedAt?: string | null;
+  pinnedBy?: string | null;
   fileAttachment?: { name: string; size: string; type?: string };
   imageUrl?: string;
   isNew?: boolean;

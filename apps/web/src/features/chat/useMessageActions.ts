@@ -4,6 +4,7 @@ import {
   editMessage as apiEditMessage,
   toggleReaction as apiToggleReaction,
   updateCachedMessages,
+  usePinMessage,
 } from '@discordia/core';
 import type { Message, MessageAttachment, Reaction } from '../../types';
 import { showToast } from '../../app/uiStore';
@@ -19,6 +20,7 @@ export function useMessageActions(channelId: string | null) {
   const queryClient = useQueryClient();
   const currentUser = useCurrentUser();
   const sendMessageWs = useSendChannelMessage();
+  const pinMessage = usePinMessage(channelId);
 
   const updateMessages = (update: (old: Message[]) => Message[]) => {
     if (channelId) updateCachedMessages(queryClient, channelId, update);
@@ -186,5 +188,14 @@ export function useMessageActions(channelId: string | null) {
     }
   };
 
-  return { sendMessage, toggleReaction, deleteMessage, editMessage };
+  // Fijar o desfijar: la lógica optimista (historial y fijados) es de core; acá solo el aviso si falla
+  const togglePin = async (message: Message) => {
+    try {
+      await pinMessage(message);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'No se pudo fijar el mensaje', 'danger');
+    }
+  };
+
+  return { sendMessage, toggleReaction, deleteMessage, editMessage, togglePin };
 }

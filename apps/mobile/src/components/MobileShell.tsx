@@ -3,7 +3,7 @@ import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { makeStyles } from '../theme'
-import { Search, Settings } from 'lucide-react-native'
+import { Pin, Search, Settings } from 'lucide-react-native'
 import { Background, ConnectionBanner, EmptyState, IconButton, ServerIcon, Skeleton, ActionLink, Text, keyboardAvoidingBehavior } from '../ui'
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
@@ -17,6 +17,7 @@ import CreateCategoryModal from './channels/CreateCategoryModal'
 import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
 import MessageActionsModal from './chat/MessageActionsModal'
+import PinnedMessagesModal from './chat/PinnedMessagesModal'
 import MessageSearchModal from './chat/MessageSearchModal'
 import EditMessageModal from './chat/EditMessageModal'
 import EditProfileModal from './profile/EditProfileModal'
@@ -58,6 +59,10 @@ import {
   useVoiceRoom,
   canInChannel,
   canInServer,
+  canPinMessage,
+  canPinMessages,
+  isDirectChannelId,
+  usePinnedMessagesQuery,
   canSeeSettingsSection,
   isVoiceChannelLocked,
   voiceDisconnectMessage,
@@ -119,6 +124,7 @@ export default function MobileShell() {
     confirmOptimisticMessage,
     failOptimisticMessage,
     toggleReaction,
+    togglePin,
     refreshServers,
   } = useData()
   const { selectedServerId, selectedChannelId, selectChannel, selectServer, showToast } = useUI()
@@ -159,6 +165,8 @@ export default function MobileShell() {
   const [editProfileOpen, setEditProfileOpen] = useState(false)
   const [actionTargetMessage, setActionTargetMessage] = useState<Message | null>(null)
   const [editingMessage, setEditingMessage] = useState<Message | null>(null)
+  // Lista de fijados del canal abierto
+  const [pinnedOpen, setPinnedOpen] = useState(false)
   const [userSettingsOpen, setUserSettingsOpen] = useState(false)
   // Búsqueda de mensajes del servidor abierto
   const [messageSearchOpen, setMessageSearchOpen] = useState(false)
@@ -362,6 +370,22 @@ export default function MobileShell() {
   const canAddReactions = channel && server
     ? canInChannel(server, channel, currentUserId, 'ADD_REACTIONS')
     : true
+
+  // Fijados del canal abierto (para el badge del encabezado). Los de un DM los maneja DmChatScreen
+  const channelPinned = usePinnedMessagesQuery(activeSocketChannelId)
+  const canPinInChannel = canPinMessages({ isDirect: false, canManageMessages })
+  // El menú del mensaje es compartido: si es de un DM (`dm-…`), puede fijar cualquiera de los dos
+  const canPinTarget = actionTargetMessage
+    ? canPinMessage(actionTargetMessage, { isDirect: isDirectChannelId(actionTargetMessage.channelId), canManageMessages })
+    : false
+  const handleTogglePin = useCallback(
+    (message: Message) => {
+      togglePin(message.channelId, message).catch(err =>
+        showToast(err instanceof Error ? err.message : 'No se pudo fijar el mensaje', 'error'),
+      )
+    },
+    [togglePin, showToast],
+  )
 
   const handleToggleReaction = useCallback(
     async (channelId: string, messageId: string, emoji: string) => {
@@ -758,6 +782,13 @@ export default function MobileShell() {
             actions={
               <>
                 <IconButton icon={Search} label="Buscar mensajes" onPress={() => setMessageSearchOpen(true)} />
+                <IconButton
+                  icon={Pin}
+                  label="Mensajes fijados"
+                  badge={channelPinned.data?.length}
+                  pressed={pinnedOpen}
+                  onPress={() => setPinnedOpen(true)}
+                />
                 <IconButton icon={Settings} label={`Editar el canal ${channel.name}`} onPress={() => handleOpenEditChannel(channel)} />
               </>
             }
@@ -1008,7 +1039,19 @@ export default function MobileShell() {
             setDeleteMessageConfirm(actionTargetMessage)
           }
         }}
+        canPin={canPinTarget}
+        onTogglePin={() => {
+          if (actionTargetMessage) handleTogglePin(actionTargetMessage)
+        }}
         onClose={() => setActionTargetMessage(null)}
+      />
+      <PinnedMessagesModal
+        visible={pinnedOpen && !!activeSocketChannelId}
+        channelId={activeSocketChannelId}
+        describeUser={describeUser}
+        canPin={canPinInChannel}
+        onUnpin={handleTogglePin}
+        onClose={() => setPinnedOpen(false)}
       />
       <EditMessageModal
         visible={!!editingMessage}

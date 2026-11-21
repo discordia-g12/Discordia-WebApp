@@ -20,6 +20,10 @@ import {
   deleteMessage as apiDeleteMessage,
   toggleReaction as apiToggleReaction,
   updateCachedMessages,
+  normalizeMessage,
+  syncPinnedMessage,
+  togglePinnedMessage,
+  type PinState,
   createServer as apiCreateServer,
   updateServerIcon as apiUpdateServerIcon,
   removeServerIcon as apiRemoveServerIcon,
@@ -82,6 +86,8 @@ interface DataContextValue {
   editMessage: (channelId: string, messageId: string, content: string) => Promise<Message>
   deleteMessage: (channelId: string, messageId: string) => Promise<void>
   toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<Message>
+  /** Fija o desfija (togglePinnedMessage de core). Si falla, vuelve atrás y rechaza con un texto para mostrar. */
+  togglePin: (channelId: string, message: Message) => Promise<void>
   addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
   failOptimisticMessage: (channelId: string) => void
@@ -392,6 +398,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const confirmOptimisticMessage = useCallback(
     (channelId: string, payload: MessageBackendPayload) => {
+      // Un MESSAGE_UPDATED puede ser un fijado: la lista de fijados (React Query) se pone al día acá
+      const normalized = normalizeMessage(payload as unknown as Message)
+      syncPinnedMessage(queryClient, channelId, normalized)
       setMessages(prev => {
         const list = prev[channelId] ?? []
         // Si ya existe este ID exacto (por ejemplo reconexión/duplicado), asegurarse de que esté como sent
@@ -405,6 +414,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             edited: payload.edited ?? (payload.editedTimestamp ? true : updated[existingIndex].edited),
             editedTimestamp: payload.editedTimestamp ?? updated[existingIndex].editedTimestamp,
             reactions: payload.reactions !== undefined ? payload.reactions : updated[existingIndex].reactions,
+            isPinned: normalized.isPinned,
+            pinnedAt: normalized.pinnedAt,
+            pinnedBy: normalized.pinnedBy,
           }
           return { ...prev, [channelId]: updated }
         }
@@ -450,7 +462,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         return { ...prev, [channelId]: [...list, newMsg] }
       })
     },
-    [activeUserId],
+    [activeUserId, queryClient],
   )
 
   const failOptimisticMessage = useCallback((channelId: string) => {
@@ -586,7 +598,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       )
 
       try {
-        await apiDeleteMessage(channelId, messageId)
+        const deleted = await apiDeleteMessage(channelId, messageId)
+        // Borrado deja de estar fijado (los canales de mobile no escuchan MESSAGE_DELETED)
+        syncPinnedMessage(queryClient, channelId, deleted)
       } catch (err) {
         if (previousMessage) {
           const prevMsg = previousMessage
@@ -603,6 +617,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [queryClient]
+  )
+
+  // Fijar: la lógica optimista es de core (historial y fijados en React Query, que usan los DMs); acá solo se
+  // replica en el estado local de los canales
+  const togglePin = useCallback(
+    (channelId: string, message: Message) =>
+      togglePinnedMessage(queryClient, channelId, message, {
+        onPinStateChange: (messageId: string, state: PinState) =>
+          setMessages(prev => {
+            const list = prev[channelId]
+            if (!list) return prev
+            return { ...prev, [channelId]: list.map(m => (m.id === messageId ? { ...m, ...state } : m)) }
+          }),
+      }),
+    [queryClient],
   )
 
   const toggleReaction = useCallback(
@@ -780,6 +809,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       editMessage,
       deleteMessage,
       toggleReaction,
+      togglePin,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,
@@ -811,6 +841,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       editMessage,
       deleteMessage,
       toggleReaction,
+      togglePin,
       addOptimisticMessage,
       confirmOptimisticMessage,
       failOptimisticMessage,

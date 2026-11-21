@@ -69,8 +69,12 @@ export interface ChatViewProps {
   onDeleteMessage?: (messageId: string) => void;
   /** Callback al confirmar la edición de un mensaje existente. */
   onEditMessage?: (messageId: string, newContent: string) => void;
-  /** Callback al fijar o desfijar un mensaje. */
-  onPinMessage?: (messageId: string) => void;
+  /** Fija o desfija un mensaje (usePinMessage de core). Sin esto, el fijado es solo local. */
+  onPinMessage?: (message: Message) => void;
+  /** Fijados que trae el servidor (usePinnedMessagesQuery): incluye los de páginas no cargadas. */
+  pinnedMessages?: Message[];
+  /** Si el usuario puede fijar en esta conversación (canPinMessages de core). Por defecto sí. */
+  canPinMessages?: boolean;
   /** Callback para abrir el perfil del usuario clicado. */
   onOpenUserProfile?: (userId: string) => void;
   /** Callback para mostrar u ocultar la barra lateral de miembros. */
@@ -694,11 +698,13 @@ function MessageRow({
                 {chat.copiedMessageId === msg.id ? 'copiado/' : 'copiar texto'}
               </button>
             </li>
-            <li>
-              <button type="button" onClick={() => chat.handleTogglePin(msg)}>
-                {msg.isPinned ? 'desfijar mensaje' : 'fijar mensaje'}
-              </button>
-            </li>
+            {chat.canPin(msg) && (
+              <li>
+                <button type="button" onClick={() => chat.handleTogglePin(msg)}>
+                  {msg.isPinned ? 'desfijar mensaje' : 'fijar mensaje'}
+                </button>
+              </li>
+            )}
           </ul>
         </Popover>
       )}
@@ -807,6 +813,12 @@ function PinnedPanel({ chat, users, names }: { chat: ChatViewState; users: Recor
               <p className={styles.meta}>
                 <strong>{(msg.author || users[msg.authorId])?.displayName || 'Usuario'}</strong>{' '}
                 <span className={styles.time}>{formatMessageTime(msg.timestamp)}</span>
+                {chat.canPinMessages && (
+                  <>
+                    {' · '}
+                    <ActionLink onPress={() => chat.handleTogglePin(msg)}>desfijar</ActionLink>
+                  </>
+                )}
               </p>
               <p className={styles.pinnedText}>{mentionsToText(msg.content, names)}</p>
             </li>

@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../client';
-import { deleteMessage, editMessage, getMessages, sendMessage, toggleReaction } from '../messages';
+import {
+  deleteMessage,
+  editMessage,
+  getMessages,
+  getPinnedMessages,
+  normalizeMessage,
+  sendMessage,
+  setMessagePinned,
+  toggleReaction,
+} from '../messages';
+import type { Message } from '../../types';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -197,5 +207,43 @@ describe('mensajes', () => {
     const [msg] = await getMessages('c1');
     expect(msg.type).toBe('deleted');
     expect(msg.reactions).toEqual([]);
+  });
+
+  describe('fijados', () => {
+    const base = { id: 'm1', content: 'hola', authorId: 'u1', channelId: 'c1', createdAt: '2026-10-20T10:00:00Z' };
+
+    it('normaliza pinned de Chat-Engine a isPinned, y un borrado nunca queda fijado', () => {
+      const pinned = normalizeMessage({ ...base, pinned: true, pinnedAt: '2026-10-21T10:00:00Z', pinnedBy: 'u2' } as unknown as Message);
+      expect(pinned).toMatchObject({ isPinned: true, pinnedAt: '2026-10-21T10:00:00Z', pinnedBy: 'u2' });
+
+      const unpinned = normalizeMessage({ ...base, pinned: false } as unknown as Message);
+      expect(unpinned).toMatchObject({ isPinned: false, pinnedAt: null, pinnedBy: null });
+
+      const deleted = normalizeMessage({ ...base, pinned: true, isDeleted: true } as unknown as Message);
+      expect(deleted.isPinned).toBe(false);
+    });
+
+    it('fija con PUT y desfija con DELETE sobre /pin', async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(async () => jsonResponse({ ...base, pinned: true, pinnedAt: '2026-10-21T10:00:00Z' }));
+
+      const pinned = await setMessagePinned('c1', 'm1', true);
+      expect(pinned.isPinned).toBe(true);
+      expect(String(fetchSpy.mock.calls[0][0])).toBe('http://api.test/api/v1/chat/channels/c1/messages/m1/pin');
+      expect(fetchSpy.mock.calls[0][1]?.method).toBe('PUT');
+
+      fetchSpy.mockImplementation(async () => jsonResponse({ ...base, pinned: false }));
+      const unpinned = await setMessagePinned('c1', 'm1', false);
+      expect(unpinned.isPinned).toBe(false);
+      expect(fetchSpy.mock.calls[1][1]?.method).toBe('DELETE');
+    });
+
+    it('lista los fijados del canal', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse([{ ...base, pinned: true }]));
+      const list = await getPinnedMessages('dm-1');
+      expect(String(fetchSpy.mock.calls[0][0])).toBe('http://api.test/api/v1/chat/channels/dm-1/pins');
+      expect(list.map((m) => m.isPinned)).toEqual([true]);
+    });
   });
 });

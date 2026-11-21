@@ -1,5 +1,12 @@
 import { useEffect, useMemo } from 'react';
-import { canInChannel, useAutoMarkChannelRead, useChannelMessagesQuery, useRolesQuery } from '@discordia/core';
+import {
+  canInChannel,
+  canPinMessages,
+  useAutoMarkChannelRead,
+  useChannelMessagesQuery,
+  usePinnedMessagesQuery,
+  useRolesQuery,
+} from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { usePageVisible } from '../../app/usePageVisible';
 import { useUsers } from '../../app/usersContext';
@@ -31,6 +38,7 @@ export function ChatPanel() {
     ? canInChannel(currentServer, currentChannel, currentUser.id, 'ADD_REACTIONS')
     : true;
   const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder } = useChannelMessagesQuery(channelId);
+  const { data: pinnedMessages } = usePinnedMessagesQuery(channelId);
 
   // Menciones: miembros (con su perfil si ya llegó), roles del servidor y si puede usar @everyone y roles
   const memberUsers = useServerMemberUsers();
@@ -80,6 +88,9 @@ export function ChatPanel() {
       onToggleReaction={actions.toggleReaction}
       onDeleteMessage={actions.deleteMessage}
       onEditMessage={actions.editMessage}
+      onPinMessage={actions.togglePin}
+      pinnedMessages={pinnedMessages ?? []}
+      canPinMessages={canPinMessages({ isDirect: false, canManageMessages })}
       onOpenUserProfile={openUserProfile}
     />
   );
