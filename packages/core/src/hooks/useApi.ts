@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { getMyProfile, upsertMyProfile, CreateProfileRequest } from '../api/users';
 import {
@@ -44,7 +45,8 @@ import {
   cancelServerTransfer,
 } from '../api/serverTransfer';
 import { getMessages, sendMessage, GetMessagesOptions } from '../api/messages';
-import { MESSAGES_PAGE_SIZE, flattenMessagePages, messagesQueryKey, olderPageParam } from './messageCache';
+import { MESSAGES_PAGE_SIZE, flattenMessagePages, messagesQueryKey, olderPageParam, type MessagePages } from './messageCache';
+import { loadUntilMessage } from '../chat/pins';
 import type { Category, Role, Server } from '../types';
 import { useSession } from '../auth/session';
 
@@ -170,6 +172,7 @@ export function useCreateServerMutation() {
  */
 export function useChannelMessagesQuery(channelId: string | null, options: Pick<GetMessagesOptions, 'limit'> = {}) {
   const status = useSession((s) => s.status);
+  const queryClient = useQueryClient();
   const limit = options.limit ?? MESSAGES_PAGE_SIZE;
 
   const query = useInfiniteQuery({
@@ -182,12 +185,32 @@ export function useChannelMessagesQuery(channelId: string | null, options: Pick<
     enabled: status === 'authenticated' && Boolean(channelId),
   });
 
+  const { fetchNextPage } = query;
+  // Se lee el caché y no `data`: entre página y página no hay render que la actualice
+  const loadUntil = useCallback(
+    (messageId: string) =>
+      loadUntilMessage({
+        isLoaded: () => {
+          const pages = queryClient.getQueryData<MessagePages>(messagesQueryKey(channelId));
+          return Boolean(pages?.pages.some((page) => page.some((m) => m.id === messageId)));
+        },
+        loadOlder: async () => {
+          const result = await fetchNextPage();
+          if (result.isError) throw result.error;
+          return result.hasNextPage;
+        },
+      }),
+    [queryClient, channelId, fetchNextPage]
+  );
+
   return {
     ...query,
     /** Hay mensajes anteriores a los cargados. */
     hasOlder: query.hasNextPage,
     isFetchingOlder: query.isFetchingNextPage,
     fetchOlder: query.fetchNextPage,
+    /** Carga páginas anteriores hasta tener el mensaje (ir a un fijado). false si no apareció. */
+    loadUntil,
   };
 }
 

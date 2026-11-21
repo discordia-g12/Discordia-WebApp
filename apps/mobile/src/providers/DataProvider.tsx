@@ -23,6 +23,7 @@ import {
   normalizeMessage,
   syncPinnedMessage,
   togglePinnedMessage,
+  loadUntilMessage,
   type PinState,
   createServer as apiCreateServer,
   updateServerIcon as apiUpdateServerIcon,
@@ -94,6 +95,8 @@ interface DataContextValue {
   fetchChannelMessages: (channelId: string) => Promise<void>
   /** Pide la página anterior del historial y la agrega arriba. Rechaza si falla la red. */
   fetchOlderChannelMessages: (channelId: string) => Promise<void>
+  /** Carga páginas anteriores hasta tener el mensaje (ir a un fijado). false si no apareció; rechaza si falla la red. */
+  loadChannelMessagesUntil: (channelId: string, messageId: string) => Promise<boolean>
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
@@ -370,6 +373,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [token],
+  )
+
+  // Ir a un fijado: el loop es el de core (loadUntilMessage). Las páginas se juntan acá y se agregan de una vez,
+  // porque messagesRef recién se actualiza en el render siguiente
+  const loadChannelMessagesUntil = useCallback(
+    async (channelId: string, messageId: string) => {
+      const loaded = messagesRef.current[channelId] ?? []
+      let cursor = loaded.find(m => !m.id.startsWith('temp-'))?.id
+      const fetched: Message[] = []
+      let hasMore = true
+      const found = await loadUntilMessage({
+        isLoaded: () => loaded.some(m => m.id === messageId) || fetched.some(m => m.id === messageId),
+        loadOlder: async () => {
+          if (!cursor) return (hasMore = false)
+          const page = await getMessages(channelId, { before: cursor })
+          fetched.unshift(...page.map(m => ({ ...m, status: 'sent' as const })))
+          cursor = page[0]?.id
+          hasMore = page.length >= MESSAGES_PAGE_SIZE
+          return hasMore
+        },
+      })
+      if (fetched.length > 0) {
+        setMessages(prev => {
+          const current = prev[channelId] ?? []
+          const known = new Set(current.map(m => m.id))
+          return { ...prev, [channelId]: [...fetched.filter(m => !known.has(m.id)), ...current] }
+        })
+        setHasOlderMessages(prev => ({ ...prev, [channelId]: hasMore }))
+      }
+      return found
+    },
+    [],
   )
 
   const addOptimisticMessage = useCallback(
@@ -815,6 +850,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       failOptimisticMessage,
       fetchChannelMessages,
       fetchOlderChannelMessages,
+      loadChannelMessagesUntil,
     }),
     [
       activeUserId,
@@ -847,6 +883,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       failOptimisticMessage,
       fetchChannelMessages,
       fetchOlderChannelMessages,
+      loadChannelMessagesUntil,
     ],
   )
 

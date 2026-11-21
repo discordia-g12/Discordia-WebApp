@@ -24,6 +24,8 @@ interface MessageItemProps {
   onLongPress?: () => void
   /** Tocar una reacción para alternarla. */
   onToggleReaction?: (messageId: string, emoji: string) => void
+  /** Se acaba de ir a este mensaje (desde los fijados): se marca un momento. */
+  highlighted?: boolean
 }
 
 /**
@@ -41,6 +43,7 @@ function MessageItem({
   onPressAuthor,
   onLongPress,
   onToggleReaction,
+  highlighted = false,
 }: MessageItemProps) {
   const styles = useStyles()
   const reduce = useReducedMotion()
@@ -85,7 +88,7 @@ function MessageItem({
     : { disabled: true }
 
   return (
-    <Animated.View style={[styles.row, grouped && styles.grouped, pending && styles.pending, enter]}>
+    <Animated.View style={[styles.row, grouped && styles.grouped, pending && styles.pending, highlighted && styles.highlighted, enter]}>
       <View style={styles.gutter}>
         {!grouped && (
           <Pressable {...authorPress}>
@@ -199,6 +202,14 @@ const useStyles = makeStyles(t => ({
   row: { flexDirection: 'row', gap: t.space[3], paddingTop: t.space[4] },
   grouped: { paddingTop: t.space[1] },
   pending: { opacity: 0.6 },
+  // Barra a la izquierda, como una mención en la web
+  highlighted: {
+    backgroundColor: t.colors.line,
+    borderLeftWidth: t.lines.accent,
+    borderLeftColor: t.colors.text,
+    marginLeft: -t.space[2],
+    paddingLeft: t.space[2] - t.lines.accent,
+  },
   gutter: { width: t.layout.avatarSize.md },
   body: { flex: 1, gap: 2 },
   meta: { flexDirection: 'row', alignItems: 'baseline', gap: t.space[2] },

@@ -37,3 +37,34 @@ export function canPinMessage(message: PinnableMessage, context: CanPinContext):
 export function sortPinnedMessages(messages: Message[]): Message[] {
   return [...messages].sort((a, b) => (b.pinnedAt ?? '').localeCompare(a.pinnedAt ?? ''));
 }
+
+/** Ir a un fijado: el mensaje no apareció en las páginas que se pidieron (o ya no existe). */
+export const JUMP_NOT_FOUND_MESSAGE = 'No se encontró el mensaje: está muy atrás en el historial o fue eliminado';
+/** Ir a un fijado: falló la red al pedir las páginas anteriores. */
+export const JUMP_LOAD_FAILED_MESSAGE = 'No se pudieron cargar los mensajes anteriores';
+
+/** Páginas anteriores que se piden como mucho para llegar a un mensaje (50 por página: 1000 mensajes). */
+export const MAX_JUMP_PAGES = 20;
+
+export interface LoadUntilMessageOptions {
+  /** Si el mensaje ya está entre los cargados. */
+  isLoaded: () => boolean;
+  /** Pide la página anterior. Devuelve si quedan más. Si falla, rechaza. */
+  loadOlder: () => Promise<boolean>;
+  maxPages?: number;
+}
+
+/**
+ * Pide páginas anteriores del historial hasta tener el mensaje cargado, para poder ir a él (desde los
+ * fijados). Devuelve false si no apareció: el canal se terminó o el mensaje está más atrás que maxPages.
+ * Cada app pone cómo pedir la página: web y los DMs de mobile con React Query, los canales de mobile con
+ * su DataProvider.
+ */
+export async function loadUntilMessage({ isLoaded, loadOlder, maxPages = MAX_JUMP_PAGES }: LoadUntilMessageOptions): Promise<boolean> {
+  for (let page = 0; !isLoaded(); page++) {
+    if (page >= maxPages) return false;
+    const hasMore = await loadOlder();
+    if (!hasMore) return isLoaded();
+  }
+  return true;
+}

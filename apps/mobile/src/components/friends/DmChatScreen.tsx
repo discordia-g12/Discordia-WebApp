@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import { View } from 'react-native'
 import {
   DM_HEADER_COMPACT_ICONS,
+  JUMP_LOAD_FAILED_MESSAGE,
+  JUMP_NOT_FOUND_MESSAGE,
   canPinMessages,
   dmHeaderActions,
   uploadAttachment,
@@ -70,6 +72,8 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
   const [blockConfirmOpen, setBlockConfirmOpen] = useState(false)
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
   const [pinnedOpen, setPinnedOpen] = useState(false)
+  // Mensaje fijado al que se está yendo (MessageList lo centra y lo marca)
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null)
 
   const name = profile?.displayName ?? describeUser(userId).name
   const friendRequest = actions.canRespondFriendRequest
@@ -148,6 +152,13 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
     )
   }
 
+  const handleJumpToMessage = (message: Message) => {
+    history
+      .loadUntil(message.id)
+      .then(found => (found ? setFocusMessageId(message.id) : showToast(JUMP_NOT_FOUND_MESSAGE, 'info')))
+      .catch(() => showToast(JUMP_LOAD_FAILED_MESSAGE, 'error'))
+  }
+
   // Acciones del encabezado (las mismas reglas que la web): íconos y, lo raro o destructivo, en "más".
   // El perfil se abre tocando el nombre
   const header = dmHeaderActions({
@@ -215,6 +226,8 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
           }}
           onPressAuthor={onOpenProfile}
           onLongPressMessage={onLongPressMessage}
+          focusMessageId={focusMessageId}
+          onFocusDone={() => setFocusMessageId(null)}
           onToggleReaction={
             conversationId
               ? (messageId, emoji) => {
@@ -295,6 +308,7 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
         describeUser={describeUser}
         canPin={canPin}
         onUnpin={handleUnpin}
+        onJump={handleJumpToMessage}
         onClose={() => setPinnedOpen(false)}
       />
       <ConfirmModal

@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, ty
 import { motion, useReducedMotion } from 'motion/react';
 import { Bell, BellOff, Paperclip, Pin, Search, Smile, Users } from 'lucide-react';
 import { distances } from '@discordia/tokens';
+import { JUMP_LOAD_FAILED_MESSAGE, JUMP_NOT_FOUND_MESSAGE } from '@discordia/core';
 import {
   formatDayLabel,
   formatMessageHour,
@@ -75,6 +76,11 @@ export interface ChatViewProps {
   pinnedMessages?: Message[];
   /** Si el usuario puede fijar en esta conversación (canPinMessages de core). Por defecto sí. */
   canPinMessages?: boolean;
+  /**
+   * Carga páginas anteriores hasta tener el mensaje (loadUntil de useChannelMessagesQuery), para ir a un
+   * fijado que no está cargado. Sin esto solo se puede ir a los cargados.
+   */
+  onLoadUntilMessage?: (messageId: string) => Promise<boolean>;
   /** Callback para abrir el perfil del usuario clicado. */
   onOpenUserProfile?: (userId: string) => void;
   /** Callback para mostrar u ocultar la barra lateral de miembros. */
@@ -172,6 +178,65 @@ function useLoadOlder(
   }, [scrollRef, loadOlder]);
 
   return { loadOlder, onScroll };
+}
+
+/** Cuánto queda marcado el mensaje al que se fue (lo mismo que dura la animación de .highlighted). */
+const HIGHLIGHT_MS = 2000;
+
+/**
+ * Ir a un mensaje (desde los fijados): si no está cargado pide las páginas anteriores, después lo centra y
+ * lo marca un momento. Suelta el final antes de cargar y otra vez justo antes del scroll: al sumarse las
+ * páginas el navegador deja la vista abajo y eso vuelve a pegarla (useStickToBottom).
+ * El scroll es instantáneo: uno suave pasa cerca del final, se vuelve a pegar y el ResizeObserver lo baja.
+ */
+function useJumpToMessage(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  messages: Message[],
+  { loadUntil, release }: { loadUntil?: (messageId: string) => Promise<boolean>; release: () => void }
+) {
+  // Mensaje al que hay que ir en cuanto su fila esté dibujada
+  const [target, setTarget] = useState<string | null>(null);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+
+  const jumpTo = useCallback(
+    async (messageId: string) => {
+      release();
+      let found = messages.some((m) => m.id === messageId);
+      if (!found && loadUntil) {
+        try {
+          found = await loadUntil(messageId);
+        } catch {
+          showToast(JUMP_LOAD_FAILED_MESSAGE, 'danger');
+          return;
+        }
+      }
+      if (!found) {
+        showToast(JUMP_NOT_FOUND_MESSAGE, 'info');
+        return;
+      }
+      setTarget(messageId);
+    },
+    [messages, loadUntil, release]
+  );
+
+  // Corre de nuevo con cada cambio de mensajes: la página que trajo loadUntil puede dibujarse después
+  useLayoutEffect(() => {
+    if (!target) return;
+    const row = scrollRef.current?.querySelector<HTMLElement>(`[data-message-id="${target}"]`);
+    if (!row) return;
+    release();
+    row.scrollIntoView?.({ block: 'center' });
+    setHighlighted(target);
+    setTarget(null);
+  }, [target, messages, scrollRef, release]);
+
+  useEffect(() => {
+    if (!highlighted) return;
+    const timer = setTimeout(() => setHighlighted(null), HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [highlighted]);
+
+  return { jumpTo, highlighted };
 }
 
 /** Distancia al final (px) que todavía cuenta como "estar abajo". */
@@ -291,6 +356,10 @@ export function ChatView(props: ChatViewProps) {
     stick.onScroll();
     older.onScroll();
   };
+  const jump = useJumpToMessage(scrollRef, chat.localMessages, {
+    loadUntil: props.onLoadUntilMessage,
+    release: stick.release,
+  });
   const names = useMentionNames(users, props.mentionables?.roles);
   const myRoleIds = props.mentionables?.myRoleIds;
 
@@ -340,7 +409,17 @@ export function ChatView(props: ChatViewProps) {
 
       {props.banner}
 
-      {chat.isPinnedPanelOpen && <PinnedPanel chat={chat} users={users} names={names} />}
+      {chat.isPinnedPanelOpen && (
+        <PinnedPanel
+          chat={chat}
+          users={users}
+          names={names}
+          onJump={(messageId) => {
+            chat.setIsPinnedPanelOpen(false);
+            void jump.jumpTo(messageId);
+          }}
+        />
+      )}
 
       <div
         ref={scrollRef}
@@ -399,6 +478,7 @@ export function ChatView(props: ChatViewProps) {
                     names={names}
                     consecutive={consecutive}
                     isNew={!history.has(msg.id)}
+                    highlighted={jump.highlighted === msg.id}
                     onOpenUserProfile={onOpenUserProfile}
                   />
                 </Fragment>
@@ -467,6 +547,7 @@ function MessageRow({
   names,
   consecutive,
   isNew,
+  highlighted = false,
   onOpenUserProfile,
 }: {
   msg: Message;
@@ -479,6 +560,8 @@ function MessageRow({
   names: MentionNames;
   consecutive: boolean;
   isNew: boolean;
+  /** Se acaba de ir a este mensaje (desde los fijados). */
+  highlighted?: boolean;
   onOpenUserProfile?: (userId: string) => void;
 }) {
   const reduce = useReducedMotion();
@@ -505,7 +588,7 @@ function MessageRow({
 
   if (msg.type === 'deleted') {
     return (
-      <motion.li className={`${styles.message} ${styles.compact}`} {...enter}>
+      <motion.li className={`${styles.message} ${styles.compact}`} data-message-id={msg.id} {...enter}>
         <span className={styles.gutter} />
         <p className={styles.deleted}>/ este mensaje fue eliminado</p>
       </motion.li>
@@ -514,7 +597,7 @@ function MessageRow({
 
   if (msg.type === 'system') {
     return (
-      <motion.li className={`${styles.message} ${styles.compact}`} {...enter}>
+      <motion.li className={`${styles.message} ${styles.compact}`} data-message-id={msg.id} {...enter}>
         <span className={styles.gutter} />
         <p className={styles.system}>
           •{msg.content} <time className={styles.time}>{formatMessageTime(msg.timestamp)}</time>
@@ -541,7 +624,9 @@ function MessageRow({
         mentionsMe ? styles.mentioned : '',
         isReplying ? styles.replying : '',
         menuOpen || pickerOpen ? styles.toolsOpen : '',
+        highlighted ? styles.highlighted : '',
       ].join(' ')}
+      data-message-id={msg.id}
       {...enter}
     >
       <span className={styles.gutter}>
@@ -800,7 +885,17 @@ function EditBox({ chat, messageId }: { chat: ChatViewState; messageId: string }
   );
 }
 
-function PinnedPanel({ chat, users, names }: { chat: ChatViewState; users: Record<string, User>; names: MentionNames }) {
+function PinnedPanel({
+  chat,
+  users,
+  names,
+  onJump,
+}: {
+  chat: ChatViewState;
+  users: Record<string, User>;
+  names: MentionNames;
+  onJump: (messageId: string) => void;
+}) {
   return (
     <Popover className={styles.pinned} label="Mensajes fijados" onClose={() => chat.setIsPinnedPanelOpen(false)}>
       <p className={styles.popoverTitle}>Mensajes fijados /</p>
@@ -808,21 +903,29 @@ function PinnedPanel({ chat, users, names }: { chat: ChatViewState; users: Recor
         <p className={styles.popoverEmpty}>/ todavía no hay mensajes fijados en esta conversación.</p>
       ) : (
         <ul className={styles.pinnedList}>
-          {chat.pinnedMessages.map((msg) => (
-            <li key={msg.id}>
-              <p className={styles.meta}>
-                <strong>{(msg.author || users[msg.authorId])?.displayName || 'Usuario'}</strong>{' '}
-                <span className={styles.time}>{formatMessageTime(msg.timestamp)}</span>
+          {chat.pinnedMessages.map((msg) => {
+            const name = (msg.author || users[msg.authorId])?.displayName || 'Usuario';
+            return (
+              <li key={msg.id}>
+                <button
+                  type="button"
+                  className={styles.pinnedJump}
+                  onClick={() => onJump(msg.id)}
+                  aria-label={`Ir al mensaje de ${name}`}
+                >
+                  <span className={styles.meta}>
+                    <strong>{name}</strong> <span className={styles.time}>{formatMessageTime(msg.timestamp)}</span>
+                  </span>
+                  <span className={styles.pinnedText}>{mentionsToText(msg.content, names)}</span>
+                </button>
                 {chat.canPinMessages && (
-                  <>
-                    {' · '}
+                  <p className={styles.meta}>
                     <ActionLink onPress={() => chat.handleTogglePin(msg)}>desfijar</ActionLink>
-                  </>
+                  </p>
                 )}
-              </p>
-              <p className={styles.pinnedText}>{mentionsToText(msg.content, names)}</p>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </Popover>

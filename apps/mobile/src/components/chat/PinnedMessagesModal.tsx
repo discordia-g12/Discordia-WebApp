@@ -1,5 +1,5 @@
 import React from 'react'
-import { View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { formatMessageTime, mentionsToText, usePinnedMessagesQuery } from '@discordia/core'
 import { makeStyles } from '../../theme'
 import { ActionLink, Modal, ModalForm, Skeleton, Text } from '../../ui'
@@ -14,11 +14,13 @@ interface PinnedMessagesModalProps {
   /** Si puede desfijar (canPinMessages de core). */
   canPin: boolean
   onUnpin: (message: Message) => void
+  /** Tocar un fijado: ir al mensaje en el chat. El modal se cierra antes (iOS no apila modales). */
+  onJump: (message: Message) => void
   onClose: () => void
 }
 
 /** Mensajes fijados de un canal o DM: los mismos para los dos, con los de páginas que no se cargaron. */
-export default function PinnedMessagesModal({ visible, channelId, describeUser, canPin, onUnpin, onClose }: PinnedMessagesModalProps) {
+export default function PinnedMessagesModal({ visible, channelId, describeUser, canPin, onUnpin, onJump, onClose }: PinnedMessagesModalProps) {
   const styles = useStyles()
   const pinned = usePinnedMessagesQuery(channelId, { enabled: visible })
   const list = pinned.data ?? []
@@ -36,17 +38,27 @@ export default function PinnedMessagesModal({ visible, channelId, describeUser, 
         ) : (
           list.map(message => (
             <View key={message.id} style={styles.item}>
-              <View style={styles.meta}>
-                <Text variant="meta" bold numberOfLines={1} style={styles.author}>
-                  {describeUser(message.authorId).name}
+              <Pressable
+                style={styles.jump}
+                onPress={() => {
+                  onClose()
+                  onJump(message)
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Ir al mensaje de ${describeUser(message.authorId).name}`}
+              >
+                <View style={styles.meta}>
+                  <Text variant="meta" bold numberOfLines={1} style={styles.author}>
+                    {describeUser(message.authorId).name}
+                  </Text>
+                  <Text variant="meta" tone="muted">
+                    {formatMessageTime(message.timestamp)}
+                  </Text>
+                </View>
+                <Text variant="bodySmall" numberOfLines={4}>
+                  {mentionsToText(message.content, { user: mentionName, role: () => 'rol' })}
                 </Text>
-                <Text variant="meta" tone="muted">
-                  {formatMessageTime(message.timestamp)}
-                </Text>
-              </View>
-              <Text variant="bodySmall" numberOfLines={4}>
-                {mentionsToText(message.content, { user: mentionName, role: () => 'rol' })}
-              </Text>
+              </Pressable>
               {canPin && (
                 <ActionLink size="bodySmall" onPress={() => onUnpin(message)}>
                   desfijar
@@ -66,6 +78,9 @@ const useStyles = makeStyles(t => ({
     paddingVertical: t.space[3],
     borderBottomWidth: t.lines.hairline,
     borderBottomColor: t.colors.line,
+  },
+  jump: {
+    gap: t.space[1],
   },
   meta: {
     flexDirection: 'row',

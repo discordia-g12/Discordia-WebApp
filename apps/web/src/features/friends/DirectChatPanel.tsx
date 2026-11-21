@@ -163,6 +163,7 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
       onPinMessage={messageActions.togglePin}
       pinnedMessages={pinned.data ?? []}
       canPinMessages={Boolean(conversation) && canPinMessages({ isDirect: true })}
+      onLoadUntilMessage={messages.loadUntil}
       onOpenUserProfile={onOpenUserProfile}
     />
   );

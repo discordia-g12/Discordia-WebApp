@@ -1,6 +1,7 @@
+import { vi } from 'vitest';
 import { describe, it, expect } from 'vitest';
 import type { Message } from '../../types';
-import { canPinMessage, isDirectChannelId, sortPinnedMessages } from '../pins';
+import { canPinMessage, isDirectChannelId, loadUntilMessage, sortPinnedMessages } from '../pins';
 
 const msg = (over: Partial<Message> & { status?: string } = {}) =>
   ({ id: 'm1', content: 'hola', authorId: 'u1', channelId: 'c1', timestamp: '', ...over }) as Message & { status?: string };
@@ -42,5 +43,33 @@ describe('isDirectChannelId', () => {
     expect(isDirectChannelId('dm-123')).toBe(true);
     expect(isDirectChannelId('c1')).toBe(false);
     expect(isDirectChannelId(null)).toBe(false);
+  });
+});
+
+describe('loadUntilMessage', () => {
+  it('no pide nada si ya está cargado', async () => {
+    const loadOlder = vi.fn();
+    expect(await loadUntilMessage({ isLoaded: () => true, loadOlder })).toBe(true);
+    expect(loadOlder).not.toHaveBeenCalled();
+  });
+
+  it('pide páginas hasta que aparece', async () => {
+    let pages = 0;
+    const loadOlder = vi.fn(async () => ++pages < 10);
+    expect(await loadUntilMessage({ isLoaded: () => pages >= 3, loadOlder })).toBe(true);
+    expect(loadOlder).toHaveBeenCalledTimes(3);
+  });
+
+  it('false si se termina el canal o se pasa del máximo de páginas', async () => {
+    expect(await loadUntilMessage({ isLoaded: () => false, loadOlder: async () => false })).toBe(false);
+    const loadOlder = vi.fn(async () => true);
+    expect(await loadUntilMessage({ isLoaded: () => false, loadOlder, maxPages: 4 })).toBe(false);
+    expect(loadOlder).toHaveBeenCalledTimes(4);
+  });
+
+  it('propaga el error de la página', async () => {
+    await expect(
+      loadUntilMessage({ isLoaded: () => false, loadOlder: () => Promise.reject(new Error('red')) })
+    ).rejects.toThrow('red');
   });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { FlatList, Keyboard, Platform, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native'
 import { formatDayLabel, placeMessage } from '@discordia/core'
 import { makeStyles } from '../../theme'
@@ -26,6 +26,12 @@ interface MessageListProps {
   onLongPressMessage?: (message: Message) => void
   /** Tocar una reacción para alternarla. */
   onToggleReaction?: (messageId: string, emoji: string) => void
+  /**
+   * Mensaje al que hay que ir (desde los fijados), ya cargado: se centra y se marca un momento. Al llegar se
+   * llama a onFocusDone para que quien lo pidió lo limpie.
+   */
+  focusMessageId?: string | null
+  onFocusDone?: () => void
 }
 
 type Row =
@@ -38,6 +44,10 @@ const NEW_WINDOW_MS = 10_000
 const NEAR_END = 80
 /** Tiempo desde los primeros mensajes en que la lista todavía se está armando. */
 const SETTLE_MS = 1000
+/** Cuánto queda marcado el mensaje al que se fue. */
+const HIGHLIGHT_MS = 2000
+/** Reintentos de scrollToIndex mientras FlatList todavía no dibujó la fila (sin getItemLayout no la conoce). */
+const MAX_FOCUS_RETRIES = 5
 
 /**
  * Mensajes del canal, con los separadores por día ("hoy", "ayer") y agrupados por autor (las reglas de core).
@@ -58,6 +68,8 @@ export default function MessageList({
   onPressAuthor,
   onLongPressMessage,
   onToggleReaction,
+  focusMessageId,
+  onFocusDone,
 }: MessageListProps) {
   const styles = useStyles()
   const listRef = useRef<FlatList<Row>>(null)
@@ -119,6 +131,38 @@ export default function MessageList({
     return out
   }, [messages])
 
+  // Ir a un mensaje (desde los fijados). Sin animar: un scroll animado pasa cerca del final, la lista se vuelve
+  // a pegar y onContentSizeChange la baja otra vez
+  const [highlighted, setHighlighted] = useState<string | null>(null)
+  const focusRetries = useRef(0)
+  const scrollToRow = (index: number) => {
+    stickToEnd.current = false
+    listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: false })
+  }
+  const onFocusDoneRef = useRef(onFocusDone)
+  useEffect(() => {
+    onFocusDoneRef.current = onFocusDone
+  })
+  useEffect(() => {
+    if (!focusMessageId) return
+    const index = rows.findIndex(row => row.kind === 'message' && row.message.id === focusMessageId)
+    // Todavía no llegó a la lista (la página recién cargada): vuelve a correr cuando cambien las filas
+    if (index === -1) return
+    focusRetries.current = 0
+    scrollToRow(index)
+    // Se marca (y se avisa que llegó) en el cuadro siguiente, con el scroll ya hecho
+    const frame = requestAnimationFrame(() => {
+      setHighlighted(focusMessageId)
+      onFocusDoneRef.current?.()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [focusMessageId, rows])
+  useEffect(() => {
+    if (!highlighted) return
+    const timer = setTimeout(() => setHighlighted(null), HIGHLIGHT_MS)
+    return () => clearTimeout(timer)
+  }, [highlighted])
+
   // Mientras haya mensajes anteriores sin cargar, arriba va eso en vez del comienzo del canal
   const older = (
     <View style={styles.older}>
@@ -178,6 +222,15 @@ export default function MessageList({
       onStartReachedThreshold={0.5}
       // Al agregar mensajes arriba, lo visible queda en su lugar
       maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+      extraData={highlighted}
+      // La fila a la que se quiere ir está fuera de lo dibujado: se acerca con el alto promedio y se reintenta
+      onScrollToIndexFailed={({ index, averageItemLength }) => {
+        stickToEnd.current = false
+        listRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: false })
+        if (focusRetries.current >= MAX_FOCUS_RETRIES) return
+        focusRetries.current += 1
+        setTimeout(() => scrollToRow(index), 100)
+      }}
       renderItem={({ item }) =>
         item.kind === 'day' ? (
           <View style={styles.day} accessibilityRole="header">
@@ -197,6 +250,7 @@ export default function MessageList({
             onPressAuthor={onPressAuthor}
             onLongPress={onLongPressMessage ? () => onLongPressMessage(item.message) : undefined}
             onToggleReaction={onToggleReaction}
+            highlighted={highlighted === item.message.id}
           />
         )
       }

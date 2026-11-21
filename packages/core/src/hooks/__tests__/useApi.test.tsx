@@ -83,6 +83,31 @@ describe('useApi Hooks', () => {
       // La página vino incompleta: no hay nada más atrás
       expect(result.current.hasOlder).toBe(false);
     });
+
+    it('loadUntil pide páginas anteriores hasta tener el mensaje, y false si el canal se termina antes', async () => {
+      const msg = (id: string) => ({ id, content: id, authorId: 'user-1', channelId: 'channel-1' }) as Message;
+      vi.mocked(getMessages)
+        .mockResolvedValueOnce([msg('e'), msg('f')])
+        .mockResolvedValueOnce([msg('c'), msg('d')])
+        .mockResolvedValueOnce([msg('a'), msg('b')])
+        .mockResolvedValueOnce([]);
+
+      const { result } = renderHook(() => useChannelMessagesQuery('channel-1', { limit: 2 }), { wrapper });
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+      let found = false;
+      await act(async () => {
+        found = await result.current.loadUntil('a');
+      });
+      expect(found).toBe(true);
+      expect(getMessages).toHaveBeenLastCalledWith('channel-1', { before: 'c', limit: 2 });
+      await waitFor(() => expect(result.current.data!.map((m) => m.id)).toEqual(['a', 'b', 'c', 'd', 'e', 'f']));
+
+      await act(async () => {
+        found = await result.current.loadUntil('no-existe');
+      });
+      expect(found).toBe(false);
+    });
   });
 
   describe('useServersQuery', () => {

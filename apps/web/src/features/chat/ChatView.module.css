@@ -135,6 +135,30 @@
   background: color-mix(in srgb, var(--color-text) 4%, transparent);
 }
 
+/* Al ir a un mensaje (desde los fijados): se marca un momento y se apaga */
+.highlighted {
+  animation: highlight 2s ease-out;
+}
+
+@keyframes highlight {
+  0%,
+  40% {
+    background: color-mix(in srgb, var(--color-text) 12%, transparent);
+    box-shadow: inset var(--line-accent) 0 0 var(--color-text);
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .highlighted {
+    animation: none;
+    background: color-mix(in srgb, var(--color-text) 12%, transparent);
+  }
+}
+
 /* Te mencionan: barra negra a la izquierda */
 .mentioned {
   box-shadow: inset var(--line-accent) 0 0 var(--color-inverse-background);
@@ -448,6 +472,28 @@
 .pinnedText {
   margin: 0;
   font-size: var(--font-body-small-size);
+}
+
+/* El fijado entero lleva al mensaje */
+.pinnedJump {
+  display: block;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.pinnedJump > span {
+  display: block;
+}
+
+.pinnedJump:hover .pinnedText,
+.pinnedJump:focus-visible .pinnedText {
+  text-decoration: underline;
 }
 
 .menu {

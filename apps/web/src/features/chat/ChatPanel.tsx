@@ -37,7 +37,7 @@ export function ChatPanel() {
   const canAddReactions = currentChannel
     ? canInChannel(currentServer, currentChannel, currentUser.id, 'ADD_REACTIONS')
     : true;
-  const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder } = useChannelMessagesQuery(channelId);
+  const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder, loadUntil } = useChannelMessagesQuery(channelId);
   const { data: pinnedMessages } = usePinnedMessagesQuery(channelId);
 
   // Menciones: miembros (con su perfil si ya llegó), roles del servidor y si puede usar @everyone y roles
@@ -91,6 +91,7 @@ export function ChatPanel() {
       onPinMessage={actions.togglePin}
       pinnedMessages={pinnedMessages ?? []}
       canPinMessages={canPinMessages({ isDirect: false, canManageMessages })}
+      onLoadUntilMessage={loadUntil}
       onOpenUserProfile={openUserProfile}
     />
   );

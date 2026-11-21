@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { useUIStore } from '../../../app/uiStore';
 import { dmActions, dmHeaderActions } from '@discordia/core';
 import { ChatView } from '../ChatView';
@@ -288,6 +288,65 @@ describe('ChatView (rediseño)', () => {
 
     rerender(renderWith(false));
     expect(within(screen.getByRole('dialog', { name: 'Mensajes fijados' })).queryByRole('button', { name: '_desfijar' })).toBeNull();
+  });
+
+  it('tocar un fijado cierra el panel y marca ese mensaje', async () => {
+    const pinned = { ...MESSAGES[0], isPinned: true };
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" pinnedMessages={[pinned]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mensajes fijados (1)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Ir al mensaje de lbars' }));
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Mensajes fijados' })).toBeNull();
+    const row = document.querySelector('[data-message-id="m1"]')!;
+    expect(row.className).toContain('highlighted');
+    expect(document.querySelector('[data-message-id="m2"]')!.className).not.toContain('highlighted');
+  });
+
+  it('para ir a un fijado que no está cargado pide las páginas anteriores', async () => {
+    const old = msg('m0', 'u2', 'muy viejo', '2025-10-01T10:00:00', { isPinned: true });
+    const view = (messages: Message[]) => (
+      <ChatView
+        channel={channel}
+        messages={messages}
+        users={users}
+        currentUserId="me"
+        pinnedMessages={[old]}
+        onLoadUntilMessage={onLoadUntilMessage}
+      />
+    );
+    // Lo que hace loadUntil: el historial vuelve con la página anterior arriba
+    const onLoadUntilMessage = vi.fn(async () => {
+      rerender(view([old, ...MESSAGES]));
+      return true;
+    });
+    const { rerender } = render(view(MESSAGES));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mensajes fijados (1)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Ir al mensaje de lbars' }));
+    });
+
+    expect(onLoadUntilMessage).toHaveBeenCalledWith('m0');
+    expect(document.querySelector('[data-message-id="m0"]')!.className).toContain('highlighted');
+  });
+
+  it('si el fijado no aparece en el historial no marca nada', async () => {
+    const onLoadUntilMessage = vi.fn().mockResolvedValue(false);
+    const gone = msg('gone', 'u2', 'ya no está', '2025-01-01T10:00:00', { isPinned: true });
+    render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" pinnedMessages={[gone]} onLoadUntilMessage={onLoadUntilMessage} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mensajes fijados (1)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Ir al mensaje de lbars' }));
+    });
+
+    expect(onLoadUntilMessage).toHaveBeenCalledWith('gone');
+    expect(document.querySelector('[class*="highlighted"]')).toBeNull();
   });
 
   it('el ícono de búsqueda abre la búsqueda de mensajes, y sin onOpenSearch no aparece', () => {

@@ -61,6 +61,8 @@ import {
   canInServer,
   canPinMessage,
   canPinMessages,
+  JUMP_LOAD_FAILED_MESSAGE,
+  JUMP_NOT_FOUND_MESSAGE,
   isDirectChannelId,
   usePinnedMessagesQuery,
   canSeeSettingsSection,
@@ -125,6 +127,7 @@ export default function MobileShell() {
     failOptimisticMessage,
     toggleReaction,
     togglePin,
+    loadChannelMessagesUntil,
     refreshServers,
   } = useData()
   const { selectedServerId, selectedChannelId, selectChannel, selectServer, showToast } = useUI()
@@ -167,6 +170,8 @@ export default function MobileShell() {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null)
   // Lista de fijados del canal abierto
   const [pinnedOpen, setPinnedOpen] = useState(false)
+  // Mensaje fijado al que se está yendo (MessageList lo centra y lo marca)
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null)
   const [userSettingsOpen, setUserSettingsOpen] = useState(false)
   // Búsqueda de mensajes del servidor abierto
   const [messageSearchOpen, setMessageSearchOpen] = useState(false)
@@ -385,6 +390,18 @@ export default function MobileShell() {
       )
     },
     [togglePin, showToast],
+  )
+  const handleJumpToMessage = useCallback(
+    async (message: Message) => {
+      try {
+        const found = await loadChannelMessagesUntil(message.channelId, message.id)
+        if (found) setFocusMessageId(message.id)
+        else showToast(JUMP_NOT_FOUND_MESSAGE, 'info')
+      } catch {
+        showToast(JUMP_LOAD_FAILED_MESSAGE, 'error')
+      }
+    },
+    [loadChannelMessagesUntil, showToast],
   )
 
   const handleToggleReaction = useCallback(
@@ -808,6 +825,8 @@ export default function MobileShell() {
             onPressAuthor={openProfile}
             onLongPressMessage={setActionTargetMessage}
             onToggleReaction={(messageId, emoji) => handleToggleReaction(channel.id, messageId, emoji)}
+            focusMessageId={focusMessageId}
+            onFocusDone={() => setFocusMessageId(null)}
           />
           <Composer
             channelName={channel.name}
@@ -1051,6 +1070,7 @@ export default function MobileShell() {
         describeUser={describeUser}
         canPin={canPinInChannel}
         onUnpin={handleTogglePin}
+        onJump={handleJumpToMessage}
         onClose={() => setPinnedOpen(false)}
       />
       <EditMessageModal
