@@ -10,7 +10,7 @@ import {
 } from '@discordia/core'
 import { useData, useUI } from '../../../providers/AppProviders'
 import { makeStyles } from '../../../theme'
-import { ActionLink, ServerStrip, SquareAvatar, Text, UnderlineInput } from '../../../ui'
+import { ActionLink, ServerIcon, ServerStrip, Text, UnderlineInput } from '../../../ui'
 import { pickSquareImage, toUploadFile } from '../../../utils/images'
 import ConfirmModal from '../../shared/ConfirmModal'
 import type { Server } from '../../../types'
@@ -172,7 +172,7 @@ function IconCell({ server, index }: { server: Server; index: number }) {
   const { showToast } = useUI()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const iconUrl = server.iconUrl || server.icon || null
+  const iconUrl = server.iconUrl || null
 
   const run = async (icon: Parameters<typeof setServerIcon>[1], done: string) => {
     setBusy(true)
@@ -200,7 +200,7 @@ function IconCell({ server, index }: { server: Server; index: number }) {
   return (
     <SettingsCell title="Ícono" index={index}>
       <View style={styles.iconRow}>
-        <SquareAvatar user={{ username: '', displayName: server.name, avatar: iconUrl }} size="lg" />
+        <ServerIcon server={server} size="lg" label={server.name} />
         <ActionLink onPress={pick} disabled={busy}>
           {busy ? 'subiendo…' : 'cambiar ícono'}
         </ActionLink>

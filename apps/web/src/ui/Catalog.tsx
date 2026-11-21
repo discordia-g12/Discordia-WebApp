@@ -17,6 +17,7 @@ import {
   IconMenu,
   Logo,
   SectionLabel,
+  ServerIcon,
   ServerStrip,
   Skeleton,
   SquareAvatar,
@@ -79,6 +80,13 @@ export function Catalog() {
             <SquareAvatar user={{ displayName: 'Mar Montilla', username: 'mar' }} size="sm" />
             <SquareAvatar user={{ displayName: 'Lbars', username: 'lbars' }} status="online" />
             <SquareAvatar user={{ displayName: 'Iñaki Ibarrolaza', username: 'inaki' }} size="lg" status="offline" />
+          </div>
+        </Section>
+        <Section title="ServerIcon">
+          <div className={styles.row}>
+            <ServerIcon server={{ name: 'torton' }} size="sm" />
+            <ServerIcon server={{ name: 'flor de servidor' }} />
+            <ServerIcon server={{ name: 'ibars' }} size="lg" />
           </div>
         </Section>
         <Section title="ServerStrip">

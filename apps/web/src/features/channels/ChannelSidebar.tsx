@@ -4,7 +4,7 @@ import { MicOff, HeadphoneOff, Lock, VolumeX } from 'lucide-react';
 import { isLocalCategoryId, isVoiceChannelLocked } from '@discordia/core';
 import type { ServerOwnershipTransfer } from '@discordia/core';
 import type { Channel, Server, User } from '../../types';
-import { ActionLink, SectionLabel, Skeleton, SquareAvatar } from '../../ui';
+import { ActionLink, SectionLabel, ServerIcon, Skeleton, SquareAvatar } from '../../ui';
 import { VoiceParticipantMenu } from '../voice/VoiceParticipantMenu';
 import { useChannelDragAndDrop, type DropTarget } from './useChannelDragAndDrop';
 import { channelUnreadDescription, formatUnreadCount } from '../servers/unread';
@@ -161,6 +161,10 @@ export function ChannelSidebar({
 
   return (
     <nav className={styles.sidebar} aria-label={`Canales de ${server.name}`}>
+      <div className={styles.identity}>
+        <ServerIcon server={server} size="sm" />
+        <span className={styles.identityName}>{server.name}</span>
+      </div>
       <div className={styles.top}>
         {onInvitePeople && (
           <button type="button" className={styles.invite} onClick={onInvitePeople}>

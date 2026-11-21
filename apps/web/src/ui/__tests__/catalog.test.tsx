@@ -6,6 +6,8 @@ import {
   DisplayText,
   EmptyState,
   SectionLabel,
+  ServerIcon,
+  ServerStrip,
   Skeleton,
   SquareAvatar,
   Tabs,
@@ -172,6 +174,34 @@ describe('SquareAvatar', () => {
 
     fireEvent.error(screen.getByRole('img', { name: 'Mora' }));
     expect(screen.getByRole('img', { name: 'Mora' }).textContent).toBe('MO');
+  });
+});
+
+describe('ServerIcon y ServerStrip', () => {
+  it('ServerIcon sin ícono muestra las iniciales, y si el ícono no carga vuelve a ellas', () => {
+    const { container, rerender } = render(<ServerIcon server={{ name: 'Indie Developers' }} size="sm" />);
+    expect(container.textContent).toBe('ID');
+
+    rerender(<ServerIcon server={{ name: 'Mora', iconUrl: 'https://x/icon.png' }} size="sm" />);
+    fireEvent.error(container.querySelector('img')!);
+    expect(container.textContent).toBe('MO');
+  });
+
+  it('la franja muestra el banner de fondo y el ícono encima', () => {
+    const { container } = render(
+      <ServerStrip server={{ name: 'Torton', iconUrl: 'https://x/icon.png', banner: 'https://x/banner.png' }} />
+    );
+
+    const sources = Array.from(container.querySelectorAll('img')).map((img) => img.getAttribute('src'));
+    expect(sources).toEqual(['https://x/banner.png', 'https://x/icon.png']);
+    expect(screen.getByRole('button', { name: 'Servidor Torton' })).toBeTruthy();
+  });
+
+  it('sin banner ni ícono, la franja muestra las iniciales en el cuadrado', () => {
+    const { container } = render(<ServerStrip server={{ name: 'delfín' }} />);
+
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.textContent).toBe('DE');
   });
 });
 

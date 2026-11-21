@@ -10,6 +10,7 @@ export { IconButton, type IconButtonProps } from './IconButton';
 export { IconMenu, type IconMenuItem, type IconMenuProps } from './IconMenu';
 export { Tabs, type TabItem } from './Tabs';
 export { SquareAvatar } from './SquareAvatar';
+export { ServerIcon } from './ServerIcon';
 export { ServerStrip } from './ServerStrip';
 export { Toast } from './Toast';
 export { EmptyState } from './EmptyState';

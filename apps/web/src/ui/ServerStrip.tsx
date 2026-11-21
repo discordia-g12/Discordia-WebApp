@@ -2,10 +2,11 @@ import { useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Server } from '../types';
 import { transitions } from './motion';
+import { ServerIcon } from './ServerIcon';
 import styles from './ServerStrip.module.css';
 
 interface ServerStripProps {
-  server: Pick<Server, 'name'> & { iconUrl?: string; icon?: string; banner?: string };
+  server: Pick<Server, 'name' | 'iconUrl' | 'banner'>;
   active?: boolean;
   /** Actividad nueva: "NEW ACTIVITY IN GENERAL" en la etiqueta, y una marca en la franja. */
   unread?: string | boolean;
@@ -22,8 +23,9 @@ interface ServerStripProps {
 }
 
 /**
- * Servidor en el rail: una franja rectangular con su imagen. Al pasar el mouse (o con foco) se despliega
- * la etiqueta negra con el nombre y la actividad.
+ * Servidor en el rail: una franja rectangular con el banner de fondo y el ícono a la izquierda. El ícono
+ * identifica al servidor y el banner lo decora. Al pasar el mouse (o con foco) se despliega la etiqueta
+ * negra con el nombre y la actividad.
  */
 export function ServerStrip({
   server,
@@ -44,7 +46,6 @@ export function ServerStrip({
     const rect = rootRef.current?.getBoundingClientRect();
     if (rect) setOpen({ top: rect.top, left: rect.right });
   };
-  const image = server.banner || server.iconUrl || server.icon;
   // Suspendido no tiene actividad: no se puede leer ni escribir
   const activity = suspended ? null : typeof unread === 'string' ? unread : unread ? 'Actividad nueva' : null;
   const ariaLabel = suspended
@@ -69,7 +70,10 @@ export function ServerStrip({
         onFocus={() => show()}
         onBlur={() => setOpen(null)}
       >
-        {image ? <img src={image} alt="" className={styles.image} /> : <span className={styles.placeholder} aria-hidden="true">{server.name.slice(0, 2)}</span>}
+        {server.banner && <img src={server.banner} alt="" className={styles.banner} />}
+        <span className={styles.icon}>
+          <ServerIcon server={server} />
+        </span>
         {suspended ? (
           <span className={styles.suspendedTag} data-testid="server-suspended" aria-hidden="true">
             suspended

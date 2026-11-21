@@ -131,7 +131,6 @@ export function mapServerFromBackend(raw: ServerBackendResponse): Server {
     ownerId: raw.owner_id,
     myPermissions: raw.my_permissions === undefined ? undefined : bitmaskToPermissions(raw.my_permissions),
     iconUrl: raw.icon_url || undefined,
-    icon: raw.icon_url || undefined,
     banner: raw.banner_url || undefined,
     description: raw.description || undefined,
     channels,

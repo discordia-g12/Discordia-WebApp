@@ -302,7 +302,6 @@ export interface Server {
   ownerId: string;
   /** Permisos del usuario actual en el servidor (ids de PERMISSION_BITS). Ver canInServer. */
   myPermissions?: string[];
-  icon?: string;
   iconUrl?: string;
   banner?: string;
   color?: string;

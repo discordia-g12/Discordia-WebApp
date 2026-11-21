@@ -16,22 +16,24 @@
   cursor: pointer;
 }
 
-.image,
-.placeholder {
+/* Banner de fondo; sin banner queda el color de la franja */
+.banner {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.placeholder {
+/* Ícono cuadrado a la izquierda, con el alto de la franja. La línea lo separa de un banner claro */
+.icon {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-label-size);
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-text);
+  border-right: var(--line-hairline) solid var(--color-inverse-background);
 }
 
 /* Activo: la franja se corre a la derecha, sobre la línea de la grilla */
@@ -71,8 +73,8 @@
 }
 
 /* Servidor suspendido por el staff: imagen apagada y cartel rojo "suspended" sobre la franja */
-.suspended .image,
-.suspended .placeholder {
+.suspended .banner,
+.suspended .icon {
   filter: grayscale(1);
   opacity: 0.6;
 }

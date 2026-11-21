@@ -741,7 +741,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const setServerIcon = useCallback(async (serverId: string, icon: UploadableFile | null): Promise<void> => {
     const updated = icon ? await apiUpdateServerIcon(serverId, icon) : await apiRemoveServerIcon(serverId)
     // Solo el ícono: el resto del servidor (canales, categorías) ya está al día en la lista
-    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, iconUrl: updated.iconUrl, icon: updated.icon } : srv)))
+    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, iconUrl: updated.iconUrl } : srv)))
   }, [])
 
   const value = useMemo<DataContextValue>(

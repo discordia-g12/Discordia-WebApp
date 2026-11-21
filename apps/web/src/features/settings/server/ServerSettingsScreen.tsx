@@ -20,7 +20,7 @@ import {
 } from '@discordia/core';
 import type { MemberActions, OverrideState } from '@discordia/core';
 import type { Category, Channel, ChannelType, Role, Server, ServerMember } from '../../../types';
-import { ActionLink, BlockButton, ConfirmDialog, EmptyState, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
+import { ActionLink, BlockButton, ConfirmDialog, EmptyState, ServerIcon, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
 import { useServerMembersAdmin } from '../../moderation/useServerMembersAdmin';
 import { useServerBansAdmin } from '../../moderation/useServerBansAdmin';
 import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen';
@@ -82,7 +82,7 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
       title="Ajustes del servidor"
       identity={
         <div className={styles.identity}>
-          <SquareAvatar user={{ displayName: s.serverName, username: s.serverName, avatar: s.serverIcon || null }} size={32} />
+          <ServerIcon server={{ name: s.serverName, iconUrl: s.serverIcon }} size={32} />
           <div>
             <p className={styles.identityName}>{s.serverName}</p>
             <p className={styles.meta}>ajustes del servidor/</p>
@@ -149,7 +149,7 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
       {/* El ícono sí se guarda (PUT /servers/{id}/icon, dueño o Gestionar servidor), apenas se elige */}
       <SettingsCell title="Ícono">
         <div className={styles.iconRow}>
-          <SquareAvatar user={{ displayName: s.serverName, username: s.serverName, avatar: s.serverIcon || null }} size="lg" />
+          <ServerIcon server={{ name: s.serverName, iconUrl: s.serverIcon }} size="lg" label={s.serverName} />
           <FileAction
             label={s.iconBusy ? 'subiendo…' : 'cambiar ícono'}
             accept={IMAGE_UPLOAD_ACCEPT}

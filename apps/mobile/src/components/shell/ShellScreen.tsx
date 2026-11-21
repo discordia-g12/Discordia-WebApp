@@ -7,22 +7,26 @@ import { DisplayText, Text } from '../../ui'
 /**
  * Pantalla de una pestaña: el encabezado gigante (el contexto, como la marca de agua del escritorio,
  * pero en tinta: acá es el título) y su contenido. tinted: celeste, como la barra lateral de un servidor.
- * scroll: false cuando el contenido ya scrollea solo (una lista).
+ * scroll: false cuando el contenido ya scrollea solo (una lista). leading: arriba del título (el ícono
+ * del servidor).
  */
 export function Screen({
   title,
   tinted = false,
   scroll = true,
+  leading,
   children,
 }: {
   title: string
   tinted?: boolean
   scroll?: boolean
+  leading?: React.ReactNode
   children: React.ReactNode
 }) {
   const styles = useStyles()
   const heading = (
     <View style={styles.heading} accessible accessibilityRole="header" accessibilityLabel={title}>
+      {leading}
       <DisplayText variant="watermark">{title}</DisplayText>
     </View>
   )
@@ -77,6 +81,7 @@ const useStyles = makeStyles(t => ({
   scrollBody: { flexGrow: 1 },
   body: { flex: 1 },
   heading: {
+    gap: t.space[2],
     paddingTop: t.space[5],
     paddingBottom: t.space[3],
     paddingHorizontal: t.space[4],
