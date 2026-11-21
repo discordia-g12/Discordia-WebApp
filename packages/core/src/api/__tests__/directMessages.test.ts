@@ -19,7 +19,7 @@ import {
   removeFriend,
   sendFriendRequest,
 } from '../friends';
-import { getPresence } from '../presence';
+import { getMyStatus, getPresence, setMyStatus, toPreferredStatus } from '../presence';
 import { getMutualServers } from '../servers';
 import { getPublicProfile, isProfileUnavailable } from '../users';
 
@@ -250,6 +250,26 @@ describe('API de DMs', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
       expect(Object.keys(result)).toHaveLength(150);
       expect(lastCall().url).toBe('http://api.test/api/v1/chat/presence');
+    });
+
+    it('lee y guarda el estado propio', async () => {
+      respond({ status: 'idle' });
+      expect(await getMyStatus()).toBe('idle');
+      expect(lastCall()).toMatchObject({ url: 'http://api.test/api/v1/chat/presence/me', method: 'GET' });
+
+      respond({ status: 'dnd' });
+      expect(await setMyStatus('dnd')).toBe('dnd');
+      expect(lastCall()).toMatchObject({
+        url: 'http://api.test/api/v1/chat/presence/me',
+        method: 'PUT',
+        body: { status: 'dnd' },
+      });
+    });
+
+    it('la interfaz llama offline a lo que el backend guarda como invisible', () => {
+      expect(toPreferredStatus('offline')).toBe('invisible');
+      expect(toPreferredStatus('invisible')).toBe('invisible');
+      expect(toPreferredStatus('idle')).toBe('idle');
     });
   });
 

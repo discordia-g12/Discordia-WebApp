@@ -1,6 +1,14 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
-import { imageUploadErrorMessage, updateMyProfile, uploadMyAvatar, useSession, type UserProfile } from '@discordia/core';
-import type { Status, User } from '../../types';
+import {
+  imageUploadErrorMessage,
+  updateMyProfile,
+  uploadMyAvatar,
+  useMyStatusQuery,
+  useSession,
+  type UserProfile,
+} from '@discordia/core';
+import type { User } from '../../types';
 import { showToast } from '../../app/uiStore';
 
 function fromProfile(p: UserProfile | null): User {
@@ -19,7 +27,6 @@ interface CurrentUserState {
   currentUser: User;
   /** Mezcla el perfil que cargó la sesión (al iniciar sesión o al recargarlo). */
   syncFromProfile: (profile: UserProfile) => void;
-  setStatus: (status: Status) => void;
   /**
    * Guarda el perfil en el backend y, si sale bien, lo aplica. Con `avatarFile`, primero sube el avatar
    * nuevo. Resuelve true si se guardó todo.
@@ -28,8 +35,8 @@ interface CurrentUserState {
 }
 
 /**
- * Usuario propio tal como lo muestra la interfaz: el perfil de la sesión más lo que se cambia acá
- * (la presencia todavía no se guarda en el backend; el estado personalizado va con el perfil).
+ * Usuario propio: el perfil de la sesión más lo que se cambia acá (el estado personalizado va con el perfil).
+ * La presencia no está acá: la guarda Chat-Engine y la suma useCurrentUser (ver useMyStatusQuery).
  */
 export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   currentUser: fromProfile(useSession.getState().profile),
@@ -39,13 +46,13 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
       currentUser: {
         ...s.currentUser,
         ...profile,
+        // El status del perfil es el activity_status de Auth, que no se usa: la presencia sale de Chat-Engine
+        status: s.currentUser.status,
         id: profile.id || profile.user_id || s.currentUser.id,
         displayName: profile.displayName || profile.display_name || profile.username,
         avatar: profile.avatar || profile.avatar_url || s.currentUser.avatar,
       },
     })),
-
-  setStatus: (status) => set((s) => ({ currentUser: { ...s.currentUser, status } })),
 
   saveProfile: async (updatedUser, avatarFile) => {
     // El avatar del formulario puede ser la vista previa local (data URL): el que vale es el guardado
@@ -81,4 +88,9 @@ export const useCurrentUserStore = create<CurrentUserState>((set, get) => ({
   },
 }));
 
-export const useCurrentUser = () => useCurrentUserStore((s) => s.currentUser);
+/** Usuario propio con el estado que eligió (mientras carga, `online`). */
+export function useCurrentUser(): User {
+  const user = useCurrentUserStore((s) => s.currentUser);
+  const { data: status } = useMyStatusQuery();
+  return useMemo(() => (status ? { ...user, status } : user), [user, status]);
+}

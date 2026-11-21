@@ -288,6 +288,14 @@ describe('HomeView', () => {
       await waitFor(() => expect(sidebar.getByRole('button', { name: /Sofia Rossi/ }).textContent).not.toContain('sin leer'));
     });
 
+    it('el encabezado muestra la presencia del otro', async () => {
+      const { sidebar } = renderHome();
+      await open(sidebar, /Martín Méndez/);
+
+      const header = (await screen.findByRole('heading', { level: 1, name: 'Martín Méndez' })).closest('header')!;
+      await waitFor(() => expect(header.textContent).toContain('Ausente/'));
+    });
+
     it('lo que llega con el chat abierto se ve y no suma no leídos', async () => {
       const { sidebar, mock } = renderHome();
       await open(sidebar, /Martín Méndez/);

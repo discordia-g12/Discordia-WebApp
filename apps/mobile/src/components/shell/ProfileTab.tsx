@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { View } from 'react-native'
-import { updateMyProfile, type Status } from '@discordia/core'
+import { toPreferredStatus, updateMyProfile, useSetMyStatusMutation, type Status } from '@discordia/core'
 import { makeStyles } from '../../theme'
 import { ActionLink, Choice, SquareAvatar, Text, UnderlineInput } from '../../ui'
 import { useAuth, useUI } from '../../providers/AppProviders'
@@ -38,8 +38,8 @@ interface ProfileTabProps {
 }
 
 /**
- * Perfil (el menú de la barra de usuario del escritorio): quién sos, presencia (solo para esta sesión,
- * como en la web), estado personalizado (se guarda en el perfil) y los atajos.
+ * Perfil (el menú de la barra de usuario del escritorio): quién sos, presencia (la guarda Chat-Engine),
+ * estado personalizado (se guarda en el perfil) y los atajos.
  */
 export function ProfileTab({ user, inCall, onEditProfile, onOpenSettings, onLogout }: ProfileTabProps) {
   const styles = useStyles()
@@ -50,9 +50,13 @@ export function ProfileTab({ user, inCall, onEditProfile, onOpenSettings, onLogo
   const presence = user.status === 'offline' ? 'invisible' : user.status
   const customChanged = customStatus.trim() !== (user.customStatus ?? '')
 
-  // La presencia todavía no se guarda en el backend: vale para la sesión (la ven los datos locales)
+  const setMyStatus = useSetMyStatusMutation()
+
+  // Se ve al instante; si Chat-Engine no la guarda, vuelve a la anterior
   const changePresence = (status: Status) => {
-    if (userProfile) updateUserProfile({ ...userProfile, activity_status: status })
+    setMyStatus.mutate(toPreferredStatus(status), {
+      onError: () => showToast('No se pudo cambiar el estado', 'error'),
+    })
   }
 
   const saveCustomStatus = async (value: string) => {

@@ -4,7 +4,8 @@ import { useUIStore } from './uiStore';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
 import { useCanInCurrentServer } from '../features/servers/useServerPermission';
 import { useUpdateServer } from '../features/servers/serverActions';
-import { useCurrentUser, useCurrentUserStore } from '../features/profile/currentUserStore';
+import { useCurrentUser } from '../features/profile/currentUserStore';
+import { useSaveOwnProfile } from '../features/profile/profileActions';
 
 // Las tres pantallas van en chunks aparte (no hacen falta para el primer pintado) y se precargan cuando el
 // navegador queda libre, así al abrirlas ya están. Cada una con su Suspense (con la key que mira
@@ -32,7 +33,7 @@ export function FullScreenViews() {
   const setAppView = useUIStore((s) => s.setAppView);
   const { currentServer } = useCurrentServer();
   const currentUser = useCurrentUser();
-  const saveProfile = useCurrentUserStore((s) => s.saveProfile);
+  const saveProfile = useSaveOwnProfile();
   const updateServer = useUpdateServer();
   const canInvite = useCanInCurrentServer()('CREATE_INSTANT_INVITE');
   const close = () => setAppView('chat');

@@ -75,3 +75,13 @@ describe('saveProfile (currentUserStore)', () => {
     expect(current.displayName).toBe('Mar');
   });
 });
+
+describe('syncFromProfile (currentUserStore)', () => {
+  it('no toma el status del perfil: el activity_status de Auth no es la presencia', () => {
+    useCurrentUserStore.setState({ currentUser: me });
+
+    useCurrentUserStore.getState().syncFromProfile({ id: 'me', username: 'mar', displayName: 'Mar M.', status: 'offline' });
+
+    expect(useCurrentUserStore.getState().currentUser).toMatchObject({ displayName: 'Mar M.', status: 'online' });
+  });
+});

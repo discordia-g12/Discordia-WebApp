@@ -401,12 +401,15 @@ describe('cámara en la llamada', () => {
       hangUp: vi.fn(async () => {}),
       dismiss: vi.fn(),
     };
+    // El panel muestra al usuario propio (useCurrentUser lee su estado de React Query). El wrapper sigue en rerender
+    const client = new QueryClient();
     const result = render(
       <VoiceContext.Provider value={voice}>
         <CallContext.Provider value={value}>
           <CallPanel conversationId="dm-u1" peer={USERS.u1} />
         </CallContext.Provider>
-      </VoiceContext.Provider>
+      </VoiceContext.Provider>,
+      { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> }
     );
     return { ...result, toggleCamera, toggleScreenShare };
   }
