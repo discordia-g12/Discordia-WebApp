@@ -42,7 +42,7 @@ export function useServerSettingsState(props: ServerSettingsProps) {
   // Overview Tab States
   const [serverName, setServerName] = useState(serverState.name);
   const [serverDescription, setServerDescription] = useState(serverState.description || '');
-  const [serverIcon, setServerIcon] = useState(serverState.iconUrl || serverState.icon || '');
+  const [serverIcon, setServerIcon] = useState(serverState.iconUrl || '');
   const [iconBusy, setIconBusy] = useState(false);
   const [iconError, setIconError] = useState<string | null>(null);
   const serverIconActions = useServerIcon();

@@ -233,7 +233,7 @@ export interface ServerBackendResponse {
   owner_id: string;
   description?: string | null;
   icon_url?: string | null;
-  /** Banner 16:9 (960x540). Lo muestra la franja del servidor en la barra, en lugar del ícono. */
+  /** Banner 16:9 (960x540). Es el fondo de la franja del servidor en la barra; el ícono va encima. */
   banner_url?: string | null;
   created_at: string;
   /** Permisos efectivos del usuario que pide (bitmask, mismos bits que los roles). */
@@ -302,7 +302,6 @@ export interface Server {
   ownerId: string;
   /** Permisos del usuario actual en el servidor (ids de PERMISSION_BITS). Ver canInServer. */
   myPermissions?: string[];
-  icon?: string;
   iconUrl?: string;
   banner?: string;
   color?: string;

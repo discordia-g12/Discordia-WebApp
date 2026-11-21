@@ -6,7 +6,7 @@ import {
   usePublicProfileQuery,
   type PublicProfile,
 } from '@discordia/core';
-import { ActionLink, EmptyState, Modal, ModalActions, Skeleton, SquareAvatar } from '../../ui';
+import { ActionLink, EmptyState, Modal, ModalActions, ServerIcon, Skeleton, SquareAvatar } from '../../ui';
 import { openDirectChat } from '../friends/openDirectChat';
 import { profileToUser } from '../friends/profileUser';
 import { relationshipLinks, useRelationshipActions } from '../friends/useRelationshipActions';
@@ -141,7 +141,10 @@ function MutualServers({ userId }: { userId: string }) {
       ) : servers?.length ? (
         <ul className={styles.servers}>
           {servers.map((server) => (
-            <li key={server.id}>{server.name}</li>
+            <li key={server.id} className={styles.server}>
+              <ServerIcon server={server} size="sm" />
+              {server.name}
+            </li>
           ))}
         </ul>
       ) : (

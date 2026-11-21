@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { makeStyles } from '../theme'
 import { Search, Settings } from 'lucide-react-native'
-import { Background, ConnectionBanner, EmptyState, IconButton, Skeleton, ActionLink, Text, keyboardAvoidingBehavior } from '../ui'
+import { Background, ConnectionBanner, EmptyState, IconButton, ServerIcon, Skeleton, ActionLink, Text, keyboardAvoidingBehavior } from '../ui'
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
@@ -716,7 +716,7 @@ export default function MobileShell() {
     // Va antes del chat y la voz: si tenía un canal abierto cuando llegó la suspensión, también se reemplaza
     if (server?.isSuspended) {
       return (
-        <Screen title={server.name} tinted>
+        <Screen title={server.name} tinted leading={<ServerIcon server={server} size="md" />}>
           <Padded>
             <View style={styles.suspendedTag}>
               <Text variant="meta" tone="onDanger" bold>
@@ -794,7 +794,7 @@ export default function MobileShell() {
     }
 
     return (
-      <Screen title={server?.name ?? 'Servidores'} tinted scroll={false}>
+      <Screen title={server?.name ?? 'Servidores'} tinted scroll={false} leading={server && <ServerIcon server={server} size="md" />}>
         {server ? (
           <>
             <ServerMenu onInvite={canInvite ? () => setInviteModalOpen(true) : undefined} items={serverMenuItems} />

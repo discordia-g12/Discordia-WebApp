@@ -121,7 +121,7 @@ export function useServerIcon() {
 
   const apply = (updated: Server) => {
     queryClient.setQueryData<Server[]>(['servers'], (prev = []) =>
-      prev.map((s) => (s.id === updated.id ? { ...s, iconUrl: updated.iconUrl, icon: updated.icon } : s))
+      prev.map((s) => (s.id === updated.id ? { ...s, iconUrl: updated.iconUrl } : s))
     );
     return updated.iconUrl;
   };

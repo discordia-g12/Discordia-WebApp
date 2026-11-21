@@ -23,6 +23,8 @@ import {
   createServer as apiCreateServer,
   updateServerIcon as apiUpdateServerIcon,
   removeServerIcon as apiRemoveServerIcon,
+  updateServerBanner as apiUpdateServerBanner,
+  removeServerBanner as apiRemoveServerBanner,
   createChannel as apiCreateChannel,
   editChannel as apiEditChannel,
   deleteChannel as apiDeleteChannel,
@@ -53,6 +55,8 @@ interface DataContextValue {
   createServer: (name: string, icon?: UploadableFile) => Promise<Server>
   /** Cambia el ícono (o lo quita con null) y aplica la URL que devuelve la API. Rechaza con el ApiError. */
   setServerIcon: (serverId: string, icon: UploadableFile | null) => Promise<void>
+  /** Cambia el banner (null lo quita) y actualiza la lista de servidores con el que devuelve la API. */
+  setServerBanner: (serverId: string, banner: UploadableFile | null) => Promise<void>
   createChannel: (
     serverId: string,
     data: { name: string; type: 'text' | 'voice'; categoryId?: string },
@@ -741,7 +745,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const setServerIcon = useCallback(async (serverId: string, icon: UploadableFile | null): Promise<void> => {
     const updated = icon ? await apiUpdateServerIcon(serverId, icon) : await apiRemoveServerIcon(serverId)
     // Solo el ícono: el resto del servidor (canales, categorías) ya está al día en la lista
-    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, iconUrl: updated.iconUrl, icon: updated.icon } : srv)))
+    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, iconUrl: updated.iconUrl } : srv)))
+  }, [])
+
+  const setServerBanner = useCallback(async (serverId: string, banner: UploadableFile | null): Promise<void> => {
+    const updated = banner ? await apiUpdateServerBanner(serverId, banner) : await apiRemoveServerBanner(serverId)
+    // Solo el banner, como el ícono
+    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, banner: updated.banner } : srv)))
   }, [])
 
   const value = useMemo<DataContextValue>(
@@ -756,6 +766,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       refreshServers,
       createServer,
       setServerIcon,
+      setServerBanner,
       createChannel,
       editChannel,
       deleteChannel,
@@ -786,6 +797,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       refreshServers,
       createServer,
       setServerIcon,
+      setServerBanner,
       createChannel,
       editChannel,
       deleteChannel,

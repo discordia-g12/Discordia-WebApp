@@ -10,7 +10,7 @@ import {
 } from '@discordia/core'
 import { useRelationshipActions } from '../../hooks/useRelationshipActions'
 import { makeStyles } from '../../theme'
-import { ActionLink, BlockButton, EmptyState, Modal, Skeleton, SquareAvatar, Text } from '../../ui'
+import { ActionLink, BlockButton, EmptyState, Modal, ServerIcon, Skeleton, SquareAvatar, Text } from '../../ui'
 
 interface PublicProfileModalProps {
   /** El usuario a mostrar; null: cerrado. */
@@ -104,9 +104,12 @@ function ProfileDetails({
           <ActionLink onPress={() => mutualServers.refetch()}>reintentar</ActionLink>
         ) : mutualServers.data?.length ? (
           mutualServers.data.map(server => (
-            <Text key={server.id} variant="bodySmall">
-              •{server.name}
-            </Text>
+            <View key={server.id} style={styles.server}>
+              <ServerIcon server={server} size="sm" />
+              <Text variant="bodySmall" numberOfLines={1} style={styles.flex}>
+                {server.name}
+              </Text>
+            </View>
           ))
         ) : (
           <Text variant="meta" tone="muted">
@@ -195,5 +198,6 @@ const useStyles = makeStyles(t => ({
   flex: { flex: 1, gap: t.space[1] },
   identity: { flexDirection: 'row', alignItems: 'center', gap: t.space[4] },
   block: { gap: t.space[2] },
+  server: { flexDirection: 'row', alignItems: 'center', gap: t.space[2] },
   links: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: t.space[5], rowGap: t.space[3] },
 }))

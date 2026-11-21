@@ -20,14 +20,28 @@ const EXTENSION_BY_MIME: Record<string, string> = { 'image/jpeg': 'jpg', 'image/
  * Abre la galería para elegir una imagen cuadrada (avatar o ícono de servidor) y revisa formato y tamaño
  * con las mismas reglas que la web y el backend. null si se canceló.
  */
-export async function pickSquareImage(defaultName: string): Promise<PickResult> {
+export function pickSquareImage(defaultName: string): Promise<PickResult> {
+  return pickImage(defaultName, { allowsEditing: true, aspect: [1, 1] })
+}
+
+/**
+ * Lo mismo para un banner 16:9. El recorte con proporción solo existe en Android: en iOS el recorte del
+ * selector es siempre cuadrado, así que ahí (y en la web) se sube entera y Server-Roles la recorta al centro.
+ */
+export function pickBannerImage(defaultName: string): Promise<PickResult> {
+  return pickImage(defaultName, Platform.OS === 'android' ? { allowsEditing: true, aspect: [16, 9] } : {})
+}
+
+async function pickImage(
+  defaultName: string,
+  crop: Pick<ImagePicker.ImagePickerOptions, 'allowsEditing' | 'aspect'>
+): Promise<PickResult> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
   if (!permission.granted) return { error: 'Necesitamos acceso a tus fotos para elegir una imagen.' }
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
-    allowsEditing: true,
-    aspect: [1, 1],
+    ...crop,
     quality: 0.8,
   })
   if (result.canceled) return null

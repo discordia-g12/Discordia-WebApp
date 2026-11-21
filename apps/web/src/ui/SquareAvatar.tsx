@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { layout } from '@discordia/tokens';
 import type { Status, User } from '../types';
+import { initials } from './initials';
 import styles from './SquareAvatar.module.css';
 
 interface SquareAvatarProps {
@@ -18,11 +19,6 @@ const STATUS_LABEL: Record<Status, string> = {
   offline: 'Desconectado',
   invisible: 'Invisible',
 };
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)).toUpperCase();
-}
 
 /** Avatar cuadrado: la foto, o las iniciales sobre un bloque invertido si no hay foto (o no carga). */
 export function SquareAvatar({ user, size = 'md', status }: SquareAvatarProps) {
