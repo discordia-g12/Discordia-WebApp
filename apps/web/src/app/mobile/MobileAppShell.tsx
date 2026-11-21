@@ -108,6 +108,7 @@ export function MobileAppShell() {
           isLoading={isLoadingServers}
           onSelect={pickServer}
           onAdd={() => useUIStore.getState().setActiveModal('create-server')}
+          onHome={() => goTo('messages')}
         />
       )}
 
@@ -193,25 +194,27 @@ export function MobileAppShell() {
   );
 }
 
-/** Tira de servidores de arriba: el logo, las franjas (se desliza de costado) y crear. */
+/** Tira de servidores de arriba: el logo (va al inicio: Mensajes), las franjas (se desliza de costado) y crear. */
 function ServerTabsRow({
   servers,
   selectedServerId,
   isLoading,
   onSelect,
   onAdd,
+  onHome,
 }: {
   servers: ReturnType<typeof useCurrentServer>['servers'];
   selectedServerId: string;
   isLoading: boolean;
   onSelect: (serverId: string) => void;
   onAdd: () => void;
+  onHome: () => void;
 }) {
   return (
     <nav className={styles.strips} aria-label="Servidores">
-      <span className={styles.logo}>
+      <button type="button" className={styles.logo} onClick={onHome}>
         <Logo size={18} />
-      </span>
+      </button>
       <ul className={styles.stripList} aria-busy={isLoading || undefined}>
         {servers.map((server) => (
           <li key={server.id}>

@@ -40,8 +40,14 @@ export function ServerRail({
 
   return (
     <nav className={styles.rail} aria-label="Servidores y mensajes directos">
+      {/* El logo lleva al inicio (mensajes directos), como la casita del pie */}
       <div className={styles.logo}>
-        <Logo size={22} />
+        <button
+          type="button"
+          onClick={() => onSelectServer('home')}
+        >
+          <Logo size={22} />
+        </button>
       </div>
 
       <ul className={styles.strips} aria-busy={isLoading || undefined}>
