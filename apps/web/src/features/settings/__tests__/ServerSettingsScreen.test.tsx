@@ -180,6 +180,20 @@ describe('ServerSettingsScreen (rediseño)', () => {
       expect(((init.body as FormData).get('banner') as File).name).toBe('banner.png');
     });
 
+    it('muestra cómo queda la franja de la barra, sin que se pueda tocar', async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+        String(input).endsWith('/banner') && init?.method === 'PUT' ? json(rawServer(NEW_BANNER)) : json([])
+      );
+      renderSettings();
+      const region = screen.getByRole('region', { name: 'Banner' });
+      const preview = region.querySelector('[inert]');
+      expect(preview?.querySelector('img')).toBeNull();
+
+      fireEvent.change(cell().getByLabelText('_cambiar banner'), { target: { files: [png()] } });
+
+      await waitFor(() => expect(preview?.querySelector('img')?.getAttribute('src')).toBe(NEW_BANNER));
+    });
+
     it('_quitar banner lo borra', async () => {
       fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
         String(input).endsWith('/banner') && init?.method === 'DELETE' ? json(rawServer(null)) : json([])

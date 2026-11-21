@@ -20,7 +20,7 @@ import {
 } from '@discordia/core';
 import type { MemberActions, OverrideState } from '@discordia/core';
 import type { Category, Channel, ChannelType, Role, Server, ServerMember } from '../../../types';
-import { ActionLink, BlockButton, ConfirmDialog, EmptyState, ServerIcon, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
+import { ActionLink, BlockButton, ConfirmDialog, EmptyState, ServerIcon, ServerStrip, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
 import { useServerMembersAdmin } from '../../moderation/useServerMembersAdmin';
 import { useServerBansAdmin } from '../../moderation/useServerBansAdmin';
 import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen';
@@ -172,7 +172,7 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
         )}
       </SettingsCell>
 
-      {/* Banner: la franja del servidor en la barra lo muestra en lugar del ícono. Mismo flujo que el ícono */}
+      {/* Banner: el fondo de la franja del servidor en la barra, con el ícono encima. Mismo flujo que el ícono */}
       <SettingsCell title="Banner">
         <div className={styles.bannerPreview}>
           {s.serverBanner ? (
@@ -182,6 +182,10 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
           )}
         </div>
         <div className={styles.iconRow}>
+          {/* Cómo queda en la barra de servidores: solo para ver, no se puede tocar */}
+          <div inert className={styles.stripPreview}>
+            <ServerStrip server={{ name: s.serverName, iconUrl: s.serverIcon, banner: s.serverBanner }} />
+          </div>
           <FileAction
             label={s.bannerBusy ? 'subiendo…' : 'cambiar banner'}
             accept={IMAGE_UPLOAD_ACCEPT}

@@ -287,7 +287,7 @@ export async function updateServerBanner(serverId: string, banner: UploadableFil
   return mapServerFromBackend(rawServer);
 }
 
-/** Quita el banner (la franja vuelve a mostrar el ícono). */
+/** Quita el banner (la franja queda con su color, y el ícono encima). */
 export async function removeServerBanner(serverId: string): Promise<Server> {
   return mapServerFromBackend(await api.delete<ServerBackendResponse>(`/api/v1/servers/${serverId}/banner`));
 }
