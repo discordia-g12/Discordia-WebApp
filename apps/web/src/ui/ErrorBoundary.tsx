@@ -2,8 +2,11 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
-  /** Lo que se muestra en lugar de lo que falló (por ejemplo, una ErrorPage con "Recargar"). */
-  fallback: (error: Error) => ReactNode;
+  /**
+   * Lo que se muestra en lugar de lo que falló (por ejemplo, una ErrorPage con "Recargar"). `reset` vuelve a
+   * montar lo de adentro: sirve donde no se puede recargar la página (mobile).
+   */
+  fallback: (error: Error, reset: () => void) => ReactNode;
   /** Para registrar el error (consola, y más adelante un servicio de errores). */
   onError?: (error: Error, info: ErrorInfo) => void;
 }
@@ -28,7 +31,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     this.props.onError?.(error, info);
   }
 
+  private reset = (): void => {
+    this.setState({ error: null });
+  };
+
   render(): ReactNode {
-    return this.state.error ? this.props.fallback(this.state.error) : this.props.children;
+    return this.state.error ? this.props.fallback(this.state.error, this.reset) : this.props.children;
   }
 }

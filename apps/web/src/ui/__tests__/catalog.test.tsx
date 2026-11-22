@@ -56,6 +56,25 @@ describe('ErrorBoundary', () => {
     consoleError.mockRestore();
   });
 
+  it('reset vuelve a montar lo de adentro', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let broken = true;
+    function MaybeBroken() {
+      if (broken) throw new Error('se rompió');
+      return <p>de vuelta</p>;
+    }
+    render(
+      <ErrorBoundary fallback={(_error, reset) => <button onClick={reset}>reintentar</button>}>
+        <MaybeBroken />
+      </ErrorBoundary>
+    );
+
+    broken = false;
+    fireEvent.click(screen.getByRole('button', { name: 'reintentar' }));
+    expect(screen.getByText('de vuelta')).toBeTruthy();
+    consoleError.mockRestore();
+  });
+
   it('sin error muestra lo de adentro', () => {
     render(
       <ErrorBoundary fallback={() => <p>falló</p>}>
