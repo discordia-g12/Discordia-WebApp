@@ -169,7 +169,7 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 
 | # | Pasos | Esperado |
 |---|---|---|
-| M28 | Perfil → presencia y estado personalizado | La presencia cambia en la sesión; el estado se guarda (`_guardar` / `_quitar`) |
+| M28 | Perfil → presencia y estado personalizado | La presencia se guarda (sigue al volver a entrar y la ven los demás); el estado se guarda (`_guardar` / `_quitar`) |
 | M29 | Perfil → `_editar perfil` | Elegir avatar de la galería, nombre y bio; se guarda con aviso. El avatar nuevo sigue después de cerrar sesión y volver a entrar (y se ve igual en la web) |
 | M30 | Perfil → `_ajustes` → Experiencia → tema | Cambia al instante; cerrar la app y abrirla lo conserva. "Sistema" sigue al modo del teléfono |
 | M31 | Ajustes del servidor (como W22–W25) | Mismas reglas que la web; el menú se desliza hasta la sección elegida |
@@ -190,7 +190,7 @@ En el navegador (Expo web) la voz no funciona: sirve para revisar pantallas, no 
 
 - **Ambas:** amigos, mensajes directos y avisos (no hay backend); identidad del servidor (no hay
   `PATCH /servers/{id}`), ícono al crear un servidor; contraseña y dos factores; permiso "Ver registro de
-  auditoría" (sin bit en el backend); presencia, que vale solo para la sesión.
+  auditoría" (sin bit en el backend).
 - **Web:** moderación, notificaciones, emojis y mejoras del servidor; notificaciones, voz y factura del
   usuario; banner del perfil.
 - **Mobile:** cámara y pantalla compartida (la voz es solo audio); los ajustes de usuario y de servidor tienen

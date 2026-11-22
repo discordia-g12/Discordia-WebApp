@@ -13,6 +13,7 @@ import {
   useChannelMessagesQuery,
   useConversationsQuery,
   useConversationWithQuery,
+  usePresenceQuery,
   usePublicProfileQuery,
   useStartConversationMutation,
   type Conversation,
@@ -77,10 +78,12 @@ export function useDirectChat(userId: string) {
     }
   };
 
+  const { data: presence } = usePresenceQuery([userId]);
+
   return {
     profile,
     /** Con quién es el chat, aunque su perfil no esté disponible (cuenta suspendida). */
-    user: profile ? profileToUser(profile) : { ...userOrFallback(userId), status: 'offline' as const },
+    user: profile ? profileToUser(profile, presence) : { ...userOrFallback(userId), status: 'offline' as const },
     conversation,
     actions,
     messages,

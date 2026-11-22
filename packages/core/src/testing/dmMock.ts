@@ -1,6 +1,7 @@
 import { ApiError } from '../api/errors';
 import { isConversationId } from '../api/conversations';
 import type { ApiMock } from '../api/mock';
+import type { PreferredStatus } from '../api/presence';
 import type { InboxEvent } from '../realtime/inboxSocket';
 import type { Conversation, FriendRequest, Message, MessageAttachment, PublicProfile, Relationship } from '../types';
 import { createCallMock, type CallMock, type CallMockOptions } from './callMock';
@@ -34,6 +35,8 @@ export type DmMock = Required<
     | 'acceptConversation'
     | 'declineConversation'
     | 'getPresence'
+    | 'getMyStatus'
+    | 'setMyStatus'
     | 'getMessages'
     | 'sendMessage'
     | 'setMessagePinned'
@@ -90,6 +93,7 @@ export function createDmMock({ blockedBy = [], ...callOptions }: DmMockOptions =
   const blockers = new Set(blockedBy);
   const listeners = new Set<(event: InboxEvent) => void>();
   let sequence = 0;
+  let myStatus: PreferredStatus = 'online';
 
   let requests: PendingFriendRequest[] = [
     {
@@ -370,9 +374,22 @@ export function createDmMock({ blockedBy = [], ...callOptions }: DmMockOptions =
     },
 
     async getPresence(userIds) {
+      // Como Chat-Engine: invisible figura desconectado
       return Object.fromEntries(
-        userIds.map((id) => [id, USERS[id] && USERS[id].status !== 'offline' ? 'online' : 'offline'])
+        userIds.map((id) => {
+          const status = USERS[id]?.status;
+          return [id, !status || status === 'invisible' ? 'offline' : status];
+        })
       );
+    },
+
+    async getMyStatus() {
+      return myStatus;
+    },
+
+    async setMyStatus(status) {
+      myStatus = status;
+      return myStatus;
     },
 
     async getMessages(channelId, { before, limit = MESSAGES_PAGE_SIZE } = {}) {

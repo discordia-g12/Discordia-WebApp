@@ -42,6 +42,7 @@ export * from './hooks/useChatSocket';
 export * from './hooks/inboxCache';
 export * from './hooks/useFriends';
 export * from './hooks/useConversations';
+export * from './hooks/useMyStatus';
 export * from './hooks/useInbox';
 
 // Ajustes del servidor: roles, miembros y baneos (estado y reglas compartidos)

@@ -12,6 +12,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { User, Server, Category, Channel, Message, MessageAttachment, MessageBackendPayload, Reaction } from '../types'
 import { useAuth } from './AuthProvider'
 import {
+  useMyStatusQuery,
   getMessages,
   MESSAGES_PAGE_SIZE,
   getServers,
@@ -120,6 +121,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [messages])
   const loadingOlderRef = useRef(new Set<string>())
 
+  // Estado elegido por el usuario (lo guarda Chat-Engine). El activity_status del perfil no se usa
+  const { data: myStatus } = useMyStatusQuery()
+
   // Sincronizar el perfil del usuario autenticado en el diccionario de usuarios
   useEffect(() => {
     if (!userProfile) return
@@ -128,7 +132,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       username: userProfile.username,
       displayName: userProfile.display_name || userProfile.username,
       avatar: userProfile.avatar_url || undefined,
-      status: (userProfile.activity_status as User['status']) || 'online',
+      status: myStatus ?? 'online',
       customStatus: userProfile.custom_status,
       bio: userProfile.bio,
     }
@@ -137,7 +141,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       [userProfile.id]: profileUser,
       ...(userProfile.user_id ? { [userProfile.user_id]: profileUser } : {}),
     }))
-  }, [userProfile])
+  }, [userProfile, myStatus])
 
   // Carga y sincronización de servidores desde el backend
   const refreshServers = useCallback(async () => {

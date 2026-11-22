@@ -40,7 +40,8 @@ function toUserProfile(res: UserBackendResponse): UserProfile {
     displayName: res.display_name || res.username,
     display_name: res.display_name || res.username,
     avatar: res.avatar_url || res.avatar,
-    status: (res.activity_status === 'offline' ? 'offline' : (res.activity_status || 'online')) as Status,
+    // activity_status de Auth no se actualiza: la presencia sale de Chat-Engine (getPresence / getMyStatus)
+    status: 'offline' as Status,
   };
 }
 
