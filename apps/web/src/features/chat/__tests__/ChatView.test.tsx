@@ -362,6 +362,48 @@ describe('ChatView (rediseño)', () => {
     expect(screen.queryByRole('button', { name: 'Buscar mensajes' })).toBeNull();
   });
 
+  it('en un DM, buscar abre la búsqueda de la conversación y elegir un resultado va a ese mensaje', async () => {
+    const actions = dmActions({ relationship: 'friend', conversation: { id: 'dm-1', status: 'accepted', requestedBy: 'u2', otherUserId: 'u2', unreadCount: 0 } });
+    const onAction = vi.fn();
+    render(
+      <ChatView
+        directChat={{ conversationId: 'dm-1', user: { ...users.u2, status: 'online' } }}
+        directHeader={{
+          layout: (pinned) => dmHeaderActions({ name: 'lbars', actions, hasConversation: true, pinned, search: true }),
+          onAction,
+        }}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        renderDirectSearch={({ onClose, onJump }) => (
+          <div role="dialog" aria-label="Buscar en el DM">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onJump('m1');
+              }}
+            >
+              resultado
+            </button>
+          </div>
+        )}
+      />
+    );
+
+    const header = within(screen.getByRole('navigation', { name: 'Acciones del chat' }));
+    fireEvent.click(header.getByRole('button', { name: 'Buscar mensajes con lbars' }));
+    // La resuelve la vista, no onAction
+    expect(onAction).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('dialog', { name: 'Buscar en el DM' })).getByRole('button', { name: 'resultado' }));
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Buscar en el DM' })).toBeNull();
+    expect(document.querySelector('[data-message-id="m1"]')!.className).toContain('highlighted');
+  });
+
   it('en un DM el encabezado tiene íconos (dmHeaderActions) y el menú "más", sin lista de miembros', () => {
     const onOpenUserProfile = vi.fn();
     const onAction = vi.fn();

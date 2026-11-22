@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Bell, BellOff, Paperclip, Pin, Search, Smile, Users } from 'lucide-react';
 import { distances } from '@discordia/tokens';
 import { JUMP_LOAD_FAILED_MESSAGE, JUMP_NOT_FOUND_MESSAGE } from '@discordia/core';
@@ -89,6 +90,11 @@ export interface ChatViewProps {
   isMemberListOpen?: boolean;
   /** Abre la búsqueda de mensajes del servidor. Sin esto (DMs) no se muestra el botón. */
   onOpenSearch?: () => void;
+  /**
+   * Búsqueda dentro del DM (acción `search` del encabezado): qué mostrar mientras está abierta. Recibe cómo
+   * cerrarla y cómo ir a un mensaje (el mismo salto de los fijados).
+   */
+  renderDirectSearch?: (controls: { onClose: () => void; onJump: (messageId: string) => void }) => ReactNode;
   /**
    * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: el input queda
    * deshabilitado y se muestra esto. null o sin definir: se puede escribir.
@@ -362,6 +368,9 @@ export function ChatView(props: ChatViewProps) {
   });
   const names = useMentionNames(users, props.mentionables?.roles);
   const myRoleIds = props.mentionables?.myRoleIds;
+  // Chat para el que se abrió la búsqueda del DM: al cambiar de conversación deja de estar abierta sola
+  const [directSearchKey, setDirectSearchKey] = useState<string | null>(null);
+  const isDirectSearchOpen = directSearchKey === chatKey;
 
   return (
     <div className={styles.chat}>
@@ -378,6 +387,7 @@ export function ChatView(props: ChatViewProps) {
                 layout={directHeader.layout({ count: chat.pinnedMessages.length, open: chat.isPinnedPanelOpen })}
                 onAction={(id) => {
                   if (id === 'pins') chat.setIsPinnedPanelOpen((v) => !v);
+                  else if (id === 'search') setDirectSearchKey(chatKey);
                   else if (id === 'profile') onOpenUserProfile?.(directChat.user.id);
                   else directHeader.onAction(id);
                 }}
@@ -408,6 +418,18 @@ export function ChatView(props: ChatViewProps) {
       </header>
 
       {props.banner}
+
+      {/* En el body: .chat es un container query y encerraría al modal (position: fixed) en el área del chat */}
+      {createPortal(
+        <AnimatePresence>
+          {isDirectSearchOpen &&
+            props.renderDirectSearch?.({
+              onClose: () => setDirectSearchKey(null),
+              onJump: (messageId) => void jump.jumpTo(messageId),
+            })}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {chat.isPinnedPanelOpen && (
         <PinnedPanel

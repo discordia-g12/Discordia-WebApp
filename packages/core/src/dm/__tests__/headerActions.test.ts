@@ -66,6 +66,25 @@ describe('dmHeaderActions', () => {
     expect(ids(layout('friend', { pinned: undefined, showProfile: false }).icons)).toEqual(['call']);
   });
 
+  it('buscar va último, solo si la plataforma lo ofrece y ya hay conversación', () => {
+    expect(ids(layout('friend', { search: true }).icons)).toEqual(['call', 'pins', 'profile', 'search']);
+    expect(ids(layout('friend').icons)).not.toContain('search');
+    expect(ids(layout('friend', { search: true, hasConversation: false }).icons)).not.toContain('search');
+    expect(layout('friend', { search: true }).icons.find((a) => a.id === 'search')?.label).toBe('Buscar mensajes con Ana');
+  });
+
+  it('en pantallas angostas buscar es lo primero que pasa al menú: aceptar amistad o desbloquear quedan a la vista', () => {
+    const compact = { search: true, maxIcons: DM_HEADER_COMPACT_ICONS };
+    // Mobile (perfil tocando el nombre), entre amigos: entra
+    expect(ids(layout('friend', { ...compact, showProfile: false }).icons)).toEqual(['call', 'pins', 'search']);
+    // Solicitud recibida: aceptar se queda a la vista y buscar va al principio del menú
+    const received = layout('request_received', { ...compact, showProfile: false });
+    expect(ids(received.icons)).toEqual(['call', 'pins', 'accept-friend']);
+    expect(ids(received.menu)[0]).toBe('search');
+    // Bloqueado: desbloquear sigue a la vista
+    expect(ids(layout('blocked', compact).icons)).toContain('unblock');
+  });
+
   it('fijados: cantidad y estado del panel', () => {
     const pins = layout('friend', { pinned: { count: 2, open: true } }).icons.find((a) => a.id === 'pins');
     expect(pins).toMatchObject({ badge: 2, pressed: true });
