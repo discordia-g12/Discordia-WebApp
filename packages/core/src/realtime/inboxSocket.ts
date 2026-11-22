@@ -2,8 +2,10 @@ import { getClientConfig, getWsBaseUrl, notifyAccountSuspended } from '../api/cl
 import { ACCOUNT_SUSPENDED_CLOSE_CODE } from '../api/errors';
 import { getApiMock } from '../api/mock';
 import type { Call } from '../api/calls';
+import type { PreferredStatus, PresenceStatus } from '../api/presence';
 import type { Conversation, MessageBackendPayload } from '../types';
 import { reconnectDelayMs, type ChatSocketStatus } from './chatSocket';
+import { getWatchedIds, isPresenceInactive, subscribePresenceSync } from './presenceSync';
 
 /** Mismos estados que el chat, salvo `removed`: del inbox nunca sacan a nadie. */
 export type InboxSocketStatus = Exclude<ChatSocketStatus, 'removed'>;
@@ -22,13 +24,25 @@ export type InboxEvent =
   /** Llamada privada (Voice publica por Chat a los dos participantes, el mismo `call` para ambos). */
   | { type: 'CALL_RINGING'; call: Call }
   | { type: 'CALL_ACCEPTED'; call: Call }
-  | { type: 'CALL_ENDED'; call: Call };
+  | { type: 'CALL_ENDED'; call: Call }
+  /** Cambió la presencia de alguien que se sigue (PRESENCE_SUBSCRIBE), con el id tal como se pidió. */
+  | { type: 'PRESENCE_UPDATE'; userId: string; status: PresenceStatus }
+  /** Respuesta a PRESENCE_SUBSCRIBE: el estado actual de los que se siguen. */
+  | { type: 'PRESENCE_SNAPSHOT'; statuses: Record<string, PresenceStatus> }
+  /** El usuario cambió su estado elegido desde otra sesión. */
+  | { type: 'MY_STATUS'; status: PreferredStatus };
 
 export type CallInboxEvent = Extract<InboxEvent, { type: 'CALL_RINGING' | 'CALL_ACCEPTED' | 'CALL_ENDED' }>;
 
 const CALL_EVENT_TYPES: ReadonlySet<unknown> = new Set(['CALL_RINGING', 'CALL_ACCEPTED', 'CALL_ENDED']);
 
 const nonEmptyString = (value: unknown) => typeof value === 'string' && value.length > 0;
+
+const PRESENCE_STATUSES: ReadonlySet<unknown> = new Set(['online', 'idle', 'dnd', 'offline']);
+const PREFERRED_STATUSES: ReadonlySet<unknown> = new Set(['online', 'idle', 'dnd', 'invisible']);
+
+/** Cada cuánto, como mucho, se le cuenta a Chat-Engine a quién se sigue (varias listas montan juntas). */
+export const PRESENCE_SYNC_DEBOUNCE_MS = 100;
 
 /** Lo mínimo para que la máquina de llamadas pueda decidir: ids, estado y vencimiento. */
 function isCall(value: unknown): value is Call {
@@ -65,8 +79,20 @@ export function isInboxEvent(data: {
   conversation?: unknown;
   serverId?: unknown;
   call?: unknown;
+  userId?: unknown;
+  status?: unknown;
+  statuses?: unknown;
 }): boolean {
   if (CALL_EVENT_TYPES.has(data.type)) return isCall(data.call);
+  if (data.type === 'PRESENCE_UPDATE') return nonEmptyString(data.userId) && PRESENCE_STATUSES.has(data.status);
+  if (data.type === 'PRESENCE_SNAPSHOT') {
+    return (
+      typeof data.statuses === 'object' &&
+      data.statuses !== null &&
+      Object.values(data.statuses).every((status) => PRESENCE_STATUSES.has(status))
+    );
+  }
+  if (data.type === 'MY_STATUS') return PREFERRED_STATUSES.has(data.status);
   if (data.type === 'SERVER_UPDATED' || data.type === 'SERVER_DELETED') {
     return typeof data.serverId === 'string' && data.serverId.length > 0;
   }
@@ -84,7 +110,8 @@ export function isInboxEvent(data: {
 /**
  * WebSocket del usuario: lo que le llega aunque no tenga esa conversación abierta. Reconecta igual que
  * openChatSocket, con backoff exponencial y un token nuevo en cada intento. El heartbeat es de protocolo:
- * lo responde solo el navegador o la app, y con eso Chat-Engine renueva la presencia.
+ * lo responde solo el navegador o la app, y con eso Chat-Engine renueva la presencia. Lo único que manda es
+ * a quién se sigue (PRESENCE_SUBSCRIBE) y si hay actividad (ACTIVITY), según presenceSync.
  */
 export function openInboxSocket(handlers: InboxSocketHandlers): InboxSocketConnection {
   const setStatus = (status: InboxSocketStatus) => handlers.onStatusChange?.(status);
@@ -107,6 +134,31 @@ export function openInboxSocket(handlers: InboxSocketHandlers): InboxSocketConne
   let hasConnectedBefore = false;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let socket: WebSocket | null = null;
+
+  // Lo último que se le mandó al socket actual (uno nuevo arranca sin seguir a nadie y con actividad)
+  let sentIds = '';
+  let sentInactive = false;
+  let syncTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const syncPresence = () => {
+    syncTimer = undefined;
+    const ws = socket;
+    if (!ws || ws.readyState !== 1) return;
+    const ids = getWatchedIds();
+    if (ids.join(',') !== sentIds) {
+      ws.send(JSON.stringify({ type: 'PRESENCE_SUBSCRIBE', userIds: ids }));
+      sentIds = ids.join(',');
+    }
+    const inactive = isPresenceInactive();
+    if (inactive !== sentInactive) {
+      ws.send(JSON.stringify({ type: 'ACTIVITY', idle: inactive }));
+      sentInactive = inactive;
+    }
+  };
+
+  const unsubscribePresence = subscribePresenceSync(() => {
+    if (syncTimer === undefined) syncTimer = setTimeout(syncPresence, PRESENCE_SYNC_DEBOUNCE_MS);
+  });
 
   const scheduleReconnect = () => {
     if (disposed) return;
@@ -136,6 +188,9 @@ export function openInboxSocket(handlers: InboxSocketHandlers): InboxSocketConne
 
     ws.onopen = () => {
       attempts = 0;
+      sentIds = '';
+      sentInactive = false;
+      syncPresence();
       setStatus('open');
       if (hasConnectedBefore) handlers.onReconnect?.();
       hasConnectedBefore = true;
@@ -187,6 +242,8 @@ export function openInboxSocket(handlers: InboxSocketHandlers): InboxSocketConne
     close() {
       disposed = true;
       clearTimeout(reconnectTimer);
+      clearTimeout(syncTimer);
+      unsubscribePresence();
       detachSocket();
       setStatus('closed');
     },

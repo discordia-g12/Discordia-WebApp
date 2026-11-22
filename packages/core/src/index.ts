@@ -30,6 +30,7 @@ export * from './api/friends';
 export * from './api/blocks';
 export * from './api/conversations';
 export * from './api/presence';
+export * from './realtime/presenceSync';
 export * from './api/calls';
 
 // Hooks de React (React Query y perfiles), los mismos en web y mobile

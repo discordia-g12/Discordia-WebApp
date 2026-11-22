@@ -11,6 +11,8 @@ import {
   type InboxSocketStatus,
 } from '../realtime/inboxSocket';
 import type { Conversation, Message } from '../types';
+import { applyPresence } from './useConversations';
+import { myStatusQueryKey } from './useMyStatus';
 import {
   applyConversationMessage,
   conversationsQueryKey,
@@ -68,6 +70,20 @@ export function useInbox({
       // Llamadas privadas: las procesa usePrivateCall
       if (isCallInboxEvent(event)) {
         publishCallEvent(event);
+        return;
+      }
+
+      // Presencia de quienes se muestran, y el estado propio cambiado desde otra sesión
+      if (event.type === 'PRESENCE_UPDATE') {
+        applyPresence(queryClient, { [event.userId]: event.status });
+        return;
+      }
+      if (event.type === 'PRESENCE_SNAPSHOT') {
+        applyPresence(queryClient, event.statuses);
+        return;
+      }
+      if (event.type === 'MY_STATUS') {
+        queryClient.setQueryData(myStatusQueryKey, event.status);
         return;
       }
 
