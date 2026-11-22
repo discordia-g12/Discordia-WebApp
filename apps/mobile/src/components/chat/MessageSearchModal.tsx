@@ -4,10 +4,12 @@ import {
   MESSAGE_SEARCH_MAX_LENGTH,
   formatMessageTime,
   mentionsToText,
+  useChannelMessageSearch,
   useMessageSearch,
   useRolesQuery,
   useServerMembersQuery,
   type Message,
+  type Role,
 } from '@discordia/core'
 import { makeStyles } from '../../theme'
 import { ActionLink, EmptyState, Modal, ModalActions, ModalForm, Skeleton, SquareAvatar, Text, UnderlineInput } from '../../ui'
@@ -30,29 +32,96 @@ interface MessageSearchModalProps {
  * miembros y resultados del más nuevo al más viejo. La lógica es la de useMessageSearch de core.
  */
 export default function MessageSearchModal({ visible, serverId, serverName, channels, onClose, onOpenMessage }: MessageSearchModalProps) {
-  const styles = useStyles()
   const search = useMessageSearch(visible ? serverId : null)
   const { data: membersData } = useServerMembersQuery(visible ? serverId : null)
   const { data: roles } = useRolesQuery(visible ? serverId : null)
-
   const memberIds = useMemo(() => membersData?.pages.flatMap(p => p.items.map(m => m.userId)) ?? [], [membersData])
-  // Nombre y avatar de miembros, autores y mencionados (los que la app no conoce se piden al backend)
+
+  return (
+    <SearchDialog
+      visible={visible}
+      search={search}
+      description={`en ${serverName}`}
+      scopeHint="en los canales que podés ver"
+      authorIds={memberIds}
+      channels={channels}
+      roles={roles ?? []}
+      onClose={onClose}
+      onOpenMessage={onOpenMessage}
+    />
+  )
+}
+
+interface DmMessageSearchModalProps {
+  visible: boolean
+  /** `dm-…` de la conversación abierta. */
+  conversationId: string
+  currentUserId: string
+  otherUserId: string
+  otherName: string
+  onClose: () => void
+  /** Se eligió un resultado: ir a ese mensaje en el chat (el mismo salto de los fijados). */
+  onOpenMessage: (message: Message) => void
+}
+
+/** Búsqueda dentro del DM abierto: el filtro por autor son los dos participantes. */
+export function DmMessageSearchModal({ visible, conversationId, currentUserId, otherUserId, otherName, onClose, onOpenMessage }: DmMessageSearchModalProps) {
+  const search = useChannelMessageSearch(visible ? conversationId : null)
+  // Chat-Engine toma el id de quien busca como su id canónico, el que guardan sus mensajes del DM
+  const authorIds = useMemo(() => [currentUserId, otherUserId], [currentUserId, otherUserId])
+
+  return (
+    <SearchDialog
+      visible={visible}
+      search={search}
+      description={`en tu conversación con ${otherName}`}
+      scopeHint="en esta conversación"
+      authorIds={authorIds}
+      roles={[]}
+      onClose={onClose}
+      onOpenMessage={onOpenMessage}
+    />
+  )
+}
+
+interface SearchDialogProps {
+  visible: boolean
+  search: ReturnType<typeof useMessageSearch>
+  /** Bajada del título: dónde se busca. */
+  description: string
+  /** Final del estado vacío: "en los canales que podés ver", "en esta conversación". */
+  scopeHint: string
+  /** Opciones del filtro por autor. */
+  authorIds: string[]
+  /** Canales del servidor, para mostrar en cuál está cada resultado. Sin esto (DM) no se muestra el canal. */
+  channels?: Channel[]
+  roles: Role[]
+  onClose: () => void
+  onOpenMessage: (message: Message) => void
+}
+
+/** Formulario (texto y autor), resultados del más nuevo al más viejo y "cargar más", en servidor o DM. */
+function SearchDialog({ visible, search, description, scopeHint, authorIds, channels, roles, onClose, onOpenMessage }: SearchDialogProps) {
+  const styles = useStyles()
+
+  // Nombre y avatar de autores posibles, de los resultados y de los mencionados (los que la app no conoce se
+  // piden al backend)
   const describeUser = useUserDisplay([
-    ...memberIds,
+    ...authorIds,
     ...search.messages.flatMap(m => [m.authorId, ...(m.mentions?.users ?? [])]),
   ])
   const authors = useMemo(
     () =>
-      memberIds
+      authorIds
         .map(id => ({ id, name: describeUser(id).name }))
         .sort((a, b) => a.name.localeCompare(b.name, 'es')),
-    [memberIds, describeUser],
+    [authorIds, describeUser],
   )
 
-  const channelName = (id: string) => channels.find(ch => ch.id === id)?.name ?? 'canal'
+  const channelName = (id: string) => channels?.find(ch => ch.id === id)?.name ?? 'canal'
   const names = {
     user: (id: string) => describeUser(id).name,
-    role: (id: string) => roles?.find(r => r.id === id)?.name ?? 'rol-eliminado',
+    role: (id: string) => roles.find(r => r.id === id)?.name ?? 'rol-eliminado',
   }
 
   const close = () => {
@@ -65,14 +134,14 @@ export default function MessageSearchModal({ visible, serverId, serverName, chan
     ? [
         submitted.query ? `ningún mensaje contiene "${submitted.query}"` : 'no hay mensajes',
         submitted.authorId ? `de ${describeUser(submitted.authorId).name}` : null,
-        'en los canales que podés ver',
+        scopeHint,
       ]
         .filter(Boolean)
         .join(' ')
     : undefined
 
   return (
-    <Modal visible={visible} title="Buscar mensajes" description={`en ${serverName}`} onClose={close}>
+    <Modal visible={visible} title="Buscar mensajes" description={description} onClose={close}>
       <ModalForm>
         <UnderlineInput
           label="texto"
@@ -143,7 +212,11 @@ export default function MessageSearchModal({ visible, serverId, serverName, chan
                     onOpenMessage(message)
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Ir al mensaje de ${author.name} en •${channelName(message.channelId)}`}
+                  accessibilityLabel={
+                    channels
+                      ? `Ir al mensaje de ${author.name} en •${channelName(message.channelId)}`
+                      : `Ir al mensaje de ${author.name}`
+                  }
                 >
                   <SquareAvatar user={{ displayName: author.name, username: message.authorId, avatar: author.avatar }} size="sm" />
                   <View style={styles.resultBody}>
@@ -151,7 +224,7 @@ export default function MessageSearchModal({ visible, serverId, serverName, chan
                       <Text variant="meta" bold>
                         {author.name}
                       </Text>
-                      {`  •${channelName(message.channelId)}  ${formatMessageTime(message.timestamp)}`}
+                      {`${channels ? `  •${channelName(message.channelId)}` : ''}  ${formatMessageTime(message.timestamp)}`}
                     </Text>
                     <Text variant="bodySmall" numberOfLines={3}>
                       {message.content

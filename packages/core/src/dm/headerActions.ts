@@ -7,6 +7,7 @@ import type { DmActions } from './actions';
 export type DmHeaderIcon =
   | 'phone'
   | 'pin'
+  | 'search'
   | 'user-plus'
   | 'user-check'
   | 'user-x'
@@ -18,6 +19,7 @@ export type DmHeaderIcon =
 export type DmHeaderActionId =
   | 'call'
   | 'pins'
+  | 'search'
   | 'add-friend'
   | 'accept-friend'
   | 'cancel-friend-request'
@@ -59,6 +61,8 @@ export interface DmHeaderInput {
   inCallHere?: boolean;
   /** Mensajes fijados. `undefined`: la plataforma no tiene ese panel en el DM. */
   pinned?: { count: number; open: boolean };
+  /** Se ofrece buscar mensajes en la conversación (ADR-04 de Chat-Engine). */
+  search?: boolean;
   /** Se ofrece abrir el perfil con un ícono. En mobile se abre tocando el nombre: false. */
   showProfile?: boolean;
   /** Se acaba de mandar la solicitud de amistad y todavía no volvió la relación nueva. */
@@ -75,11 +79,12 @@ export const DM_HEADER_COMPACT_ICONS = 3;
 
 /**
  * Qué acciones muestra el encabezado de un chat directo y cómo, igual en web y mobile. Las frecuentes van como
- * íconos, en este orden: llamar, mensajes fijados, la acción de amistad que corresponda, perfil y desbloquear.
+ * íconos, en este orden: llamar, mensajes fijados, la acción de amistad que corresponda, perfil, desbloquear y
+ * buscar.
  * Las raras o destructivas (rechazar amistad, eliminar amigo, bloquear) van siempre en el menú "más".
  */
 export function dmHeaderActions(input: DmHeaderInput): DmHeaderLayout {
-  const { name, actions, hasConversation, inCallHere = false, pinned, showProfile = true } = input;
+  const { name, actions, hasConversation, inCallHere = false, pinned, search = false, showProfile = true } = input;
   const primary: DmHeaderAction[] = [];
   const secondary: DmHeaderAction[] = [];
 
@@ -114,6 +119,11 @@ export function dmHeaderActions(input: DmHeaderInput): DmHeaderLayout {
   if (showProfile) primary.push({ id: 'profile', icon: 'circle-user', label: `Ver el perfil de ${name}` });
   // Bloqueado: desbloquear es lo único que destraba el chat, así que va a la vista
   if (actions.canUnblock) primary.push({ id: 'unblock', icon: 'shield-off', label: `Desbloquear a ${name}` });
+  // Último de los íconos: en pantallas angostas es lo primero que pasa al menú, antes que la amistad o desbloquear.
+  // Sin conversación todavía no hay mensajes que buscar
+  if (search && hasConversation) {
+    primary.push({ id: 'search', icon: 'search', label: `Buscar mensajes con ${name}` });
+  }
 
   if (actions.canRemoveFriend) {
     secondary.push({ id: 'remove-friend', icon: 'user-minus', label: 'Eliminar amigo', destructive: true });

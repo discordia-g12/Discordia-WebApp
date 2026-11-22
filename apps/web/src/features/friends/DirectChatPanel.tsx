@@ -17,6 +17,7 @@ import { useMessageActions } from '../chat/useMessageActions';
 import { CallPanel } from '../calls/CallPanel';
 import { isCallOpen, useCall } from '../calls/callContext';
 import { MessageRequestView } from './RequestCards';
+import { DmMessageSearchModal } from '../search/MessageSearchModal';
 import { useDirectChat } from './useDirectChat';
 import { useRelationshipActions } from './useRelationshipActions';
 import styles from './RequestCards.module.css';
@@ -135,6 +136,7 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
             hasConversation: Boolean(conversation),
             inCallHere: callHere,
             pinned,
+            search: true,
             showProfile: true,
             friendRequestSending: relationship.sendingFriendRequest,
             maxIcons: compact ? DM_HEADER_COMPACT_ICONS : undefined,
@@ -142,6 +144,19 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
         onAction: onHeaderAction,
       }}
       banner={conversation && <CallPanel conversationId={conversation.id} peer={user} />}
+      renderDirectSearch={
+        conversation
+          ? ({ onClose, onJump }) => (
+              <DmMessageSearchModal
+                key="dm-search"
+                conversationId={conversation.id}
+                otherUser={user}
+                onClose={onClose}
+                onJump={onJump}
+              />
+            )
+          : undefined
+      }
       messages={messages.data || []}
       isLoading={messages.isLoading}
       hasOlderMessages={messages.hasOlder}

@@ -27,6 +27,7 @@ import ChatHeader from '../chat/ChatHeader'
 import Composer, { type PendingAttachment } from '../chat/Composer'
 import MessageList from '../chat/MessageList'
 import PinnedMessagesModal from '../chat/PinnedMessagesModal'
+import { DmMessageSearchModal } from '../chat/MessageSearchModal'
 import ConfirmModal from '../shared/ConfirmModal'
 import { MoreMenu } from '../shared/MoreMenu'
 import { Pane } from '../shell/ShellScreen'
@@ -72,6 +73,8 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
   const [blockConfirmOpen, setBlockConfirmOpen] = useState(false)
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
   const [pinnedOpen, setPinnedOpen] = useState(false)
+  // Búsqueda dentro de la conversación (ADR-04 de Chat-Engine)
+  const [searchOpen, setSearchOpen] = useState(false)
   // Mensaje fijado al que se está yendo (MessageList lo centra y lo marca)
   const [focusMessageId, setFocusMessageId] = useState<string | null>(null)
 
@@ -167,6 +170,7 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
     hasConversation: !!conversationId,
     inCallHere: !!conversationId && callConversationId === conversationId,
     pinned: { count: pinnedQuery.data?.length ?? 0, open: pinnedOpen },
+    search: true,
     showProfile: false,
     friendRequestSending: relation.requestSent,
     maxIcons: DM_HEADER_COMPACT_ICONS,
@@ -174,6 +178,7 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
   const runAction: Record<DmHeaderActionId, (() => void) | undefined> = {
     call: conversationId && onCall ? () => onCall(conversationId, name) : undefined,
     pins: conversationId ? () => setPinnedOpen(true) : undefined,
+    search: conversationId ? () => setSearchOpen(true) : undefined,
     'add-friend': relation.addFriend,
     'accept-friend': relation.acceptRequest,
     'decline-friend': handleDeclineFriend,
@@ -311,6 +316,17 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
         onJump={handleJumpToMessage}
         onClose={() => setPinnedOpen(false)}
       />
+      {conversationId && (
+        <DmMessageSearchModal
+          visible={searchOpen}
+          conversationId={conversationId}
+          currentUserId={currentUserId}
+          otherUserId={userId}
+          otherName={name}
+          onClose={() => setSearchOpen(false)}
+          onOpenMessage={handleJumpToMessage}
+        />
+      )}
       <ConfirmModal
         visible={blockConfirmOpen}
         title={`¿Bloquear a ${name}?`}
