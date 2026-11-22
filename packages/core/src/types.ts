@@ -15,6 +15,15 @@ export type ChannelType = 'text' | 'voice' | 'announcement';
 /** Naturaleza del mensaje dentro del flujo de chat. */
 export type MessageType = 'normal' | 'system' | 'deleted';
 
+/** Eventos que Chat-Engine anuncia con un mensaje del sistema. `member_join`: alguien se unió al servidor. */
+export type SystemMessageEvent = 'member_join';
+
+export interface SystemMessageInfo {
+  event: SystemMessageEvent;
+  /** A quién le pasó (quien se unió). */
+  userId: string;
+}
+
 /** Adjunto multimedia o documental asociado a un mensaje. */
 export interface MessageAttachment {
   id: string;
@@ -344,6 +353,8 @@ export interface Message {
   editedAt?: string | null;
   edited?: boolean;
   type?: MessageType;
+  /** Mensaje del sistema (`type: 'system'`), según Chat-Engine: qué pasó y a quién (ver chat/system.ts). */
+  system?: SystemMessageInfo;
   reactions?: Reaction[];
   attachments?: MessageAttachment[];
   embeds?: MessageEmbed[];

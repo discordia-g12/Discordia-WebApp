@@ -24,7 +24,9 @@ export function normalizeMessage(message: Message): Message {
     ...message,
     timestamp: time,
     createdAt: message.createdAt ?? time,
-    type: isDeleted ? 'deleted' : (message.type ?? 'normal'),
+    // Un aviso del sistema sigue siéndolo aunque llegue como MESSAGE_REACTION_UPDATED (alguien lo saludó):
+    // `system` viene en todos sus payloads, `type` a veces trae el tipo de evento del WebSocket
+    type: isDeleted ? 'deleted' : message.system ? 'system' : (message.type ?? 'normal'),
     content: isDeleted ? '' : message.content,
     edited: isDeleted ? false : edited,
     editedTimestamp: isDeleted ? null : editedTimestamp,

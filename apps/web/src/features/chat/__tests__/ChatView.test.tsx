@@ -633,4 +633,56 @@ describe('ChatView (rediseño)', () => {
     fireEvent.click(catBtn);
     expect(screen.getByText('Caritas y Emociones')).toBeTruthy();
   });
+
+  describe('aviso de que alguien se unió', () => {
+    const join = (reactions: Message['reactions'] = []) =>
+      msg('j1', 'u2', '', '2025-10-21T17:00:00', {
+        type: 'system',
+        system: { event: 'member_join', userId: 'u2' },
+        reactions,
+      });
+
+    it('dice quién se unió con su nombre actual y saludar reacciona con 👋', () => {
+      const onToggleReaction = vi.fn();
+      render(<ChatView channel={channel} messages={[join()]} users={users} currentUserId="me" onToggleReaction={onToggleReaction} />);
+
+      const row = document.querySelector('[data-message-id="j1"]')!;
+      expect(row.textContent).toContain('se unió lbars, _saludalo');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Saludar a lbars' }));
+      expect(onToggleReaction).toHaveBeenCalledWith('j1', '👋');
+    });
+
+    it('ya saludado dice "saludaste" y cuenta los saludos', () => {
+      render(
+        <ChatView
+          channel={channel}
+          messages={[join([{ emoji: '👋', count: 2, users: ['me', 'u3'] }])]}
+          users={users}
+          currentUserId="me"
+        />
+      );
+
+      const row = document.querySelector('[data-message-id="j1"]')!;
+      expect(row.textContent).toContain('saludaste');
+      expect(row.textContent).toContain('👋 2');
+      expect(screen.queryByRole('button', { name: 'Saludar a lbars' })).toBeNull();
+    });
+
+    it('quien se unió ve la bienvenida, no se saluda a sí mismo', () => {
+      render(<ChatView channel={channel} messages={[join()]} users={users} currentUserId="u2" />);
+
+      const row = document.querySelector('[data-message-id="j1"]')!;
+      expect(row.textContent).toContain('te uniste al servidor. ¡te damos la bienvenida!');
+      expect(screen.queryByRole('button', { name: /^Saludar/ })).toBeNull();
+    });
+
+    it('sin permiso de reaccionar, "saludalo" es texto', () => {
+      render(<ChatView channel={channel} messages={[join()]} users={users} currentUserId="me" canAddReactions={false} />);
+
+      expect(document.querySelector('[data-message-id="j1"]')!.textContent).toContain('se unió lbars, saludalo');
+      expect(screen.queryByRole('button', { name: 'Saludar a lbars' })).toBeNull();
+    });
+  });
 });
+
