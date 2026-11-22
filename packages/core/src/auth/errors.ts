@@ -14,6 +14,8 @@
 
 export const AUTH_DENY_CODES = {
   EMAIL_NOT_VERIFIED: 'email_not_verified',
+  /** La Action rechaza a quien no es staff cuando entra desde la aplicación del backoffice. */
+  STAFF_ONLY: 'staff_only',
 } as const;
 
 /** El usuario ingresó credenciales correctas pero todavía no verificó su email. */
@@ -32,6 +34,17 @@ export class AccountSuspendedError extends Error {
   constructor() {
     super('Tu cuenta se encuentra suspendida.');
     this.name = 'AccountSuspendedError';
+  }
+}
+
+/**
+ * La cuenta no es staff y quiso entrar al backoffice (la Action responde `staff_only`). Solo lo recibe el
+ * backoffice: la aplicación de Auth0 de la web no tiene esa regla.
+ */
+export class StaffOnlyError extends Error {
+  constructor() {
+    super('Esta cuenta no es staff de la plataforma.');
+    this.name = 'StaffOnlyError';
   }
 }
 
@@ -124,9 +137,9 @@ export function classifyAuthDenial(err: unknown): AuthDenial | null {
 export function toAuthDenialError(
   body: { error?: unknown; error_description?: unknown } | null | undefined,
   email?: string
-): EmailNotVerifiedError | AccountSuspendedError | null {
+): EmailNotVerifiedError | StaffOnlyError | AccountSuspendedError | null {
   if (body?.error !== 'access_denied') return null;
-  return body.error_description === AUTH_DENY_CODES.EMAIL_NOT_VERIFIED
-    ? new EmailNotVerifiedError(email)
-    : new AccountSuspendedError();
+  if (body.error_description === AUTH_DENY_CODES.EMAIL_NOT_VERIFIED) return new EmailNotVerifiedError(email);
+  if (body.error_description === AUTH_DENY_CODES.STAFF_ONLY) return new StaffOnlyError();
+  return new AccountSuspendedError();
 }

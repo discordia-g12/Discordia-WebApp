@@ -4,6 +4,8 @@ import {
   AUTH_DENY_CODES,
   classifyAuthDenial,
   EmailNotVerifiedError,
+  StaffOnlyError,
+  toAuthDenialError,
 } from '../errors';
 
 describe('classifyAuthDenial', () => {
@@ -34,5 +36,20 @@ describe('classifyAuthDenial', () => {
 
   it('el texto del mensaje NO decide: "email_not_verified" sin access_denied no es un rechazo', () => {
     expect(classifyAuthDenial(new Error('email_not_verified'))).toBeNull();
+  });
+});
+
+describe('toAuthDenialError', () => {
+  it('distingue email sin verificar, no staff (backoffice) y suspensión', () => {
+    expect(toAuthDenialError({ error: 'access_denied', error_description: AUTH_DENY_CODES.EMAIL_NOT_VERIFIED }, 'a@b.com')).toBeInstanceOf(
+      EmailNotVerifiedError
+    );
+    expect(toAuthDenialError({ error: 'access_denied', error_description: AUTH_DENY_CODES.STAFF_ONLY })).toBeInstanceOf(StaffOnlyError);
+    expect(toAuthDenialError({ error: 'access_denied', error_description: 'user is blocked' })).toBeInstanceOf(AccountSuspendedError);
+  });
+
+  it('null si no es un rechazo de la Action', () => {
+    expect(toAuthDenialError({ error: 'invalid_grant', error_description: 'Wrong email or password.' })).toBeNull();
+    expect(toAuthDenialError(null)).toBeNull();
   });
 });

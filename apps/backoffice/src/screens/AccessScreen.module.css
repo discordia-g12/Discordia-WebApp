@@ -1,40 +1,181 @@
+/*
+ * Acceso del backoffice: el mismo de la web (apps/web/src/features/auth/AuthScreen.module.css). Pantalla
+ * completa sobre el resplandor, formulario de campos subrayados en la columna izquierda y la palabra
+ * gigante al pie. Si cambia el de la web, cambiar este también.
+ */
 .screen {
-  display: flex;
-  align-items: flex-end;
-  height: 100%;
-  padding: var(--space-6);
+  position: fixed;
+  inset: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  background: var(--color-background);
   color: var(--color-text);
 }
 
-/* Abajo a la izquierda, como el login de la web: la palabra gigante y lo que hay que hacer */
-.panel {
+/* El resplandor deriva muy despacio (solo transform); con movimiento reducido queda quieto */
+.glow {
+  position: fixed;
+  inset: -15%;
+  background: var(--gradient-background-glow);
+  animation: drift var(--motion-duration-drift) ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(-4%, -2%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(4%, 3%, 0) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow {
+    animation: none;
+  }
+}
+
+.mock {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  padding: var(--space-1) var(--space-5);
+  font-size: var(--font-meta-size);
+  line-height: var(--font-meta-line-height);
+  text-transform: uppercase;
+  color: var(--color-inverse-text);
+  background: var(--color-inverse-background);
+}
+
+/* Columna izquierda: el formulario arriba, las palabras al pie */
+.column {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
-  max-width: 560px;
+  justify-content: flex-end;
+  gap: var(--space-7);
+  min-height: 100%;
+  padding: var(--space-8) var(--space-5) var(--space-1);
 }
 
-.brand {
+.panel {
+  width: 100%;
+  max-width: 480px;
+}
+
+.form {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-6);
+}
+
+.form > button,
+.actions > button:first-child {
+  align-self: flex-start;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3) var(--space-6);
 }
 
-.brandName {
-  font-size: var(--font-label-size);
-  font-weight: var(--font-label-weight);
-  letter-spacing: var(--font-label-letter-spacing);
-  text-transform: var(--font-label-transform);
+/* Iniciar sesión a lo ancho y Google al lado, del mismo alto */
+.actionsRow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+  width: 100%;
 }
 
-.text {
+.submitButton {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* VOLVER, USAR OTRA CUENTA: el texto del bloque negro, sin fondo */
+.secondary {
+  padding: var(--space-4) 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--font-body-size);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.secondary:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.secondary:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.fieldWithLink {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.forgotLink {
+  align-self: flex-start;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.forgotLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.forgotLink:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+  text-decoration: none;
+}
+
+.lead {
+  margin: 0;
+  font-size: var(--font-body-size);
+  line-height: var(--font-body-line-height);
+}
+
+.note {
   margin: 0;
   font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
   color: var(--color-text-muted);
 }
 
-/* Errores: bloque con borde izquierdo rojo (el rojo nunca como texto chico) */
+/* Errores del formulario: en el color del texto y en negrita, con barra inicial (el rojo es solo de bloques) */
+.formError {
+  margin: calc(-1 * var(--space-3)) 0 0;
+  font-size: var(--font-body-small-size);
+  line-height: var(--font-body-small-line-height);
+  font-weight: 700;
+}
+
+/* Errores de la sesión: bloque con borde izquierdo rojo (el rojo nunca como texto chico) */
 .alert {
   display: flex;
   flex-direction: column;
@@ -48,15 +189,65 @@
   font-weight: 700;
 }
 
-.actions {
+/* La palabra gigante al pie, pegada al borde de abajo, con la marca chica arriba */
+.heading {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-5);
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
-@media (max-width: 767px) {
-  .screen {
-    padding: var(--space-4);
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--font-label-size);
+  font-weight: var(--font-label-weight);
+  letter-spacing: var(--font-label-letter-spacing);
+  text-transform: var(--font-label-transform);
+}
+
+.title {
+  margin: 0;
+  font: inherit;
+}
+
+/*
+ * Entrada: los elementos del formulario suben uno tras otro (también al cambiar de vista, porque el
+ * panel se vuelve a montar) y la palabra del pie, después. Solo transform y opacity.
+ */
+.form > *,
+.heading > * {
+  animation: enter var(--motion-duration-slow) var(--motion-ease-enter) both;
+}
+
+.form > :nth-child(2) { animation-delay: 60ms; }
+.form > :nth-child(3) { animation-delay: 120ms; }
+.form > :nth-child(4) { animation-delay: 180ms; }
+.form > :nth-child(5) { animation-delay: 240ms; }
+.form > :nth-child(n + 6) { animation-delay: 300ms; }
+
+.heading > :nth-child(1) { animation-delay: 200ms; }
+.heading > :nth-child(2) { animation-delay: 300ms; }
+
+/* Desde 0.01 y no 0: Chrome no cuenta como pintado lo que aparece con una opacidad desde 0 (igual que la web) */
+@keyframes enter {
+  from {
+    opacity: 0.01;
+    transform: translateY(var(--space-4));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form > *,
+  .heading > * {
+    animation-name: fade;
+    animation-delay: 0ms !important;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0.01;
   }
 }

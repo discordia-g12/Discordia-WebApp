@@ -40,7 +40,7 @@ npm run dev:backoffice          # http://localhost:5174 (la web sigue en 5173)
 VITE_USE_MOCK=true npm run dev:backoffice
 ```
 
-Con `?rol=user` en la URL entra como usuario común, para ver la pantalla "sin acceso".
+Con `?rol=user` en la URL entra como usuario común, para ver la pantalla "sin acceso". Con `?2fa=1` pide el código de la 2FA (el válido es `123456`).
 
 **Con Auth0:** copiar `.env.example` a `.env` en esta carpeta y completar `VITE_AUTH0_CLIENT_ID` con el de la aplicación "Discordia Backoffice" (ver abajo).
 
@@ -48,10 +48,11 @@ Otros comandos: `npm test -w @discordia/backoffice`, `npm run typecheck -w @disc
 
 ## Acceso
 
-1. **Login.** Universal Login de Auth0 (redirección), con una aplicación de Auth0 propia. La Action de login (`Gateway/auth0/post-login-action.js`) rechaza ahí a quien no es staff, así que un usuario común no obtiene un token para el backoffice.
-2. **Token.** Se guarda solo en memoria. Al recargar se renueva con la sesión de Auth0; si el navegador bloquea esa cookie, aparece "Entrar" y la redirección vuelve sin pedir la contraseña.
-3. **Rol.** Con el token, el backoffice lee el rol del claim `https://discordia.app/role`. Si no es `staff`, muestra "Esta cuenta no es staff" y no muestra nada más.
-4. **Autorización real.** El paso 3 es solo de interfaz: cada endpoint de staff lo vuelven a autorizar Kong (`validate("staff")`) y el servicio.
+1. **Login.** El mismo acceso que la web ([ADR-03](../../docs/ADR-03-Login-Backoffice.md)): email y contraseña en el formulario propio (grant *password-realm*) o Google, con una aplicación de Auth0 propia. La Action de login (`Gateway/auth0/post-login-action.js`) rechaza ahí a quien no es staff, así que un usuario común no obtiene un token para el backoffice.
+2. **2FA.** Si la cuenta tiene activa la 2FA de Discordia (se activa desde los ajustes de la web), se pide el código antes de mostrar el backoffice. Si no se puede consultar, no se entra.
+3. **Token.** Se guarda solo en memoria. Con contraseña, al recargar se vuelve a pedir. Con Google, al recargar se renueva con la sesión de Auth0; si el navegador bloquea esa cookie, se vuelve a tocar Google y la redirección vuelve sin pedir nada.
+4. **Rol.** Con el token, el backoffice lee el rol del claim `https://discordia.app/role`. Si no es `staff`, muestra "Esta cuenta no es staff" y no muestra nada más.
+5. **Autorización real.** Los pasos 2 y 4 es solo de interfaz: cada endpoint de staff lo vuelven a autorizar Kong (`validate("staff")`) y el servicio.
 
 ### Dar el rol staff (por ejemplo, al corrector)
 
@@ -67,4 +68,6 @@ La consigna pide un mecanismo por fuera de la interfaz. El rol sale de `app_meta
   - **Allowed Callback URLs:** `http://localhost:5174/callback, https://backoffice.discordia.lol/callback`
   - **Allowed Logout URLs** y **Allowed Web Origins:** `http://localhost:5174, https://backoffice.discordia.lol`
 - Darle acceso a la API `https://api.discordia.com` (la misma audience que la web).
+- **Advanced Settings → Grant Types:** habilitar **Password** (el login con email y contraseña). Sin él, el formulario responde siempre "credenciales incorrectas".
+- **Connections:** habilitar `Username-Password-Authentication` y `google-oauth2` para esta aplicación.
 - En la Action de login, agregar el secret `BACKOFFICE_CLIENT_ID` con el client ID de esta aplicación y volver a desplegar la Action.
