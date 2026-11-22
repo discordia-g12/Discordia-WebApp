@@ -264,6 +264,22 @@
   color: var(--color-text-muted);
 }
 
+/* El nombre de quien se unió: en negrita y en el color del texto, abre su perfil */
+.systemName {
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.systemName:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* Respuesta: una línea fina y la cita en texto chico, arriba del mensaje (PDF, pág. 9) */
 .reply {
   display: flex;

@@ -1,6 +1,16 @@
 import React, { useState } from 'react'
 import { Animated, Image, Linking, Pressable, View } from 'react-native'
-import { formatAttachmentSize, formatMessageTime, mentionsToText } from '@discordia/core'
+import {
+  WAVE_EMOJI,
+  formatAttachmentSize,
+  formatMessageTime,
+  hasWaved,
+  isMemberJoin,
+  memberJoinText,
+  mentionsToText,
+  systemMessageUserId,
+  waveCount,
+} from '@discordia/core'
 import { makeStyles } from '../../theme'
 import { SquareAvatar, Text, distance, useReducedMotion, useRise } from '../../ui'
 import type { Message } from '../../types'
@@ -56,6 +66,17 @@ function MessageItem({
   })
 
   if (message.type === 'system') {
+    if (isMemberJoin(message)) {
+      return (
+        <MemberJoinRow
+          message={message}
+          name={author?.name}
+          currentUserId={currentUserId}
+          onPressAuthor={onPressAuthor}
+          onWave={onToggleReaction ? () => onToggleReaction(message.id, WAVE_EMOJI) : undefined}
+        />
+      )
+    }
     return (
       <Text variant="meta" tone="muted" style={styles.system}>
         •{message.content} {formatMessageTime(message.timestamp)}
@@ -196,6 +217,54 @@ function MessageItem({
 
 // memo: en una lista larga, un mensaje nuevo no debería re-renderizar los anteriores
 export default React.memo(MessageItem)
+
+/**
+ * "se unió Ana, _saludalo_", como en la web: el nombre actual (abre el perfil) y saludar deja un 👋 en el
+ * aviso. Ya saludado dice "saludaste"; sin `onWave`, "saludalo" queda como texto.
+ */
+function MemberJoinRow({
+  message,
+  name,
+  currentUserId,
+  onPressAuthor,
+  onWave,
+}: {
+  message: Message
+  name?: string
+  currentUserId?: string
+  onPressAuthor?: (userId: string) => void
+  onWave?: () => void
+}) {
+  const styles = useStyles()
+  const userId = systemMessageUserId(message)
+  const text = memberJoinText(name || 'alguien', userId === currentUserId)
+  const waved = currentUserId ? hasWaved(message, currentUserId) : false
+  const waves = waveCount(message)
+
+  return (
+    <Text variant="meta" tone="muted" style={styles.system}>
+      •{text.before}
+      {text.name ? (
+        <Text variant="meta" bold onPress={onPressAuthor ? () => onPressAuthor(userId) : undefined} accessibilityRole="link">
+          {text.name}
+        </Text>
+      ) : null}
+      {text.after}
+      {text.waveLabel ? (
+        waved ? (
+          'saludaste'
+        ) : onWave ? (
+          <Text variant="meta" bold onPress={onWave} accessibilityRole="button" accessibilityLabel={`Saludar a ${text.name}`}>
+            _{text.waveLabel}
+          </Text>
+        ) : (
+          text.waveLabel
+        )
+      ) : null}
+      {waves > 0 ? ` ${WAVE_EMOJI} ${waves}` : ''} {formatMessageTime(message.timestamp)}
+    </Text>
+  )
+}
 
 const useStyles = makeStyles(t => ({
   system: { paddingVertical: t.space[2], paddingLeft: t.layout.avatarSize.md + t.space[3] },

@@ -209,6 +209,21 @@ describe('mensajes', () => {
     expect(msg.reactions).toEqual([]);
   });
 
+  it('un aviso del sistema sigue siendo system aunque llegue como MESSAGE_REACTION_UPDATED (lo saludaron)', () => {
+    const join = {
+      id: 'm9',
+      content: '',
+      authorId: 'auth0|ana',
+      channelId: 'c1',
+      createdAt: '2026-11-22T10:00:00Z',
+      system: { event: 'member_join', userId: 'auth0|ana' },
+    };
+    expect(normalizeMessage({ ...join, type: 'system' } as unknown as Message).type).toBe('system');
+    expect(normalizeMessage({ ...join, type: 'MESSAGE_REACTION_UPDATED' } as unknown as Message).type).toBe('system');
+    // Borrado por un moderador: es un borrado
+    expect(normalizeMessage({ ...join, type: 'deleted', isDeleted: true } as unknown as Message).type).toBe('deleted');
+  });
+
   describe('fijados', () => {
     const base = { id: 'm1', content: 'hola', authorId: 'u1', channelId: 'c1', createdAt: '2026-10-20T10:00:00Z' };
 

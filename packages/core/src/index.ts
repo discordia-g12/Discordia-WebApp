@@ -70,6 +70,7 @@ export * from './chat/format';
 export * from './chat/mentions';
 export * from './chat/emojis';
 export * from './chat/pins';
+export * from './chat/system';
 export * from './realtime/chatSocket';
 export * from './realtime/inboxSocket';
 export * from './realtime/callEvents';

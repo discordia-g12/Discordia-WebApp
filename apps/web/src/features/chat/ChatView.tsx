@@ -5,6 +5,12 @@ import { Bell, BellOff, Paperclip, Pin, Search, Smile, Users } from 'lucide-reac
 import { distances } from '@discordia/tokens';
 import { JUMP_LOAD_FAILED_MESSAGE, JUMP_NOT_FOUND_MESSAGE } from '@discordia/core';
 import {
+  WAVE_EMOJI,
+  hasWaved,
+  isMemberJoin,
+  memberJoinText,
+  systemMessageUserId,
+  waveCount,
   formatDayLabel,
   formatMessageHour,
   formatMessageTime,
@@ -558,6 +564,59 @@ function DirectHeaderActions({ layout, onAction }: { layout: DmHeaderLayout; onA
 // Mensajes
 // ==========================================
 
+/**
+ * "se unió Ana, _saludalo_": el nombre actual (abre el perfil) y saludar deja un 👋 en el aviso. Ya saludado,
+ * dice "saludaste" (no se des-saluda con un clic suelto). Sin permiso de reaccionar, "saludalo" es texto.
+ */
+function MemberJoinText({
+  msg,
+  users,
+  currentUserId,
+  canWave,
+  onWave,
+  onOpenUserProfile,
+}: {
+  msg: Message;
+  users: Record<string, User>;
+  currentUserId?: string;
+  canWave: boolean;
+  onWave: () => void;
+  onOpenUserProfile?: (userId: string) => void;
+}) {
+  const userId = systemMessageUserId(msg);
+  const isMe = userId === currentUserId;
+  const user = users[userId];
+  const text = memberJoinText(user?.displayName || user?.username || 'alguien', isMe);
+  const waved = currentUserId ? hasWaved(msg, currentUserId) : false;
+  const waves = waveCount(msg);
+
+  return (
+    <>
+      {text.before}
+      {text.name &&
+        (onOpenUserProfile ? (
+          <button type="button" className={styles.systemName} onClick={() => onOpenUserProfile(userId)}>
+            {text.name}
+          </button>
+        ) : (
+          <strong>{text.name}</strong>
+        ))}
+      {text.after}
+      {text.waveLabel &&
+        (waved ? (
+          'saludaste'
+        ) : canWave ? (
+          <ActionLink onPress={onWave} aria-label={`Saludar a ${text.name}`}>
+            {text.waveLabel}
+          </ActionLink>
+        ) : (
+          text.waveLabel
+        ))}
+      {waves > 0 && <span aria-label={`${waves} saludos`}> {WAVE_EMOJI} {waves}</span>}
+    </>
+  );
+}
+
 function MessageRow({
   msg,
   chat,
@@ -622,7 +681,20 @@ function MessageRow({
       <motion.li className={`${styles.message} ${styles.compact}`} data-message-id={msg.id} {...enter}>
         <span className={styles.gutter} />
         <p className={styles.system}>
-          •{msg.content} <time className={styles.time}>{formatMessageTime(msg.timestamp)}</time>
+          •
+          {isMemberJoin(msg) ? (
+            <MemberJoinText
+              msg={msg}
+              users={users}
+              currentUserId={currentUserId}
+              canWave={canAddReactions}
+              onWave={() => chat.handleToggleReaction(msg.id, WAVE_EMOJI)}
+              onOpenUserProfile={onOpenUserProfile}
+            />
+          ) : (
+            msg.content
+          )}{' '}
+          <time className={styles.time}>{formatMessageTime(msg.timestamp)}</time>
         </p>
       </motion.li>
     );
