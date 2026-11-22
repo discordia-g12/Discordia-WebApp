@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getConversationWith } from '../../api/conversations';
-import { UNDELIVERABLE_POLL_MS, useConversationWithQuery } from '../useConversations';
+import { UNDELIVERABLE_POLL_MS, useConversationWithQuery, usePresenceQuery } from '../useConversations';
+import { getWatchedIds, resetPresenceSync } from '../../realtime/presenceSync';
 
 vi.mock('../../auth/session', () => ({
   useSession: vi.fn().mockImplementation((selector) => selector({ status: 'authenticated' })),
@@ -49,5 +50,23 @@ describe('useConversationWithQuery', () => {
 
     await act(() => vi.advanceTimersByTimeAsync(UNDELIVERABLE_POLL_MS * 2));
     expect(getConversationWith).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('usePresenceQuery', () => {
+  beforeEach(() => resetPresenceSync());
+
+  it('mientras está montado, el inbox sigue a sus ids', () => {
+    const { rerender, unmount } = renderHook(({ ids }) => usePresenceQuery(ids), {
+      wrapper,
+      initialProps: { ids: ['u2', 'u1'] },
+    });
+    expect(getWatchedIds()).toEqual(['u1', 'u2']);
+
+    rerender({ ids: ['u3'] });
+    expect(getWatchedIds()).toEqual(['u3']);
+
+    unmount();
+    expect(getWatchedIds()).toEqual([]);
   });
 });

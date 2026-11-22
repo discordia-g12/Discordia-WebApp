@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../../api/client';
 import { setApiMock, type ApiMock } from '../../api/mock';
 import { openChatSocket } from '../chatSocket';
-import { isInboxEvent, openInboxSocket, type InboxEvent } from '../inboxSocket';
+import { isInboxEvent, openInboxSocket, PRESENCE_SYNC_DEBOUNCE_MS, type InboxEvent } from '../inboxSocket';
+import { resetPresenceSync, setPresenceInactive, watchPresence } from '../presenceSync';
 
 class FakeWebSocket {
   static CONNECTING = 0;
@@ -11,6 +12,7 @@ class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
 
   readyState = FakeWebSocket.CONNECTING;
+  sent: unknown[] = [];
   onopen: (() => void) | null = null;
   onclose: ((event?: { code?: number }) => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
@@ -26,6 +28,10 @@ class FakeWebSocket {
   open() {
     this.readyState = FakeWebSocket.OPEN;
     this.onopen?.();
+  }
+
+  send(data: string) {
+    this.sent.push(JSON.parse(data));
   }
 
   receive(data: unknown) {
@@ -310,6 +316,137 @@ describe('openChatSocket con una conversación', () => {
     FakeWebSocket.instances[0].receive({ error: 'Forbidden', status: 403 });
 
     expect(onPermissionsChange).toHaveBeenLastCalledWith(false);
+    connection.close();
+  });
+});
+
+describe('isInboxEvent: presencia', () => {
+  it('acepta cambios, snapshots y el estado propio bien formados', () => {
+    expect(isInboxEvent({ type: 'PRESENCE_UPDATE', userId: 'u1', status: 'idle' })).toBe(true);
+    expect(isInboxEvent({ type: 'PRESENCE_SNAPSHOT', statuses: { u1: 'online', u2: 'offline' } })).toBe(true);
+    expect(isInboxEvent({ type: 'PRESENCE_SNAPSHOT', statuses: {} })).toBe(true);
+    expect(isInboxEvent({ type: 'MY_STATUS', status: 'invisible' })).toBe(true);
+  });
+
+  it('rechaza estados desconocidos o datos que faltan', () => {
+    expect(isInboxEvent({ type: 'PRESENCE_UPDATE', userId: '', status: 'idle' })).toBe(false);
+    expect(isInboxEvent({ type: 'PRESENCE_UPDATE', userId: 'u1', status: 'invisible' })).toBe(false);
+    expect(isInboxEvent({ type: 'PRESENCE_SNAPSHOT', statuses: null })).toBe(false);
+    expect(isInboxEvent({ type: 'PRESENCE_SNAPSHOT', statuses: { u1: 'busy' } })).toBe(false);
+    expect(isInboxEvent({ type: 'MY_STATUS', status: 'offline' })).toBe(false);
+  });
+});
+
+describe('openInboxSocket: presencia', () => {
+  const originalWebSocket = globalThis.WebSocket;
+  const last = () => FakeWebSocket.instances[FakeWebSocket.instances.length - 1];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    FakeWebSocket.instances = [];
+    resetPresenceSync();
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+    configureClient({ baseUrl: 'https://api.discordia.lol', wsBaseUrl: undefined, getToken: async () => 'tok' });
+  });
+
+  afterEach(() => {
+    globalThis.WebSocket = originalWebSocket;
+    resetPresenceSync();
+    vi.useRealTimers();
+  });
+
+  it('al conectarse manda a quién sigue y si está inactivo', async () => {
+    watchPresence(['u2', 'u1']);
+    setPresenceInactive(true);
+    const connection = openInboxSocket({ onEvent: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+
+    last().open();
+
+    expect(last().sent).toEqual([
+      { type: 'PRESENCE_SUBSCRIBE', userIds: ['u1', 'u2'] },
+      { type: 'ACTIVITY', idle: true },
+    ]);
+    connection.close();
+  });
+
+  it('sin nadie a quien seguir y con actividad, no manda nada', async () => {
+    const connection = openInboxSocket({ onEvent: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+    last().open();
+
+    expect(last().sent).toEqual([]);
+    connection.close();
+  });
+
+  it('junta los cambios seguidos en un solo mensaje y no repite lo mismo', async () => {
+    const connection = openInboxSocket({ onEvent: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+    last().open();
+
+    const friends = watchPresence(['u1']);
+    watchPresence(['u2']);
+    await vi.advanceTimersByTimeAsync(PRESENCE_SYNC_DEBOUNCE_MS);
+    expect(last().sent).toEqual([{ type: 'PRESENCE_SUBSCRIBE', userIds: ['u1', 'u2'] }]);
+
+    // Se suelta y se vuelve a anotar el mismo: la lista no cambió
+    friends();
+    watchPresence(['u1']);
+    await vi.advanceTimersByTimeAsync(PRESENCE_SYNC_DEBOUNCE_MS);
+    expect(last().sent).toHaveLength(1);
+
+    setPresenceInactive(true);
+    await vi.advanceTimersByTimeAsync(PRESENCE_SYNC_DEBOUNCE_MS);
+    setPresenceInactive(false);
+    await vi.advanceTimersByTimeAsync(PRESENCE_SYNC_DEBOUNCE_MS);
+    expect(last().sent.slice(1)).toEqual([
+      { type: 'ACTIVITY', idle: true },
+      { type: 'ACTIVITY', idle: false },
+    ]);
+    connection.close();
+  });
+
+  it('al reconectar lo vuelve a mandar (el socket nuevo no sigue a nadie)', async () => {
+    watchPresence(['u1']);
+    const connection = openInboxSocket({ onEvent: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+    last().open();
+    const first = last();
+
+    first.drop();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(last()).not.toBe(first);
+    last().open();
+
+    expect(last().sent).toEqual([{ type: 'PRESENCE_SUBSCRIBE', userIds: ['u1'] }]);
+    connection.close();
+  });
+
+  it('mientras conecta no manda nada, y cerrado deja de escuchar', async () => {
+    const connection = openInboxSocket({ onEvent: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+
+    watchPresence(['u1']);
+    await vi.advanceTimersByTimeAsync(PRESENCE_SYNC_DEBOUNCE_MS);
+    expect(last().sent).toEqual([]);
+
+    connection.close();
+    watchPresence(['u2']);
+    await vi.advanceTimersByTimeAsync(PRESENCE_SYNC_DEBOUNCE_MS);
+    expect(last().sent).toEqual([]);
+  });
+
+  it('entrega los eventos de presencia', async () => {
+    const onEvent = vi.fn();
+    const connection = openInboxSocket({ onEvent });
+    await vi.advanceTimersByTimeAsync(0);
+    last().open();
+
+    last().receive({ type: 'PRESENCE_UPDATE', userId: 'u1', status: 'dnd' });
+    last().receive({ type: 'PRESENCE_SNAPSHOT', statuses: { u1: 'online' } });
+    last().receive({ type: 'MY_STATUS', status: 'idle' });
+
+    expect(onEvent.mock.calls.map(([event]) => event.type)).toEqual(['PRESENCE_UPDATE', 'PRESENCE_SNAPSHOT', 'MY_STATUS']);
     connection.close();
   });
 });

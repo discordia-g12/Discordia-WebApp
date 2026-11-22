@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useSession } from '../auth/session';
 import {
   acceptConversation,
@@ -9,7 +9,8 @@ import {
   startConversation,
   type StartConversationRequest,
 } from '../api/conversations';
-import { getPresence } from '../api/presence';
+import { getPresence, type PresenceMap, type PresenceStatus } from '../api/presence';
+import { watchPresence } from '../realtime/presenceSync';
 import type { Conversation } from '../types';
 import {
   applyConversationMessage,
@@ -19,14 +20,36 @@ import {
   upsertConversation,
 } from './inboxCache';
 
-/** Cada cuánto se pide la presencia. Menos que los 60 s que dura en Chat-Engine. */
-export const PRESENCE_POLL_MS = 30_000;
+/**
+ * Cada cuánto se pide la presencia. Los cambios llegan al instante por el inbox (PRESENCE_UPDATE): esto cubre
+ * lo que no avisa nadie (una instancia de Chat-Engine que se cae) y el inbox cortado.
+ */
+export const PRESENCE_POLL_MS = 60_000;
 
 /** Cada cuánto se revisa un chat al que no se puede escribir: a quien desbloquean nadie le avisa. */
 export const UNDELIVERABLE_POLL_MS = 30_000;
 
 export function presenceQueryKey(userIds: string[]) {
   return ['presence', userIds] as const;
+}
+
+/**
+ * Aplica estados que llegaron por el inbox a las consultas de presencia ya cargadas que incluyen a esos
+ * usuarios. No crea consultas: un usuario que nadie muestra no se guarda.
+ */
+export function applyPresence(queryClient: QueryClient, statuses: Record<string, PresenceStatus>) {
+  const ids = Object.keys(statuses);
+  if (ids.length === 0) return;
+  queryClient.setQueriesData<PresenceMap>(
+    // ['presence', 'me'] es el estado propio: un string, no un mapa
+    { predicate: ({ queryKey: [scope, userIds] }) => scope === 'presence' && Array.isArray(userIds) },
+    (old) => {
+      if (!old || !ids.some((id) => id in old && old[id] !== statuses[id])) return old;
+      const next = { ...old };
+      for (const id of ids) if (id in next) next[id] = statuses[id];
+      return next;
+    }
+  );
 }
 
 export function useConversationsQuery() {
@@ -90,11 +113,16 @@ export function useDeclineConversationMutation() {
   });
 }
 
-/** Presencia de los usuarios indicados. Mientras carga un conjunto nuevo de ids, se ve el anterior. */
+/**
+ * Presencia de los usuarios indicados. Mientras carga un conjunto nuevo de ids, se ve el anterior. Mientras
+ * está montado, el inbox sigue a esos ids y aplica sus cambios al instante (applyPresence).
+ */
 export function usePresenceQuery(userIds: string[]) {
   const status = useSession((s) => s.status);
   const idsKey = Array.from(new Set(userIds.filter(Boolean))).sort().join(',');
   const ids = useMemo(() => (idsKey ? idsKey.split(',') : []), [idsKey]);
+
+  useEffect(() => watchPresence(ids), [ids]);
 
   return useQuery({
     queryKey: presenceQueryKey(ids),
