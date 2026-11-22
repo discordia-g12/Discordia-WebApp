@@ -5,6 +5,7 @@ import {
   BlockButton,
   DisplayText,
   EmptyState,
+  GoogleButton,
   SectionLabel,
   ServerIcon,
   ServerStrip,
@@ -16,6 +17,24 @@ import {
 } from '..';
 
 afterEach(cleanup);
+
+describe('GoogleButton', () => {
+  it('tiene nombre accesible y llama a onPress', () => {
+    const onPress = vi.fn();
+    render(<GoogleButton onPress={onPress} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continuar con Google' }));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('mientras va a Google queda deshabilitado y ocupado', () => {
+    render(<GoogleButton onPress={vi.fn()} loading />);
+
+    const button = screen.getByRole('button', { name: 'Continuar con Google' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-busy')).toBe('true');
+  });
+});
 
 describe('UnderlineInput', () => {
   it('asocia la etiqueta al campo y marca el obligatorio', () => {

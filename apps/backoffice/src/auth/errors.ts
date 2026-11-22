@@ -33,3 +33,17 @@ export function isSignedOutError(err: unknown): boolean {
 export function isAccessDenied(err: unknown): boolean {
   return authErrorCode(err) === 'access_denied';
 }
+
+/**
+ * El código de la 2FA no se pudo validar: `message` es el texto para el formulario y `cause`, el error de la
+ * API (como PinMessageError de core: el target es ES2020, sin `cause` en el constructor de Error).
+ */
+export class TwoFactorCodeError extends Error {
+  readonly cause: unknown;
+
+  constructor(message: string, options: { cause: unknown }) {
+    super(message);
+    this.name = 'TwoFactorCodeError';
+    this.cause = options.cause;
+  }
+}

@@ -6,6 +6,7 @@ export { SectionLabel } from './SectionLabel';
 export { UnderlineInput } from './UnderlineInput';
 export { ActionLink } from './ActionLink';
 export { BlockButton } from './BlockButton';
+export { GoogleButton } from './GoogleButton';
 export { IconButton, type IconButtonProps } from './IconButton';
 export { IconMenu, type IconMenuItem, type IconMenuProps } from './IconMenu';
 export { Tabs, type TabItem } from './Tabs';

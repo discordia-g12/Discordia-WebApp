@@ -65,7 +65,8 @@ export const PASSWORD_RESET_SENT_MESSAGE =
 /** Normaliza lo que se tipea en un nombre de usuario: minúsculas y caracteres permitidos. */
 export const sanitizeUsername = (value: string) => value.toLowerCase().replace(/[^a-zA-Z0-9_.-]/g, '_');
 
-function describePasswordResetError(err: unknown): string {
+/** Mensaje para el formulario de recupero de contraseña (lo usan la web y el backoffice). */
+export function describePasswordResetError(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 429) {
       if (err.retryAfterSeconds) {
