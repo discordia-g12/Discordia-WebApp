@@ -21,4 +21,6 @@ export { Choice } from './Choice';
 export { Modal, ModalActions, ModalForm } from './Modal';
 export { ConfirmDialog } from './ConfirmDialog';
 export { ConnectionBanner } from './ConnectionBanner';
+export { ErrorPage } from './ErrorPage';
+export { ErrorBoundary } from './ErrorBoundary';
 export { useMotionPreset, transitions, type MotionPreset } from './motion';
