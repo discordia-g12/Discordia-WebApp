@@ -5,6 +5,8 @@ import { configureAuth, configureClient } from '@discordia/core';
 import { config } from './config';
 import { getAccessToken, handleAccountSuspended, handleAuthFailure } from './auth/session';
 import App from './App';
+import { ErrorBoundary } from '@web/ui';
+import { CrashScreen } from './screens/ErrorScreens';
 
 // Sistema de diseño: los mismos tokens, fuente y base que la web
 import '@discordia/tokens/tokens.css';
@@ -45,8 +47,10 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <ErrorBoundary fallback={(error) => <CrashScreen error={error} />}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

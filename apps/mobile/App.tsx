@@ -19,6 +19,8 @@ import MobileShell from './src/components/MobileShell'
 import AuthView from './src/views/AuthView'
 import { DawnIntro } from './src/views/DawnIntro'
 import { Catalog, isCatalogRequested } from './src/views/Catalog'
+import { CrashScreen } from './src/views/CrashScreen'
+import { ErrorBoundary } from './src/ui'
 
 function Root() {
   const { isAuthenticated } = useAuth()
@@ -44,7 +46,10 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AppProviders>
-          <Root />
+          {/* Adentro de los providers: reintentar vuelve a montar las pantallas sin perder la sesión */}
+          <ErrorBoundary fallback={(error, reset) => <CrashScreen error={error} onRetry={reset} />}>
+            <Root />
+          </ErrorBoundary>
         </AppProviders>
       </ThemeProvider>
     </SafeAreaProvider>

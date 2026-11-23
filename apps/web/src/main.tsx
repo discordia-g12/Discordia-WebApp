@@ -12,6 +12,9 @@ configureClient({
 
 import { registerQueryCacheCleaner } from './platform/auth/session';
 import { useUIStore } from './app/uiStore';
+import { isKnownPath } from './app/routes';
+import { CrashScreen, NotFoundScreen } from './app/ErrorScreens';
+import { ErrorBoundary } from './ui';
 import './platform/voice';
 import './index.css';
 
@@ -54,12 +57,18 @@ const root = ReactDOM.createRoot(document.getElementById('root')!);
 // llega al build de producción)
 if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('catalogo')) {
   import('./ui/Catalog').then(({ Catalog }) => root.render(<Catalog />));
+} else if (!isKnownPath(window.location.pathname)) {
+  // Link roto: ni siquiera arranca la sesión
+  root.render(<NotFoundScreen />);
 } else {
+  // Un error al dibujar en cualquier parte muestra "Algo falló" con recargar, en vez de la pantalla en blanco
   root.render(
     <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
+      <ErrorBoundary fallback={(error) => <CrashScreen error={error} />}>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </ErrorBoundary>
     </React.StrictMode>,
   );
 }

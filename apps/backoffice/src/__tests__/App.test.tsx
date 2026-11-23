@@ -89,6 +89,22 @@ describe('backoffice', () => {
     expect(screen.queryByText('próximamente')).toBeNull();
   });
 
+  it('una ruta que no es de ninguna sección muestra "no encontrada" y lleva a Usuarios', async () => {
+    window.history.replaceState({}, '', '/no-existe');
+    setAuthDriver(fakeDriver(async () => tokenWith('staff')));
+    renderApp();
+
+    // Mientras arranca la sesión se ve el acceso (con su propio encabezado): esperar el 404
+    expect(await screen.findByText('error 404/')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Página no encontrada');
+    expect(screen.queryByRole('navigation', { name: 'Secciones del backoffice' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Ir a Usuarios/ }));
+
+    expect(await screen.findByRole('navigation', { name: 'Secciones del backoffice' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/usuarios');
+  });
+
   it('una cuenta sin el rol staff no ve el backoffice', async () => {
     setAuthDriver(fakeDriver(async () => tokenWith('user')));
     renderApp();

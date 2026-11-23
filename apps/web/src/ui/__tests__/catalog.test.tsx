@@ -5,6 +5,8 @@ import {
   BlockButton,
   DisplayText,
   EmptyState,
+  ErrorBoundary,
+  ErrorPage,
   GoogleButton,
   SectionLabel,
   ServerIcon,
@@ -17,6 +19,71 @@ import {
 } from '..';
 
 afterEach(cleanup);
+
+describe('ErrorPage', () => {
+  it('muestra el código, el título como encabezado, el mensaje y las acciones', () => {
+    render(
+      <ErrorPage code="404" title="Página no encontrada" message="Esta dirección no existe." detail="detalle técnico">
+        <BlockButton onPress={vi.fn()}>Ir a Discordia</BlockButton>
+      </ErrorPage>
+    );
+
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Página no encontrada');
+    expect(screen.getByText('error 404/')).toBeTruthy();
+    expect(screen.getByText('Esta dirección no existe.')).toBeTruthy();
+    expect(screen.getByText('/ detalle técnico')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Ir a Discordia/ })).toBeTruthy();
+  });
+});
+
+describe('ErrorBoundary', () => {
+  function Broken(): never {
+    throw new Error('se rompió');
+  }
+
+  it('muestra el fallback con el error en vez de lo que falló, y avisa', () => {
+    // React también lo registra en la consola: se silencia en el test
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const onError = vi.fn();
+    render(
+      <ErrorBoundary fallback={(error) => <p>falló: {error.message}</p>} onError={onError}>
+        <Broken />
+      </ErrorBoundary>
+    );
+
+    expect(screen.getByText('falló: se rompió')).toBeTruthy();
+    expect(onError).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+  });
+
+  it('reset vuelve a montar lo de adentro', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let broken = true;
+    function MaybeBroken() {
+      if (broken) throw new Error('se rompió');
+      return <p>de vuelta</p>;
+    }
+    render(
+      <ErrorBoundary fallback={(_error, reset) => <button onClick={reset}>reintentar</button>}>
+        <MaybeBroken />
+      </ErrorBoundary>
+    );
+
+    broken = false;
+    fireEvent.click(screen.getByRole('button', { name: 'reintentar' }));
+    expect(screen.getByText('de vuelta')).toBeTruthy();
+    consoleError.mockRestore();
+  });
+
+  it('sin error muestra lo de adentro', () => {
+    render(
+      <ErrorBoundary fallback={() => <p>falló</p>}>
+        <p>todo bien</p>
+      </ErrorBoundary>
+    );
+    expect(screen.getByText('todo bien')).toBeTruthy();
+  });
+});
 
 describe('GoogleButton', () => {
   it('tiene nombre accesible y llama a onPress', () => {

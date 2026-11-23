@@ -10,6 +10,7 @@ import { ObservabilitySection } from './sections/ObservabilitySection';
 import { ServersSection } from './sections/ServersSection';
 import { StatusSection } from './sections/StatusSection';
 import { UsersSection } from './sections/UsersSection';
+import { NotFoundScreen } from './screens/ErrorScreens';
 
 const SECTION_CONTENT: Record<SectionId, ComponentType> = {
   usuarios: UsersSection,
@@ -24,6 +25,8 @@ const SECTION_CONTENT: Record<SectionId, ComponentType> = {
 export function Backoffice({ user }: { user: StaffUser }) {
   const [section, setSection] = useSection();
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+
+  if (!section) return <NotFoundScreen />;
   const Content = SECTION_CONTENT[section];
 
   return (

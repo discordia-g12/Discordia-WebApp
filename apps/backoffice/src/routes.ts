@@ -61,13 +61,21 @@ export function usePathname(): string {
   return useSyncExternalStore(subscribe, () => window.location.pathname);
 }
 
-/** Sección de la URL y cómo ir a otra. Una ruta desconocida (o "/") se reemplaza por la de usuarios. */
-export function useSection(): [SectionId, (id: SectionId) => void] {
-  const section = sectionFromPath(usePathname());
+const isRoot = (pathname: string) => pathname.replace(/\/+$/, '') === '';
+
+/**
+ * Sección de la URL y cómo ir a otra. "/" se reemplaza por la de usuarios. Cualquier otra ruta desconocida
+ * es null: el backoffice muestra "página no encontrada" (antes también iba a usuarios, y un link roto no se
+ * notaba).
+ */
+export function useSection(): [SectionId | null, (id: SectionId) => void] {
+  const pathname = usePathname();
+  const section = sectionFromPath(pathname);
+  const root = isRoot(pathname);
 
   useEffect(() => {
-    if (!section) navigate(pathForSection(DEFAULT_SECTION), { replace: true });
-  }, [section]);
+    if (!section && root) navigate(pathForSection(DEFAULT_SECTION), { replace: true });
+  }, [section, root]);
 
-  return [section ?? DEFAULT_SECTION, (id) => navigate(pathForSection(id))];
+  return [section ?? (root ? DEFAULT_SECTION : null), (id) => navigate(pathForSection(id))];
 }
