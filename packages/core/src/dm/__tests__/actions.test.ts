@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Conversation, Relationship } from '../../types';
-import { DM_COMPOSER_MESSAGES, dmActions } from '../actions';
+import { DM_COMPOSER_MESSAGES, DM_THREAD_PENDING_MESSAGE, dmActions, dmThreadWriteBlock } from '../actions';
 
 const conversation = (status: Conversation['status'], requestedBy: string): Conversation => ({
   id: 'dm-1',
@@ -118,5 +118,21 @@ describe('dmActions: llamar', () => {
     expect(dmActions({ relationship: 'blocked', conversation: conversation('accepted', 'other') }).canCall).toBe(false);
     const undeliverable = dmActions({ relationship: 'none', conversation: conversation('accepted', 'other'), canMessage: false });
     expect(undeliverable.canCall).toBe(false);
+  });
+});
+
+describe('dmThreadWriteBlock: barra del hilo de un DM', () => {
+  it('bloqueado o sin entrega: el mismo texto que el chat', () => {
+    expect(dmThreadWriteBlock(dmActions({ relationship: 'blocked', conversation: conversation('accepted', 'me') }))).toBe(
+      DM_COMPOSER_MESSAGES.blocked
+    );
+    expect(dmThreadWriteBlock(dmActions({ relationship: 'none', canMessage: false }))).toBe(DM_COMPOSER_MESSAGES.undeliverable);
+  });
+
+  it('una solicitud sin aceptar no se responde en un hilo; aceptada, sí', () => {
+    expect(dmThreadWriteBlock(dmActions({ relationship: 'none', conversation: conversation('pending', 'other') }))).toBe(
+      DM_THREAD_PENDING_MESSAGE
+    );
+    expect(dmThreadWriteBlock(dmActions({ relationship: 'friend', conversation: conversation('accepted', 'other') }))).toBeNull();
   });
 });

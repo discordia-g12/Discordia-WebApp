@@ -11,6 +11,8 @@ import { useCurrentServer } from '../../features/servers/useCurrentServer';
 import { selectServer } from '../../features/servers/serverActions';
 import { ChannelSidebarPanel } from '../../features/channels/ChannelSidebarPanel';
 import { ChatPanel } from '../../features/chat/ChatPanel';
+import { ThreadPanel } from '../../features/chat/ThreadPanel';
+import { NotificationList } from '../../features/notifications/NotificationList';
 import { VoicePanel } from '../../features/voice/VoicePanel';
 import { VoiceControlsPanel } from '../../features/voice/VoiceControls';
 import { CallControlsPanel } from '../../features/calls/CallControls';
@@ -48,6 +50,7 @@ export function MobileAppShell() {
   const { servers, currentServer, currentChannel, isLoadingServers } = useCurrentServer();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const selectedDm = useUIStore((s) => s.selectedDm);
+  const openThread = useUIStore((s) => s.openThread);
   const appView = useUIStore((s) => s.appView);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
   const voice = useVoice();
@@ -113,7 +116,13 @@ export function MobileAppShell() {
       )}
 
       <main className={styles.content}>
-        {tab === 'servers' &&
+        {/* El hilo tapa la pestaña: volver lo cierra y deja donde estaba */}
+        {openThread && (
+          <Pane backLabel="Volver" onBack={() => useUIStore.getState().setOpenThread(null)}>
+            <ThreadPanel key={openThread.messageId} thread={openThread} />
+          </Pane>
+        )}
+        {!openThread && tab === 'servers' &&
           (servers.length === 0 && !isLoadingServers ? (
             <Screen title="Servidores">
               <div className={styles.padded}>
@@ -148,17 +157,17 @@ export function MobileAppShell() {
             </Screen>
           ))}
 
-        {tab === 'messages' && <MessagesTab dmOpen={selectedDm !== null} />}
+        {!openThread && tab === 'messages' && <MessagesTab dmOpen={selectedDm !== null} />}
 
-        {tab === 'notifications' && (
+        {!openThread && tab === 'notifications' && (
           <Screen title="Avisos">
             <div className={styles.padded}>
-              <EmptyState title="por ahora no hay avisos" hint="próximamente: menciones e invitaciones" />
+              <NotificationList />
             </div>
           </Screen>
         )}
 
-        {tab === 'profile' && <ProfileTab />}
+        {!openThread && tab === 'profile' && <ProfileTab />}
       </main>
 
       {inCall && (

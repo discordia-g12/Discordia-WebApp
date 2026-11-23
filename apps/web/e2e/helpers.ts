@@ -132,3 +132,13 @@ export async function mockRole(serverId: string, name: string): Promise<string> 
   });
   return ((await res.json()) as { id: string }).id;
 }
+
+/** Solo mock: otro miembro responde en el hilo de un mensaje (y al usuario de prueba le llega el aviso). */
+export async function mockThreadReplyFromOther(channelId: string, parentId: string, content: string) {
+  const res = await fetch(`${MOCK_URL}/__test/thread-replies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channelId, parentId, content }),
+  });
+  if (!res.ok) throw new Error(`El mock no encontró el mensaje ${parentId}`);
+}

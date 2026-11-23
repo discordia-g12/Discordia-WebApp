@@ -66,7 +66,9 @@ describe('ChatView (rediseño)', () => {
     const onToggleReaction = vi.fn();
     render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onToggleReaction={onToggleReaction} />);
 
-    expect(screen.getByText('@Mar q rindo temprano tecno')).toBeTruthy();
+    // Tocar la cita lleva al mensaje citado y lo marca
+    fireEvent.click(screen.getByRole('button', { name: 'Ir al mensaje citado: @Mar: q rindo temprano tecno' }));
+    expect(document.querySelector('[data-message-id="m2"]')!.className).toContain('highlighted');
     const reaction = screen.getByRole('button', { name: '❤️ 2' });
     expect(reaction.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(reaction);
@@ -87,6 +89,13 @@ describe('ChatView (rediseño)', () => {
 
     expect(onSendMessage).toHaveBeenCalledWith('dale', undefined, 'm1');
     expect(screen.queryByText(/respondiendo a/)).toBeNull();
+  });
+
+  it('respondiendo, tocar la cita de la barra lleva al mensaje citado', () => {
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onSendMessage={vi.fn()} />);
+    fireEvent.click(within(screen.getByText('m!skip').closest('li')!).getByRole('button', { name: '_responder' }));
+    fireEvent.click(screen.getByRole('button', { name: /Ir al mensaje citado: respondiendo a @lbars/ }));
+    expect(document.querySelector('[data-message-id="m1"]')!.className).toContain('highlighted');
   });
 
   it('con mensajes anteriores sin cargar, arriba ofrece cargarlos en vez del comienzo del canal', () => {

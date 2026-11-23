@@ -26,6 +26,7 @@ import { ACTION_ICONS, IconButton, Skeleton } from '../../ui'
 import ChatHeader from '../chat/ChatHeader'
 import Composer, { type PendingAttachment } from '../chat/Composer'
 import MessageList from '../chat/MessageList'
+import { quotePreview } from '../chat/ReplyQuote'
 import PinnedMessagesModal from '../chat/PinnedMessagesModal'
 import { DmMessageSearchModal } from '../chat/MessageSearchModal'
 import ConfirmModal from '../shared/ConfirmModal'
@@ -44,6 +45,12 @@ interface DmChatScreenProps {
   onBack: () => void
   onOpenProfile: (userId: string) => void
   onLongPressMessage?: (message: Message) => void
+  /** Mensaje al que se está respondiendo (lo elige el menú del mensaje, en MobileShell). */
+  replyingTo?: Message | null
+  onCancelReply?: () => void
+  onReplyMessage?: (message: Message) => void
+  /** Abre el hilo de un mensaje. Solo en una conversación donde se puede escribir (no en una solicitud). */
+  onOpenThread?: (message: Message) => void
   /** Llamar a la persona; el botón se ofrece solo si se le puede escribir (dmActions().canCall). */
   onCall?: (conversationId: string, name: string) => void
   /** Conversación de la llamada en curso (si es esta, no se ofrece llamar: la barra de la llamada tiene cortar). */
@@ -54,7 +61,7 @@ interface DmChatScreenProps {
  * Chat directo. Abrirlo no crea nada: la conversación nace con el primer mensaje, y hasta entonces no se ofrece
  * adjuntar. El estado de la relación decide qué va en el encabezado, arriba del historial y en lugar del composer.
  */
-export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile, onLongPressMessage, onCall, callConversationId }: DmChatScreenProps) {
+export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile, onLongPressMessage, replyingTo = null, onCancelReply, onReplyMessage, onOpenThread, onCall, callConversationId }: DmChatScreenProps) {
   const styles = useStyles()
   const { showToast } = useUI()
   const { currentUserId, toggleReaction, togglePin } = useData()
@@ -66,7 +73,11 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
   const relation = useRelationshipActions(userId, profile)
   const { data: friendRequests } = useFriendRequestsQuery()
   const { data: presence } = usePresenceQuery([userId])
-  const describeUser = useUserDisplay([userId, currentUserId, ...messages.map(m => m.authorId)])
+  const describeUser = useUserDisplay([
+    userId,
+    currentUserId,
+    ...messages.flatMap(m => [m.authorId, ...(m.thread?.replierIds?.slice(0, 3) ?? []), ...(m.replyTo ? [m.replyTo.authorId] : [])]),
+  ])
   const [draft, setDraft] = useState('')
   const [attachment, setAttachment] = useState<PendingAttachment | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -122,7 +133,8 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
 
     setDraft('')
     setAttachment(null)
-    await send(trimmed, attachments)
+    onCancelReply?.()
+    await send(trimmed, attachments, replyingTo)
   }
 
   const handleRemoveFriend = async () => {
@@ -155,7 +167,7 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
     )
   }
 
-  const handleJumpToMessage = (message: Message) => {
+  const handleJumpToMessage = (message: Pick<Message, 'id'>) => {
     history
       .loadUntil(message.id)
       .then(found => (found ? setFocusMessageId(message.id) : showToast(JUMP_NOT_FOUND_MESSAGE, 'info')))
@@ -233,6 +245,10 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
           onLongPressMessage={onLongPressMessage}
           focusMessageId={focusMessageId}
           onFocusDone={() => setFocusMessageId(null)}
+          onPressQuote={id => handleJumpToMessage({ id })}
+          // Sin barra para escribir (solicitud sin aceptar, bloqueo) no hay a qué responder
+          onReplyMessage={actions.canRespondMessageRequest || actions.composerMessage ? undefined : onReplyMessage}
+          onOpenThread={conversationId && !actions.composerMessage ? onOpenThread : undefined}
           onToggleReaction={
             conversationId
               ? (messageId, emoji) => {
@@ -266,6 +282,15 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
             onAttach={conversationId ? pick : undefined}
             onRemoveAttachment={() => setAttachment(null)}
             isUploading={uploading}
+            replyingTo={
+              replyingTo && onCancelReply
+                ? {
+                    ...quotePreview(replyingTo, id => describeUser(id).name),
+                    onPress: () => handleJumpToMessage(replyingTo),
+                    onCancel: onCancelReply,
+                  }
+                : null
+            }
           />
         )}
       </>

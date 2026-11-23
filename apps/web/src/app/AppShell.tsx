@@ -11,6 +11,7 @@ import { MemberListPanel } from '../features/servers/MemberListPanel';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
 import { ChannelSidebarPanel } from '../features/channels/ChannelSidebarPanel';
 import { ChatPanel } from '../features/chat/ChatPanel';
+import { ThreadPanel } from '../features/chat/ThreadPanel';
 import { VoicePanel } from '../features/voice/VoicePanel';
 import { HomePanel } from '../features/friends/HomePanel';
 import { SuspendedServerPanel } from '../features/servers/SuspendedServerPanel';
@@ -50,6 +51,7 @@ export function AppShell() {
   const appView = useUIStore((s) => s.appView);
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
+  const openThread = useUIStore((s) => s.openThread);
   const { word, tone } = useShellContext();
   const reconnecting = useIsReconnecting();
   // La barra de mensajes directos del inicio se monta acá por portal (ver HomeView)
@@ -92,7 +94,11 @@ export function AppShell() {
           ) : (
             <ChatPanel />
           )}
-          {!isHome && !suspendedServer && isMemberListOpen && appView === 'chat' && <MemberListPanel />}
+          {openThread && !suspendedServer ? (
+            <ThreadPanel key={openThread.messageId} thread={openThread} />
+          ) : (
+            !isHome && !suspendedServer && isMemberListOpen && appView === 'chat' && <MemberListPanel />
+          )}
         </main>
       </div>
 

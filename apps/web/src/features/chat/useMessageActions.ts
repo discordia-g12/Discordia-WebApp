@@ -27,11 +27,11 @@ export function useMessageActions(channelId: string | null) {
   };
 
   // Enviar mensaje al canal seleccionado
-  const sendMessage = async (content: string, attachment?: MessageAttachment) => {
+  const sendMessage = async (content: string, attachment?: MessageAttachment, replyToId?: string) => {
     if (!channelId) return;
     const send = async () => {
       try {
-        await sendMessageWs(content, attachment ? [attachment] : undefined);
+        await sendMessageWs(content, attachment ? [attachment] : undefined, replyToId);
       } catch {
         showToast('No se pudo enviar el mensaje', 'danger', { label: 'reintentar', onPress: send });
       }

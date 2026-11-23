@@ -10,12 +10,15 @@ import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
 import ChatHeader from './chat/ChatHeader'
 import Composer, { type PendingAttachment } from './chat/Composer'
+import { quotePreview } from './chat/ReplyQuote'
 import ConfirmModal from './shared/ConfirmModal'
 import InviteModal from './servers/InviteModal'
 import CreateChannelModal from './channels/CreateChannelModal'
 import CreateCategoryModal from './channels/CreateCategoryModal'
 import CreateServerModal from './servers/CreateServerModal'
 import MessageList from './chat/MessageList'
+import ThreadScreen, { type OpenThread } from './chat/ThreadScreen'
+import { NotificationsTab } from './shell/NotificationsTab'
 import MessageActionsModal from './chat/MessageActionsModal'
 import PinnedMessagesModal from './chat/PinnedMessagesModal'
 import MessageSearchModal from './chat/MessageSearchModal'
@@ -48,6 +51,9 @@ import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipant
 import { isVoiceSupported } from '../utils/voice'
 import {
   ApiError,
+  canStartThread,
+  useNotificationsQuery,
+  type AppNotification,
   errorMessageFor,
   isLocalCategoryId,
   shiftCategory,
@@ -63,7 +69,8 @@ import {
   canPinMessages,
   JUMP_LOAD_FAILED_MESSAGE,
   JUMP_NOT_FOUND_MESSAGE,
-  isDirectChannelId,
+  useDmThreadWriteBlock,
+  isConversationId,
   usePinnedMessagesQuery,
   canSeeSettingsSection,
   isVoiceChannelLocked,
@@ -124,6 +131,9 @@ export default function MobileShell() {
     reorderCategories,
     addOptimisticMessage,
     confirmOptimisticMessage,
+    applyRemoteUpdate,
+    applyRemoteDelete,
+    applyThreadReplyEvent,
     failOptimisticMessage,
     toggleReaction,
     togglePin,
@@ -132,6 +142,10 @@ export default function MobileShell() {
   } = useData()
   const { selectedServerId, selectedChannelId, selectChannel, selectServer, showToast } = useUI()
   const [tab, setTab] = useState<ShellTab>('servers')
+  // Hilo abierto: tapa la pestaña hasta que se vuelve (CA1, CA2)
+  const [openThread, setOpenThread] = useState<OpenThread | null>(null)
+  const closeThread = useCallback(() => setOpenThread(null), [])
+  const notifications = useNotificationsQuery()
   const [screen, setScreen] = useState<MobileScreen>('channels')
   const keyboardVisible = useKeyboardVisible()
   const appActive = useAppActive()
@@ -144,6 +158,10 @@ export default function MobileShell() {
   const activeServerIdRef = useRef<string | null>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [draft, setDraft] = useState('')
+  // Mensaje al que se responde, elegido en el menú del mensaje, con el chat donde se eligió (ver replyingTo)
+  const [reply, setReply] = useState<{ message: Message; chat: string } | null>(null)
+  const cancelReply = useCallback(() => setReply(null), [])
+  // Desde el menú del mensaje o deslizándolo: responde en el chat que está abierto
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null)
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
@@ -279,7 +297,12 @@ export default function MobileShell() {
   const describeUser = useUserDisplay([
     ...voice.participants.map(p => p.id),
     ...Object.values(voicePresence).flat(),
-    ...channelMessages.flatMap(m => [m.authorId, ...(m.mentions?.users ?? [])]),
+    ...channelMessages.flatMap(m => [
+      m.authorId,
+      ...(m.mentions?.users ?? []),
+      ...(m.thread?.replierIds?.slice(0, 3) ?? []),
+      ...(m.replyTo ? [m.replyTo.authorId] : []),
+    ]),
   ])
 
   const voiceParticipants: VoiceScreenParticipant[] = voice.participants.map(p => ({
@@ -333,8 +356,15 @@ export default function MobileShell() {
     },
     onMessageUpdated: payload => {
       if (channel) {
-        confirmOptimisticMessage(channel.id, payload)
+        applyRemoteUpdate(channel.id, payload)
       }
+    },
+    // Deuda C6 (D8): sin esto, un mensaje que borra otro sigue visible (y fijado) hasta recargar el canal
+    onMessageDeleted: payload => {
+      if (channel) applyRemoteDelete(channel.id, payload)
+    },
+    onThreadReply: ({ parentId, reply, thread }) => {
+      if (channel) applyThreadReplyEvent(channel.id, parentId, reply, thread)
     },
     onError: errMsg => {
       if (channel) {
@@ -380,8 +410,9 @@ export default function MobileShell() {
   const channelPinned = usePinnedMessagesQuery(activeSocketChannelId)
   const canPinInChannel = canPinMessages({ isDirect: false, canManageMessages })
   // El menú del mensaje es compartido: si es de un DM (`dm-…`), puede fijar cualquiera de los dos
-  const canPinTarget = actionTargetMessage
-    ? canPinMessage(actionTargetMessage, { isDirect: isDirectChannelId(actionTargetMessage.channelId), canManageMessages })
+  // Una respuesta de hilo no se fija: los fijados son del canal
+  const canPinTarget = actionTargetMessage && !actionTargetMessage.threadParentId
+    ? canPinMessage(actionTargetMessage, { isDirect: isConversationId(actionTargetMessage.channelId), canManageMessages })
     : false
   const handleTogglePin = useCallback(
     (message: Message) => {
@@ -392,7 +423,7 @@ export default function MobileShell() {
     [togglePin, showToast],
   )
   const handleJumpToMessage = useCallback(
-    async (message: Message) => {
+    async (message: Pick<Message, 'id' | 'channelId'>) => {
       try {
         const found = await loadChannelMessagesUntil(message.channelId, message.id)
         if (found) setFocusMessageId(message.id)
@@ -560,6 +591,13 @@ export default function MobileShell() {
     if (picked) setPendingAttachment(picked)
   }
 
+  // Cambiar de chat (canal, DM, hilo o pestaña) deja de responder: la cita era del chat anterior
+  const openChat = [tab, screen, channel?.id, dmUserId, openThread?.messageId].join('|')
+  const replyingTo = reply?.chat === openChat ? reply.message : null
+  const startReply = (message: Message) => setReply({ message, chat: openChat })
+  // La barra del hilo de un DM la bloquean la relación y el estado de la conversación, no el canal
+  const dmThreadBlock = useDmThreadWriteBlock(openThread && isConversationId(openThread.channelId) ? openThread.channelId : null)
+
   const handleSend = async () => {
     if (!channel || isUploadingAttachment) return
     const trimmed = draft.trim()
@@ -595,20 +633,22 @@ export default function MobileShell() {
     }
 
     const attachmentsList = attachmentPayload ? [attachmentPayload] : undefined
+    const replyTo = replyingTo
 
     // CA 1: Actualización optimista
-    addOptimisticMessage(channel.id, trimmed, attachmentsList)
+    addOptimisticMessage(channel.id, trimmed, attachmentsList, replyTo)
     setDraft('')
     setPendingAttachment(null)
+    setReply(null)
 
     // Envío por WebSocket si es un canal activo, o fallback
     if (activeSocketChannelId) {
-      socket.sendMessage(trimmed, attachmentsList).catch(() => {
+      socket.sendMessage(trimmed, attachmentsList, replyTo?.id).catch(() => {
         failOptimisticMessage(channel.id)
         showToast('No se pudo enviar el mensaje por WebSocket.', 'error')
       })
     } else {
-      sendMessage(channel.id, trimmed, attachmentsList)
+      sendMessage(channel.id, trimmed, attachmentsList, replyTo)
     }
   }
 
@@ -650,7 +690,36 @@ export default function MobileShell() {
       setScreen('channels')
       setDmUserId(null)
     }
+    setOpenThread(null)
     setTab(next)
+  }
+
+  /** Abre el hilo de un mensaje del canal o del DM abierto. */
+  const openThreadOf = useCallback(
+    (message: Message) =>
+      setOpenThread({
+        channelId: message.channelId,
+        messageId: message.id,
+        serverId: isConversationId(message.channelId) ? null : (server?.id ?? null),
+      }),
+    [server?.id],
+  )
+
+  /** Lleva a donde pasó lo del aviso y, si es de un hilo, lo abre. En un DM 1 a 1, quien escribió es el otro. */
+  const openNotification = (notification: AppNotification) => {
+    if (notification.serverId) {
+      setTab('servers')
+      selectServer(notification.serverId)
+      selectChannel(notification.channelId)
+      fetchChannelMessages(notification.channelId)
+      setScreen('chat')
+    } else {
+      setTab('messages')
+      setDmUserId(notification.actorId)
+    }
+    if (notification.threadId) {
+      setOpenThread({ channelId: notification.channelId, messageId: notification.threadId, serverId: notification.serverId })
+    }
   }
 
   // El propio perfil no se abre: se edita desde la pestaña Perfil
@@ -827,6 +896,9 @@ export default function MobileShell() {
             onToggleReaction={(messageId, emoji) => handleToggleReaction(channel.id, messageId, emoji)}
             focusMessageId={focusMessageId}
             onFocusDone={() => setFocusMessageId(null)}
+            onOpenThread={openThreadOf}
+            onPressQuote={id => void handleJumpToMessage({ id, channelId: channel.id })}
+            onReplyMessage={chatBlockedMessage ? undefined : startReply}
           />
           <Composer
             channelName={channel.name}
@@ -838,6 +910,15 @@ export default function MobileShell() {
             onAttach={handlePickAttachment}
             onRemoveAttachment={() => setPendingAttachment(null)}
             isUploading={isUploadingAttachment}
+            replyingTo={
+              replyingTo
+                ? {
+                    ...quotePreview(replyingTo, id => describeUser(id).name),
+                    onPress: () => void handleJumpToMessage(replyingTo),
+                    onCancel: cancelReply,
+                  }
+                : null
+            }
           />
         </Pane>
       )
@@ -897,9 +978,41 @@ export default function MobileShell() {
         )}
 
         <KeyboardAvoidingView style={styles.content} behavior={keyboardAvoidingBehavior}>
-          {tab === 'servers' && serversContent()}
+          {openThread && (
+            <ThreadScreen
+              key={openThread.messageId}
+              thread={openThread}
+              locationLabel={
+                isConversationId(openThread.channelId)
+                  ? (dmUserId ? describeUser(dmUserId).name : 'el chat')
+                  : `•${server?.categories.flatMap(c => c.channels).find(c => c.id === openThread.channelId)?.name ?? 'canal'}`
+              }
+              currentUserId={currentUserId}
+              describeUser={describeUser}
+              blockedMessage={
+                isConversationId(openThread.channelId)
+                  ? dmThreadBlock
+                  : openThread.channelId === activeSocketChannelId
+                    ? chatBlockedMessage
+                    : null
+              }
+              onBack={closeThread}
+              onPressAuthor={openProfile}
+              onLongPressMessage={setActionTargetMessage}
+              onToggleReaction={(messageId, emoji) => handleToggleReaction(openThread.channelId, messageId, emoji)}
+              replyingTo={replyingTo}
+              onCancelReply={cancelReply}
+              onReplyMessage={
+                (isConversationId(openThread.channelId) ? dmThreadBlock : openThread.channelId === activeSocketChannelId && chatBlockedMessage)
+                  ? undefined
+                  : startReply
+              }
+            />
+          )}
 
-          {tab === 'messages' && (
+          {!openThread && tab === 'servers' && serversContent()}
+
+          {!openThread && tab === 'messages' && (
             <FriendsTab
               openUserId={dmUserId}
               inboxConnected={inbox.isConnected}
@@ -907,20 +1020,20 @@ export default function MobileShell() {
               onCloseChat={() => setDmUserId(null)}
               onOpenProfile={openProfile}
               onLongPressMessage={setActionTargetMessage}
+              replyingTo={replyingTo}
+              onCancelReply={cancelReply}
+              onReplyMessage={startReply}
+              onOpenThread={openThreadOf}
               onCall={privateCall.requestCall}
               callConversationId={privateCall.callConversationId}
             />
           )}
 
-          {tab === 'notifications' && (
-            <Screen title="Notificaciones">
-              <Padded>
-                <EmptyState title="por ahora no hay notificaciones" hint="próximamente: menciones e invitaciones" />
-              </Padded>
-            </Screen>
+          {!openThread && tab === 'notifications' && (
+            <NotificationsTab describeUser={describeUser} onOpen={openNotification} />
           )}
 
-          {tab === 'profile' && (
+          {!openThread && tab === 'profile' && (
             <ProfileTab
               user={me}
               inCall={!!voice.channelId}
@@ -962,7 +1075,13 @@ export default function MobileShell() {
             onToggleScreenShare={isVoiceSupported ? handleToggleScreenShare : undefined}
           />
         )}
-        {showBars && <BottomTabs value={tab} onChange={goTo} unread={{ messages: inbox.unread > 0 }} />}
+        {showBars && (
+          <BottomTabs
+            value={tab}
+            onChange={goTo}
+            unread={{ messages: inbox.unread > 0, notifications: notifications.unreadCount > 0 }}
+          />
+        )}
       </SafeAreaView>
 
       <ConnectionBanner
@@ -1046,12 +1165,13 @@ export default function MobileShell() {
         onEdit={() => {
           if (actionTargetMessage) setEditingMessage(actionTargetMessage)
         }}
+        onReplyInThread={
+          actionTargetMessage && canStartThread(actionTargetMessage) && !openThread
+            ? () => openThreadOf(actionTargetMessage)
+            : undefined
+        }
         onReply={() => {
-          if (actionTargetMessage) {
-            const authorUser = users[actionTargetMessage.authorId]
-            const name = authorUser?.displayName || authorUser?.username || 'usuario'
-            setDraft(prev => (prev ? `${prev} @${name} ` : `@${name} `))
-          }
+          if (actionTargetMessage) startReply(actionTargetMessage)
         }}
         onDelete={() => {
           if (actionTargetMessage) {

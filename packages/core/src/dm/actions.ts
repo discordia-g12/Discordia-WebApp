@@ -74,3 +74,14 @@ export function dmActions(input: DmActionsInput): DmActions {
     canCall: composer === 'open' && Boolean(input.conversation),
   };
 }
+
+/** El hilo de un DM sin aceptar: responder en un hilo no acepta la conversación (Chat-Engine responde 403). */
+export const DM_THREAD_PENDING_MESSAGE = 'Aceptá la conversación para responder en el hilo.';
+
+/**
+ * Qué reemplaza a la barra del hilo de un DM, o null si se puede responder. Las mismas reglas que la barra del
+ * chat y, además, una solicitud sin aceptar: en el chat se responde aceptándola, en el hilo no se puede.
+ */
+export function dmThreadWriteBlock(actions: Pick<DmActions, 'composer' | 'composerMessage'>): string | null {
+  return actions.composerMessage ?? (actions.composer === 'message_request' ? DM_THREAD_PENDING_MESSAGE : null);
+}

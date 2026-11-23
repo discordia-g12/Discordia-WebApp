@@ -70,7 +70,8 @@ export async function sendMessage(
   channelId: string,
   content: string,
   clientMessageId?: string,
-  attachments?: MessageAttachment[]
+  attachments?: MessageAttachment[],
+  replyToId?: string
 ): Promise<Message> {
   const mock = getApiMock();
   if (mock?.sendMessage) return mock.sendMessage(channelId, content, attachments);
@@ -82,7 +83,12 @@ export async function sendMessage(
       : `msg-${Date.now()}`);
   const sent = await api.post<Message>(
     `/api/v1/chat/channels/${channelId}/messages`,
-    { content, clientMessageId: idempotencyKey, ...(attachments?.length ? { attachments } : {}) },
+    {
+      content,
+      clientMessageId: idempotencyKey,
+      ...(attachments?.length ? { attachments } : {}),
+      ...(replyToId ? { replyToId } : {}),
+    },
     { idempotencyKey }
   );
   return normalizeMessage(sent);

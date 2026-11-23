@@ -313,6 +313,8 @@ export function useChatViewState({
       e.preventDefault();
       handleSend();
     } else if (e.key === 'Escape') {
+      // Marcado solo si cerró algo: si no, el Escape le queda al panel del hilo (lo cierra)
+      if (replyingTo || mentionQuery !== null) e.preventDefault();
       setReplyingTo(null);
       setMentionQuery(null);
     }

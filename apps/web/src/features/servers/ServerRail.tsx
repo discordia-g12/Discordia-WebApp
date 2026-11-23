@@ -1,4 +1,4 @@
-import { Compass, Home, Plus, type LucideIcon } from 'lucide-react';
+import { Bell, Compass, Home, Plus, type LucideIcon } from 'lucide-react';
 import type { Server } from '../../types';
 import { Logo, ServerStrip, Skeleton } from '../../ui';
 import { serverUnreadBadge, serverUnreadLabel } from './unread';
@@ -19,6 +19,10 @@ export interface ServerRailProps {
   homeBadgeCount?: number;
   /** Indica si los servidores se están cargando desde el backend. */
   isLoading?: boolean;
+  /** Abre los avisos. Sin esto no se muestra la campana. */
+  onOpenNotifications?: () => void;
+  /** Avisos sin leer ("3", "99+"); null si no hay. */
+  notificationsBadge?: string | null;
 }
 
 
@@ -35,6 +39,8 @@ export function ServerRail({
   onDiscoverServers,
   homeBadgeCount = 0,
   isLoading = false,
+  onOpenNotifications,
+  notificationsBadge = null,
 }: ServerRailProps) {
   const isHome = selectedServerId === 'home';
 
@@ -82,6 +88,14 @@ export function ServerRail({
           badge={homeBadgeCount > 0}
           onPress={() => onSelectServer('home')}
         />
+        {onOpenNotifications && (
+          <RailAction
+            icon={Bell}
+            label={notificationsBadge ? `Avisos, ${notificationsBadge} sin leer` : 'Avisos'}
+            badge={notificationsBadge !== null}
+            onPress={onOpenNotifications}
+          />
+        )}
         <RailAction icon={Plus} label="Añadir un servidor" onPress={onAddServer} />
         <RailAction icon={Compass} label="Descubrir servidores" onPress={onDiscoverServers} />
       </div>

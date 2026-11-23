@@ -61,6 +61,7 @@ export type Modal =
   | 'edit-channel'
   | 'create-category'
   | 'platform-status'
+  | 'notifications'
   | null;
 
 /** Acciones críticas que requieren confirmación explícita del usuario. */

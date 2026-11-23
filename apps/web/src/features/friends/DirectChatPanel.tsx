@@ -173,6 +173,11 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
       writeBlock={actions.composerMessage}
       onSendMessage={chat.send}
       onToggleReaction={messageActions.toggleReaction}
+      onOpenThread={
+        conversation && !isRequest
+          ? (message) => useUIStore.getState().setOpenThread({ channelId: conversation.id, messageId: message.id, serverId: null })
+          : undefined
+      }
       onDeleteMessage={messageActions.deleteMessage}
       onEditMessage={messageActions.editMessage}
       onPinMessage={messageActions.togglePin}

@@ -21,7 +21,7 @@ function backgrounds(scheme: ColorScheme): string[] {
 describe.each<ColorScheme>(['light', 'dark'])('contraste WCAG AA (%s)', (scheme) => {
   const c = colors[scheme];
 
-  it.each(['text', 'textMuted'] as const)('%s se lee como texto normal (4.5:1) sobre todo el fondo', (token) => {
+  it.each(['text', 'textMuted', 'accent'] as const)('%s se lee como texto normal (4.5:1) sobre todo el fondo', (token) => {
     for (const bg of backgrounds(scheme)) {
       expect(contrast(c[token], bg), `${c[token]} sobre ${bg}`).toBeGreaterThanOrEqual(4.5);
     }

@@ -1,7 +1,8 @@
 import { vi } from 'vitest';
 import { describe, it, expect } from 'vitest';
 import type { Message } from '../../types';
-import { canPinMessage, isDirectChannelId, loadUntilMessage, sortPinnedMessages } from '../pins';
+import { canPinMessage, loadUntilMessage, sortPinnedMessages } from '../pins';
+import { isConversationId } from '../../api/conversations';
 
 const msg = (over: Partial<Message> & { status?: string } = {}) =>
   ({ id: 'm1', content: 'hola', authorId: 'u1', channelId: 'c1', timestamp: '', ...over }) as Message & { status?: string };
@@ -38,11 +39,11 @@ describe('sortPinnedMessages', () => {
   });
 });
 
-describe('isDirectChannelId', () => {
+describe('isConversationId', () => {
   it('reconoce los DMs por el prefijo dm-', () => {
-    expect(isDirectChannelId('dm-123')).toBe(true);
-    expect(isDirectChannelId('c1')).toBe(false);
-    expect(isDirectChannelId(null)).toBe(false);
+    expect(isConversationId('dm-123')).toBe(true);
+    expect(isConversationId('c1')).toBe(false);
+    expect(isConversationId(null)).toBe(false);
   });
 });
 
