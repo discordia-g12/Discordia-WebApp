@@ -11,6 +11,7 @@ import { AppState } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import type { User, Server, Category, Channel, Message, MessageAttachment, MessageBackendPayload, Reaction } from '../types'
 import { useAuth } from './AuthProvider'
+import { markDeletedInList, setThreadSummaryInList } from '../utils/channelMessages'
 import {
   useMyStatusQuery,
   getMessages,
@@ -23,6 +24,10 @@ import {
   updateCachedMessages,
   normalizeMessage,
   syncPinnedMessage,
+  mergeCachedMessage,
+  markCachedMessageDeleted,
+  applyThreadReply,
+  type ThreadSummary,
   togglePinnedMessage,
   loadUntilMessage,
   type PinState,
@@ -92,6 +97,10 @@ interface DataContextValue {
   togglePin: (channelId: string, message: Message) => Promise<void>
   addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
+  /** Otro borró un mensaje (MESSAGE_DELETED por el socket del canal, deuda C6). */
+  applyRemoteDelete: (channelId: string, payload: MessageBackendPayload) => void
+  /** Alguien respondió en un hilo del canal (THREAD_REPLY_CREATED): el resumen del original y el hilo. */
+  applyThreadReplyEvent: (channelId: string, parentId: string, reply: MessageBackendPayload, thread: ThreadSummary) => void
   failOptimisticMessage: (channelId: string) => void
   fetchChannelMessages: (channelId: string) => Promise<void>
   /** Pide la página anterior del historial y la agrega arriba. Rechaza si falla la red. */
@@ -437,9 +446,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const confirmOptimisticMessage = useCallback(
     (channelId: string, payload: MessageBackendPayload) => {
-      // Un MESSAGE_UPDATED puede ser un fijado: la lista de fijados (React Query) se pone al día acá
+      // Un MESSAGE_UPDATED puede ser un fijado o una respuesta de hilo: fijados e hilos (React Query) se ponen
+      // al día acá
       const normalized = normalizeMessage(payload as unknown as Message)
-      syncPinnedMessage(queryClient, channelId, normalized)
+      mergeCachedMessage(queryClient, channelId, normalized)
       setMessages(prev => {
         const list = prev[channelId] ?? []
         // Si ya existe este ID exacto (por ejemplo reconexión/duplicado), asegurarse de que esté como sent
@@ -456,6 +466,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             isPinned: normalized.isPinned,
             pinnedAt: normalized.pinnedAt,
             pinnedBy: normalized.pinnedBy,
+            // Borrar una respuesta publica el original con el contador nuevo
+            thread: normalized.thread ?? updated[existingIndex].thread,
           }
           return { ...prev, [channelId]: updated }
         }
@@ -502,6 +514,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
     },
     [activeUserId, queryClient],
+  )
+
+  const applyRemoteDelete = useCallback(
+    (channelId: string, payload: MessageBackendPayload) => {
+      const normalized = normalizeMessage(payload as unknown as Message)
+      // Fijados, DMs e hilos (React Query): sale de los fijados y, si era una respuesta, queda borrada en su hilo
+      markCachedMessageDeleted(queryClient, channelId, normalized)
+      setMessages(prev => {
+        const list = prev[channelId]
+        if (!list) return prev
+        return { ...prev, [channelId]: markDeletedInList(list, normalized) }
+      })
+    },
+    [queryClient],
+  )
+
+  const applyThreadReplyEvent = useCallback(
+    (channelId: string, parentId: string, reply: MessageBackendPayload, thread: ThreadSummary) => {
+      applyThreadReply(queryClient, channelId, parentId, normalizeMessage(reply as unknown as Message), thread)
+      setMessages(prev => {
+        const list = prev[channelId]
+        if (!list) return prev
+        return { ...prev, [channelId]: setThreadSummaryInList(list, parentId, thread) }
+      })
+    },
+    [queryClient],
   )
 
   const failOptimisticMessage = useCallback((channelId: string) => {
@@ -638,7 +676,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const deleted = await apiDeleteMessage(channelId, messageId)
-        // Borrado deja de estar fijado (los canales de mobile no escuchan MESSAGE_DELETED)
+        // Borrado deja de estar fijado (por si el MESSAGE_DELETED del socket no llega)
         syncPinnedMessage(queryClient, channelId, deleted)
       } catch (err) {
         if (previousMessage) {
@@ -851,6 +889,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       togglePin,
       addOptimisticMessage,
       confirmOptimisticMessage,
+      applyRemoteDelete,
+      applyThreadReplyEvent,
       failOptimisticMessage,
       fetchChannelMessages,
       fetchOlderChannelMessages,
@@ -884,6 +924,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       togglePin,
       addOptimisticMessage,
       confirmOptimisticMessage,
+      applyRemoteDelete,
+      applyThreadReplyEvent,
       failOptimisticMessage,
       fetchChannelMessages,
       fetchOlderChannelMessages,

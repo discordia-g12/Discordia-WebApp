@@ -32,6 +32,12 @@ interface MessageListProps {
    */
   focusMessageId?: string | null
   onFocusDone?: () => void
+  /** Abre el hilo de un mensaje (su resumen de respuestas). Sin esto, no se muestran. */
+  onOpenThread?: (message: Message) => void
+  /** Reemplaza al comienzo del canal (en un hilo, el mensaje original). */
+  header?: React.ReactElement
+  /** Debajo del último mensaje (en un hilo, "cargar más respuestas"). */
+  footer?: React.ReactElement
 }
 
 type Row =
@@ -70,6 +76,9 @@ export default function MessageList({
   onToggleReaction,
   focusMessageId,
   onFocusDone,
+  onOpenThread,
+  header,
+  footer,
 }: MessageListProps) {
   const styles = useStyles()
   const listRef = useRef<FlatList<Row>>(null)
@@ -194,7 +203,8 @@ export default function MessageList({
       ref={listRef}
       data={rows}
       keyExtractor={row => row.key}
-      ListHeaderComponent={hasOlder ? older : welcome}
+      ListHeaderComponent={header ?? (hasOlder ? older : welcome)}
+      ListFooterComponent={footer}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
@@ -251,6 +261,7 @@ export default function MessageList({
             onLongPress={onLongPressMessage ? () => onLongPressMessage(item.message) : undefined}
             onToggleReaction={onToggleReaction}
             highlighted={highlighted === item.message.id}
+            onOpenThread={onOpenThread}
           />
         )
       }

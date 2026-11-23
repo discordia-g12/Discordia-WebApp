@@ -4,11 +4,13 @@ import {
   WAVE_EMOJI,
   formatAttachmentSize,
   formatMessageTime,
+  hasThreadReplies,
   hasWaved,
   isMemberJoin,
   memberJoinText,
   mentionsToText,
   systemMessageUserId,
+  threadSummaryLabel,
   waveCount,
 } from '@discordia/core'
 import { makeStyles } from '../../theme'
@@ -36,6 +38,8 @@ interface MessageItemProps {
   onToggleReaction?: (messageId: string, emoji: string) => void
   /** Se acaba de ir a este mensaje (desde los fijados): se marca un momento. */
   highlighted?: boolean
+  /** Abre el hilo (el resumen "3 respuestas"). Sin esto, dentro de un hilo, no se muestra. */
+  onOpenThread?: (message: Message) => void
 }
 
 /**
@@ -54,8 +58,23 @@ function MessageItem({
   onLongPress,
   onToggleReaction,
   highlighted = false,
+  onOpenThread,
 }: MessageItemProps) {
   const styles = useStyles()
+  // CA3: cuántas respuestas tiene y cuándo fue la última; tocarlo abre el hilo
+  const threadSummary =
+    onOpenThread && hasThreadReplies(message) ? (
+      <Pressable
+        onPress={() => onOpenThread(message)}
+        accessibilityRole="button"
+        accessibilityLabel={`Abrir hilo: ${threadSummaryLabel(message.thread)}`}
+        hitSlop={8}
+      >
+        <Text variant="meta" tone="muted" style={styles.threadSummary}>
+          {threadSummaryLabel(message.thread)}
+        </Text>
+      </Pressable>
+    ) : null
   const reduce = useReducedMotion()
   // Se fija al montarse: al confirmarse deja de estar pendiente y la entrada no tiene que cambiar a mitad de camino
   const [justSent] = useState(sent)
@@ -92,6 +111,7 @@ function MessageItem({
           <Text variant="meta" tone="muted" style={styles.deleted}>
             / este mensaje fue eliminado
           </Text>
+          {threadSummary}
         </View>
       </Animated.View>
     )
@@ -210,6 +230,7 @@ function MessageItem({
             })}
           </View>
         )}
+        {threadSummary}
       </Pressable>
     </Animated.View>
   )
@@ -306,6 +327,7 @@ const useStyles = makeStyles(t => ({
     marginBottom: t.space[1],
   },
   reactions: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space[1], marginTop: t.space[1] },
+  threadSummary: { marginTop: t.space[1], textDecorationLine: 'underline' },
   // Reacciones en cajas de línea fina; la propia, invertida
   reaction: { paddingHorizontal: t.space[2], paddingVertical: 2, borderWidth: t.lines.hairline, borderColor: t.colors.lineStrong },
   reactionMine: { backgroundColor: t.colors.inverseBackground, borderColor: t.colors.inverseBackground },

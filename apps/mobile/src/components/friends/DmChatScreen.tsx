@@ -44,6 +44,8 @@ interface DmChatScreenProps {
   onBack: () => void
   onOpenProfile: (userId: string) => void
   onLongPressMessage?: (message: Message) => void
+  /** Abre el hilo de un mensaje. Solo en una conversación donde se puede escribir (no en una solicitud). */
+  onOpenThread?: (message: Message) => void
   /** Llamar a la persona; el botón se ofrece solo si se le puede escribir (dmActions().canCall). */
   onCall?: (conversationId: string, name: string) => void
   /** Conversación de la llamada en curso (si es esta, no se ofrece llamar: la barra de la llamada tiene cortar). */
@@ -54,7 +56,7 @@ interface DmChatScreenProps {
  * Chat directo. Abrirlo no crea nada: la conversación nace con el primer mensaje, y hasta entonces no se ofrece
  * adjuntar. El estado de la relación decide qué va en el encabezado, arriba del historial y en lugar del composer.
  */
-export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile, onLongPressMessage, onCall, callConversationId }: DmChatScreenProps) {
+export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenProfile, onLongPressMessage, onOpenThread, onCall, callConversationId }: DmChatScreenProps) {
   const styles = useStyles()
   const { showToast } = useUI()
   const { currentUserId, toggleReaction, togglePin } = useData()
@@ -233,6 +235,7 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
           onLongPressMessage={onLongPressMessage}
           focusMessageId={focusMessageId}
           onFocusDone={() => setFocusMessageId(null)}
+          onOpenThread={conversationId && !actions.composerMessage ? onOpenThread : undefined}
           onToggleReaction={
             conversationId
               ? (messageId, emoji) => {
