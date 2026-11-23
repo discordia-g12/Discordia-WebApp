@@ -5,11 +5,13 @@ import {
   type ChatRemovalReason,
   type ChatSocketConnection,
   type ChatSocketStatus,
+  type ThreadReplyEvent,
 } from '../realtime/chatSocket';
 import type { Message, MessageAttachment, MessageBackendPayload } from '../types';
 import { normalizeMessage } from '../api/messages';
 import {
   appendMessage,
+  applyThreadReply,
   markCachedMessageDeleted,
   mergeCachedMessage,
   pinnedMessagesQueryKey,
@@ -24,6 +26,8 @@ export interface UseChatSocketOptions {
   /** Último mensaje que la app ya tiene; el servidor reenvía los posteriores al (re)conectar. */
   lastMessageIdSeen?: string;
   onMessage: (message: MessageBackendPayload) => void;
+  /** Una respuesta nueva en un hilo de este canal. */
+  onThreadReply?: (event: ThreadReplyEvent) => void;
   /** Un mensaje existente fue editado en este canal. */
   onMessageUpdated?: (message: MessageBackendPayload) => void;
   /** Un mensaje existente fue eliminado en este canal. */
@@ -58,6 +62,7 @@ export function useChatSocket({
   userId,
   lastMessageIdSeen,
   onMessage,
+  onThreadReply,
   onMessageUpdated,
   onMessageDeleted,
   onError,
@@ -70,8 +75,8 @@ export function useChatSocket({
   const connectionRef = useRef<ChatSocketConnection | null>(null);
 
   // Callbacks y último id en refs: cambiarlos no debe reconectar
-  const handlersRef = useRef({ onMessage, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved });
-  handlersRef.current = { onMessage, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved };
+  const handlersRef = useRef({ onMessage, onThreadReply, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved });
+  handlersRef.current = { onMessage, onThreadReply, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved };
   const lastMessageIdRef = useRef(lastMessageIdSeen);
   lastMessageIdRef.current = lastMessageIdSeen;
 
@@ -85,6 +90,7 @@ export function useChatSocket({
       channelId,
       {
         onMessage: (message) => handlersRef.current.onMessage(message),
+        onThreadReply: (event) => handlersRef.current.onThreadReply?.(event),
         onMessageUpdated: (message) => handlersRef.current.onMessageUpdated?.(message),
         onMessageDeleted: (message) => handlersRef.current.onMessageDeleted?.(message),
         onError: handlersRef.current.onError
@@ -156,6 +162,11 @@ export function useChatWebSocket(
         appendMessage(old, normalizeMessage(data as unknown as Message))
       );
     },
+    onThreadReply: ({ parentId, reply, thread }) => {
+      if (channelId) {
+        applyThreadReply(queryClient, channelId, parentId, normalizeMessage(reply as unknown as Message), thread);
+      }
+    },
     onMessageUpdated: (data) => {
       // Edición, reacción o fijado: actualiza el historial y la lista de fijados
       if (channelId) mergeCachedMessage(queryClient, channelId, normalizeMessage(data as unknown as Message));
@@ -167,6 +178,8 @@ export function useChatWebSocket(
       // Reconexión: los mensajes enviados durante el corte no llegaron por el socket, ni los fijados de mensajes viejos
       queryClient.invalidateQueries({ queryKey: ['messages', channelId] });
       queryClient.invalidateQueries({ queryKey: pinnedMessagesQueryKey(channelId) });
+      // Las respuestas de los hilos abiertos tampoco (la reconexión del canal no las repone)
+      queryClient.invalidateQueries({ queryKey: ['thread', channelId] });
     },
     onRemoved: (reason) => {
       // Ya no es miembro: la lista de servidores tiene que dejar de mostrarlo

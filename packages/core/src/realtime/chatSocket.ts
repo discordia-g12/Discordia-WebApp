@@ -1,7 +1,7 @@
 import { getClientConfig, getWsBaseUrl, notifyAccountSuspended } from '../api/client';
 import { ACCOUNT_SUSPENDED_CLOSE_CODE, SERVER_DELETED_CLOSE_CODE, SERVER_SUSPENDED_CLOSE_CODE } from '../api/errors';
 import { isConversationId } from '../api/conversations';
-import type { MessageAttachment, MessageBackendPayload } from '../types';
+import type { MessageAttachment, MessageBackendPayload, ThreadSummary } from '../types';
 
 // Mismo backoff que la presencia de voz: 1 s, 2 s, 4 s… hasta 15 s entre intentos
 const RECONNECT_BASE_MS = 1000;
@@ -37,8 +37,27 @@ const CLOSE_CODE_REMOVAL: Record<number, ChatRemovalReason> = {
   [SERVER_SUSPENDED_CLOSE_CODE]: 'server-suspended',
 };
 
+/** Alguien respondió en un hilo de este canal: la respuesta y el resumen nuevo del original. */
+export interface ThreadReplyEvent {
+  parentId: string;
+  reply: MessageBackendPayload;
+  thread: ThreadSummary;
+}
+
+export function isThreadReplyEvent(data: Record<string, unknown>): boolean {
+  const reply = data.reply as Record<string, unknown> | undefined;
+  const thread = data.thread as Record<string, unknown> | undefined;
+  return (
+    typeof data.parentId === 'string' &&
+    typeof reply?.id === 'string' &&
+    typeof thread?.replyCount === 'number'
+  );
+}
+
 export interface ChatSocketHandlers {
   onMessage: (message: MessageBackendPayload) => void;
+  /** Una respuesta nueva en un hilo de este canal (no es un mensaje del canal). */
+  onThreadReply?: (event: ThreadReplyEvent) => void;
   /** Un mensaje existente fue editado o sus reacciones cambiaron en este canal. */
   onMessageUpdated?: (message: MessageBackendPayload) => void;
   /** Un mensaje existente fue eliminado en este canal. */
@@ -160,6 +179,11 @@ export function openChatSocket(
           } else {
             handlers.onMessage({ ...data, type: 'deleted', content: '' } as MessageBackendPayload);
           }
+          return;
+        }
+
+        if (data.type === 'THREAD_REPLY_CREATED') {
+          if (isThreadReplyEvent(data)) handlers.onThreadReply?.(data as ThreadReplyEvent);
           return;
         }
 

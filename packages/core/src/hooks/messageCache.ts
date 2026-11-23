@@ -1,5 +1,6 @@
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
-import type { Message } from '../types';
+import type { Message, ThreadSummary } from '../types';
+import type { ThreadPage } from '../api/threads';
 import { sortPinnedMessages } from '../chat/pins';
 
 /** Mensajes por página del historial (lo mismo que Chat-Engine usa por defecto). */
@@ -33,9 +34,18 @@ export function appendMessage(data: MessagePages | undefined, message: Message):
   return { ...data, pages: [[...newest, message], ...older] };
 }
 
+/** Hilo de un mensaje (['thread', channelId, parentId]): páginas de la más vieja a la más nueva. */
+export type ThreadPages = InfiniteData<ThreadPage, string | undefined>;
+
+export function threadQueryKey(channelId: string | null, parentId: string | null) {
+  return ['thread', channelId, parentId] as const;
+}
+
 /**
  * Aplica `update` a los mensajes del canal en el caché (cada página por separado). Sirve para cambios
- * mensaje por mensaje (editar, borrar, reaccionar), que no cambian en qué página está cada uno.
+ * mensaje por mensaje (editar, borrar, reaccionar), que no cambian en qué página está cada uno. También
+ * a los hilos abiertos de ese canal (el original y sus respuestas): así las mismas acciones y eventos
+ * sirven para un hilo sin saber dónde está el mensaje.
  */
 export function updateCachedMessages(
   queryClient: QueryClient,
@@ -45,6 +55,45 @@ export function updateCachedMessages(
   queryClient.setQueryData<MessagePages>(messagesQueryKey(channelId), (old) =>
     old ? { ...old, pages: old.pages.map(update) } : old
   );
+  queryClient.setQueriesData<ThreadPages>({ queryKey: ['thread', channelId] }, (old) =>
+    old
+      ? {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            parent: update([page.parent])[0] ?? page.parent,
+            replies: update(page.replies),
+          })),
+        }
+      : old
+  );
+}
+
+/**
+ * Una respuesta nueva en un hilo (THREAD_REPLY_CREATED, o la respuesta del POST): el original pasa a tener
+ * el resumen nuevo (en el canal y en el hilo) y la respuesta se agrega al final del hilo si está cargado
+ * hasta el final. Es idempotente: el mismo evento por el socket y por el inbox no la repite.
+ */
+export function applyThreadReply(
+  queryClient: QueryClient,
+  channelId: string,
+  parentId: string,
+  reply: Message,
+  thread?: ThreadSummary
+) {
+  if (thread) {
+    updateCachedMessages(queryClient, channelId, (list) =>
+      list.map((m) => (m.id === parentId ? { ...m, thread } : m))
+    );
+  }
+  queryClient.setQueryData<ThreadPages>(threadQueryKey(channelId, parentId), (old) => {
+    if (!old || old.pages.length === 0) return old;
+    if (old.pages.some((page) => page.replies.some((m) => m.id === reply.id))) return old;
+    const last = old.pages[old.pages.length - 1];
+    // Faltan páginas por cargar: la respuesta aparece al pedirlas, no antes (quedaría un hueco)
+    if (last.hasMore) return old;
+    return { ...old, pages: [...old.pages.slice(0, -1), { ...last, replies: [...last.replies, reply] }] };
+  });
 }
 
 /** Fijados de un canal o DM (`GET /pins`), del fijado más reciente al más viejo. */

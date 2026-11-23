@@ -18,6 +18,7 @@ import { InviteModal } from '../features/servers/InviteModal';
 import { CreateCategoryModal, CreateChannelModal, EditChannelModal } from '../features/channels/ChannelModals';
 import { UserProfileModal } from '../features/profile/UserProfileModal';
 import { PlatformStatusModal } from '../features/platform-status/PlatformStatusModal';
+import { NotificationsModal } from '../features/notifications/NotificationsModal';
 import { MessageSearchModal } from '../features/search/MessageSearchModal';
 import { useCurrentServer } from '../features/servers/useCurrentServer';
 import { clearInviteFromUrl, useCreateServer, useJoinServer } from '../features/servers/serverActions';
@@ -155,6 +156,7 @@ export function GlobalModals() {
       )}
       {modal === 'invite' && currentServer && <InviteModal key="invite" server={currentServer} onClose={close} />}
       {modal === 'platform-status' && <PlatformStatusModal key="platform-status" onClose={close} />}
+      {modal === 'notifications' && <NotificationsModal key="notifications" onClose={close} />}
       {modal === 'search' && currentServer && <MessageSearchModal key="search" server={currentServer} onClose={close} />}
       {modal === 'user-profile' && ui.selectedProfileUserId && (
         <UserProfileModal

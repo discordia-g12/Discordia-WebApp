@@ -339,6 +339,14 @@ export interface Server {
   isSuspended?: boolean;
 }
 
+/** Resumen de un hilo, en el mensaje original. */
+export interface ThreadSummary {
+  replyCount: number;
+  lastReplyAt: string;
+  lastReplyId: string;
+  participantIds: string[];
+}
+
 /** Mensaje individual publicado en un canal o chat directo. */
 export interface Message {
   id: string;
@@ -362,6 +370,10 @@ export interface Message {
   mentions?: MessageMentions;
   replyToId?: string | null;
   replyTo?: Message | null;
+  /** Respuesta de hilo: id del mensaje original. No aparece en el historial del canal (ADR-07 de Chat). */
+  threadParentId?: string;
+  /** Mensaje original de un hilo con al menos una respuesta: cuántas y cuándo fue la última. */
+  thread?: ThreadSummary;
   /** Fijado en el canal o DM. normalizeMessage lo completa con el `pinned` de Chat-Engine. */
   isPinned?: boolean;
   /** Cuándo se fijó: ordena la lista de fijados (el más reciente primero). */

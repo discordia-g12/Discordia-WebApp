@@ -1,0 +1,40 @@
+/* Hilo abierto: ocupa el lugar de la lista de miembros, un poco más ancho para leer las respuestas */
+.panel {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: calc(var(--layout-aside-width) * 1.5);
+  max-width: 50%;
+  min-height: 0;
+  border-left: var(--line-hairline) solid var(--color-line-strong);
+  color: var(--color-text);
+}
+
+.panel > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.error {
+  padding: var(--space-5);
+  color: var(--color-text-muted);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Mobile web: el hilo es una pantalla, no un panel */
+@media (max-width: 768px) {
+  .panel {
+    width: 100%;
+    max-width: none;
+    border-left: 0;
+  }
+}

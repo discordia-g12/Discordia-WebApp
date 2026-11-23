@@ -93,6 +93,11 @@ export function ChatPanel() {
       canPinMessages={canPinMessages({ isDirect: false, canManageMessages })}
       onLoadUntilMessage={loadUntil}
       onOpenUserProfile={openUserProfile}
+      onOpenThread={
+        channelId
+          ? (message) => useUIStore.getState().setOpenThread({ channelId, messageId: message.id, serverId: selectedServerId })
+          : undefined
+      }
     />
   );
 }

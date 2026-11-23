@@ -339,6 +339,26 @@
 }
 
 /* Reacciones: emoji y número en una caja de línea fina; la propia, invertida */
+/* "3 respuestas · última hace 5 min": abre el hilo (CA3) */
+.threadSummary {
+  display: inline-block;
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.threadSummary:hover,
+.threadSummary:focus-visible {
+  color: var(--color-text);
+}
+
 .reactions {
   display: flex;
   flex-wrap: wrap;

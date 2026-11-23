@@ -3,8 +3,9 @@ import { ACCOUNT_SUSPENDED_CLOSE_CODE } from '../api/errors';
 import { getApiMock } from '../api/mock';
 import type { Call } from '../api/calls';
 import type { PreferredStatus, PresenceStatus } from '../api/presence';
-import type { Conversation, MessageBackendPayload } from '../types';
-import { reconnectDelayMs, type ChatSocketStatus } from './chatSocket';
+import type { Conversation, MessageBackendPayload, ThreadSummary } from '../types';
+import type { NotificationPreview } from '../api/notifications';
+import { isThreadReplyEvent, reconnectDelayMs, type ChatSocketStatus } from './chatSocket';
 import { getWatchedIds, isPresenceInactive, subscribePresenceSync } from './presenceSync';
 
 /** Mismos estados que el chat, salvo `removed`: del inbox nunca sacan a nadie. */
@@ -17,6 +18,16 @@ export type InboxEvent =
   | { type: 'DM_MESSAGE_DELETED'; conversationId: string; message: MessageBackendPayload }
   | { type: 'DM_MESSAGE_REACTION_UPDATED'; conversationId: string; message: MessageBackendPayload }
   | { type: 'DM_CONVERSATION'; conversation: Conversation }
+  /** Respuesta en un hilo de un DM (además llega por el socket del DM, si está abierto). */
+  | {
+      type: 'DM_THREAD_REPLY_CREATED';
+      conversationId: string;
+      parentId: string;
+      reply: MessageBackendPayload;
+      thread: ThreadSummary;
+    }
+  /** Notification-Service guardó un aviso para el usuario (ADR-07 de Notification): hay que volver a pedir la bandeja. */
+  | { type: 'NOTIFICATION_CREATED'; notification: NotificationPreview }
   /** Cambió el nombre, la descripción, el ícono o el banner de un servidor del usuario: hay que volver a pedirlo. */
   | { type: 'SERVER_UPDATED'; serverId: string }
   /** Se eliminó un servidor del usuario (por su dueño o por el staff): hay que sacarlo de la lista. */
@@ -74,6 +85,10 @@ export interface InboxSocketConnection {
 
 export function isInboxEvent(data: {
   type?: unknown;
+  parentId?: unknown;
+  reply?: unknown;
+  thread?: unknown;
+  notification?: unknown;
   conversationId?: unknown;
   message?: unknown;
   conversation?: unknown;
@@ -84,6 +99,13 @@ export function isInboxEvent(data: {
   statuses?: unknown;
 }): boolean {
   if (CALL_EVENT_TYPES.has(data.type)) return isCall(data.call);
+  if (data.type === 'DM_THREAD_REPLY_CREATED') {
+    return typeof data.conversationId === 'string' && isThreadReplyEvent(data as Record<string, unknown>);
+  }
+  if (data.type === 'NOTIFICATION_CREATED') {
+    const notification = data.notification as Record<string, unknown> | null | undefined;
+    return typeof notification?.channelId === 'string' && typeof notification.reason === 'string';
+  }
   if (data.type === 'PRESENCE_UPDATE') return nonEmptyString(data.userId) && PRESENCE_STATUSES.has(data.status);
   if (data.type === 'PRESENCE_SNAPSHOT') {
     return (

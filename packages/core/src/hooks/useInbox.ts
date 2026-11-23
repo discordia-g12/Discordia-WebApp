@@ -19,8 +19,10 @@ import {
   conversationWithQueryKey,
   upsertConversation,
 } from './inboxCache';
+import { notificationsQueryKey } from './useNotifications';
 import {
   appendMessage,
+  applyThreadReply,
   markCachedMessageDeleted,
   mergeCachedMessage,
   messagesQueryKey,
@@ -98,6 +100,18 @@ export function useInbox({
       if (event.type === 'SERVER_DELETED') {
         queryClient.invalidateQueries({ queryKey: ['servers'] });
         serverCallbacksRef.current.onServerDeleted?.(event.serverId);
+        return;
+      }
+
+      if (event.type === 'NOTIFICATION_CREATED') {
+        // El evento no trae el id del aviso: la bandeja se vuelve a pedir
+        queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
+        return;
+      }
+
+      if (event.type === 'DM_THREAD_REPLY_CREATED') {
+        const reply = normalizeMessage(event.reply as unknown as Message);
+        applyThreadReply(queryClient, event.conversationId, event.parentId, reply, event.thread);
         return;
       }
 
@@ -193,6 +207,8 @@ export function useInbox({
           queryClient.invalidateQueries({
             predicate: ({ queryKey: [scope, id] }) => scope === 'messages' && isConversationId(id as string),
           });
+          // Los avisos que llegaron durante el corte tampoco
+          queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
           publishInboxReconnect();
         }
         hasOpenedRef.current = true;
