@@ -3,6 +3,7 @@ import {
   canInChannel,
   errorMessageFor,
   isConversationId,
+  useDmThreadWriteBlock,
   useSendThreadReply,
   useThreadMute,
   useThreadQuery,
@@ -32,6 +33,8 @@ export function ThreadPanel({ thread }: { thread: OpenThread }) {
   const { usersMap } = useUsers();
   const writeBlock = useChatWriteBlock();
   const isDm = isConversationId(channelId);
+  // En un DM la barra del canal no aplica: la bloquean la relación y el estado de la conversación
+  const dmWriteBlock = useDmThreadWriteBlock(isDm ? channelId : null);
 
   const query = useThreadQuery(channelId, messageId);
   const send = useSendThreadReply(channelId, messageId);
@@ -104,7 +107,7 @@ export function ThreadPanel({ thread }: { thread: OpenThread }) {
         canAddReactions={isDm || can('ADD_REACTIONS')}
         canPinMessages={false}
         pinnedMessages={[]}
-        writeBlock={isDm ? null : writeBlock}
+        writeBlock={isDm ? dmWriteBlock : writeBlock}
         onSendMessage={(content, attachment, replyToId) => {
           send(content, attachment, replyToId).catch((err) => showToast(errorMessageFor(err, SEND_ERRORS, 'No se pudo enviar la respuesta'), 'danger'));
         }}

@@ -69,7 +69,8 @@ import {
   canPinMessages,
   JUMP_LOAD_FAILED_MESSAGE,
   JUMP_NOT_FOUND_MESSAGE,
-  isDirectChannelId,
+  useDmThreadWriteBlock,
+  isConversationId,
   usePinnedMessagesQuery,
   canSeeSettingsSection,
   isVoiceChannelLocked,
@@ -130,6 +131,7 @@ export default function MobileShell() {
     reorderCategories,
     addOptimisticMessage,
     confirmOptimisticMessage,
+    applyRemoteUpdate,
     applyRemoteDelete,
     applyThreadReplyEvent,
     failOptimisticMessage,
@@ -354,7 +356,7 @@ export default function MobileShell() {
     },
     onMessageUpdated: payload => {
       if (channel) {
-        confirmOptimisticMessage(channel.id, payload)
+        applyRemoteUpdate(channel.id, payload)
       }
     },
     // Deuda C6 (D8): sin esto, un mensaje que borra otro sigue visible (y fijado) hasta recargar el canal
@@ -410,7 +412,7 @@ export default function MobileShell() {
   // El menú del mensaje es compartido: si es de un DM (`dm-…`), puede fijar cualquiera de los dos
   // Una respuesta de hilo no se fija: los fijados son del canal
   const canPinTarget = actionTargetMessage && !actionTargetMessage.threadParentId
-    ? canPinMessage(actionTargetMessage, { isDirect: isDirectChannelId(actionTargetMessage.channelId), canManageMessages })
+    ? canPinMessage(actionTargetMessage, { isDirect: isConversationId(actionTargetMessage.channelId), canManageMessages })
     : false
   const handleTogglePin = useCallback(
     (message: Message) => {
@@ -593,6 +595,8 @@ export default function MobileShell() {
   const openChat = [tab, screen, channel?.id, dmUserId, openThread?.messageId].join('|')
   const replyingTo = reply?.chat === openChat ? reply.message : null
   const startReply = (message: Message) => setReply({ message, chat: openChat })
+  // La barra del hilo de un DM la bloquean la relación y el estado de la conversación, no el canal
+  const dmThreadBlock = useDmThreadWriteBlock(openThread && isConversationId(openThread.channelId) ? openThread.channelId : null)
 
   const handleSend = async () => {
     if (!channel || isUploadingAttachment) return
@@ -696,7 +700,7 @@ export default function MobileShell() {
       setOpenThread({
         channelId: message.channelId,
         messageId: message.id,
-        serverId: isDirectChannelId(message.channelId) ? null : (server?.id ?? null),
+        serverId: isConversationId(message.channelId) ? null : (server?.id ?? null),
       }),
     [server?.id],
   )
@@ -979,20 +983,30 @@ export default function MobileShell() {
               key={openThread.messageId}
               thread={openThread}
               locationLabel={
-                isDirectChannelId(openThread.channelId)
+                isConversationId(openThread.channelId)
                   ? (dmUserId ? describeUser(dmUserId).name : 'el chat')
                   : `•${server?.categories.flatMap(c => c.channels).find(c => c.id === openThread.channelId)?.name ?? 'canal'}`
               }
               currentUserId={currentUserId}
               describeUser={describeUser}
-              blockedMessage={openThread.channelId === activeSocketChannelId ? chatBlockedMessage : null}
+              blockedMessage={
+                isConversationId(openThread.channelId)
+                  ? dmThreadBlock
+                  : openThread.channelId === activeSocketChannelId
+                    ? chatBlockedMessage
+                    : null
+              }
               onBack={closeThread}
               onPressAuthor={openProfile}
               onLongPressMessage={setActionTargetMessage}
               onToggleReaction={(messageId, emoji) => handleToggleReaction(openThread.channelId, messageId, emoji)}
               replyingTo={replyingTo}
               onCancelReply={cancelReply}
-              onReplyMessage={openThread.channelId === activeSocketChannelId && chatBlockedMessage ? undefined : startReply}
+              onReplyMessage={
+                (isConversationId(openThread.channelId) ? dmThreadBlock : openThread.channelId === activeSocketChannelId && chatBlockedMessage)
+                  ? undefined
+                  : startReply
+              }
             />
           )}
 

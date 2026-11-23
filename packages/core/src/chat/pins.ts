@@ -3,11 +3,6 @@ import type { Message } from '../types';
 /** Máximo de mensajes fijados por canal o DM. Lo aplica Chat-Engine (409 al pasarlo); acá es para los textos. */
 export const PINNED_LIMIT = 50;
 
-/** Chat-Engine identifica un DM con `dm-<conversationId>` como channelId (historial, fijados, socket). */
-export function isDirectChannelId(channelId: string | null | undefined): boolean {
-  return Boolean(channelId?.startsWith('dm-'));
-}
-
 export interface CanPinContext {
   /** Es un DM: puede fijar cualquiera de los dos participantes. */
   isDirect: boolean;

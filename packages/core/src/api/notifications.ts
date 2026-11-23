@@ -76,9 +76,10 @@ export function markAllNotificationsRead() {
   return api.post<void>(`${BASE}/read-all`);
 }
 
+/** Preferencias del usuario. Como la bandeja, una respuesta fuera de contrato (204, null) se lee como vacía. */
 export async function getNotificationPreferences(): Promise<NotificationPreference[]> {
-  const { items } = await api.get<{ items: NotificationPreference[] }>(`${BASE}/preferences`);
-  return items;
+  const res = await api.get<{ items?: NotificationPreference[] } | null>(`${BASE}/preferences`);
+  return Array.isArray(res?.items) ? res.items : [];
 }
 
 export function setNotificationPreference(

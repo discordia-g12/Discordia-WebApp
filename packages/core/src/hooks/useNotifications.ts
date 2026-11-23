@@ -73,7 +73,9 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => markNotificationRead(id),
-    onMutate: (id) => {
+    onMutate: async (id) => {
+      // Un refetch en vuelo (foco, intervalo) traería el aviso sin leer y pisaría el cambio optimista
+      await queryClient.cancelQueries({ queryKey: notificationsQueryKey });
       queryClient.setQueryData<NotificationPages>(notificationsQueryKey, (old) => markReadInCache(old, new Set([id])));
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: notificationsQueryKey }),
@@ -84,7 +86,8 @@ export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => markAllNotificationsRead(),
-    onMutate: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: notificationsQueryKey });
       queryClient.setQueryData<NotificationPages>(notificationsQueryKey, (old) => markReadInCache(old));
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: notificationsQueryKey }),
@@ -109,7 +112,8 @@ export function isThreadMuted(prefs: NotificationPreference[] | undefined, threa
 }
 
 /**
- * Silenciar o reactivar los avisos de un hilo. Solo cambia `muted`: el nivel elegido queda como estaba.
+ * Silenciar o reactivar los avisos de un hilo, sin fecha de fin (`mutedUntil: null`): el nivel elegido queda
+ * como estaba.
  * Optimista; si falla, vuelve a pedir las preferencias y rechaza (la interfaz avisa).
  */
 export function useThreadMute(threadId: string | null, serverId: string | null) {
@@ -119,7 +123,12 @@ export function useThreadMute(threadId: string | null, serverId: string | null) 
 
   const mutation = useMutation({
     mutationFn: (next: boolean) =>
-      setNotificationPreference('thread', threadId as string, { muted: next, ...(serverId ? { serverId } : {}) }),
+      // El botón silencia sin fecha de fin: un mutedUntil vencido de antes dejaría el hilo sin silenciar
+      setNotificationPreference('thread', threadId as string, {
+        muted: next,
+        mutedUntil: null,
+        ...(serverId ? { serverId } : {}),
+      }),
     onMutate: (next) => {
       queryClient.setQueryData<NotificationPreference[]>(notificationPreferencesQueryKey, (old = []) => {
         const existing = old.find((p) => p.scopeType === 'thread' && p.scopeId === threadId);
@@ -128,10 +137,10 @@ export function useThreadMute(threadId: string | null, serverId: string | null) 
           scopeId: threadId as string,
           serverId,
           level: existing?.level ?? null,
-          mutedUntil: null,
           updatedAt: new Date().toISOString(),
           ...existing,
           muted: next,
+          mutedUntil: null,
         };
         return existing ? old.map((p) => (p === existing ? updated : p)) : [...old, updated];
       });

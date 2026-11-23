@@ -12,6 +12,8 @@ import {
 import { getPresence, type PresenceMap, type PresenceStatus } from '../api/presence';
 import { watchPresence } from '../realtime/presenceSync';
 import type { Conversation } from '../types';
+import { dmActions, dmThreadWriteBlock } from '../dm/actions';
+import { usePublicProfileQuery } from './useFriends';
 import {
   applyConversationMessage,
   conversationsQueryKey,
@@ -131,4 +133,20 @@ export function usePresenceQuery(userIds: string[]) {
     refetchInterval: PRESENCE_POLL_MS,
     placeholderData: (previous) => previous,
   });
+}
+
+/**
+ * Qué impide responder en el hilo de un DM (bloqueo, solicitud sin aceptar, sin entrega), o null. Sale de la
+ * conversación en la lista; si todavía no está, no bloquea y Chat-Engine valida igual al enviar.
+ */
+export function useDmThreadWriteBlock(conversationId: string | null): string | null {
+  const { data: conversations } = useConversationsQuery();
+  const conversation = conversations?.find((c) => c.id === conversationId) ?? null;
+  const otherUserId = conversation?.otherUserId ?? null;
+  const profile = usePublicProfileQuery(otherUserId);
+  const withQuery = useConversationWithQuery(otherUserId);
+  if (!conversation) return null;
+  return dmThreadWriteBlock(
+    dmActions({ relationship: profile.data?.relationship ?? 'none', conversation, canMessage: withQuery.data?.canMessage })
+  );
 }

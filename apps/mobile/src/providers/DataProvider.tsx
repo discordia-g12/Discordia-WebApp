@@ -11,7 +11,7 @@ import { AppState } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import type { User, Server, Category, Channel, Message, MessageAttachment, MessageBackendPayload, Reaction } from '../types'
 import { useAuth } from './AuthProvider'
-import { markDeletedInList, setThreadSummaryInList } from '../utils/channelMessages'
+import { markDeletedInList, mergeIntoList, setThreadSummaryInList } from '../utils/channelMessages'
 import {
   useMyStatusQuery,
   getMessages,
@@ -97,6 +97,8 @@ interface DataContextValue {
   togglePin: (channelId: string, message: Message) => Promise<void>
   addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[], replyTo?: Message | null) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
+  /** MESSAGE_UPDATED del socket del canal: actualiza un mensaje que ya está; nunca agrega uno. */
+  applyRemoteUpdate: (channelId: string, payload: MessageBackendPayload) => void
   /** Otro borró un mensaje (MESSAGE_DELETED por el socket del canal, deuda C6). */
   applyRemoteDelete: (channelId: string, payload: MessageBackendPayload) => void
   /** Alguien respondió en un hilo del canal (THREAD_REPLY_CREATED): el resumen del original y el hilo. */
@@ -446,33 +448,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [activeUserId],
   )
 
-  const confirmOptimisticMessage = useCallback(
+  /**
+   * Un MESSAGE_UPDATED (edición, reacción, fijado, contador de un hilo). Solo toca un mensaje que ya está en la
+   * lista del canal: uno que no está (una respuesta de hilo, o una página no cargada) no se agrega. Fijados e
+   * hilos (React Query) se ponen al día acá.
+   */
+  const applyRemoteUpdate = useCallback(
     (channelId: string, payload: MessageBackendPayload) => {
-      // Un MESSAGE_UPDATED puede ser un fijado o una respuesta de hilo: fijados e hilos (React Query) se ponen
-      // al día acá
       const normalized = normalizeMessage(payload as unknown as Message)
       mergeCachedMessage(queryClient, channelId, normalized)
       setMessages(prev => {
+        const list = prev[channelId]
+        const updated = list && mergeIntoList(list, payload, normalized)
+        return updated ? { ...prev, [channelId]: updated } : prev
+      })
+    },
+    [queryClient],
+  )
+
+  /** Un mensaje nuevo del canal (MESSAGE_CREATED o la respuesta del POST): confirma el pendiente o lo agrega. */
+  const confirmOptimisticMessage = useCallback(
+    (channelId: string, payload: MessageBackendPayload) => {
+      const normalized = normalizeMessage(payload as unknown as Message)
+      mergeCachedMessage(queryClient, channelId, normalized)
+      // Las respuestas de hilo no van en el canal (llegan como THREAD_REPLY_CREATED)
+      if (normalized.threadParentId) return
+      setMessages(prev => {
         const list = prev[channelId] ?? []
         // Si ya existe este ID exacto (por ejemplo reconexión/duplicado), asegurarse de que esté como sent
-        const existingIndex = list.findIndex(m => m.id === payload.id)
-        if (existingIndex !== -1) {
-          const updated = [...list]
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            status: 'sent',
-            content: payload.content,
-            edited: payload.edited ?? (payload.editedTimestamp ? true : updated[existingIndex].edited),
-            editedTimestamp: payload.editedTimestamp ?? updated[existingIndex].editedTimestamp,
-            reactions: payload.reactions !== undefined ? payload.reactions : updated[existingIndex].reactions,
-            isPinned: normalized.isPinned,
-            pinnedAt: normalized.pinnedAt,
-            pinnedBy: normalized.pinnedBy,
-            // Borrar una respuesta publica el original con el contador nuevo
-            thread: normalized.thread ?? updated[existingIndex].thread,
-          }
-          return { ...prev, [channelId]: updated }
-        }
+        const merged = mergeIntoList(list, payload, normalized)
+        if (merged) return { ...prev, [channelId]: merged }
 
         // Si es un mensaje emitido por el usuario activo, buscar el mensaje pendiente correspondiente
         if (payload.authorId === activeUserId) {
@@ -495,6 +500,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               timestamp: payload.createdAt,
               status: 'sent',
               reactions: payload.reactions ?? updated[pendingIndex].reactions ?? [],
+              replyTo: normalized.replyTo ?? updated[pendingIndex].replyTo,
             }
             return { ...prev, [channelId]: updated }
           }
@@ -511,6 +517,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           type: 'normal',
           status: 'sent',
           reactions: payload.reactions ?? [],
+          mentions: normalized.mentions,
+          attachments: normalized.attachments,
+          replyToId: normalized.replyTo?.id ?? null,
+          replyTo: normalized.replyTo ?? null,
         }
         return { ...prev, [channelId]: [...list, newMsg] }
       })
@@ -891,6 +901,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       togglePin,
       addOptimisticMessage,
       confirmOptimisticMessage,
+      applyRemoteUpdate,
       applyRemoteDelete,
       applyThreadReplyEvent,
       failOptimisticMessage,
@@ -926,6 +937,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       togglePin,
       addOptimisticMessage,
       confirmOptimisticMessage,
+      applyRemoteUpdate,
       applyRemoteDelete,
       applyThreadReplyEvent,
       failOptimisticMessage,
