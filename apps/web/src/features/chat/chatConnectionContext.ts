@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import { chatWriteBlockMessage, type ChatRemovalReason, type MessageAttachment } from '@discordia/core';
 
-type SendMessage = (content: string, attachments?: MessageAttachment[]) => Promise<void>;
+type SendMessage = (content: string, attachments?: MessageAttachment[], replyToId?: string) => Promise<void>;
 
 interface ChatConnection {
   send: SendMessage;

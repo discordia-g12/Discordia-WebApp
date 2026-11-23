@@ -87,7 +87,7 @@ export interface ChatSocketOptions {
 
 export interface ChatSocketConnection {
   /** Envía un mensaje. Si el socket está conectando, espera a que abra; si está cerrado, rechaza. */
-  send: (content: string, authorId: string, attachments?: MessageAttachment[]) => Promise<void>;
+  send: (content: string, authorId: string, attachments?: MessageAttachment[], replyToId?: string) => Promise<void>;
   /** Corta la conexión actual y reconecta ya, sin esperar el backoff. */
   reconnect: () => void;
   /** Cierra la conexión sin reconectar. */
@@ -242,7 +242,7 @@ export function openChatSocket(
   connect();
 
   return {
-    send(content, authorId, attachments) {
+    send(content, authorId, attachments, replyToId) {
       const ws = socket;
       if (!ws) return Promise.reject(new Error('WebSocket not initialized'));
 
@@ -252,6 +252,7 @@ export function openChatSocket(
             authorId,
             content,
             ...(attachments?.length ? { attachments } : {}),
+            ...(replyToId ? { replyToId } : {}),
           })
         );
 

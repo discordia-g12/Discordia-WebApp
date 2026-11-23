@@ -643,12 +643,9 @@ export const MESSAGES: Record<string, Message[]> = {
       replyToId: 'm-gen-9',
       replyTo: {
         id: 'm-gen-9',
-        channelId: 'ch-general',
         authorId: 'u1',
         author: USERS.u1,
         content: '<@u0> ¿recibiste mi consulta sobre los roles de moderación y el flujo de auditoría?',
-        timestamp: '2026-09-09T09:35:00.000Z',
-        type: 'normal',
       },
       mentions: { users: ['u1'], roles: [], everyone: false },
     },

@@ -21,6 +21,7 @@ import {
   ATTACHMENT_ACCEPT,
   canStartThread,
   formatAttachmentSize,
+  formatTimeAgo,
   hasThreadReplies,
   replyCountLabel,
   threadSummaryLabel,
@@ -235,7 +236,10 @@ function useJumpToMessage(
   const jumpTo = useCallback(
     async (messageId: string) => {
       release();
-      let found = messages.some((m) => m.id === messageId);
+      // En un hilo, el original no está en `messages` pero sí dibujado arriba
+      let found =
+        messages.some((m) => m.id === messageId) ||
+        !!scrollRef.current?.querySelector(`[data-message-id="${messageId}"]`);
       if (!found && loadUntil) {
         try {
           found = await loadUntil(messageId);
@@ -250,7 +254,7 @@ function useJumpToMessage(
       }
       setTarget(messageId);
     },
-    [messages, loadUntil, release]
+    [messages, loadUntil, release, scrollRef]
   );
 
   // Corre de nuevo con cada cambio de mensajes: la página que trajo loadUntil puede dibujarse después
@@ -524,6 +528,7 @@ export function ChatView(props: ChatViewProps) {
                 names={names}
                 consecutive={false}
                 isNew={false}
+                highlighted={jump.highlighted === thread.parent.id}
                 onOpenUserProfile={onOpenUserProfile}
               />
             )}
@@ -574,6 +579,7 @@ export function ChatView(props: ChatViewProps) {
                     highlighted={jump.highlighted === msg.id}
                     onOpenUserProfile={onOpenUserProfile}
                     onOpenThread={thread ? undefined : onOpenThread}
+                    onJumpTo={(id) => void jump.jumpTo(id)}
                   />
                 </Fragment>
               );
@@ -597,6 +603,8 @@ export function ChatView(props: ChatViewProps) {
       <Composer
         chat={chat}
         users={users}
+        names={names}
+        onJumpTo={(id) => void jump.jumpTo(id)}
         writeBlock={props.writeBlock ?? null}
         placeholder={thread ? 'Responder en el hilo' : undefined}
       />
@@ -714,6 +722,7 @@ function MessageRow({
   highlighted = false,
   onOpenUserProfile,
   onOpenThread,
+  onJumpTo,
 }: {
   msg: Message;
   chat: ChatViewState;
@@ -730,6 +739,8 @@ function MessageRow({
   onOpenUserProfile?: (userId: string) => void;
   /** Abre el hilo del mensaje. Sin esto (dentro de un hilo), no hay "responder en hilo" ni resumen. */
   onOpenThread?: (message: Message) => void;
+  /** Ir a un mensaje (tocar la cita del que responde). */
+  onJumpTo?: (messageId: string) => void;
 }) {
   const reduce = useReducedMotion();
   const threadSummary =
@@ -740,7 +751,16 @@ function MessageRow({
         onClick={() => onOpenThread(msg)}
         aria-label={`Abrir hilo: ${threadSummaryLabel(msg.thread)}`}
       >
-        {threadSummaryLabel(msg.thread)}
+        <span className={styles.threadAvatars} aria-hidden="true">
+          {(msg.thread.replierIds ?? [])
+            .filter((id) => users[id])
+            .slice(0, 3)
+            .map((id) => (
+              <SquareAvatar key={id} user={users[id]} size={20} />
+            ))}
+        </span>
+        <strong className={styles.threadCount}>{replyCountLabel(msg.thread.replyCount)}</strong>
+        <span>última respuesta {formatTimeAgo(msg.thread.lastReplyAt)}</span>
       </button>
     ) : null;
   const enter = {
@@ -835,12 +855,11 @@ function MessageRow({
 
       <div className={styles.body}>
         {msg.replyTo && (
-          <p className={styles.reply}>
-            <span className={styles.replyLine} aria-hidden="true" />
-            <span className={styles.replyText}>
-              @{authorName(msg.replyTo, users)} {mentionsToText(msg.replyTo.content, names)}
-            </span>
-          </p>
+          <ReplyQuote
+            author={`@${authorName(msg.replyTo, users)}`}
+            text={msg.replyTo.deleted ? 'mensaje eliminado' : mentionsToText(msg.replyTo.content, names)}
+            onPress={onJumpTo && !msg.replyTo.deleted ? () => onJumpTo(msg.replyTo!.id) : undefined}
+          />
         )}
 
         {!consecutive && (
@@ -1139,17 +1158,59 @@ function PinnedPanel({
 // ==========================================
 
 /** Nombre del autor: el del mensaje o, si no viene (el backend manda solo authorId), el del directorio. */
-const authorName = (msg: Message, users: Record<string, User>) =>
+const authorName = (msg: Pick<Message, 'author' | 'authorId'>, users: Record<string, User>) =>
   (msg.author || users[msg.authorId])?.displayName || 'usuario';
+
+/** Cita del mensaje al que se responde (en el mensaje y en la barra de escritura), como en WhatsApp. */
+function ReplyQuote({
+  author,
+  text,
+  onPress,
+  children,
+}: {
+  author: string;
+  text: string;
+  /** Tocar la cita: ir al mensaje citado. */
+  onPress?: () => void;
+  children?: ReactNode;
+}) {
+  const content = (
+    <>
+      <strong className={styles.quoteAuthor}>{author}</strong>
+      <span className={styles.quoteText}>{text || 'archivo adjunto'}</span>
+    </>
+  );
+  return (
+    <div className={styles.quote}>
+      {onPress ? (
+        <button
+          type="button"
+          className={`${styles.quoteBody} ${styles.quoteButton}`}
+          onClick={onPress}
+          aria-label={`Ir al mensaje citado: ${author}: ${text || 'archivo adjunto'}`}
+        >
+          {content}
+        </button>
+      ) : (
+        <p className={styles.quoteBody}>{content}</p>
+      )}
+      {children}
+    </div>
+  );
+}
 
 function Composer({
   chat,
   users,
+  names,
+  onJumpTo,
   writeBlock,
   placeholder: placeholderOverride,
 }: {
   chat: ChatViewState;
   users: Record<string, User>;
+  names: MentionNames;
+  onJumpTo: (messageId: string) => void;
   writeBlock: string | null;
   placeholder?: string;
 }) {
@@ -1173,10 +1234,15 @@ function Composer({
   return (
     <div className={styles.composer}>
       {chat.replyingTo && (
-        <p className={styles.composerNote}>
-          respondiendo a <strong>@{authorName(chat.replyingTo, users)}</strong>{' '}
-          <ActionLink onPress={() => chat.setReplyingTo(null)}>cancelar</ActionLink>
-        </p>
+        <div className={styles.composerReply}>
+          <ReplyQuote
+            author={`respondiendo a @${authorName(chat.replyingTo, users)}`}
+            text={mentionsToText(chat.replyingTo.content, names)}
+            onPress={() => onJumpTo(chat.replyingTo!.id)}
+          >
+            <IconButton icon={X} label="Cancelar respuesta" onPress={() => chat.setReplyingTo(null)} />
+          </ReplyQuote>
+        </div>
       )}
       {chat.attachment && (
         <p className={styles.composerNote}>

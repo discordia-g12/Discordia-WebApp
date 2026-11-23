@@ -89,13 +89,13 @@ interface DataContextValue {
   removeServerLocally: (serverId: string) => void
 
   // Mutaciones y sincronización
-  sendMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => void
+  sendMessage: (channelId: string, content: string, attachments?: MessageAttachment[], replyTo?: Message | null) => void
   editMessage: (channelId: string, messageId: string, content: string) => Promise<Message>
   deleteMessage: (channelId: string, messageId: string) => Promise<void>
   toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<Message>
   /** Fija o desfija (togglePinnedMessage de core). Si falla, vuelve atrás y rechaza con un texto para mostrar. */
   togglePin: (channelId: string, message: Message) => Promise<void>
-  addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => string
+  addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[], replyTo?: Message | null) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
   /** Otro borró un mensaje (MESSAGE_DELETED por el socket del canal, deuda C6). */
   applyRemoteDelete: (channelId: string, payload: MessageBackendPayload) => void
@@ -421,7 +421,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   )
 
   const addOptimisticMessage = useCallback(
-    (channelId: string, content: string, attachments?: MessageAttachment[]): string => {
+    (channelId: string, content: string, attachments?: MessageAttachment[], replyTo?: Message | null): string => {
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
       const now = new Date().toISOString()
       const newMessage: Message = {
@@ -434,6 +434,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         type: 'normal',
         status: 'pending',
         attachments,
+        // La cita se ve ya; al confirmarse la reemplaza la copia que guardó Chat-Engine
+        ...(replyTo ? { replyToId: replyTo.id, replyTo } : {}),
       }
       setMessages(prev => ({
         ...prev,
@@ -558,9 +560,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Envío por REST (el normal es por el WebSocket del canal): se muestra al instante y queda enviado o fallido
   const sendMessage = useCallback(
-    (channelId: string, content: string, attachments?: MessageAttachment[]) => {
-      const tempId = addOptimisticMessage(channelId, content, attachments)
-      apiSendMessage(channelId, content, tempId, attachments)
+    (channelId: string, content: string, attachments?: MessageAttachment[], replyTo?: Message | null) => {
+      const tempId = addOptimisticMessage(channelId, content, attachments, replyTo)
+      apiSendMessage(channelId, content, tempId, attachments, replyTo?.id)
         .then(sent => confirmOptimisticMessage(channelId, { ...sent, createdAt: sent.createdAt ?? sent.timestamp }))
         .catch(() => failOptimisticMessage(channelId))
     },

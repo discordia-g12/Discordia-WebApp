@@ -34,6 +34,12 @@ interface MessageListProps {
   onFocusDone?: () => void
   /** Abre el hilo de un mensaje (su resumen de respuestas). Sin esto, no se muestran. */
   onOpenThread?: (message: Message) => void
+  /** Tocar la cita de una respuesta: quien la usa carga el mensaje citado y lo pasa como focusMessageId. */
+  onPressQuote?: (messageId: string) => void
+  /** Responder a un mensaje (deslizarlo a la derecha). */
+  onReplyMessage?: (message: Message) => void
+  /** El mensaje que va en el header (en un hilo, el original): ir a él sube hasta arriba. */
+  headerMessageId?: string
   /** Reemplaza al comienzo del canal (en un hilo, el mensaje original). */
   header?: React.ReactElement
   /** Debajo del último mensaje (en un hilo, "cargar más respuestas"). */
@@ -77,6 +83,9 @@ export default function MessageList({
   focusMessageId,
   onFocusDone,
   onOpenThread,
+  onPressQuote,
+  onReplyMessage,
+  headerMessageId,
   header,
   footer,
 }: MessageListProps) {
@@ -154,6 +163,12 @@ export default function MessageList({
   })
   useEffect(() => {
     if (!focusMessageId) return
+    if (focusMessageId === headerMessageId) {
+      stickToEnd.current = false
+      listRef.current?.scrollToOffset({ offset: 0, animated: false })
+      onFocusDoneRef.current?.()
+      return
+    }
     const index = rows.findIndex(row => row.kind === 'message' && row.message.id === focusMessageId)
     // Todavía no llegó a la lista (la página recién cargada): vuelve a correr cuando cambien las filas
     if (index === -1) return
@@ -165,7 +180,7 @@ export default function MessageList({
       onFocusDoneRef.current?.()
     })
     return () => cancelAnimationFrame(frame)
-  }, [focusMessageId, rows])
+  }, [focusMessageId, rows, headerMessageId])
   useEffect(() => {
     if (!highlighted) return
     const timer = setTimeout(() => setHighlighted(null), HIGHLIGHT_MS)
@@ -262,6 +277,9 @@ export default function MessageList({
             onToggleReaction={onToggleReaction}
             highlighted={highlighted === item.message.id}
             onOpenThread={onOpenThread}
+            onPressQuote={onPressQuote}
+            describeUser={describeUser}
+            onReply={onReplyMessage ? () => onReplyMessage(item.message) : undefined}
           />
         )
       }

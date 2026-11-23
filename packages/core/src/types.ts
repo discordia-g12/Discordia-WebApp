@@ -345,7 +345,16 @@ export interface ThreadSummary {
   lastReplyAt: string;
   lastReplyId: string;
   participantIds: string[];
+  /** Solo quienes respondieron, en orden de primera respuesta (las fotos del resumen). */
+  replierIds?: string[];
 }
+
+/** Mensaje citado al responder: Chat-Engine guarda una copia con la respuesta. */
+export type MessageReplyPreview = Pick<Message, 'id' | 'authorId' | 'content'> & {
+  author?: User;
+  /** El original se borró: ya no hay texto que mostrar. */
+  deleted?: boolean;
+};
 
 /** Mensaje individual publicado en un canal o chat directo. */
 export interface Message {
@@ -369,7 +378,7 @@ export interface Message {
   /** Menciones que notifican, según Chat-Engine (#46). Los mensajes anteriores las traen vacías. */
   mentions?: MessageMentions;
   replyToId?: string | null;
-  replyTo?: Message | null;
+  replyTo?: MessageReplyPreview | null;
   /** Respuesta de hilo: id del mensaje original. No aparece en el historial del canal (ADR-07 de Chat). */
   threadParentId?: string;
   /** Mensaje original de un hilo con al menos una respuesta: cuántas y cuándo fue la última. */

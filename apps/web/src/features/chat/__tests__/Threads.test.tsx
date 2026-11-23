@@ -59,6 +59,21 @@ describe('hilos en el canal (CA1, CA3)', () => {
     expect(screen.getAllByRole('button', { name: /Abrir hilo/ })).toHaveLength(1);
   });
 
+  it('las fotos del resumen son solo de quienes respondieron, no del autor del original', () => {
+    render(
+      <ChatView
+        channel={channel}
+        messages={[msg('m1', 'u2', 'tema', { thread: { ...thread(1), replierIds: ['me'] } })]}
+        users={users}
+        currentUserId="me"
+        onOpenThread={vi.fn()}
+      />
+    );
+    const summary = screen.getByRole('button', { name: /Abrir hilo/ });
+    const avatars = within(summary).getAllByRole('img', { hidden: true }).map((img) => img.getAttribute('aria-label'));
+    expect(avatars).toEqual(['Mar']);
+  });
+
   it('un original borrado con respuestas sigue mostrando el resumen', () => {
     render(
       <ChatView
@@ -136,6 +151,27 @@ describe('vista de hilo (CA2, CA4)', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(onSendMessage).toHaveBeenCalledWith('mi respuesta', undefined, undefined);
+  });
+
+  it('tocar la cita de una respuesta lleva al mensaje citado, también al original de arriba', () => {
+    render(
+      <ChatView
+        channel={channel}
+        thread={options()}
+        messages={[
+          msg('r1', 'me', 'primera respuesta', { threadParentId: 'p' }),
+          msg('r2', 'u2', 'al original', { threadParentId: 'p', replyTo: { id: 'p', authorId: 'u2', content: 'el mensaje original' } }),
+          msg('r3', 'u2', 'a la primera', { threadParentId: 'p', replyTo: { id: 'r1', authorId: 'me', content: 'primera respuesta' } }),
+        ]}
+        users={users}
+        currentUserId="me"
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ir al mensaje citado: @Ana/ }));
+    expect(document.querySelector('[data-message-id="p"]')!.className).toContain('highlighted');
+    fireEvent.click(screen.getByRole('button', { name: /Ir al mensaje citado: @Mar/ }));
+    expect(document.querySelector('[data-message-id="r1"]')!.className).toContain('highlighted');
   });
 
   it('cerrar, silenciar y cargar más respuestas', () => {

@@ -105,8 +105,8 @@ export function ThreadPanel({ thread }: { thread: OpenThread }) {
         canPinMessages={false}
         pinnedMessages={[]}
         writeBlock={isDm ? null : writeBlock}
-        onSendMessage={(content, attachment) => {
-          send(content, attachment).catch((err) => showToast(errorMessageFor(err, SEND_ERRORS, 'No se pudo enviar la respuesta'), 'danger'));
+        onSendMessage={(content, attachment, replyToId) => {
+          send(content, attachment, replyToId).catch((err) => showToast(errorMessageFor(err, SEND_ERRORS, 'No se pudo enviar la respuesta'), 'danger'));
         }}
         onToggleReaction={actions.toggleReaction}
         onDeleteMessage={actions.deleteMessage}

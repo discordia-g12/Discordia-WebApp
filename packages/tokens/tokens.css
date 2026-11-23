@@ -91,6 +91,7 @@
   --color-sky-tint: rgba(168, 219, 239, 0.3);
   --color-sky-decoration: #a8dbef;
   --color-speaking: #15803d;
+  --color-accent: #14607f;
   --gradient-background: linear-gradient(180deg, #a8dbef 0%, #b3deef 25%, #d5e9ef 50%, #eaefef 75%, #f2f2f0 100%);
   --gradient-background-glow: radial-gradient(90% 110% at 50% 0%, #b3deef 0%, #d5e9ef 45%, #f2f2f0 100%);
 }
@@ -112,6 +113,7 @@
   --color-sky-tint: rgba(168, 219, 239, 0.06);
   --color-sky-decoration: #2b4550;
   --color-speaking: #4ade80;
+  --color-accent: #a8dbef;
   --gradient-background: linear-gradient(180deg, #0e1214 0%, #1a2225 100%);
   --gradient-background-glow: radial-gradient(90% 60% at 50% 110%, rgba(168, 219, 239, 0.35) 0%, rgba(14, 18, 20, 0) 100%);
 }
@@ -134,6 +136,7 @@
     --color-sky-tint: rgba(168, 219, 239, 0.06);
     --color-sky-decoration: #2b4550;
     --color-speaking: #4ade80;
+    --color-accent: #a8dbef;
     --gradient-background: linear-gradient(180deg, #0e1214 0%, #1a2225 100%);
     --gradient-background-glow: radial-gradient(90% 60% at 50% 110%, rgba(168, 219, 239, 0.35) 0%, rgba(14, 18, 20, 0) 100%);
   }

@@ -10,6 +10,7 @@ import ChannelActionModals from './channels/ChannelActionModals'
 import ChannelList from './channels/ChannelList'
 import ChatHeader from './chat/ChatHeader'
 import Composer, { type PendingAttachment } from './chat/Composer'
+import { quotePreview } from './chat/ReplyQuote'
 import ConfirmModal from './shared/ConfirmModal'
 import InviteModal from './servers/InviteModal'
 import CreateChannelModal from './channels/CreateChannelModal'
@@ -155,6 +156,10 @@ export default function MobileShell() {
   const activeServerIdRef = useRef<string | null>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [draft, setDraft] = useState('')
+  // Mensaje al que se responde, elegido en el menú del mensaje, con el chat donde se eligió (ver replyingTo)
+  const [reply, setReply] = useState<{ message: Message; chat: string } | null>(null)
+  const cancelReply = useCallback(() => setReply(null), [])
+  // Desde el menú del mensaje o deslizándolo: responde en el chat que está abierto
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null)
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false)
   const [createServerModalOpen, setCreateServerModalOpen] = useState(false)
@@ -290,7 +295,12 @@ export default function MobileShell() {
   const describeUser = useUserDisplay([
     ...voice.participants.map(p => p.id),
     ...Object.values(voicePresence).flat(),
-    ...channelMessages.flatMap(m => [m.authorId, ...(m.mentions?.users ?? [])]),
+    ...channelMessages.flatMap(m => [
+      m.authorId,
+      ...(m.mentions?.users ?? []),
+      ...(m.thread?.replierIds?.slice(0, 3) ?? []),
+      ...(m.replyTo ? [m.replyTo.authorId] : []),
+    ]),
   ])
 
   const voiceParticipants: VoiceScreenParticipant[] = voice.participants.map(p => ({
@@ -411,7 +421,7 @@ export default function MobileShell() {
     [togglePin, showToast],
   )
   const handleJumpToMessage = useCallback(
-    async (message: Message) => {
+    async (message: Pick<Message, 'id' | 'channelId'>) => {
       try {
         const found = await loadChannelMessagesUntil(message.channelId, message.id)
         if (found) setFocusMessageId(message.id)
@@ -579,6 +589,11 @@ export default function MobileShell() {
     if (picked) setPendingAttachment(picked)
   }
 
+  // Cambiar de chat (canal, DM, hilo o pestaña) deja de responder: la cita era del chat anterior
+  const openChat = [tab, screen, channel?.id, dmUserId, openThread?.messageId].join('|')
+  const replyingTo = reply?.chat === openChat ? reply.message : null
+  const startReply = (message: Message) => setReply({ message, chat: openChat })
+
   const handleSend = async () => {
     if (!channel || isUploadingAttachment) return
     const trimmed = draft.trim()
@@ -614,20 +629,22 @@ export default function MobileShell() {
     }
 
     const attachmentsList = attachmentPayload ? [attachmentPayload] : undefined
+    const replyTo = replyingTo
 
     // CA 1: Actualización optimista
-    addOptimisticMessage(channel.id, trimmed, attachmentsList)
+    addOptimisticMessage(channel.id, trimmed, attachmentsList, replyTo)
     setDraft('')
     setPendingAttachment(null)
+    setReply(null)
 
     // Envío por WebSocket si es un canal activo, o fallback
     if (activeSocketChannelId) {
-      socket.sendMessage(trimmed, attachmentsList).catch(() => {
+      socket.sendMessage(trimmed, attachmentsList, replyTo?.id).catch(() => {
         failOptimisticMessage(channel.id)
         showToast('No se pudo enviar el mensaje por WebSocket.', 'error')
       })
     } else {
-      sendMessage(channel.id, trimmed, attachmentsList)
+      sendMessage(channel.id, trimmed, attachmentsList, replyTo)
     }
   }
 
@@ -876,6 +893,8 @@ export default function MobileShell() {
             focusMessageId={focusMessageId}
             onFocusDone={() => setFocusMessageId(null)}
             onOpenThread={openThreadOf}
+            onPressQuote={id => void handleJumpToMessage({ id, channelId: channel.id })}
+            onReplyMessage={chatBlockedMessage ? undefined : startReply}
           />
           <Composer
             channelName={channel.name}
@@ -887,6 +906,15 @@ export default function MobileShell() {
             onAttach={handlePickAttachment}
             onRemoveAttachment={() => setPendingAttachment(null)}
             isUploading={isUploadingAttachment}
+            replyingTo={
+              replyingTo
+                ? {
+                    ...quotePreview(replyingTo, id => describeUser(id).name),
+                    onPress: () => void handleJumpToMessage(replyingTo),
+                    onCancel: cancelReply,
+                  }
+                : null
+            }
           />
         </Pane>
       )
@@ -962,6 +990,9 @@ export default function MobileShell() {
               onPressAuthor={openProfile}
               onLongPressMessage={setActionTargetMessage}
               onToggleReaction={(messageId, emoji) => handleToggleReaction(openThread.channelId, messageId, emoji)}
+              replyingTo={replyingTo}
+              onCancelReply={cancelReply}
+              onReplyMessage={openThread.channelId === activeSocketChannelId && chatBlockedMessage ? undefined : startReply}
             />
           )}
 
@@ -975,6 +1006,9 @@ export default function MobileShell() {
               onCloseChat={() => setDmUserId(null)}
               onOpenProfile={openProfile}
               onLongPressMessage={setActionTargetMessage}
+              replyingTo={replyingTo}
+              onCancelReply={cancelReply}
+              onReplyMessage={startReply}
               onOpenThread={openThreadOf}
               onCall={privateCall.requestCall}
               callConversationId={privateCall.callConversationId}
@@ -1123,11 +1157,7 @@ export default function MobileShell() {
             : undefined
         }
         onReply={() => {
-          if (actionTargetMessage) {
-            const authorUser = users[actionTargetMessage.authorId]
-            const name = authorUser?.displayName || authorUser?.username || 'usuario'
-            setDraft(prev => (prev ? `${prev} @${name} ` : `@${name} `))
-          }
+          if (actionTargetMessage) startReply(actionTargetMessage)
         }}
         onDelete={() => {
           if (actionTargetMessage) {

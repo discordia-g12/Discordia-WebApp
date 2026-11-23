@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { BackHandler, View } from 'react-native'
 import { Bell, BellOff } from 'lucide-react-native'
-import { errorMessageFor, replyCountLabel, useSendThreadReply, useThreadMute, useThreadQuery } from '@discordia/core'
+import {
+  JUMP_NOT_FOUND_MESSAGE,
+  errorMessageFor,
+  replyCountLabel,
+  useSendThreadReply,
+  useThreadMute,
+  useThreadQuery,
+} from '@discordia/core'
 import { makeStyles } from '../../theme'
 import { ActionLink, IconButton, Skeleton, Text } from '../../ui'
 import { useUI } from '../../providers/AppProviders'
@@ -12,6 +19,7 @@ import ChatHeader from './ChatHeader'
 import Composer from './Composer'
 import MessageItem from './MessageItem'
 import MessageList from './MessageList'
+import { quotePreview } from './ReplyQuote'
 
 export interface OpenThread {
   channelId: string
@@ -33,7 +41,15 @@ interface ThreadScreenProps {
   /** Mantener presionado: las mismas acciones que en el canal (reaccionar, editar, borrar). */
   onLongPressMessage?: (message: Message) => void
   onToggleReaction?: (messageId: string, emoji: string) => void
+  /** Mensaje al que se está respondiendo (lo elige el menú del mensaje, en MobileShell). */
+  replyingTo?: Message | null
+  onCancelReply?: () => void
+  /** Elegir a qué mensaje responder (deslizarlo a la derecha). */
+  onReplyMessage?: (message: Message) => void
 }
+
+/** Cuánto queda marcado el original al ir a él (lo mismo que en MessageList). */
+const HIGHLIGHT_MS = 2000
 
 const SEND_ERRORS = {
   400: 'No se puede responder a ese mensaje en un hilo.',
@@ -55,6 +71,9 @@ export default function ThreadScreen({
   onPressAuthor,
   onLongPressMessage,
   onToggleReaction,
+  replyingTo = null,
+  onCancelReply,
+  onReplyMessage,
 }: ThreadScreenProps) {
   const styles = useStyles()
   const { showToast } = useUI()
@@ -62,6 +81,24 @@ export default function ThreadScreen({
   const send = useSendThreadReply(thread.channelId, thread.messageId)
   const mute = useThreadMute(thread.messageId, thread.serverId)
   const [draft, setDraft] = useState('')
+  const [focusMessageId, setFocusMessageId] = useState<string | null>(null)
+  const [rootHighlighted, setRootHighlighted] = useState(false)
+
+  useEffect(() => {
+    if (!rootHighlighted) return
+    const timer = setTimeout(() => setRootHighlighted(false), HIGHLIGHT_MS)
+    return () => clearTimeout(timer)
+  }, [rootHighlighted])
+
+  // Las respuestas se cargan de la más vieja a la más nueva: la citada, que es anterior, ya está en la lista
+  const jumpTo = (messageId: string) => {
+    if (messageId === thread.messageId) setRootHighlighted(true)
+    else if (!query.replies.some(m => m.id === messageId)) {
+      showToast(JUMP_NOT_FOUND_MESSAGE, 'info')
+      return
+    }
+    setFocusMessageId(messageId)
+  }
 
   // Atrás en Android cierra el hilo y vuelve al canal
   useEffect(() => {
@@ -76,7 +113,9 @@ export default function ThreadScreen({
     const content = draft.trim()
     if (!content) return
     setDraft('')
-    send(content).catch(err => {
+    const replyToId = replyingTo?.id
+    onCancelReply?.()
+    send(content, undefined, replyToId).catch(err => {
       setDraft(content)
       showToast(errorMessageFor(err, SEND_ERRORS, 'No se pudo enviar la respuesta'), 'error')
     })
@@ -94,6 +133,8 @@ export default function ThreadScreen({
           onPressAuthor={onPressAuthor}
           onLongPress={onLongPressMessage ? () => onLongPressMessage(parent) : undefined}
           onToggleReaction={onToggleReaction}
+          highlighted={rootHighlighted}
+          onReply={onReplyMessage ? () => onReplyMessage(parent) : undefined}
         />
       ) : (
         <Skeleton lines={2} label="Cargando el mensaje original" />
@@ -153,6 +194,11 @@ export default function ThreadScreen({
           onPressAuthor={onPressAuthor}
           onLongPressMessage={onLongPressMessage}
           onToggleReaction={onToggleReaction}
+          onPressQuote={jumpTo}
+          onReplyMessage={onReplyMessage}
+          headerMessageId={thread.messageId}
+          focusMessageId={focusMessageId}
+          onFocusDone={() => setFocusMessageId(null)}
         />
       )}
       <Composer
@@ -162,6 +208,15 @@ export default function ThreadScreen({
         onChangeText={setDraft}
         onSend={handleSend}
         blockedMessage={blockedMessage}
+        replyingTo={
+          replyingTo && onCancelReply
+            ? {
+                ...quotePreview(replyingTo, id => describeUser(id).name),
+                onPress: () => jumpTo(replyingTo.id),
+                onCancel: onCancelReply,
+              }
+            : null
+        }
       />
     </Pane>
   )

@@ -49,14 +49,14 @@ export function useDirectChat(userId: string) {
     canMessage: conversationWith.data?.canMessage,
   });
 
-  const deliver = async (content: string, attachment?: MessageAttachment) => {
+  const deliver = async (content: string, attachment?: MessageAttachment, replyToId?: string) => {
     if (!conversation) {
       await start.mutateAsync({ recipientId: userId, content });
       return;
     }
     // Quien rechazó y escribe se arrepintió (§2)
     if (conversation.status === 'declined') await accept.mutateAsync(conversation.id);
-    const sent = await sendMessage(conversation.id, content, undefined, attachment ? [attachment] : undefined);
+    const sent = await sendMessage(conversation.id, content, undefined, attachment ? [attachment] : undefined, replyToId);
     // El inbox también lo trae, pero puede estar cortado. Ninguno de los dos lo repite
     queryClient.setQueryData<MessagePages>(messagesQueryKey(conversation.id), (old) => appendMessage(old, sent));
     queryClient.setQueryData<Conversation[]>(conversationsQueryKey, (old) =>
@@ -64,16 +64,16 @@ export function useDirectChat(userId: string) {
     );
   };
 
-  const send = async (content: string, attachment?: MessageAttachment) => {
+  const send = async (content: string, attachment?: MessageAttachment, replyToId?: string) => {
     try {
-      await deliver(content, attachment);
+      await deliver(content, attachment, replyToId);
     } catch (err) {
       if (dmErrorCode(err)) {
         // El estado cambió (bloqueo o solicitud sin aceptar): el composer tiene que enterarse
         queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
         showToast(dmSendErrorMessage(err), 'danger');
       } else {
-        showToast(dmSendErrorMessage(err), 'danger', { label: 'reintentar', onPress: () => send(content, attachment) });
+        showToast(dmSendErrorMessage(err), 'danger', { label: 'reintentar', onPress: () => send(content, attachment, replyToId) });
       }
     }
   };

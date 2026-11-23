@@ -48,7 +48,7 @@ export interface UseChatSocketResult {
   /** Distinto de null si lo sacaron del servidor: la conexión quedó cerrada para siempre. */
   removedReason: ChatRemovalReason | null;
   /** Envía un mensaje; rechaza si no hay conexión (espera si está conectando). */
-  sendMessage: (content: string, attachments?: MessageAttachment[]) => Promise<void>;
+  sendMessage: (content: string, attachments?: MessageAttachment[], replyToId?: string) => Promise<void>;
   /** Reconecta ya, sin esperar el backoff. */
   reconnect: () => void;
 }
@@ -115,10 +115,10 @@ export function useChatSocket({
   }, [channelId, userId]);
 
   const sendMessage = useCallback(
-    async (content: string, attachments?: MessageAttachment[]) => {
+    async (content: string, attachments?: MessageAttachment[], replyToId?: string) => {
       const connection = connectionRef.current;
       if (!connection) throw new Error('WebSocket not initialized');
-      await connection.send(content, userId, attachments);
+      await connection.send(content, userId, attachments, replyToId);
     },
     [userId]
   );

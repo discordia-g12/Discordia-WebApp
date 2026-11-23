@@ -40,9 +40,9 @@ export function useThreadQuery(channelId: string | null, parentId: string | null
 export function useSendThreadReply(channelId: string | null, parentId: string | null) {
   const queryClient = useQueryClient();
   return useCallback(
-    async (content: string, attachment?: MessageAttachment): Promise<Message | null> => {
+    async (content: string, attachment?: MessageAttachment, replyToId?: string): Promise<Message | null> => {
       if (!channelId || !parentId) return null;
-      const reply = await sendThreadReply(channelId, parentId, content, attachment ? [attachment] : undefined);
+      const reply = await sendThreadReply(channelId, parentId, content, attachment ? [attachment] : undefined, replyToId);
       applyThreadReply(queryClient, channelId, parentId, reply);
       return reply;
     },

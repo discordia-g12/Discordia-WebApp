@@ -56,7 +56,7 @@ export function useDmMessages(userId: string, conversation: Conversation | null)
   // id real -> id temporal: al confirmarse, la fila no se vuelve a montar
   const [localIds, setLocalIds] = useState<Record<string, string>>({})
 
-  const deliver = async (content: string, tempId: string, attachments?: MessageAttachment[]) => {
+  const deliver = async (content: string, tempId: string, attachments?: MessageAttachment[], replyToId?: string) => {
     if (!conversation) {
       const created = await start.mutateAsync({ recipientId: userId, content })
       queryClient.setQueryData<MessagePages>(messagesQueryKey(created.conversation.id), {
@@ -67,7 +67,7 @@ export function useDmMessages(userId: string, conversation: Conversation | null)
     }
     if (conversation.status === 'declined') await accept.mutateAsync(conversation.id)
 
-    const sent = await sendMessage(conversation.id, content, tempId, attachments)
+    const sent = await sendMessage(conversation.id, content, tempId, attachments, replyToId)
     queryClient.setQueryData<MessagePages>(messagesQueryKey(conversation.id), old => appendMessage(old, sent))
     queryClient.setQueryData<Conversation[]>(conversationsQueryKey, old =>
       applyConversationMessage(old, conversation.id, sent, conversation.id),
@@ -75,7 +75,7 @@ export function useDmMessages(userId: string, conversation: Conversation | null)
     return sent
   }
 
-  const send = async (content: string, attachments?: MessageAttachment[]) => {
+  const send = async (content: string, attachments?: MessageAttachment[], replyTo?: Message | null) => {
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     const now = new Date().toISOString()
     const optimistic: Message = {
@@ -88,11 +88,12 @@ export function useDmMessages(userId: string, conversation: Conversation | null)
       type: 'normal',
       status: 'pending',
       attachments,
+      ...(replyTo ? { replyToId: replyTo.id, replyTo } : {}),
     }
     setPending(prev => [...prev, optimistic])
 
     try {
-      const sent = await deliver(content, tempId, attachments)
+      const sent = await deliver(content, tempId, attachments, replyTo?.id)
       setLocalIds(prev => ({ ...prev, [sent.id]: tempId }))
       setPending(prev => prev.filter(m => m.id !== tempId))
     } catch (err) {

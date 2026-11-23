@@ -22,6 +22,9 @@ interface FriendsTabProps {
   onCloseChat: () => void
   onOpenProfile: (userId: string) => void
   onLongPressMessage?: (message: Message) => void
+  replyingTo?: Message | null
+  onCancelReply?: () => void
+  onReplyMessage?: (message: Message) => void
   /** Abre el hilo de un mensaje del chat abierto. */
   onOpenThread?: (message: Message) => void
   /** Llamar desde el chat abierto (ver usePrivateCallSession). */
@@ -31,7 +34,7 @@ interface FriendsTabProps {
 }
 
 /** Pestaña Amigos: la lista de chats y, en sus secciones, Todos, Pendiente, Bloqueado y Añadir. O un chat abierto. */
-export default function FriendsTab({ openUserId, inboxConnected, onOpenChat, onCloseChat, onOpenProfile, onLongPressMessage, onOpenThread, onCall, callConversationId }: FriendsTabProps) {
+export default function FriendsTab({ openUserId, inboxConnected, onOpenChat, onCloseChat, onOpenProfile, onLongPressMessage, replyingTo, onCancelReply, onReplyMessage, onOpenThread, onCall, callConversationId }: FriendsTabProps) {
   const styles = useStyles()
   // Acá y no en cada lista: al volver de un chat, se sigue en la misma sección
   const [section, setSection] = useState<Section>('chats')
@@ -48,6 +51,9 @@ export default function FriendsTab({ openUserId, inboxConnected, onOpenChat, onC
         onBack={onCloseChat}
         onOpenProfile={onOpenProfile}
         onLongPressMessage={onLongPressMessage}
+        replyingTo={replyingTo}
+        onCancelReply={onCancelReply}
+        onReplyMessage={onReplyMessage}
         onOpenThread={onOpenThread}
         onCall={onCall}
         callConversationId={callConversationId}

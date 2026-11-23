@@ -34,11 +34,13 @@ export async function sendThreadReply(
   channelId: string,
   parentId: string,
   content: string,
-  attachments?: MessageAttachment[]
+  attachments?: MessageAttachment[],
+  replyToId?: string
 ): Promise<Message> {
   const reply = await api.post<Message>(threadPath(channelId, parentId), {
     content,
     ...(attachments?.length ? { attachments } : {}),
+    ...(replyToId ? { replyToId } : {}),
   });
   return normalizeMessage(reply);
 }
