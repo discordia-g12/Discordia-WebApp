@@ -208,7 +208,8 @@ describe('textos del hilo', async () => {
 });
 
 describe('textos de los avisos', async () => {
-  const { notificationBadge, notificationTitle } = await import('../../api/notifications');
+  const { notificationBadge } = await import('../../api/notifications');
+  const { notificationTitle } = await import('../../notifications/display');
 
   it('título por motivo y contador con tope', () => {
     expect(notificationTitle('thread_reply', 'Ana')).toBe('Ana respondió en un hilo');
