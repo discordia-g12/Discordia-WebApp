@@ -13,6 +13,7 @@ import { ChannelSidebarPanel } from '../../features/channels/ChannelSidebarPanel
 import { ChatPanel } from '../../features/chat/ChatPanel';
 import { ThreadPanel } from '../../features/chat/ThreadPanel';
 import { NotificationList } from '../../features/notifications/NotificationList';
+import { useNotificationLevelMenu } from '../../features/notifications/useNotificationMenus';
 import { VoicePanel } from '../../features/voice/VoicePanel';
 import { VoiceControlsPanel } from '../../features/voice/VoiceControls';
 import { CallControlsPanel } from '../../features/calls/CallControls';
@@ -162,7 +163,14 @@ export function MobileAppShell() {
         {!openThread && tab === 'notifications' && (
           <Screen title="Avisos">
             <div className={styles.padded}>
-              <NotificationList />
+              {/* Un DM se ve en Mensajes (por selectedDm, arriba) y un hilo tapa la pestaña; un canal, en Servidores */}
+              <NotificationList
+                onOpened={(n) => {
+                  if (!n.serverId || n.threadId) return;
+                  setTab('servers');
+                  setChannelOpen(true);
+                }}
+              />
             </div>
           </Screen>
         )}
@@ -219,6 +227,7 @@ function ServerTabsRow({
   onAdd: () => void;
   onHome: () => void;
 }) {
+  const levelMenu = useNotificationLevelMenu();
   return (
     <nav className={styles.strips} aria-label="Servidores">
       <button type="button" className={styles.logo} onClick={onHome}>
@@ -235,6 +244,7 @@ function ServerTabsRow({
               orientation="horizontal"
               suspended={server.isSuspended}
               onPress={() => onSelect(server.id)}
+              onOpenMenu={levelMenu.open({ scopeType: 'server', serverId: server.id }, server.name)}
             />
           </li>
         ))}
@@ -251,6 +261,7 @@ function ServerTabsRow({
       >
         <Compass size={18} strokeWidth={1.5} aria-hidden="true" />
       </button>
+      {levelMenu.menu}
     </nav>
   );
 }

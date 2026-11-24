@@ -7,16 +7,17 @@ import {
   getTwoFactorStatus,
   regenerateRecoveryCodes,
   setupTwoFactor,
+  usePushSettings,
   useSession,
 } from '@discordia/core'
 import { useAuth } from '../../../providers/AppProviders'
 import { makeStyles, useThemePreference, type ThemePreference } from '../../../theme'
 import { ActionLink, BlockButton, Choice, SquareAvatar, Text, UnderlineInput } from '../../../ui'
-import { SettingsCell, SettingsRow, SettingsScreen, type SettingsSection } from '../SettingsScreen'
+import { Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen'
 
 type Section = 'account' | 'experience'
 
-// Notificaciones, voz y factura no se guardan todavía en el backend: en mobile se suman cuando lo hagan
+// Voz y factura no se guardan todavía en el backend: en mobile se suman cuando lo hagan
 const SECTIONS: SettingsSection<Section>[] = [
   { id: 'account', label: 'Cuenta' },
   { id: 'experience', label: 'Experiencia' },
@@ -38,13 +39,16 @@ interface UserSettingsScreenProps {
 
 /**
  * Ajustes de usuario en mobile: CUENTA (datos de la cuenta, contraseña y autenticación de dos factores)
- * y EXPERIENCIA (el tema de la app, guardado en el dispositivo), con CERRAR SESIÓN en el menú.
+ * y EXPERIENCIA (el tema de la app, guardado en el dispositivo, y el interruptor de push, guardado en la
+ * cuenta), con CERRAR SESIÓN en el menú.
  */
 export function UserSettingsScreen({ visible, onClose, onEditProfile, onLogout }: UserSettingsScreenProps) {
   const styles = useStyles()
   const { userProfile } = useAuth()
   const sessionProfile = useSession(s => s.profile)
   const theme = useThemePreference()
+  const push = usePushSettings()
+  const [pushError, setPushError] = useState<string | null>(null)
   const [section, setSection] = useState<Section>('account')
   const [revealEmail, setRevealEmail] = useState(false)
   const name = userProfile?.display_name || userProfile?.username || ''
@@ -373,12 +377,32 @@ export function UserSettingsScreen({ visible, onClose, onEditProfile, onLogout }
       )}
 
       {section === 'experience' && (
-        <SettingsCell title="Tema" index={0}>
-          <Choice label="Tema" options={THEME_OPTIONS} value={theme.preference} onChange={theme.setPreference} />
-          <Text variant="meta" tone="muted">
-            / Sistema sigue el modo claro u oscuro del teléfono. Se guarda en este dispositivo.
-          </Text>
-        </SettingsCell>
+        <>
+          <SettingsCell title="Tema" index={0}>
+            <Choice label="Tema" options={THEME_OPTIONS} value={theme.preference} onChange={theme.setPreference} />
+            <Text variant="meta" tone="muted">
+              / Sistema sigue el modo claro u oscuro del teléfono. Se guarda en este dispositivo.
+            </Text>
+          </SettingsCell>
+
+          <SettingsCell title="Notificaciones" index={1}>
+            <SettingsRow
+              title="Notificaciones push"
+              description="Avisos con la app cerrada, en todos tus dispositivos. La bandeja avisa igual."
+            >
+              <Switch
+                label="Notificaciones push"
+                checked={push.pushEnabled}
+                disabled={push.isLoading}
+                onChange={next => {
+                  setPushError(null)
+                  push.setPushEnabled(next).catch(() => setPushError('No se pudo guardar. Probá de nuevo.'))
+                }}
+              />
+            </SettingsRow>
+            {pushError && <Feedback tone="error">{pushError}</Feedback>}
+          </SettingsCell>
+        </>
       )}
     </SettingsScreen>
   )

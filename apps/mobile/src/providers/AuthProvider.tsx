@@ -8,6 +8,7 @@ import {
   useSession,
 } from '@discordia/core'
 import { BackendProfile, getCurrentToken, mobileAuthAdapter } from '../api/auth'
+import { unregisterFromPush } from '../utils/push'
 
 setAuthAdapter(mobileAuthAdapter)
 
@@ -50,8 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated,
       token,
       userProfile,
+      // El token de push se borra antes: el DELETE necesita el JWT
       logout: () => {
-        sessionLogout()
+        void unregisterFromPush().finally(sessionLogout)
       },
       updateUserProfile: setSessionProfile,
     }),

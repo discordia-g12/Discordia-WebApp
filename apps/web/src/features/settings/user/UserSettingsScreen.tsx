@@ -5,13 +5,14 @@ import { getThemePreference, setThemePreference, type ThemePreference } from '..
 import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen';
 import type { UserSettingsProps } from './useUserSettingsState';
 import { useUserSettingsState, type UserSettingsState } from './useUserSettingsState';
+import { useWebPushToggle } from './useWebPushToggle';
 import styles from './UserSettingsScreen.module.css';
 
 type Section = 'account' | 'notifications' | 'voice' | 'billing' | 'experience';
 
 const SECTIONS: SettingsSection<Section>[] = [
   { id: 'account', label: 'Cuenta', items: ['Información de la cuenta', 'Estado', 'Contraseña y seguridad', 'Autenticación de dos factores'] },
-  { id: 'notifications', label: 'Notificación', items: ['Notificaciones de escritorio', 'Sonidos', 'Vista previa'] },
+  { id: 'notifications', label: 'Notificación', items: ['Notificaciones push', 'Notificaciones de escritorio', 'Sonidos', 'Vista previa'] },
   { id: 'voice', label: 'Voz', items: ['Entrada', 'Salida', 'Prueba de micrófono'] },
   { id: 'billing', label: 'Factura', items: ['Discordia Premium', 'Puntos'] },
   { id: 'experience', label: 'Experiencia', items: ['Tema', 'Modo de los mensajes', 'Tamaño de letra'] },
@@ -240,12 +241,32 @@ function NotificationsSection({ s }: { s: UserSettingsState }) {
     { title: 'Vista previa', description: 'Quién escribe y el comienzo del mensaje en los avisos.', checked: s.previewContent, set: s.setPreviewContent },
   ];
   return (
-    <SettingsCell title="Notificaciones de la app" wide soon>
-      {toggles.map((t) => (
-        <SettingsRow key={t.title} title={t.title} description={t.description}>
-          <Switch label={t.title} checked={t.checked} onChange={t.set} />
-        </SettingsRow>
-      ))}
+    <>
+      <PushCell />
+      <SettingsCell title="Notificaciones de la app" wide soon>
+        {toggles.map((t) => (
+          <SettingsRow key={t.title} title={t.title} description={t.description}>
+            <Switch label={t.title} checked={t.checked} onChange={t.set} />
+          </SettingsRow>
+        ))}
+      </SettingsCell>
+    </>
+  );
+}
+
+/** Web Push (ADR-08): avisos del sistema con la pestaña cerrada o sin foco. Con la app a la vista avisa la bandeja. */
+function PushCell() {
+  const push = useWebPushToggle();
+  return (
+    <SettingsCell title="Notificaciones push" wide>
+      <SettingsRow
+        title="Notificaciones push"
+        description="Menciones, mensajes directos y respuestas en hilos cuando Discordia no está a la vista."
+      >
+        <Switch label="Notificaciones push" checked={push.checked} disabled={push.disabled} onChange={(next) => void push.toggle(next)} />
+      </SettingsRow>
+      {push.unavailable && <p className={styles.note}>/ {push.unavailable}</p>}
+      {push.error && <Feedback tone="error">/ {push.error}</Feedback>}
     </SettingsCell>
   );
 }

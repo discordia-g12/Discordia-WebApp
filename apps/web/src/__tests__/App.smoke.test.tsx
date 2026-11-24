@@ -390,7 +390,7 @@ describe('App (prueba de humo)', () => {
     fireEvent.click(tabs.getByRole('button', { name: /Mensajes/ }));
     expect(await screen.findByRole('heading', { name: 'Mensajes' })).toBeTruthy();
     fireEvent.click(tabs.getByRole('button', { name: /Avisos/ }));
-    expect(await screen.findByText('no hay notificaciones para mostrar')).toBeTruthy();
+    expect(await screen.findByText('No tenés notificaciones')).toBeTruthy();
     fireEvent.click(tabs.getByRole('button', { name: /Perfil/ }));
     expect(await screen.findByRole('radiogroup', { name: 'Estado' })).toBeTruthy();
 

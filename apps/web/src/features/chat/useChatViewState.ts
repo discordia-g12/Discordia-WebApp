@@ -124,7 +124,6 @@ export function useChatViewState({
   // Menús flotantes e interactivos
   const [isEmojiPickerOpen, setIsEmojiPickerOpenRaw] = useState(false);
   const [isPinnedPanelOpen, setIsPinnedPanelOpen] = useState(false);
-  const [isNotificationsMuted, setIsNotificationsMuted] = useState(false);
   const [activeContextMenuMessageId, setActiveContextMenuMessageIdRaw] = useState<string | null>(null);
   const [reactionPickerMessageId, setReactionPickerMessageIdRaw] = useState<string | null>(null);
 
@@ -512,8 +511,6 @@ export function useChatViewState({
     setIsEmojiPickerOpen,
     isPinnedPanelOpen,
     setIsPinnedPanelOpen,
-    isNotificationsMuted,
-    setIsNotificationsMuted,
     activeContextMenuMessageId,
     setActiveContextMenuMessageId,
     reactionPickerMessageId,

@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { Server } from '../types';
 import { transitions } from './motion';
 import { ServerIcon } from './ServerIcon';
+import { useContextMenuTrigger } from './useContextMenuTrigger';
 import styles from './ServerStrip.module.css';
 
 interface ServerStripProps {
@@ -13,6 +14,8 @@ interface ServerStripProps {
   /** Texto del badge de no leídos ("5", "99+", "@2"). Sin él, con unread el badge va vacío. */
   badge?: string;
   onPress?: () => void;
+  /** Click derecho, long-press o tecla Menú, con la posición: el menú de avisos del servidor. */
+  onOpenMenu?: (x: number, y: number) => void;
   /**
    * horizontal: tira de servidores de arriba en mobile. La activa baja en lugar de correrse, y no hay
    * etiqueta flotante (en táctil aparecería al tocar y quedaría colgada): el nombre está en el encabezado.
@@ -33,6 +36,7 @@ export function ServerStrip({
   unread,
   badge,
   onPress,
+  onOpenMenu,
   orientation = 'vertical',
   suspended = false,
 }: ServerStripProps) {
@@ -41,6 +45,7 @@ export function ServerStrip({
   const [open, setOpen] = useState<{ top: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
+  const menuTrigger = useContextMenuTrigger(onOpenMenu);
   const show = () => {
     if (horizontal) return;
     const rect = rootRef.current?.getBoundingClientRect();
@@ -67,6 +72,7 @@ export function ServerStrip({
         aria-label={ariaLabel}
         aria-current={active ? 'true' : undefined}
         onClick={onPress}
+        {...menuTrigger}
         onFocus={() => show()}
         onBlur={() => setOpen(null)}
       >

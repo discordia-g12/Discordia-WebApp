@@ -237,8 +237,17 @@ describe('ChatView (rediseño)', () => {
 
   it('los íconos del encabezado alternan la lista de miembros, los fijados y las notificaciones', () => {
     const onToggleMemberList = vi.fn();
+    const onOpen = vi.fn();
     render(
-      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" isMemberListOpen onToggleMemberList={onToggleMemberList} />
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        isMemberListOpen
+        onToggleMemberList={onToggleMemberList}
+        notifications={{ off: false, onOpen }}
+      />
     );
 
     const members = screen.getByRole('button', { name: 'Lista de miembros' });
@@ -251,9 +260,11 @@ describe('ChatView (rediseño)', () => {
     expect(pins.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('dialog', { name: 'Mensajes fijados' }).textContent).toContain('todavía no hay mensajes fijados');
 
-    const bell = screen.getByRole('button', { name: 'Silenciar notificaciones' });
+    // La campana abre el menú de nivel (useChannelNotifications) con el nombre del canal
+    const bell = screen.getByRole('button', { name: 'Notificaciones' });
+    expect(bell.getAttribute('aria-haspopup')).toBe('menu');
     fireEvent.click(bell);
-    expect(bell.getAttribute('aria-pressed')).toBe('true');
+    expect(onOpen).toHaveBeenCalledWith(expect.stringMatching(/^#/), expect.any(Number), expect.any(Number));
   });
 
   it('fija desde el menú "más" con onPinMessage, y sin permiso no ofrece la opción', () => {

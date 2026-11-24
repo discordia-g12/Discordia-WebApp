@@ -20,6 +20,7 @@ import {
   savePendingTwoFactor,
   WebAuthAdapter,
 } from './auth0';
+import { unregisterFromPush } from '../push';
 export { hasStoredSession, savePendingTwoFactor, getPendingTwoFactor, clearPendingTwoFactor } from './auth0';
 
 /**
@@ -55,7 +56,8 @@ export const authService = {
   signupWithCredentials,
   completeTwoFactorSession,
   verifyTwoFactor,
-  logout,
+  // La suscripción de push se borra antes: el DELETE necesita el JWT
+  logout: () => unregisterFromPush().finally(logout),
   backToLogin,
   bootstrap,
   retryBootstrap,

@@ -60,7 +60,8 @@
           "cameraPermission": "Discordia usa la cámara para las videollamadas."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-notifications"
     ]
   }
 }

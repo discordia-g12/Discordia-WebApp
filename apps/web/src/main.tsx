@@ -25,8 +25,11 @@ import '@fontsource/schibsted-grotesk/700.css';
 import '@fontsource/schibsted-grotesk/900.css';
 import './ui/base.css';
 import { initTheme } from './ui/theme';
+import { registerServiceWorker } from './platform/push';
 
 initTheme();
+// Solo deja listo el service worker de push (public/sw.js): el permiso se pide desde Ajustes
+registerServiceWorker();
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, Ref } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import styles from './IconButton.module.css';
 
@@ -14,6 +14,8 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   badge?: number;
   /** danger: acciones destructivas (el rojo va solo en el ícono). */
   tone?: 'default' | 'danger';
+  /** Para ubicar un menú debajo del botón (React 19: llega al <button> con el resto). */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 /**

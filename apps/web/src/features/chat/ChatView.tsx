@@ -119,6 +119,11 @@ export interface ChatViewProps {
   onLoadOlder?: () => void;
   /** Abre el hilo de un mensaje ("responder en hilo" y el resumen de respuestas, CA1 y CA3). Sin esto, no hay hilos. */
   onOpenThread?: (message: Message) => void;
+  /**
+   * La campana del encabezado (useChannelNotifications): abre el menú de nivel de este canal o DM debajo del
+   * botón; `menu` es ese menú abierto. Sin esto (un DM sin conversación todavía) no se muestra.
+   */
+  notifications?: { off: boolean; onOpen: (name: string, x: number, y: number) => void; menu?: ReactNode };
   /** La vista es un hilo (ThreadPanel): el mensaje original arriba (CA4) y las respuestas como mensajes. */
   thread?: ThreadViewOptions;
 }
@@ -356,6 +361,7 @@ export function ChatView(props: ChatViewProps) {
     channel,
     directChat,
     directHeader,
+    notifications,
     messages,
     isLoading = false,
     currentUserId,
@@ -406,6 +412,7 @@ export function ChatView(props: ChatViewProps) {
   const myRoleIds = props.mentionables?.myRoleIds;
   // Chat para el que se abrió la búsqueda del DM: al cambiar de conversación deja de estar abierta sola
   const [directSearchKey, setDirectSearchKey] = useState<string | null>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
   const isDirectSearchOpen = directSearchKey === chatKey;
 
   return (
@@ -434,6 +441,20 @@ export function ChatView(props: ChatViewProps) {
           {chat.chatTopic !== 'No topic set.' && <p className={styles.topic}>{chat.chatTopic}</p>}
         </div>
         <nav className={styles.links} aria-label="Acciones del chat">
+          {notifications && (
+            <IconButton
+              ref={bellRef}
+              icon={notifications.off ? BellOff : Bell}
+              label="Notificaciones"
+              aria-haspopup="menu"
+              onPress={() => {
+                const rect = bellRef.current?.getBoundingClientRect();
+                const name = chat.isDirectMessage ? chat.chatTitle : `#${chat.chatTitle}`;
+                notifications.onOpen(name, rect?.left ?? 0, rect?.bottom ?? 0);
+              }}
+            />
+          )}
+          {notifications?.menu}
           {chat.isDirectMessage ? (
             directChat && directHeader && (
               <DirectHeaderActions
@@ -449,12 +470,6 @@ export function ChatView(props: ChatViewProps) {
           ) : (
             <>
               {onOpenSearch && <IconButton icon={Search} label="Buscar mensajes" onPress={onOpenSearch} />}
-              <IconButton
-                icon={chat.isNotificationsMuted ? BellOff : Bell}
-                label="Silenciar notificaciones"
-                pressed={chat.isNotificationsMuted}
-                onPress={() => chat.setIsNotificationsMuted((v) => !v)}
-              />
               <IconButton
                 icon={Pin}
                 label="Mensajes fijados"

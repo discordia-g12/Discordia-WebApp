@@ -1,6 +1,7 @@
 import { Bell, Compass, Home, Plus, type LucideIcon } from 'lucide-react';
 import type { Server } from '../../types';
 import { Logo, ServerStrip, Skeleton } from '../../ui';
+import { useNotificationLevelMenu } from '../notifications/useNotificationMenus';
 import { serverUnreadBadge, serverUnreadLabel } from './unread';
 import styles from './ServerRail.module.css';
 
@@ -43,6 +44,7 @@ export function ServerRail({
   notificationsBadge = null,
 }: ServerRailProps) {
   const isHome = selectedServerId === 'home';
+  const levelMenu = useNotificationLevelMenu();
 
   return (
     <nav className={styles.rail} aria-label="Servidores y mensajes directos">
@@ -74,6 +76,7 @@ export function ServerRail({
                 badge={serverUnreadBadge(server)}
                 suspended={server.isSuspended}
                 onPress={() => onSelectServer(server.id)}
+                onOpenMenu={levelMenu.open({ scopeType: 'server', serverId: server.id }, server.name)}
               />
             </li>
           ))
@@ -99,6 +102,8 @@ export function ServerRail({
         <RailAction icon={Plus} label="Añadir un servidor" onPress={onAddServer} />
         <RailAction icon={Compass} label="Descubrir servidores" onPress={onDiscoverServers} />
       </div>
+
+      {levelMenu.menu}
     </nav>
   );
 }

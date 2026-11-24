@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { setApiMock } from '@discordia/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserSettingsScreen } from '../user/UserSettingsScreen';
 import type { User } from '../../../types';
 
@@ -8,7 +9,11 @@ const user = { id: 'me', username: 'mar', displayName: 'Mar', status: 'online', 
 
 const renderSettings = (props: Partial<Parameters<typeof UserSettingsScreen>[0]> = {}) => {
   const handlers = { onClose: vi.fn(), onUpdateUser: vi.fn(), onLogout: vi.fn() };
-  render(<UserSettingsScreen currentUser={user} {...handlers} {...props} />);
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <UserSettingsScreen currentUser={user} {...handlers} {...props} />
+    </QueryClientProvider>,
+  );
   return handlers;
 };
 
@@ -75,6 +80,16 @@ describe('UserSettingsScreen (rediseño)', () => {
     const sounds = screen.getByRole('switch', { name: 'Sonidos' });
     expect(sounds.getAttribute('aria-checked')).toBe('true');
     expect(sounds.matches(':disabled')).toBe(true);
+  });
+
+  it('NOTIFICACIÓN: sin Web Push en el navegador, el interruptor de push queda apagado y explica por qué', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Notificación' }));
+
+    const push = screen.getByRole('switch', { name: 'Notificaciones push' });
+    expect(push.getAttribute('aria-checked')).toBe('false');
+    expect(push.matches(':disabled')).toBe(true);
+    expect(screen.getByText(/pantalla de inicio/)).toBeTruthy();
   });
 
   it('el buscador filtra el menú por lo que hay adentro de cada sección', () => {

@@ -1,7 +1,10 @@
 import { api } from './client';
 
-/** Por qué llegó el aviso. Hoy solo `thread_reply`; los otros son de la épica de notificaciones. */
-export type NotificationReason = 'thread_reply' | 'mention' | 'dm';
+/**
+ * Por qué llegó el aviso. `message` es un mensaje cualquiera de un canal donde pediste nivel `all`. Uno por
+ * usuario y mensaje: gana mention > dm > thread_reply > message.
+ */
+export type NotificationReason = 'mention' | 'dm' | 'thread_reply' | 'message';
 export type NotificationLevel = 'all' | 'mentions' | 'none';
 export type NotificationScopeType = 'server' | 'channel' | 'thread';
 
@@ -88,13 +91,6 @@ export function setNotificationPreference(
   change: NotificationPreferenceChange
 ) {
   return api.put<NotificationPreference>(`${BASE}/preferences/${scopeType}/${encodeURIComponent(scopeId)}`, change);
-}
-
-/** "Ana respondió en un hilo": la primera línea de cada aviso. */
-export function notificationTitle(reason: NotificationReason, actorName: string): string {
-  if (reason === 'mention') return `${actorName} te mencionó`;
-  if (reason === 'dm') return `${actorName} te escribió`;
-  return `${actorName} respondió en un hilo`;
 }
 
 /** Contador de la campana: hasta 99, después "99+" (el servidor corta en 100). */

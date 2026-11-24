@@ -93,6 +93,6 @@ test.describe('Hilos', () => {
     // Abre el hilo y el aviso queda leído
     await expect(threadPanel(page).getByRole('log')).toContainText('me gusta el segundo', { timeout: 15000 });
     await page.getByRole('button', { name: /^Avisos/ }).click();
-    await expect(page.getByRole('button', { name: 'Ana E2E respondió en un hilo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Ana E2E respondió en un hilo/ })).toBeVisible();
   });
 });

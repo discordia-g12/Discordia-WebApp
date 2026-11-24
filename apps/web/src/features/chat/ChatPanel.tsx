@@ -17,6 +17,7 @@ import { ChatView } from './ChatView';
 import type { Mentionables } from './useChatViewState';
 import { useMessageActions } from './useMessageActions';
 import { useChatWriteBlock } from './chatConnectionContext';
+import { useChannelNotifications } from '../notifications/useNotificationMenus';
 
 /** Chat del canal de texto seleccionado. */
 export function ChatPanel() {
@@ -31,6 +32,7 @@ export function ChatPanel() {
   const channelId = selectedServerId !== 'home' ? selectedChannelId : null;
   const actions = useMessageActions(channelId);
   const writeBlock = useChatWriteBlock();
+  const notifications = useChannelNotifications(currentServer?.id ?? null, currentChannel?.id);
   const canManageMessages = currentChannel
     ? canInChannel(currentServer, currentChannel, currentUser.id, 'MANAGE_MESSAGES')
     : false;
@@ -66,6 +68,7 @@ export function ChatPanel() {
   return (
     <ChatView
       channel={currentChannel}
+      notifications={notifications}
       canManageMessages={canManageMessages}
       canAddReactions={canAddReactions}
       messages={realMessages || []}
