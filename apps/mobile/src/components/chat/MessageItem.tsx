@@ -20,6 +20,7 @@ import ReplyQuote from './ReplyQuote'
 import SwipeToReply from './SwipeToReply'
 import { SquareAvatar, Text, distance, useReducedMotion, useRise } from '../../ui'
 import type { Message } from '../../types'
+import { remoteImage } from '../../utils/remoteImage'
 import type { UserDisplay } from '../../hooks/useUserProfiles'
 
 interface MessageItemProps {
@@ -221,7 +222,7 @@ function MessageItem({
                 accessibilityLabel={`Ver imagen ${att.name}`}
               >
                 <Image
-                  source={{ uri: att.url }}
+                  source={remoteImage(att.url)}
                   style={styles.attachmentImage}
                   resizeMode="cover"
                   accessibilityLabel={att.name}

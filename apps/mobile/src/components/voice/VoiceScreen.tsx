@@ -8,6 +8,7 @@ import { makeStyles, useTheme } from '../../theme'
 import { Text, initials, useNativeDriver, useReducedMotion } from '../../ui'
 import { CallState } from '../shell/CallBar'
 import ParticipantVideo from './ParticipantVideo'
+import { remoteImage } from '../../utils/remoteImage'
 
 export interface VoiceScreenParticipant {
   id: string
@@ -195,7 +196,7 @@ function Tile({
       {p.videoTrack ? (
         <ParticipantVideo track={p.videoTrack} mirrored={p.isLocal} style={styles.photo} />
       ) : p.avatar && !broken ? (
-        <Image source={{ uri: p.avatar }} style={styles.photo} onError={() => setBroken(true)} />
+        <Image source={remoteImage(p.avatar)} style={styles.photo} onError={() => setBroken(true)} />
       ) : (
         <View style={styles.initials}>
           <Text tone="inverse" style={[styles.initialsText, { fontSize: style.width * 0.28, lineHeight: style.width * 0.32 }]}>

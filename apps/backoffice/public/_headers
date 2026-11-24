@@ -2,13 +2,15 @@
 # indexa, no se puede embeber en otra página y solo carga código propio.
 # connect-src: la API (Kong) y Auth0. frame-src: Auth0 renueva el token en un iframe oculto.
 # img-src: avatares de Auth0 (Gravatar y otros) y del bucket de S3.
+# Referrer-Policy: a otros sitios solo va el origen (sin la ruta). El bucket de S3 sirve avatares e íconos
+# solo si el Referer es una página de Discordia (infra/terraform/storage.tf): con no-referrer no se verían.
 # cloudflareinsights: Web Analytics de Pages, que Cloudflare inyecta en el HTML (script y envío de métricas).
 
 /*
   X-Robots-Tag: noindex, nofollow
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
-  Referrer-Policy: no-referrer
+  Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.discordia.lol https://*.auth0.com https://cloudflareinsights.com; frame-src https://*.auth0.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
 
