@@ -1,10 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { configureClient } from '@discordia/core';
+import { configureAuth, configureClient } from '@discordia/core';
 import { config } from './config';
 import { getAccessToken, handleAccountSuspended, handleAuthFailure } from './auth/session';
 import App from './App';
+import { ErrorBoundary } from '@web/ui';
+import { CrashScreen } from './screens/ErrorScreens';
 
 // Sistema de diseño: los mismos tokens, fuente y base que la web
 import '@discordia/tokens/tokens.css';
@@ -14,6 +16,9 @@ import '@fontsource/schibsted-grotesk/900.css';
 import '@web/ui/base.css';
 import './index.css';
 import { initTheme } from '@web/ui/theme';
+
+// El login con contraseña (passwordRealmLogin de core) usa la aplicación de Auth0 del backoffice, no la de la web
+configureAuth({ domain: config.auth0.domain, clientId: config.auth0.clientId, audience: config.auth0.audience });
 
 // Las llamadas a la API pasan por Kong con el token del staff; un 401 sin renovar vuelve a "entrar"
 configureClient({
@@ -42,8 +47,10 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
+    <ErrorBoundary fallback={(error) => <CrashScreen error={error} />}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

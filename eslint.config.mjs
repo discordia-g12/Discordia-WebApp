@@ -45,6 +45,12 @@ export default defineConfig([
     extends: [reactRefresh.configs.vite],
   },
 
+  // Service worker de push de la web (archivo estático, sin módulos)
+  {
+    files: ['apps/web/public/sw.js'],
+    languageOptions: { globals: { ...globals.serviceworker } },
+  },
+
   // Archivos de configuración que corren en Node (metro, vite, vitest)
   {
     files: ['**/*.config.{js,mjs,cjs,ts}', 'apps/mobile/metro.config.js'],

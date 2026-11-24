@@ -135,4 +135,19 @@ describe('useMessageActions', () => {
     // Debe haber vuelto al estado previo (solo 👍)
     expect(list[0].reactions).toEqual([{ emoji: '👍', count: 1, users: ['user-other'] }]);
   });
+
+  it('togglePin delega en usePinMessage de core y muestra el error si falla', async () => {
+    const pin = vi.fn().mockRejectedValueOnce(new Error('Ya hay 50 mensajes fijados. Desfijá alguno primero.'));
+    vi.spyOn(core, 'usePinMessage').mockReturnValue(pin);
+
+    const { result } = renderHook(() => useMessageActions('ch-1'), { wrapper });
+
+    await act(async () => {
+      await result.current.togglePin(initialMessages[0]);
+    });
+
+    expect(core.usePinMessage).toHaveBeenCalledWith('ch-1');
+    expect(pin).toHaveBeenCalledWith(initialMessages[0]);
+    expect(uiStore.showToast).toHaveBeenCalledWith('Ya hay 50 mensajes fijados. Desfijá alguno primero.', 'danger');
+  });
 });

@@ -18,6 +18,21 @@
   color: var(--color-text);
 }
 
+/* Botón del logo: va al inicio. Mismo ancho que las acciones del pie, así la etiqueta sale a la misma altura */
+.logoButton {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
 /* Las franjas salen del borde izquierdo; la etiqueta negra se despliega por encima de la barra lateral */
 .strips {
   flex: 1;
@@ -95,7 +110,8 @@
 }
 
 /* Etiqueta negra al pasar el mouse o con foco (la de las franjas, en CSS: no hay contenido dinámico) */
-.action::after {
+.action::after,
+.logoButton::after {
   content: attr(data-label);
   position: absolute;
   left: calc(100% + var(--space-4));
@@ -116,7 +132,9 @@
 }
 
 .action:hover::after,
-.action:focus-visible::after {
+.action:focus-visible::after,
+.logoButton:hover::after,
+.logoButton:focus-visible::after {
   opacity: 1;
   transform: translate(0, -50%);
 }

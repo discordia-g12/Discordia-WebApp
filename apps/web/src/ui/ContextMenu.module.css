@@ -1,4 +1,4 @@
-/* Menú del click derecho sobre un participante: panel de línea fina, como el menú del servidor */
+/* Menú del click derecho (participante de voz, avisos de un servidor, canal o DM): panel de línea fina, como el menú del servidor */
 .menu {
   position: fixed;
   z-index: 1100;
@@ -32,4 +32,20 @@
 .item:focus-visible {
   color: var(--color-inverse-text);
   background: var(--color-inverse-background);
+}
+
+.title {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+  border-bottom: var(--line-hairline) solid var(--color-line);
+}
+
+.detail {
+  color: var(--color-text-muted);
+}
+
+.item:hover .detail,
+.item:focus-visible .detail {
+  color: inherit;
 }

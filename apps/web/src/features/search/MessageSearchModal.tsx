@@ -3,6 +3,7 @@ import {
   MESSAGE_SEARCH_MAX_LENGTH,
   formatMessageTime,
   mentionsToText,
+  useChannelMessageSearch,
   useMessageSearch,
   useRolesQuery,
   useUserProfiles,
@@ -12,9 +13,13 @@ import { ActionLink, BlockButton, EmptyState, Modal, ModalActions, ModalForm, Sk
 import { useUIStore } from '../../app/uiStore';
 import { useUsers } from '../../app/usersContext';
 import { useServerMemberUsers } from '../servers/useCurrentServer';
+import { useCurrentUser } from '../profile/currentUserStore';
 import styles from './MessageSearchModal.module.css';
 
 const userName = (user: User | undefined) => user?.displayName || user?.username || 'usuario';
+
+/** Estado de una búsqueda (de un servidor o de un DM): lo crea el contenedor con el alcance que corresponde. */
+export type MessageSearchState = ReturnType<typeof useMessageSearch>;
 
 /**
  * Búsqueda de mensajes del servidor abierto: junta los miembros (para el filtro por autor), los usuarios
@@ -24,6 +29,7 @@ export function MessageSearchModal({ server, onClose }: { server: Server; onClos
   const members = useServerMemberUsers();
   const { usersMap } = useUsers();
   const { data: roles } = useRolesQuery(server.id);
+  const search = useMessageSearch(server.id);
   const channels = useMemo(
     () => (server.channels?.length ? server.channels : server.categories.flatMap((cat) => cat.channels)),
     [server]
@@ -38,8 +44,9 @@ export function MessageSearchModal({ server, onClose }: { server: Server; onClos
 
   return (
     <MessageSearchDialog
-      serverId={server.id}
-      serverName={server.name}
+      search={search}
+      description={`en ${server.name}`}
+      scopeHint="en los canales que podés ver"
       channels={channels}
       members={members.map((member) => ({ ...member, ...usersMap[member.id] }))}
       users={usersMap}
@@ -50,11 +57,51 @@ export function MessageSearchModal({ server, onClose }: { server: Server; onClos
   );
 }
 
+/**
+ * Búsqueda dentro del DM abierto: el filtro por autor son los dos participantes y al elegir un resultado se va
+ * a ese mensaje en el chat (`onJump`, el mismo salto de los mensajes fijados).
+ */
+export function DmMessageSearchModal({
+  conversationId,
+  otherUser,
+  onClose,
+  onJump,
+}: {
+  conversationId: string;
+  otherUser: User;
+  onClose: () => void;
+  onJump: (messageId: string) => void;
+}) {
+  const { usersMap } = useUsers();
+  const currentUser = useCurrentUser();
+  const search = useChannelMessageSearch(conversationId);
+
+  return (
+    <MessageSearchDialog
+      search={search}
+      description={`en tu conversación con ${userName(otherUser)}`}
+      scopeHint="en esta conversación"
+      // Chat-Engine toma el id de quien busca como su id canónico, el que guardan sus mensajes del DM
+      members={[currentUser, otherUser]}
+      users={usersMap}
+      roles={[]}
+      onClose={onClose}
+      onOpenMessage={(message) => {
+        onClose();
+        onJump(message.id);
+      }}
+    />
+  );
+}
+
 export interface MessageSearchDialogProps {
-  serverId: string;
-  serverName: string;
-  /** Canales del servidor, para mostrar en cuál está cada resultado. */
-  channels: Channel[];
+  search: MessageSearchState;
+  /** Bajada del título: dónde se busca ("en Mi server"). */
+  description: string;
+  /** Final del estado vacío: "en los canales que podés ver", "en esta conversación". */
+  scopeHint: string;
+  /** Canales del servidor, para mostrar en cuál está cada resultado. Sin esto (DM) no se muestra el canal. */
+  channels?: Channel[];
   /** Miembros del servidor: las opciones del filtro por autor. */
   members: User[];
   /** Usuarios conocidos por id (autores y menciones). */
@@ -66,8 +113,9 @@ export interface MessageSearchDialogProps {
 
 /** Formulario (texto y autor), resultados del más nuevo al más viejo y "cargar más". */
 export function MessageSearchDialog({
-  serverId,
-  serverName,
+  search,
+  description,
+  scopeHint,
   channels,
   members,
   users,
@@ -75,7 +123,6 @@ export function MessageSearchDialog({
   onClose,
   onOpenMessage,
 }: MessageSearchDialogProps) {
-  const search = useMessageSearch(serverId);
   const authorSelectId = useId();
 
   // Autores que no están en el directorio (por ejemplo, alguien que ya dejó el servidor)
@@ -83,7 +130,7 @@ export function MessageSearchDialog({
   const fetched = useUserProfiles(unknownAuthorIds);
   const userById = (id: string): User | undefined => users[id] ?? fetched[id];
 
-  const channelName = (id: string) => channels.find((ch) => ch.id === id)?.name ?? 'canal';
+  const channelName = (id: string) => channels?.find((ch) => ch.id === id)?.name ?? 'canal';
   const names = {
     user: (id: string) => userName(userById(id)),
     role: (id: string) => roles.find((r) => r.id === id)?.name ?? 'rol-eliminado',
@@ -98,14 +145,14 @@ export function MessageSearchDialog({
     ? [
         submitted.query ? `ningún mensaje contiene "${submitted.query}"` : 'no hay mensajes',
         submitted.authorId ? `de ${userName(userById(submitted.authorId))}` : null,
-        'en los canales que podés ver',
+        scopeHint,
       ]
         .filter(Boolean)
         .join(' ')
     : undefined;
 
   return (
-    <Modal title="Buscar mensajes" description={`en ${serverName}`} onClose={onClose}>
+    <Modal title="Buscar mensajes" description={description} onClose={onClose}>
       <ModalForm onSubmit={search.submit}>
         <UnderlineInput
           label="texto"
@@ -161,13 +208,13 @@ export function MessageSearchDialog({
                       type="button"
                       className={styles.result}
                       onClick={() => onOpenMessage(message)}
-                      title={`Ir a •${channelName(message.channelId)}`}
+                      title={channels ? `Ir a •${channelName(message.channelId)}` : 'Ir al mensaje'}
                     >
                       <SquareAvatar user={{ displayName: userName(author), username: author?.username ?? message.authorId, avatar: author?.avatar }} size="sm" />
                       <span className={styles.body}>
                         <span className={styles.meta}>
                           <strong>{userName(author)}</strong>
-                          <span>•{channelName(message.channelId)}</span>
+                          {channels && <span>•{channelName(message.channelId)}</span>}
                           <time dateTime={message.timestamp}>{formatMessageTime(message.timestamp)}</time>
                         </span>
                         <span className={styles.content}>

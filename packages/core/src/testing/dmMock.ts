@@ -1,10 +1,13 @@
 import { ApiError } from '../api/errors';
 import { isConversationId } from '../api/conversations';
 import type { ApiMock } from '../api/mock';
+import type { PreferredStatus } from '../api/presence';
 import type { InboxEvent } from '../realtime/inboxSocket';
 import type { Conversation, FriendRequest, Message, MessageAttachment, PublicProfile, Relationship } from '../types';
 import { createCallMock, type CallMock, type CallMockOptions } from './callMock';
 import { CURRENT_USER_ID, DM_MESSAGES, MESSAGES, SERVERS, USERS } from './data';
+import { PINNED_LIMIT, sortPinnedMessages } from '../chat/pins';
+import { MESSAGES_PAGE_SIZE } from '../hooks/messageCache';
 
 export interface DmMockOptions extends CallMockOptions {
   /** Usuarios que bloquearon al usuario simulado: su relación es `none` y escribirles da error de entrega. */
@@ -32,8 +35,12 @@ export type DmMock = Required<
     | 'acceptConversation'
     | 'declineConversation'
     | 'getPresence'
+    | 'getMyStatus'
+    | 'setMyStatus'
     | 'getMessages'
     | 'sendMessage'
+    | 'setMessagePinned'
+    | 'getPinnedMessages'
     | 'markChannelRead'
     | 'subscribeInbox'
   >
@@ -41,6 +48,11 @@ export type DmMock = Required<
   CallMock & {
   /** Simula un mensaje de `userId`, como si llegara por el socket inbox. */
   simulateIncomingMessage(userId: string, content: string): Message;
+  /**
+   * Agrega `count` mensajes viejos al comienzo de un canal o DM (el primero, el más viejo), para probar el
+   * historial paginado. Devuelve los agregados.
+   */
+  seedOlderMessages(channelId: string, count: number): Message[];
 };
 
 interface PendingFriendRequest {
@@ -81,6 +93,7 @@ export function createDmMock({ blockedBy = [], ...callOptions }: DmMockOptions =
   const blockers = new Set(blockedBy);
   const listeners = new Set<(event: InboxEvent) => void>();
   let sequence = 0;
+  let myStatus: PreferredStatus = 'online';
 
   let requests: PendingFriendRequest[] = [
     {
@@ -132,6 +145,22 @@ export function createDmMock({ blockedBy = [], ...callOptions }: DmMockOptions =
   );
 
   const emit = (event: InboxEvent) => listeners.forEach((listener) => listener(event));
+
+  // Canales de servidor: arrancan con MESSAGES y se les pueden sembrar mensajes viejos
+  const channelHistory = new Map<string, Message[]>();
+  const historyOf = (channelId: string): Message[] =>
+    isConversationId(channelId)
+      ? (history.get(channelId) ?? [])
+      : (channelHistory.get(channelId) ?? MESSAGES[channelId] ?? []);
+  const setHistory = (channelId: string, list: Message[]) =>
+    (isConversationId(channelId) ? history : channelHistory).set(channelId, list);
+
+  // Fijados por id de mensaje, como el flag de Chat-Engine
+  const pins = new Map<string, { pinnedAt: string; pinnedBy: string }>();
+  const withPin = (m: Message): Message => {
+    const pin = pins.get(m.id);
+    return { ...m, isPinned: Boolean(pin), pinnedAt: pin?.pinnedAt ?? null, pinnedBy: pin?.pinnedBy ?? null };
+  };
 
   const relationshipWith = (userId: string): Relationship => {
     if (blocked.has(userId)) return 'blocked';
@@ -345,15 +374,47 @@ export function createDmMock({ blockedBy = [], ...callOptions }: DmMockOptions =
     },
 
     async getPresence(userIds) {
+      // Como Chat-Engine: invisible figura desconectado
       return Object.fromEntries(
-        userIds.map((id) => [id, USERS[id] && USERS[id].status !== 'offline' ? 'online' : 'offline'])
+        userIds.map((id) => {
+          const status = USERS[id]?.status;
+          return [id, !status || status === 'invisible' ? 'offline' : status];
+        })
       );
     },
 
-    async getMessages(channelId, { before } = {}) {
-      // Todo el historial simulado entra en la primera página
-      if (before) return [];
-      return isConversationId(channelId) ? (history.get(channelId) ?? []) : (MESSAGES[channelId] ?? []);
+    async getMyStatus() {
+      return myStatus;
+    },
+
+    async setMyStatus(status) {
+      myStatus = status;
+      return myStatus;
+    },
+
+    async getMessages(channelId, { before, limit = MESSAGES_PAGE_SIZE } = {}) {
+      // Paginado como Chat-Engine: los `limit` anteriores a `before`, en orden cronológico
+      const list = historyOf(channelId);
+      const end = before ? list.findIndex((m) => m.id === before) : list.length;
+      if (end === -1) return [];
+      return list.slice(Math.max(0, end - limit), end).map(withPin);
+    },
+
+    async setMessagePinned(channelId, messageId, pinned) {
+      const found = historyOf(channelId).find((m) => m.id === messageId);
+      if (!found || found.type === 'deleted') throw notFound('Message not found');
+      if (pinned && !pins.has(messageId)) {
+        const count = historyOf(channelId).filter((m) => pins.has(m.id)).length;
+        if (count >= PINNED_LIMIT) throw new ApiError({ status: 409, detail: 'Pinned messages limit reached' });
+        pins.set(messageId, { pinnedAt: new Date().toISOString(), pinnedBy: CURRENT_USER_ID });
+      } else if (!pinned) {
+        pins.delete(messageId);
+      }
+      return withPin(found);
+    },
+
+    async getPinnedMessages(channelId) {
+      return sortPinnedMessages(historyOf(channelId).filter((m) => pins.has(m.id)).map(withPin));
     },
 
     async sendMessage(channelId, content, attachments) {
@@ -375,6 +436,28 @@ export function createDmMock({ blockedBy = [], ...callOptions }: DmMockOptions =
     subscribeInbox(onEvent) {
       listeners.add(onEvent);
       return () => listeners.delete(onEvent);
+    },
+
+    seedOlderMessages(channelId, count) {
+      const current = historyOf(channelId);
+      const first = current[0] ? new Date(current[0].timestamp).getTime() : Date.now();
+      const authors = isConversationId(channelId)
+        ? [CURRENT_USER_ID, conversationFor(channelId).otherUserId]
+        : [CURRENT_USER_ID, 'u1', 'u2'];
+      const seeded = Array.from({ length: count }, (_, i): Message => {
+        const timestamp = new Date(first - (count - i) * 60_000).toISOString();
+        return {
+          id: `${channelId}-old-${i + 1}`,
+          channelId,
+          authorId: authors[i % authors.length],
+          content: `mensaje viejo ${i + 1}`,
+          timestamp,
+          createdAt: timestamp,
+          type: 'normal',
+        };
+      });
+      setHistory(channelId, [...seeded, ...current]);
+      return seeded;
     },
 
     simulateIncomingMessage(userId, content) {

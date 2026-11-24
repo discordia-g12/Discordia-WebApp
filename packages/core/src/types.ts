@@ -15,6 +15,15 @@ export type ChannelType = 'text' | 'voice' | 'announcement';
 /** Naturaleza del mensaje dentro del flujo de chat. */
 export type MessageType = 'normal' | 'system' | 'deleted';
 
+/** Eventos que Chat-Engine anuncia con un mensaje del sistema. `member_join`: alguien se unió al servidor. */
+export type SystemMessageEvent = 'member_join';
+
+export interface SystemMessageInfo {
+  event: SystemMessageEvent;
+  /** A quién le pasó (quien se unió). */
+  userId: string;
+}
+
 /** Adjunto multimedia o documental asociado a un mensaje. */
 export interface MessageAttachment {
   id: string;
@@ -233,7 +242,7 @@ export interface ServerBackendResponse {
   owner_id: string;
   description?: string | null;
   icon_url?: string | null;
-  /** Banner 16:9 (960x540). Lo muestra la franja del servidor en la barra, en lugar del ícono. */
+  /** Banner 16:9 (960x540). Es el fondo de la franja del servidor en la barra; el ícono va encima. */
   banner_url?: string | null;
   created_at: string;
   /** Permisos efectivos del usuario que pide (bitmask, mismos bits que los roles). */
@@ -263,6 +272,10 @@ export interface MessageBackendPayload {
     users: string[];
     emojiId?: string;
   }>;
+  /** Fijado en el canal o DM (Chat-Engine ADR-05). Siempre viene, también en false. */
+  pinned?: boolean;
+  pinnedAt?: string | null;
+  pinnedBy?: string | null;
 }
 
 /** Canal individual perteneciente a una categoría de servidor. */
@@ -302,7 +315,6 @@ export interface Server {
   ownerId: string;
   /** Permisos del usuario actual en el servidor (ids de PERMISSION_BITS). Ver canInServer. */
   myPermissions?: string[];
-  icon?: string;
   iconUrl?: string;
   banner?: string;
   color?: string;
@@ -327,6 +339,23 @@ export interface Server {
   isSuspended?: boolean;
 }
 
+/** Resumen de un hilo, en el mensaje original. */
+export interface ThreadSummary {
+  replyCount: number;
+  lastReplyAt: string;
+  lastReplyId: string;
+  participantIds: string[];
+  /** Solo quienes respondieron, en orden de primera respuesta (las fotos del resumen). */
+  replierIds?: string[];
+}
+
+/** Mensaje citado al responder: Chat-Engine guarda una copia con la respuesta. */
+export type MessageReplyPreview = Pick<Message, 'id' | 'authorId' | 'content'> & {
+  author?: User;
+  /** El original se borró: ya no hay texto que mostrar. */
+  deleted?: boolean;
+};
+
 /** Mensaje individual publicado en un canal o chat directo. */
 export interface Message {
   id: string;
@@ -341,14 +370,24 @@ export interface Message {
   editedAt?: string | null;
   edited?: boolean;
   type?: MessageType;
+  /** Mensaje del sistema (`type: 'system'`), según Chat-Engine: qué pasó y a quién (ver chat/system.ts). */
+  system?: SystemMessageInfo;
   reactions?: Reaction[];
   attachments?: MessageAttachment[];
   embeds?: MessageEmbed[];
   /** Menciones que notifican, según Chat-Engine (#46). Los mensajes anteriores las traen vacías. */
   mentions?: MessageMentions;
   replyToId?: string | null;
-  replyTo?: Message | null;
+  replyTo?: MessageReplyPreview | null;
+  /** Respuesta de hilo: id del mensaje original. No aparece en el historial del canal (ADR-07 de Chat). */
+  threadParentId?: string;
+  /** Mensaje original de un hilo con al menos una respuesta: cuántas y cuándo fue la última. */
+  thread?: ThreadSummary;
+  /** Fijado en el canal o DM. normalizeMessage lo completa con el `pinned` de Chat-Engine. */
   isPinned?: boolean;
+  /** Cuándo se fijó: ordena la lista de fijados (el más reciente primero). */
+  pinnedAt?: string | null;
+  pinnedBy?: string | null;
   fileAttachment?: { name: string; size: string; type?: string };
   imageUrl?: string;
   isNew?: boolean;

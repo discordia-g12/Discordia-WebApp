@@ -8,6 +8,10 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer-when-downgrade
 
+# El service worker de push no se cachea: así un deploy llega enseguida
+/sw.js
+  Cache-Control: no-cache
+
 # Solo los archivos con hash en el nombre (los genera Vite en /assets) se pueden cachear para siempre
 /assets/*
   Cache-Control: public, max-age=31536000, immutable

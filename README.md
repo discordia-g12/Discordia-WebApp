@@ -60,6 +60,43 @@ Variables de `apps/web/.env` (Vite las toma al arrancar `npm run dev`):
 En producción, Cloudflare Pages compila con `VITE_API_URL=https://api.discordia.lol` y los valores de Auth0
 (Terraform del orquestador, `infra/terraform/pages.tf`).
 
+### Compartir pantalla con audio
+
+El audio de la pantalla compartida lo captura el navegador (`getDisplayMedia`), no la app. `useVoiceRoom` lo
+pide siempre (`createLocalScreenTracks({ audio: true })`), pero si el navegador no devuelve un track de audio,
+la pantalla se comparte igual, solo con video y sin error.
+
+| Navegador | Pestaña | Ventana | Pantalla completa |
+|---|---|---|---|
+| Chrome / Edge en Windows o ChromeOS | Sí | No | Sí (audio del sistema) |
+| Chrome / Edge en macOS o Linux | Sí | No | No |
+| Firefox | No | No | No |
+| Safari | No | No | No |
+| Mobile (React Native) | — | — | No: solo video |
+
+- En Chrome y Edge, el audio de una pestaña se comparte solo si se marca **"Compartir también el audio de la
+  pestaña"** en el selector. Sin ese checkbox no hay audio, aunque la pestaña esté sonando.
+- Quien comparte no escucha su propio audio. Para probarlo hacen falta dos clientes: en el otro tiene que
+  sonar.
+- Para revisar si el audio llega: en el receptor, `chrome://webrtc-internals` tiene que mostrar un segundo
+  `inbound-rtp` de audio con `bytesReceived` subiendo.
+
+### Notificaciones push
+
+Web Push (ADR-08 de Notification-Service): `apps/web/public/sw.js` es el service worker (solo push, no cachea
+nada) y `src/platform/push.ts` la suscripción. El permiso se pide solo al prender **Ajustes → Notificación →
+Notificaciones push**: suscribe con la clave VAPID de `GET /api/v1/notifications/push/vapid-public-key`, registra
+el `endpoint` y guarda `pushEnabled`. Al cerrar sesión se borra del backend y se desuscribe. Con una ventana de
+Discordia con foco no se muestra el aviso (avisa la bandeja); el click abre o enfoca la app en la conversación.
+
+- Si el backend devuelve `publicKey: null` (push web apagado), el navegador no tiene push o el permiso está
+  bloqueado, el interruptor queda deshabilitado con el motivo.
+- iPhone y iPad: Safari solo tiene Web Push con la web instalada en la pantalla de inicio (PWA, iOS 16.4+).
+- `VITE_USE_MOCK` no simula push: se ve el registro del service worker y el interruptor deshabilitado. Para un
+  push real hace falta el backend con VAPID y HTTPS o `localhost`. Para probar sin backend: DevTools →
+  Application → Service Workers → **Push** con `{"title":"t","body":"b","data":{…}}`, con la pestaña sin foco.
+- `sw.js` va con `Cache-Control: no-cache` (`nginx.conf` y `public/_headers`) para que un deploy lo actualice.
+
 ## Backoffice
 
 ```bash

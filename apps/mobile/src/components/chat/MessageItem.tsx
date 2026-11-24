@@ -1,7 +1,23 @@
 import React, { useState } from 'react'
 import { Animated, Image, Linking, Pressable, View } from 'react-native'
-import { formatAttachmentSize, formatMessageTime, mentionsToText } from '@discordia/core'
+import {
+  WAVE_EMOJI,
+  formatAttachmentSize,
+  formatMessageTime,
+  formatTimeAgo,
+  hasThreadReplies,
+  hasWaved,
+  isMemberJoin,
+  memberJoinText,
+  mentionsToText,
+  replyCountLabel,
+  systemMessageUserId,
+  threadSummaryLabel,
+  waveCount,
+} from '@discordia/core'
 import { makeStyles } from '../../theme'
+import ReplyQuote from './ReplyQuote'
+import SwipeToReply from './SwipeToReply'
 import { SquareAvatar, Text, distance, useReducedMotion, useRise } from '../../ui'
 import type { Message } from '../../types'
 import type { UserDisplay } from '../../hooks/useUserProfiles'
@@ -24,6 +40,16 @@ interface MessageItemProps {
   onLongPress?: () => void
   /** Tocar una reacción para alternarla. */
   onToggleReaction?: (messageId: string, emoji: string) => void
+  /** Se acaba de ir a este mensaje (desde los fijados): se marca un momento. */
+  highlighted?: boolean
+  /** Abre el hilo (el resumen "3 respuestas"). Sin esto, dentro de un hilo, no se muestra. */
+  onOpenThread?: (message: Message) => void
+  /** Tocar la cita del mensaje al que responde: ir a ese mensaje. */
+  onPressQuote?: (messageId: string) => void
+  /** Nombre y foto de un usuario: las fotos de quienes respondieron en el hilo. */
+  describeUser?: (userId: string) => UserDisplay
+  /** Responder a este mensaje: deslizarlo a la derecha (o la acción del lector de pantalla). */
+  onReply?: () => void
 }
 
 /**
@@ -41,8 +67,36 @@ function MessageItem({
   onPressAuthor,
   onLongPress,
   onToggleReaction,
+  highlighted = false,
+  onOpenThread,
+  onPressQuote,
+  describeUser,
+  onReply,
 }: MessageItemProps) {
   const styles = useStyles()
+  // CA3: cuántas respuestas tiene y cuándo fue la última; tocarlo abre el hilo
+  const threadSummary =
+    onOpenThread && hasThreadReplies(message) ? (
+      <Pressable
+        style={styles.threadSummary}
+        onPress={() => onOpenThread(message)}
+        accessibilityRole="button"
+        accessibilityLabel={`Abrir hilo: ${threadSummaryLabel(message.thread)}`}
+        hitSlop={8}
+      >
+        {describeUser &&
+          (message.thread.replierIds ?? []).slice(0, 3).map(id => {
+            const user = describeUser(id)
+            return <SquareAvatar key={id} user={{ username: user.name, avatar: user.avatar }} size={20} />
+          })}
+        <Text variant="meta" bold style={styles.threadCount}>
+          {replyCountLabel(message.thread.replyCount)}
+        </Text>
+        <Text variant="meta" tone="muted" numberOfLines={1} style={styles.threadLast}>
+          última respuesta {formatTimeAgo(message.thread.lastReplyAt)}
+        </Text>
+      </Pressable>
+    ) : null
   const reduce = useReducedMotion()
   // Se fija al montarse: al confirmarse deja de estar pendiente y la entrada no tiene que cambiar a mitad de camino
   const [justSent] = useState(sent)
@@ -53,6 +107,17 @@ function MessageItem({
   })
 
   if (message.type === 'system') {
+    if (isMemberJoin(message)) {
+      return (
+        <MemberJoinRow
+          message={message}
+          name={author?.name}
+          currentUserId={currentUserId}
+          onPressAuthor={onPressAuthor}
+          onWave={onToggleReaction ? () => onToggleReaction(message.id, WAVE_EMOJI) : undefined}
+        />
+      )
+    }
     return (
       <Text variant="meta" tone="muted" style={styles.system}>
         •{message.content} {formatMessageTime(message.timestamp)}
@@ -68,6 +133,7 @@ function MessageItem({
           <Text variant="meta" tone="muted" style={styles.deleted}>
             / este mensaje fue eliminado
           </Text>
+          {threadSummary}
         </View>
       </Animated.View>
     )
@@ -84,8 +150,11 @@ function MessageItem({
       }
     : { disabled: true }
 
-  return (
-    <Animated.View style={[styles.row, grouped && styles.grouped, pending && styles.pending, enter]}>
+  // Uno que todavía no confirmó el servidor (id temporal) no se puede citar
+  const reply = onReply && !pending && !failed && !message.id.startsWith('temp-') ? onReply : undefined
+
+  const row = (
+    <Animated.View style={[styles.row, grouped && styles.grouped, pending && styles.pending, highlighted && styles.highlighted, enter]}>
       <View style={styles.gutter}>
         {!grouped && (
           <Pressable {...authorPress}>
@@ -93,7 +162,14 @@ function MessageItem({
           </Pressable>
         )}
       </View>
-      <Pressable style={styles.body} onLongPress={onLongPress} delayLongPress={250}>
+      <Pressable
+        style={styles.body}
+        onLongPress={onLongPress}
+        delayLongPress={250}
+        // Con lector de pantalla no se puede deslizar: responder queda como acción del mensaje
+        accessibilityActions={reply ? [{ name: 'reply', label: 'Responder' }] : undefined}
+        onAccessibilityAction={reply ? e => e.nativeEvent.actionName === 'reply' && reply() : undefined}
+      >
         {!grouped && (
           <View style={styles.meta}>
             <Pressable style={styles.author} {...authorPress}>
@@ -105,6 +181,22 @@ function MessageItem({
               {formatMessageTime(message.timestamp)}
             </Text>
           </View>
+        )}
+        {message.replyTo && (
+          <ReplyQuote
+            author={`@${mentionName?.(message.replyTo.authorId) ?? 'usuario'}`}
+            text={
+              message.replyTo.deleted
+                ? 'mensaje eliminado'
+                : mentionsToText(message.replyTo.content, { user: mentionName ?? (() => 'usuario'), role: () => 'rol' })
+            }
+            onPress={onPressQuote && message.replyTo ? () => onPressQuote(message.replyTo!.id) : undefined}
+          />
+        )}
+        {message.isPinned && (
+          <Text variant="meta" tone="muted">
+            / fijado
+          </Text>
         )}
         <Text>
           {mentionsToText(message.content, { user: mentionName ?? (() => 'usuario'), role: () => 'rol' })}
@@ -181,19 +273,78 @@ function MessageItem({
             })}
           </View>
         )}
+        {threadSummary}
       </Pressable>
     </Animated.View>
   )
+
+  return reply ? <SwipeToReply onReply={reply}>{row}</SwipeToReply> : row
 }
 
 // memo: en una lista larga, un mensaje nuevo no debería re-renderizar los anteriores
 export default React.memo(MessageItem)
+
+/**
+ * "se unió Ana, _saludalo_", como en la web: el nombre actual (abre el perfil) y saludar deja un 👋 en el
+ * aviso. Ya saludado dice "saludaste"; sin `onWave`, "saludalo" queda como texto.
+ */
+function MemberJoinRow({
+  message,
+  name,
+  currentUserId,
+  onPressAuthor,
+  onWave,
+}: {
+  message: Message
+  name?: string
+  currentUserId?: string
+  onPressAuthor?: (userId: string) => void
+  onWave?: () => void
+}) {
+  const styles = useStyles()
+  const userId = systemMessageUserId(message)
+  const text = memberJoinText(name || 'alguien', userId === currentUserId)
+  const waved = currentUserId ? hasWaved(message, currentUserId) : false
+  const waves = waveCount(message)
+
+  return (
+    <Text variant="meta" tone="muted" style={styles.system}>
+      •{text.before}
+      {text.name ? (
+        <Text variant="meta" bold onPress={onPressAuthor ? () => onPressAuthor(userId) : undefined} accessibilityRole="link">
+          {text.name}
+        </Text>
+      ) : null}
+      {text.after}
+      {text.waveLabel ? (
+        waved ? (
+          'saludaste'
+        ) : onWave ? (
+          <Text variant="meta" bold onPress={onWave} accessibilityRole="button" accessibilityLabel={`Saludar a ${text.name}`}>
+            _{text.waveLabel}
+          </Text>
+        ) : (
+          text.waveLabel
+        )
+      ) : null}
+      {waves > 0 ? ` ${WAVE_EMOJI} ${waves}` : ''} {formatMessageTime(message.timestamp)}
+    </Text>
+  )
+}
 
 const useStyles = makeStyles(t => ({
   system: { paddingVertical: t.space[2], paddingLeft: t.layout.avatarSize.md + t.space[3] },
   row: { flexDirection: 'row', gap: t.space[3], paddingTop: t.space[4] },
   grouped: { paddingTop: t.space[1] },
   pending: { opacity: 0.6 },
+  // Barra a la izquierda, como una mención en la web
+  highlighted: {
+    backgroundColor: t.colors.line,
+    borderLeftWidth: t.lines.accent,
+    borderLeftColor: t.colors.text,
+    marginLeft: -t.space[2],
+    paddingLeft: t.space[2] - t.lines.accent,
+  },
   gutter: { width: t.layout.avatarSize.md },
   body: { flex: 1, gap: 2 },
   meta: { flexDirection: 'row', alignItems: 'baseline', gap: t.space[2] },
@@ -221,6 +372,9 @@ const useStyles = makeStyles(t => ({
     marginBottom: t.space[1],
   },
   reactions: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space[1], marginTop: t.space[1] },
+  threadSummary: { flexDirection: 'row', alignItems: 'center', gap: t.space[2], marginTop: t.space[1] },
+  threadCount: { color: t.colors.accent },
+  threadLast: { flexShrink: 1 },
   // Reacciones en cajas de línea fina; la propia, invertida
   reaction: { paddingHorizontal: t.space[2], paddingVertical: 2, borderWidth: t.lines.hairline, borderColor: t.colors.lineStrong },
   reactionMine: { backgroundColor: t.colors.inverseBackground, borderColor: t.colors.inverseBackground },

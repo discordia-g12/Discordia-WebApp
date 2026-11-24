@@ -179,6 +179,21 @@ describe('openChatSocket', () => {
     expect(onStatusChange).toHaveBeenLastCalledWith('closed');
   });
 
+  it('send manda el mensaje citado solo si hay uno', async () => {
+    const connection = openChatSocket('c1', { onMessage: vi.fn() });
+    await vi.advanceTimersByTimeAsync(0);
+    FakeWebSocket.instances[0].open();
+
+    await connection.send('hola', 'u1', undefined, 'm1');
+    await connection.send('chau', 'u1');
+    const sent = FakeWebSocket.instances[0].send.mock.calls.map(([data]) => JSON.parse(data as string));
+    expect(sent).toEqual([
+      { authorId: 'u1', content: 'hola', replyToId: 'm1' },
+      { authorId: 'u1', content: 'chau' },
+    ]);
+    connection.close();
+  });
+
   it('send rechaza si el socket está cerrado', async () => {
     const connection = openChatSocket('c1', { onMessage: vi.fn() });
     await vi.advanceTimersByTimeAsync(0);

@@ -38,13 +38,13 @@ function hookState(overrides: Partial<SearchState> = {}): SearchState {
   } as SearchState;
 }
 
-function renderDialog(state: SearchState, onOpenMessage = vi.fn()) {
-  vi.spyOn(core, 'useMessageSearch').mockReturnValue(state);
+function renderDialog(state: SearchState, onOpenMessage = vi.fn(), scope: 'server' | 'dm' = 'server') {
   render(
     <MessageSearchDialog
-      serverId="srv-1"
-      serverName="Mi server"
-      channels={channels}
+      search={state}
+      description={scope === 'server' ? 'en Mi server' : 'en tu conversación con Beto'}
+      scopeHint={scope === 'server' ? 'en los canales que podés ver' : 'en esta conversación'}
+      channels={scope === 'server' ? channels : undefined}
       members={[beto, ana]}
       users={{ [ana.id]: ana, [beto.id]: beto }}
       roles={[]}
@@ -148,4 +148,31 @@ describe('MessageSearchDialog', () => {
     renderDialog(hookState({ submitted: { query: 'x', authorId: null }, isLoading: true }));
     expect(screen.getByRole('status', { name: 'Buscando mensajes' })).toBeTruthy();
   });
+
+  describe('en un DM', () => {
+    it('no muestra el canal de cada resultado y elegir uno va al mensaje', () => {
+      const found = message('m1', 'te paso el link');
+      const { onOpenMessage } = renderDialog(
+        hookState({ submitted: { query: 'link', authorId: null }, messages: [found] }),
+        vi.fn(),
+        'dm'
+      );
+
+      const results = screen.getByRole('region', { name: 'Resultados de la búsqueda' });
+      expect(results.textContent).toContain('te paso el link');
+      expect(results.textContent).not.toContain('•');
+
+      fireEvent.click(screen.getByTitle('Ir al mensaje'));
+      expect(onOpenMessage).toHaveBeenCalledWith(found);
+    });
+
+    it('el filtro de autor son los dos participantes y el vacío habla de la conversación (CA 3)', () => {
+      renderDialog(hookState({ submitted: { query: 'nada', authorId: null }, isEmpty: true }), vi.fn(), 'dm');
+
+      const select = screen.getByLabelText('autor') as HTMLSelectElement;
+      expect([...select.options].map((o) => o.textContent)).toEqual(['cualquiera', 'Ana B', 'Beto']);
+      expect(screen.getByText(/ningún mensaje contiene "nada" en esta conversación/)).toBeTruthy();
+    });
+  });
 });
+

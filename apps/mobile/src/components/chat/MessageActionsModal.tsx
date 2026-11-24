@@ -16,7 +16,12 @@ interface MessageActionsModalProps {
   onToggleReaction?: (messageId: string, emoji: string) => void
   onEdit: () => void
   onReply?: () => void
+  /** Abre el hilo del mensaje (CA1). Sin esto (una respuesta, un aviso), no se ofrece. */
+  onReplyInThread?: () => void
   onDelete?: () => void
+  /** Si puede fijar este mensaje (canPinMessage de core). */
+  canPin?: boolean
+  onTogglePin?: () => void
   onClose: () => void
 }
 
@@ -30,7 +35,10 @@ export default function MessageActionsModal({
   onToggleReaction,
   onEdit,
   onReply,
+  onReplyInThread,
   onDelete,
+  canPin = false,
+  onTogglePin,
   onClose,
 }: MessageActionsModalProps) {
   const styles = useStyles()
@@ -191,6 +199,30 @@ export default function MessageActionsModal({
                   }}
                 >
                   responder
+                </ActionLink>
+              )}
+
+              {onReplyInThread && (
+                <ActionLink
+                  size="bodySmall"
+                  onPress={() => {
+                    onReplyInThread()
+                    handleClose()
+                  }}
+                >
+                  responder en hilo
+                </ActionLink>
+              )}
+
+              {canPin && onTogglePin && (
+                <ActionLink
+                  size="bodySmall"
+                  onPress={() => {
+                    handleClose()
+                    onTogglePin()
+                  }}
+                >
+                  {message.isPinned ? 'desfijar mensaje' : 'fijar mensaje'}
                 </ActionLink>
               )}
 

@@ -12,6 +12,48 @@ let messages = {};
 let roles = {};
 let readUpTo = {};
 let nextMessage = 1;
+// Hilos (respuestas por mensaje original) y la bandeja de avisos del usuario de prueba
+let threadReplies = {};
+let notifications = [];
+
+/** Como Chat-Engine al responder en un hilo: la respuesta va aparte y el original suma el resumen. */
+function addThreadReply({ channelId, parentId, authorId, content }) {
+  const parent = (messages[channelId] ?? []).find((m) => m.id === parentId);
+  if (!parent) return null;
+  const reply = {
+    id: `msg-${String(nextMessage++).padStart(6, '0')}`,
+    content,
+    authorId,
+    channelId,
+    createdAt: new Date().toISOString(),
+    mentions: { users: [], roles: [], everyone: false },
+    threadParentId: parentId,
+  };
+  (threadReplies[parentId] ??= []).push(reply);
+  const participants = new Set([...(parent.thread?.participantIds ?? []), parent.authorId, authorId]);
+  parent.thread = {
+    replyCount: threadReplies[parentId].length,
+    lastReplyAt: reply.createdAt,
+    lastReplyId: reply.id,
+    participantIds: [...participants],
+  };
+  // Como Notification: avisa a los participantes menos quien escribió (acá, solo importa el usuario de prueba)
+  if (authorId !== TEST_USER_ID && participants.has(TEST_USER_ID)) {
+    notifications.unshift({
+      id: `00000000-0000-4000-8000-${String(notifications.length + 1).padStart(12, '0')}`,
+      reason: 'thread_reply',
+      serverId: serverOfChannel(channelId) ?? null,
+      channelId,
+      threadId: parentId,
+      messageId: reply.id,
+      actorId: authorId,
+      preview: content.slice(0, 140),
+      createdAt: reply.createdAt,
+      readAt: null,
+    });
+  }
+  return reply;
+}
 
 // Mismas expresiones que Chat-Engine (src/helpers/mentions.ts)
 const USER_MENTION = /<@([^\s<>@&]{1,128})>/g;
@@ -109,6 +151,8 @@ const server = http.createServer(async (req, res) => {
     messages = {};
     roles = {};
     readUpTo = {};
+    threadReplies = {};
+    notifications = [];
     return send(200, { ok: true });
   }
 
@@ -118,6 +162,10 @@ const server = http.createServer(async (req, res) => {
   }
   if (path === '/__test/messages' && req.method === 'POST') {
     return send(201, addMessage({ authorId: OTHER_USER.user_id, ...json }));
+  }
+  if (path === '/__test/thread-replies' && req.method === 'POST') {
+    const reply = addThreadReply({ authorId: OTHER_USER.user_id, ...json });
+    return reply ? send(201, reply) : send(404, { detail: 'Message not found' });
   }
   if (path === '/__test/roles' && req.method === 'POST') {
     const role = {
@@ -287,6 +335,49 @@ const server = http.createServer(async (req, res) => {
   }
   if (path.includes('/roles')) {
     return send(200, []);
+  }
+
+  // Hilos (ADR-07 de Chat)
+  const threadMatch = path.match(/^\/api\/v1\/chat\/channels\/([^/]+)\/messages\/([^/]+)\/thread$/);
+  if (threadMatch) {
+    const [, channelId, parentId] = threadMatch;
+    const parent = (messages[channelId] ?? []).find((m) => m.id === parentId);
+    if (!parent) return send(404, { detail: 'Message not found' });
+    if (req.method === 'POST') {
+      return send(201, addThreadReply({ channelId, parentId, authorId: TEST_USER_ID, content: json.content || '' }));
+    }
+    return send(200, { parent, replies: threadReplies[parentId] ?? [], hasMore: false, nextCursor: null });
+  }
+
+  // Avisos (ADR-07 de Notification)
+  if (path === '/api/v1/notifications') {
+    return send(200, { items: notifications, unreadCount: notifications.filter((n) => !n.readAt).length, nextCursor: null });
+  }
+  if (path === '/api/v1/notifications/read-all' && req.method === 'POST') {
+    notifications.forEach((n) => (n.readAt ??= new Date().toISOString()));
+    return send(204, null);
+  }
+  const readNotification = path.match(/^\/api\/v1\/notifications\/([^/]+)\/read$/);
+  if (readNotification && req.method === 'POST') {
+    const found = notifications.find((n) => n.id === readNotification[1]);
+    if (!found) return send(404, { detail: 'Not found' });
+    found.readAt ??= new Date().toISOString();
+    return send(204, null);
+  }
+  if (path === '/api/v1/notifications/preferences') {
+    return send(200, { items: [] });
+  }
+  const preference = path.match(/^\/api\/v1\/notifications\/preferences\/([^/]+)\/([^/]+)$/);
+  if (preference && req.method === 'PUT') {
+    return send(200, {
+      scopeType: preference[1],
+      scopeId: preference[2],
+      serverId: json.serverId ?? null,
+      level: json.level ?? null,
+      muted: json.muted ?? false,
+      mutedUntil: json.mutedUntil ?? null,
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   // Chat messages history

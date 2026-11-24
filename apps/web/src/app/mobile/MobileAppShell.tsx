@@ -11,6 +11,9 @@ import { useCurrentServer } from '../../features/servers/useCurrentServer';
 import { selectServer } from '../../features/servers/serverActions';
 import { ChannelSidebarPanel } from '../../features/channels/ChannelSidebarPanel';
 import { ChatPanel } from '../../features/chat/ChatPanel';
+import { ThreadPanel } from '../../features/chat/ThreadPanel';
+import { NotificationList } from '../../features/notifications/NotificationList';
+import { useNotificationLevelMenu } from '../../features/notifications/useNotificationMenus';
 import { VoicePanel } from '../../features/voice/VoicePanel';
 import { VoiceControlsPanel } from '../../features/voice/VoiceControls';
 import { CallControlsPanel } from '../../features/calls/CallControls';
@@ -48,6 +51,7 @@ export function MobileAppShell() {
   const { servers, currentServer, currentChannel, isLoadingServers } = useCurrentServer();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const selectedDm = useUIStore((s) => s.selectedDm);
+  const openThread = useUIStore((s) => s.openThread);
   const appView = useUIStore((s) => s.appView);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
   const voice = useVoice();
@@ -108,11 +112,18 @@ export function MobileAppShell() {
           isLoading={isLoadingServers}
           onSelect={pickServer}
           onAdd={() => useUIStore.getState().setActiveModal('create-server')}
+          onHome={() => goTo('messages')}
         />
       )}
 
       <main className={styles.content}>
-        {tab === 'servers' &&
+        {/* El hilo tapa la pestaña: volver lo cierra y deja donde estaba */}
+        {openThread && (
+          <Pane backLabel="Volver" onBack={() => useUIStore.getState().setOpenThread(null)}>
+            <ThreadPanel key={openThread.messageId} thread={openThread} />
+          </Pane>
+        )}
+        {!openThread && tab === 'servers' &&
           (servers.length === 0 && !isLoadingServers ? (
             <Screen title="Servidores">
               <div className={styles.padded}>
@@ -147,17 +158,24 @@ export function MobileAppShell() {
             </Screen>
           ))}
 
-        {tab === 'messages' && <MessagesTab dmOpen={selectedDm !== null} />}
+        {!openThread && tab === 'messages' && <MessagesTab dmOpen={selectedDm !== null} />}
 
-        {tab === 'notifications' && (
+        {!openThread && tab === 'notifications' && (
           <Screen title="Avisos">
             <div className={styles.padded}>
-              <EmptyState title="por ahora no hay avisos" hint="próximamente: menciones e invitaciones" />
+              {/* Un DM se ve en Mensajes (por selectedDm, arriba) y un hilo tapa la pestaña; un canal, en Servidores */}
+              <NotificationList
+                onOpened={(n) => {
+                  if (!n.serverId || n.threadId) return;
+                  setTab('servers');
+                  setChannelOpen(true);
+                }}
+              />
             </div>
           </Screen>
         )}
 
-        {tab === 'profile' && <ProfileTab />}
+        {!openThread && tab === 'profile' && <ProfileTab />}
       </main>
 
       {inCall && (
@@ -193,25 +211,28 @@ export function MobileAppShell() {
   );
 }
 
-/** Tira de servidores de arriba: el logo, las franjas (se desliza de costado) y crear. */
+/** Tira de servidores de arriba: el logo (va al inicio: Mensajes), las franjas (se desliza de costado) y crear. */
 function ServerTabsRow({
   servers,
   selectedServerId,
   isLoading,
   onSelect,
   onAdd,
+  onHome,
 }: {
   servers: ReturnType<typeof useCurrentServer>['servers'];
   selectedServerId: string;
   isLoading: boolean;
   onSelect: (serverId: string) => void;
   onAdd: () => void;
+  onHome: () => void;
 }) {
+  const levelMenu = useNotificationLevelMenu();
   return (
     <nav className={styles.strips} aria-label="Servidores">
-      <span className={styles.logo}>
+      <button type="button" className={styles.logo} onClick={onHome}>
         <Logo size={18} />
-      </span>
+      </button>
       <ul className={styles.stripList} aria-busy={isLoading || undefined}>
         {servers.map((server) => (
           <li key={server.id}>
@@ -223,6 +244,7 @@ function ServerTabsRow({
               orientation="horizontal"
               suspended={server.isSuspended}
               onPress={() => onSelect(server.id)}
+              onOpenMenu={levelMenu.open({ scopeType: 'server', serverId: server.id }, server.name)}
             />
           </li>
         ))}
@@ -239,6 +261,7 @@ function ServerTabsRow({
       >
         <Compass size={18} strokeWidth={1.5} aria-hidden="true" />
       </button>
+      {levelMenu.menu}
     </nav>
   );
 }

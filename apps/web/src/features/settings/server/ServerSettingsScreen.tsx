@@ -10,6 +10,9 @@ import {
   canSeeSettingsSection,
   errorMessageFor,
   memberActionsIn,
+  notificationLevelLabel,
+  useNotificationPreference,
+  type NotificationLevel,
   isLocalCategoryId,
   OVERRIDE_CHOICES,
   useChannelOverridesAdmin,
@@ -20,14 +23,14 @@ import {
 } from '@discordia/core';
 import type { MemberActions, OverrideState } from '@discordia/core';
 import type { Category, Channel, ChannelType, Role, Server, ServerMember } from '../../../types';
-import { ActionLink, BlockButton, ConfirmDialog, EmptyState, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
+import { ActionLink, BlockButton, ConfirmDialog, EmptyState, ServerIcon, ServerStrip, Skeleton, SquareAvatar, UnderlineInput } from '../../../ui';
 import { useServerMembersAdmin } from '../../moderation/useServerMembersAdmin';
 import { useServerBansAdmin } from '../../moderation/useServerBansAdmin';
 import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, type SettingsSection } from '../SettingsScreen';
 import type { ServerSettingsProps } from './useServerSettingsState';
 import { PERMISSION_CATEGORIES, PRESET_ROLE_COLORS } from './shared';
 import { useServerSettingsState, type ServerSettingsState } from './useServerSettingsState';
-import { useUIStore } from '../../../app/uiStore';
+import { showToast, useUIStore } from '../../../app/uiStore';
 import { MemberGrowthChart } from '../../servers/MemberGrowthChart';
 import { ServerActivityMetrics } from '../../servers/ServerActivityMetrics';
 import { AuditLogViewer } from './audit';
@@ -59,7 +62,7 @@ export interface ServerSettingsScreenProps extends ServerSettingsProps {
  * Ajustes del servidor del rediseño, sobre SettingsScreen (mismo esqueleto que los de usuario,
  * sección 3 de docs/TODO-REDISENO.md). Roles, miembros (con expulsar y silenciar), baneos y canales van
  * contra el backend (hooks de core), igual que la identidad del servidor (ícono, banner, nombre y descripción).
- * Lo que el backend todavía no guarda (moderación, notificaciones, emojis, mejoras) se muestra deshabilitado
+ * Lo que el backend todavía no guarda (moderación, emojis, mejoras) se muestra deshabilitado
  * con "próximamente". RESUMEN solo lo ven el dueño y quien tiene Gestionar servidor o Administrador.
  */
 export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, ...props }: ServerSettingsScreenProps) {
@@ -82,7 +85,7 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
       title="Ajustes del servidor"
       identity={
         <div className={styles.identity}>
-          <SquareAvatar user={{ displayName: s.serverName, username: s.serverName, avatar: s.serverIcon || null }} size={32} />
+          <ServerIcon server={{ name: s.serverName, iconUrl: s.serverIcon }} size={32} />
           <div>
             <p className={styles.identityName}>{s.serverName}</p>
             <p className={styles.meta}>ajustes del servidor/</p>
@@ -109,7 +112,7 @@ export function ServerSettingsScreen({ onInvite, onDeleteServer, onLeaveServer, 
       {/* El servidor de las props (no el estado local): se actualiza cuando el backend confirma */}
       {section === 'channels' && props.server && <ChannelsSection server={props.server} />}
       {section === 'moderation' && <ModerationSection s={s} />}
-      {section === 'notifications' && <NotificationsSection s={s} />}
+      {section === 'notifications' && <NotificationsSection serverId={s.serverState.id} />}
       {section === 'emojis' && <EmojisSection s={s} />}
       {section === 'boost' && <BoostSection s={s} />}
     </SettingsScreen>
@@ -149,7 +152,7 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
       {/* El ícono sí se guarda (PUT /servers/{id}/icon, dueño o Gestionar servidor), apenas se elige */}
       <SettingsCell title="Ícono">
         <div className={styles.iconRow}>
-          <SquareAvatar user={{ displayName: s.serverName, username: s.serverName, avatar: s.serverIcon || null }} size="lg" />
+          <ServerIcon server={{ name: s.serverName, iconUrl: s.serverIcon }} size="lg" label={s.serverName} />
           <FileAction
             label={s.iconBusy ? 'subiendo…' : 'cambiar ícono'}
             accept={IMAGE_UPLOAD_ACCEPT}
@@ -172,7 +175,7 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
         )}
       </SettingsCell>
 
-      {/* Banner: la franja del servidor en la barra lo muestra en lugar del ícono. Mismo flujo que el ícono */}
+      {/* Banner: el fondo de la franja del servidor en la barra, con el ícono encima. Mismo flujo que el ícono */}
       <SettingsCell title="Banner">
         <div className={styles.bannerPreview}>
           {s.serverBanner ? (
@@ -182,6 +185,10 @@ function OverviewSection({ s }: { s: ServerSettingsState }) {
           )}
         </div>
         <div className={styles.iconRow}>
+          {/* Cómo queda en la barra de servidores: solo para ver, no se puede tocar */}
+          <div inert className={styles.stripPreview}>
+            <ServerStrip server={{ name: s.serverName, iconUrl: s.serverIcon, banner: s.serverBanner }} />
+          </div>
           <FileAction
             label={s.bannerBusy ? 'subiendo…' : 'cambiar banner'}
             accept={IMAGE_UPLOAD_ACCEPT}
@@ -1089,39 +1096,43 @@ function ModerationSection({ s }: { s: ServerSettingsState }) {
 // NOTIFICACIÓN
 // ==========================================
 
-function NotificationsSection({ s }: { s: ServerSettingsState }) {
+function NotificationsSection({ serverId }: { serverId: string }) {
+  const pref = useNotificationPreference({ scopeType: 'server', serverId });
+  const fail = (err: unknown) =>
+    showToast(errorMessageFor(err, {}, 'No se pudo guardar la preferencia'), 'danger');
+
+  if (pref.isLoading) return <Skeleton lines={3} label="Cargando preferencias" />;
+
   return (
     <>
-      <SettingsCell title="Frecuencia" soon>
+      <SettingsCell title="Frecuencia">
         <Choice
           label="Notificaciones del servidor"
-          options={[
-            { value: 'all', label: 'todos los mensajes' },
-            { value: 'mentions', label: 'solo menciones' },
-            { value: 'nothing', label: 'nada' },
-          ]}
-          value={s.notifPreference}
-          onChange={s.setNotifPreference}
+          options={(['all', 'mentions', 'none'] as const).map((level) => ({ value: level, label: notificationLevelLabel(level) }))}
+          value={pref.effective.level}
+          onChange={(level) => pref.setLevel(level as NotificationLevel).catch(fail)}
         />
-        <SettingsRow title="Ignorar @everyone" description="No avisar por las menciones a todos los del canal.">
-          <Switch label="Ignorar @everyone" checked={s.suppressEveryone} onChange={s.setSuppressEveryone} />
-        </SettingsRow>
+        <p className={styles.meta}>/ Un canal con su propio nivel (campana del canal) le gana a este.</p>
       </SettingsCell>
-      <SettingsCell title="Silenciar servidor" soon>
+      <SettingsCell title="Silenciar servidor">
         <SettingsRow title="Silenciar" description="No vas a recibir avisos de este servidor.">
-          <Switch label="Silenciar servidor" checked={s.isServerMuted} onChange={s.setIsServerMuted} />
+          <Switch label="Silenciar servidor" checked={pref.muted} onChange={(muted) => pref.setMuted(muted).catch(fail)} />
         </SettingsRow>
-        {s.isServerMuted && (
-          <label className={styles.selectField}>
-            <span className={styles.fieldLabel}>durante</span>
-            <select value={s.muteDuration} onChange={(e) => s.setMuteDuration(e.target.value)}>
-              <option value="15m">15 minutos</option>
-              <option value="1h">1 hora</option>
-              <option value="8h">8 horas</option>
-              <option value="24h">24 horas</option>
-              <option value="until_turn_on">hasta que lo vuelva a activar</option>
-            </select>
-          </label>
+        {pref.muted && (
+          <Choice
+            label="durante"
+            options={MUTE_DURATIONS.map((d) => ({ value: String(d.seconds), label: d.label }))}
+            // Con fecha de fin no hay opción exacta (ya corrió): se ve el "hasta" de abajo
+            value={pref.mutedUntil ? '' : 'null'}
+            onChange={(value) =>
+              pref
+                .setMuted(true, value === 'null' ? null : new Date(Date.now() + Number(value) * 1000).toISOString())
+                .catch(fail)
+            }
+          />
+        )}
+        {pref.muted && pref.mutedUntil && (
+          <p className={styles.meta}>/ hasta {new Date(pref.mutedUntil).toLocaleString()}</p>
         )}
       </SettingsCell>
     </>

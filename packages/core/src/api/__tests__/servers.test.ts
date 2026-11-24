@@ -47,7 +47,7 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe('mapServerFromBackend', () => {
-  it('trae la descripción y el banner (la franja del servidor lo usa en lugar del ícono)', () => {
+  it('trae la descripción, el ícono y el banner (el fondo de la franja del servidor)', () => {
     const server = mapServerFromBackend(
       backendServer({ description: 'Hola', icon_url: 'https://x/i.webp', banner_url: 'https://x/b.webp' })
     );

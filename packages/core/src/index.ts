@@ -22,6 +22,12 @@ export * from './api/roles';
 export * from './api/moderation';
 export * from './api/serverTransfer';
 export * from './api/messages';
+export * from './api/threads';
+export * from './chat/threads';
+export * from './api/notifications';
+export * from './api/push';
+export * from './notifications/display';
+export * from './notifications/preferences';
 export * from './api/attachments';
 export * from './api/readStates';
 export * from './api/voice';
@@ -30,17 +36,23 @@ export * from './api/friends';
 export * from './api/blocks';
 export * from './api/conversations';
 export * from './api/presence';
+export * from './realtime/presenceSync';
 export * from './api/calls';
 
 // Hooks de React (React Query y perfiles), los mismos en web y mobile
 export * from './hooks/useApi';
 export * from './hooks/messageCache';
+export * from './hooks/useThread';
+export * from './hooks/useNotifications';
+export * from './hooks/usePushSettings';
+export * from './hooks/usePinnedMessages';
 export * from './hooks/useUnread';
 export * from './hooks/useUserProfiles';
 export * from './hooks/useChatSocket';
 export * from './hooks/inboxCache';
 export * from './hooks/useFriends';
 export * from './hooks/useConversations';
+export * from './hooks/useMyStatus';
 export * from './hooks/useInbox';
 
 // Ajustes del servidor: roles, miembros y baneos (estado y reglas compartidos)
@@ -66,6 +78,8 @@ export * from './api/serverMetrics';
 export * from './chat/format';
 export * from './chat/mentions';
 export * from './chat/emojis';
+export * from './chat/pins';
+export * from './chat/system';
 export * from './realtime/chatSocket';
 export * from './realtime/inboxSocket';
 export * from './realtime/callEvents';

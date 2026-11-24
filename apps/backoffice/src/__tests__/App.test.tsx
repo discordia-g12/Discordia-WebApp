@@ -15,7 +15,11 @@ function fakeDriver(start: () => Promise<string | null>): AuthDriver {
     start,
     getToken: async () => tokenWith('staff'),
     getUser: async () => ({ name: 'Ana Staff', email: 'ana@discordia.lol' }),
-    login: async () => 'done',
+    loginWithPassword: async () => tokenWith('staff'),
+    loginWithGoogle: async () => 'done',
+    requestPasswordReset: async () => {},
+    isTwoFactorEnabled: async () => false,
+    verifyTwoFactor: async () => ({ valid: true, recoveryCodeUsed: false }),
     logout: async () => 'done',
   };
 }
@@ -85,6 +89,22 @@ describe('backoffice', () => {
     expect(screen.queryByText('próximamente')).toBeNull();
   });
 
+  it('una ruta que no es de ninguna sección muestra "no encontrada" y lleva a Usuarios', async () => {
+    window.history.replaceState({}, '', '/no-existe');
+    setAuthDriver(fakeDriver(async () => tokenWith('staff')));
+    renderApp();
+
+    // Mientras arranca la sesión se ve el acceso (con su propio encabezado): esperar el 404
+    expect(await screen.findByText('error 404/')).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Página no encontrada');
+    expect(screen.queryByRole('navigation', { name: 'Secciones del backoffice' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Ir a Usuarios/ }));
+
+    expect(await screen.findByRole('navigation', { name: 'Secciones del backoffice' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/usuarios');
+  });
+
   it('una cuenta sin el rol staff no ve el backoffice', async () => {
     setAuthDriver(fakeDriver(async () => tokenWith('user')));
     renderApp();
@@ -104,12 +124,14 @@ describe('backoffice', () => {
     expect(await screen.findByText('Esta cuenta no es staff de la plataforma.')).toBeTruthy();
   });
 
-  it('sin sesión ofrece entrar', async () => {
+  it('sin sesión muestra el formulario de acceso, con Google', async () => {
     setAuthDriver(fakeDriver(async () => null));
     renderApp();
 
-    // BlockButton agrega la barra final: "Entrar /"
-    expect(await screen.findByRole('button', { name: /^Entrar/ })).toBeTruthy();
+    // BlockButton agrega la barra final: "Iniciar sesión /"
+    expect(await screen.findByRole('button', { name: /^Iniciar sesión/ })).toBeTruthy();
+    expect(screen.getByLabelText(/^correo electrónico/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeTruthy();
   });
 
   it('si Auth0 falla, muestra el error y permite reintentar', async () => {
@@ -151,6 +173,6 @@ describe('backoffice', () => {
     fireEvent.click(screen.getByRole('button', { name: /Salir/ }));
     fireEvent.click(await screen.findByRole('button', { name: /^Cerrar sesión/ }));
     await waitFor(() => expect(logouts).toBe(1));
-    expect(await screen.findByRole('button', { name: /^Entrar/ })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /^Iniciar sesión/ })).toBeTruthy();
   });
 });

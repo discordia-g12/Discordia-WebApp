@@ -11,13 +11,23 @@ import {
   type InboxSocketStatus,
 } from '../realtime/inboxSocket';
 import type { Conversation, Message } from '../types';
+import { applyPresence } from './useConversations';
+import { myStatusQueryKey } from './useMyStatus';
 import {
   applyConversationMessage,
   conversationsQueryKey,
   conversationWithQueryKey,
   upsertConversation,
 } from './inboxCache';
-import { appendMessage, messagesQueryKey, updateCachedMessages, type MessagePages } from './messageCache';
+import { notificationsQueryKey } from './useNotifications';
+import {
+  appendMessage,
+  applyThreadReply,
+  markCachedMessageDeleted,
+  mergeCachedMessage,
+  messagesQueryKey,
+  type MessagePages,
+} from './messageCache';
 
 export interface UseInboxOptions {
   /** La conversación abierta: lo que llega ahí no suma no leídos. */
@@ -65,6 +75,20 @@ export function useInbox({
         return;
       }
 
+      // Presencia de quienes se muestran, y el estado propio cambiado desde otra sesión
+      if (event.type === 'PRESENCE_UPDATE') {
+        applyPresence(queryClient, { [event.userId]: event.status });
+        return;
+      }
+      if (event.type === 'PRESENCE_SNAPSHOT') {
+        applyPresence(queryClient, event.statuses);
+        return;
+      }
+      if (event.type === 'MY_STATUS') {
+        queryClient.setQueryData(myStatusQueryKey, event.status);
+        return;
+      }
+
       // Otro miembro cambió la configuración del servidor: se vuelve a pedir la lista (barra de servidores,
       // encabezado y ajustes leen de ahí). El evento solo trae el id, los datos los da la API
       if (event.type === 'SERVER_UPDATED') {
@@ -79,6 +103,18 @@ export function useInbox({
         return;
       }
 
+      if (event.type === 'NOTIFICATION_CREATED') {
+        // El evento no trae el id del aviso: la bandeja se vuelve a pedir
+        queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
+        return;
+      }
+
+      if (event.type === 'DM_THREAD_REPLY_CREATED') {
+        const reply = normalizeMessage(event.reply as unknown as Message);
+        applyThreadReply(queryClient, event.conversationId, event.parentId, reply, event.thread);
+        return;
+      }
+
       if (event.type === 'DM_CONVERSATION') {
         const { conversation } = event;
         queryClient.setQueryData<Conversation[]>(conversationsQueryKey, (old) => upsertConversation(old, conversation));
@@ -89,9 +125,7 @@ export function useInbox({
       if (event.type === 'DM_MESSAGE_UPDATED') {
         const { conversationId } = event;
         const message = normalizeMessage(event.message as unknown as Message);
-        updateCachedMessages(queryClient, conversationId, (messages) =>
-          messages.map((m) => (m.id === message.id ? { ...m, ...message } : m))
-        );
+        mergeCachedMessage(queryClient, conversationId, message);
         const conversations = queryClient.getQueryData<Conversation[]>(conversationsQueryKey);
         if (conversations?.some((c) => c.id === conversationId)) {
           queryClient.setQueryData<Conversation[]>(
@@ -116,13 +150,7 @@ export function useInbox({
       if (event.type === 'DM_MESSAGE_DELETED') {
         const { conversationId } = event;
         const message = normalizeMessage(event.message as unknown as Message);
-        updateCachedMessages(queryClient, conversationId, (messages) =>
-          messages.map((m) =>
-            m.id === message.id
-              ? { ...m, ...message, type: 'deleted' as const, content: '', attachments: [] }
-              : m
-          )
-        );
+        markCachedMessageDeleted(queryClient, conversationId, message);
         const conversations = queryClient.getQueryData<Conversation[]>(conversationsQueryKey);
         if (conversations?.some((c) => c.id === conversationId)) {
           queryClient.setQueryData<Conversation[]>(
@@ -146,10 +174,7 @@ export function useInbox({
 
       if (event.type === 'DM_MESSAGE_REACTION_UPDATED') {
         const { conversationId } = event;
-        const message = normalizeMessage(event.message as unknown as Message);
-        updateCachedMessages(queryClient, conversationId, (messages) =>
-          messages.map((m) => (m.id === message.id ? { ...m, ...message } : m))
-        );
+        mergeCachedMessage(queryClient, conversationId, normalizeMessage(event.message as unknown as Message));
         return;
       }
 
@@ -182,6 +207,8 @@ export function useInbox({
           queryClient.invalidateQueries({
             predicate: ({ queryKey: [scope, id] }) => scope === 'messages' && isConversationId(id as string),
           });
+          // Los avisos que llegaron durante el corte tampoco
+          queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
           publishInboxReconnect();
         }
         hasOpenedRef.current = true;

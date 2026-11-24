@@ -13,7 +13,7 @@ import type { Call, CallJoinResponse } from './calls';
 import type { ConversationWith, StartConversationRequest, StartConversationResponse } from './conversations';
 import type { SendFriendRequestPayload } from './friends';
 import type { GetMessagesOptions } from './messages';
-import type { PresenceMap } from './presence';
+import type { PreferredStatus, PresenceMap } from './presence';
 import type { CreateServerRequest } from './servers';
 import type {
   TwoFactorActivateResponse,
@@ -60,10 +60,14 @@ export interface ApiMock {
   acceptConversation?(conversationId: string): Promise<Conversation>;
   declineConversation?(conversationId: string): Promise<void>;
   getPresence?(userIds: string[]): Promise<PresenceMap>;
+  getMyStatus?(): Promise<PreferredStatus>;
+  setMyStatus?(status: PreferredStatus): Promise<PreferredStatus>;
   getMessages?(channelId: string, options?: GetMessagesOptions): Promise<Message[]>;
   sendMessage?(channelId: string, content: string, attachments?: MessageAttachment[]): Promise<Message>;
   deleteMessage?(channelId: string, messageId: string): Promise<Message>;
   toggleReaction?(channelId: string, messageId: string, emoji: string): Promise<Message>;
+  setMessagePinned?(channelId: string, messageId: string, pinned: boolean): Promise<Message>;
+  getPinnedMessages?(channelId: string): Promise<Message[]>;
   markChannelRead?(channelId: string): Promise<void>;
   /** Reemplaza al socket inbox: el mock le entrega los eventos a `onEvent`. Devuelve cómo desuscribirse. */
   subscribeInbox?(onEvent: (event: InboxEvent) => void): () => void;

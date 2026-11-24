@@ -1,8 +1,16 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
-import { Bell, BellOff, Paperclip, Pin, Search, Smile, Users } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { Bell, BellOff, Paperclip, Pin, Search, Smile, Users, X } from 'lucide-react';
 import { distances } from '@discordia/tokens';
+import { JUMP_LOAD_FAILED_MESSAGE, JUMP_NOT_FOUND_MESSAGE } from '@discordia/core';
 import {
+  WAVE_EMOJI,
+  hasWaved,
+  isMemberJoin,
+  memberJoinText,
+  systemMessageUserId,
+  waveCount,
   formatDayLabel,
   formatMessageHour,
   formatMessageTime,
@@ -11,7 +19,12 @@ import {
   placeMessage,
   splitMentions,
   ATTACHMENT_ACCEPT,
+  canStartThread,
   formatAttachmentSize,
+  formatTimeAgo,
+  hasThreadReplies,
+  replyCountLabel,
+  threadSummaryLabel,
   type DmHeaderActionId,
   type DmHeaderLayout,
   type MessageMentions,
@@ -69,8 +82,17 @@ export interface ChatViewProps {
   onDeleteMessage?: (messageId: string) => void;
   /** Callback al confirmar la edición de un mensaje existente. */
   onEditMessage?: (messageId: string, newContent: string) => void;
-  /** Callback al fijar o desfijar un mensaje. */
-  onPinMessage?: (messageId: string) => void;
+  /** Fija o desfija un mensaje (usePinMessage de core). Sin esto, el fijado es solo local. */
+  onPinMessage?: (message: Message) => void;
+  /** Fijados que trae el servidor (usePinnedMessagesQuery): incluye los de páginas no cargadas. */
+  pinnedMessages?: Message[];
+  /** Si el usuario puede fijar en esta conversación (canPinMessages de core). Por defecto sí. */
+  canPinMessages?: boolean;
+  /**
+   * Carga páginas anteriores hasta tener el mensaje (loadUntil de useChannelMessagesQuery), para ir a un
+   * fijado que no está cargado. Sin esto solo se puede ir a los cargados.
+   */
+  onLoadUntilMessage?: (messageId: string) => Promise<boolean>;
   /** Callback para abrir el perfil del usuario clicado. */
   onOpenUserProfile?: (userId: string) => void;
   /** Callback para mostrar u ocultar la barra lateral de miembros. */
@@ -79,6 +101,11 @@ export interface ChatViewProps {
   isMemberListOpen?: boolean;
   /** Abre la búsqueda de mensajes del servidor. Sin esto (DMs) no se muestra el botón. */
   onOpenSearch?: () => void;
+  /**
+   * Búsqueda dentro del DM (acción `search` del encabezado): qué mostrar mientras está abierta. Recibe cómo
+   * cerrarla y cómo ir a un mensaje (el mismo salto de los fijados).
+   */
+  renderDirectSearch?: (controls: { onClose: () => void; onJump: (messageId: string) => void }) => ReactNode;
   /**
    * Si no se puede escribir (silenciado, sin permiso, fuera del servidor), el motivo: el input queda
    * deshabilitado y se muestra esto. null o sin definir: se puede escribir.
@@ -90,6 +117,29 @@ export interface ChatViewProps {
   isLoadingOlder?: boolean;
   /** Pide la página anterior del historial. */
   onLoadOlder?: () => void;
+  /** Abre el hilo de un mensaje ("responder en hilo" y el resumen de respuestas, CA1 y CA3). Sin esto, no hay hilos. */
+  onOpenThread?: (message: Message) => void;
+  /**
+   * La campana del encabezado (useChannelNotifications): abre el menú de nivel de este canal o DM debajo del
+   * botón; `menu` es ese menú abierto. Sin esto (un DM sin conversación todavía) no se muestra.
+   */
+  notifications?: { off: boolean; onOpen: (name: string, x: number, y: number) => void; menu?: ReactNode };
+  /** La vista es un hilo (ThreadPanel): el mensaje original arriba (CA4) y las respuestas como mensajes. */
+  thread?: ThreadViewOptions;
+}
+
+export interface ThreadViewOptions {
+  /** El mensaje original; null mientras carga. */
+  parent: Message | null;
+  /** Dónde está el hilo, para el encabezado ("en •general"). */
+  locationLabel: string;
+  onClose: () => void;
+  /** Si el usuario silenció los avisos de este hilo. */
+  muted: boolean;
+  onToggleMute: () => void;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
 }
 
 
@@ -168,6 +218,68 @@ function useLoadOlder(
   }, [scrollRef, loadOlder]);
 
   return { loadOlder, onScroll };
+}
+
+/** Cuánto queda marcado el mensaje al que se fue (lo mismo que dura la animación de .highlighted). */
+const HIGHLIGHT_MS = 2000;
+
+/**
+ * Ir a un mensaje (desde los fijados): si no está cargado pide las páginas anteriores, después lo centra y
+ * lo marca un momento. Suelta el final antes de cargar y otra vez justo antes del scroll: al sumarse las
+ * páginas el navegador deja la vista abajo y eso vuelve a pegarla (useStickToBottom).
+ * El scroll es instantáneo: uno suave pasa cerca del final, se vuelve a pegar y el ResizeObserver lo baja.
+ */
+function useJumpToMessage(
+  scrollRef: RefObject<HTMLDivElement | null>,
+  messages: Message[],
+  { loadUntil, release }: { loadUntil?: (messageId: string) => Promise<boolean>; release: () => void }
+) {
+  // Mensaje al que hay que ir en cuanto su fila esté dibujada
+  const [target, setTarget] = useState<string | null>(null);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
+
+  const jumpTo = useCallback(
+    async (messageId: string) => {
+      release();
+      // En un hilo, el original no está en `messages` pero sí dibujado arriba
+      let found =
+        messages.some((m) => m.id === messageId) ||
+        !!scrollRef.current?.querySelector(`[data-message-id="${messageId}"]`);
+      if (!found && loadUntil) {
+        try {
+          found = await loadUntil(messageId);
+        } catch {
+          showToast(JUMP_LOAD_FAILED_MESSAGE, 'danger');
+          return;
+        }
+      }
+      if (!found) {
+        showToast(JUMP_NOT_FOUND_MESSAGE, 'info');
+        return;
+      }
+      setTarget(messageId);
+    },
+    [messages, loadUntil, release, scrollRef]
+  );
+
+  // Corre de nuevo con cada cambio de mensajes: la página que trajo loadUntil puede dibujarse después
+  useLayoutEffect(() => {
+    if (!target) return;
+    const row = scrollRef.current?.querySelector<HTMLElement>(`[data-message-id="${target}"]`);
+    if (!row) return;
+    release();
+    row.scrollIntoView?.({ block: 'center' });
+    setHighlighted(target);
+    setTarget(null);
+  }, [target, messages, scrollRef, release]);
+
+  useEffect(() => {
+    if (!highlighted) return;
+    const timer = setTimeout(() => setHighlighted(null), HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [highlighted]);
+
+  return { jumpTo, highlighted };
 }
 
 /** Distancia al final (px) que todavía cuenta como "estar abajo". */
@@ -249,6 +361,7 @@ export function ChatView(props: ChatViewProps) {
     channel,
     directChat,
     directHeader,
+    notifications,
     messages,
     isLoading = false,
     currentUserId,
@@ -260,12 +373,16 @@ export function ChatView(props: ChatViewProps) {
     hasOlderMessages = false,
     isLoadingOlder = false,
     onLoadOlder,
+    onOpenThread,
+    thread,
   } = props;
   const chat = useChatViewState({ ...props, messages });
-  const chatKey = channel?.id ?? directChat?.conversationId ?? directChat?.user.id ?? 'chat';
+  const chatKey = thread
+    ? `thread-${thread.parent?.id ?? 'loading'}`
+    : (channel?.id ?? directChat?.conversationId ?? directChat?.user.id ?? 'chat');
   const history = useHistoryIds(chatKey, chat.localMessages, isLoading);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const showOlder = hasOlderMessages && !isLoading;
+  const showOlder = !thread && hasOlderMessages && !isLoading;
   const stick = useStickToBottom(
     scrollRef,
     chatKey,
@@ -287,11 +404,36 @@ export function ChatView(props: ChatViewProps) {
     stick.onScroll();
     older.onScroll();
   };
+  const jump = useJumpToMessage(scrollRef, chat.localMessages, {
+    loadUntil: props.onLoadUntilMessage,
+    release: stick.release,
+  });
   const names = useMentionNames(users, props.mentionables?.roles);
   const myRoleIds = props.mentionables?.myRoleIds;
+  // Chat para el que se abrió la búsqueda del DM: al cambiar de conversación deja de estar abierta sola
+  const [directSearchKey, setDirectSearchKey] = useState<string | null>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const isDirectSearchOpen = directSearchKey === chatKey;
 
   return (
     <div className={styles.chat}>
+      {thread ? (
+        <header className={styles.header}>
+          <div className={styles.titleGroup}>
+            <h1 className={styles.title}>Hilo</h1>
+            <p className={styles.topic}>en {thread.locationLabel}</p>
+          </div>
+          <nav className={styles.links} aria-label="Acciones del hilo">
+            <IconButton
+              icon={thread.muted ? BellOff : Bell}
+              label={thread.muted ? 'Reactivar avisos del hilo' : 'Silenciar avisos del hilo'}
+              pressed={thread.muted}
+              onPress={thread.onToggleMute}
+            />
+            <IconButton icon={X} label="Cerrar hilo" onPress={thread.onClose} />
+          </nav>
+        </header>
+      ) : (
       <header className={styles.header}>
         <div className={styles.titleGroup}>
           <h1 className={styles.title}>{chat.isDirectMessage ? chat.chatTitle : `•${chat.chatTitle}`}</h1>
@@ -299,12 +441,27 @@ export function ChatView(props: ChatViewProps) {
           {chat.chatTopic !== 'No topic set.' && <p className={styles.topic}>{chat.chatTopic}</p>}
         </div>
         <nav className={styles.links} aria-label="Acciones del chat">
+          {notifications && (
+            <IconButton
+              ref={bellRef}
+              icon={notifications.off ? BellOff : Bell}
+              label="Notificaciones"
+              aria-haspopup="menu"
+              onPress={() => {
+                const rect = bellRef.current?.getBoundingClientRect();
+                const name = chat.isDirectMessage ? chat.chatTitle : `#${chat.chatTitle}`;
+                notifications.onOpen(name, rect?.left ?? 0, rect?.bottom ?? 0);
+              }}
+            />
+          )}
+          {notifications?.menu}
           {chat.isDirectMessage ? (
             directChat && directHeader && (
               <DirectHeaderActions
                 layout={directHeader.layout({ count: chat.pinnedMessages.length, open: chat.isPinnedPanelOpen })}
                 onAction={(id) => {
                   if (id === 'pins') chat.setIsPinnedPanelOpen((v) => !v);
+                  else if (id === 'search') setDirectSearchKey(chatKey);
                   else if (id === 'profile') onOpenUserProfile?.(directChat.user.id);
                   else directHeader.onAction(id);
                 }}
@@ -313,12 +470,6 @@ export function ChatView(props: ChatViewProps) {
           ) : (
             <>
               {onOpenSearch && <IconButton icon={Search} label="Buscar mensajes" onPress={onOpenSearch} />}
-              <IconButton
-                icon={chat.isNotificationsMuted ? BellOff : Bell}
-                label="Silenciar notificaciones"
-                pressed={chat.isNotificationsMuted}
-                onPress={() => chat.setIsNotificationsMuted((v) => !v)}
-              />
               <IconButton
                 icon={Pin}
                 label="Mensajes fijados"
@@ -333,10 +484,33 @@ export function ChatView(props: ChatViewProps) {
           )}
         </nav>
       </header>
+      )}
 
       {props.banner}
 
-      {chat.isPinnedPanelOpen && <PinnedPanel chat={chat} users={users} names={names} />}
+      {/* En el body: .chat es un container query y encerraría al modal (position: fixed) en el área del chat */}
+      {createPortal(
+        <AnimatePresence>
+          {isDirectSearchOpen &&
+            props.renderDirectSearch?.({
+              onClose: () => setDirectSearchKey(null),
+              onJump: (messageId) => void jump.jumpTo(messageId),
+            })}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {chat.isPinnedPanelOpen && (
+        <PinnedPanel
+          chat={chat}
+          users={users}
+          names={names}
+          onJump={(messageId) => {
+            chat.setIsPinnedPanelOpen(false);
+            void jump.jumpTo(messageId);
+          }}
+        />
+      )}
 
       <div
         ref={scrollRef}
@@ -355,6 +529,28 @@ export function ChatView(props: ChatViewProps) {
               <ActionLink onPress={older.loadOlder}>cargar mensajes anteriores</ActionLink>
             )}
           </div>
+        ) : thread ? (
+          <ol className={styles.messages} aria-label="Mensaje original">
+            {thread.parent && (
+              <MessageRow
+                msg={thread.parent}
+                chat={chat}
+                users={users}
+                currentUserId={currentUserId}
+                canManageMessages={props.canManageMessages}
+                canAddReactions={props.canAddReactions ?? true}
+                myRoleIds={myRoleIds}
+                names={names}
+                consecutive={false}
+                isNew={false}
+                highlighted={jump.highlighted === thread.parent.id}
+                onOpenUserProfile={onOpenUserProfile}
+              />
+            )}
+            <li className={styles.day}>
+              {replyCountLabel(thread.parent?.thread?.replyCount ?? chat.localMessages.length)}
+            </li>
+          </ol>
         ) : (
           <div className={styles.welcome}>
             <p className={styles.welcomeTitle}>{chat.isDirectMessage ? chat.chatTitle : `•${chat.chatTitle}`}</p>
@@ -395,16 +591,38 @@ export function ChatView(props: ChatViewProps) {
                     names={names}
                     consecutive={consecutive}
                     isNew={!history.has(msg.id)}
+                    highlighted={jump.highlighted === msg.id}
                     onOpenUserProfile={onOpenUserProfile}
+                    onOpenThread={thread ? undefined : onOpenThread}
+                    onJumpTo={(id) => void jump.jumpTo(id)}
                   />
                 </Fragment>
               );
             })}
           </ol>
         )}
+
+        {thread?.hasMore && (
+          <div className={styles.older}>
+            {thread.isLoadingMore ? (
+              <p className={styles.welcomeText} role="status">
+                / cargando respuestas…
+              </p>
+            ) : (
+              <ActionLink onPress={thread.onLoadMore}>cargar más respuestas</ActionLink>
+            )}
+          </div>
+        )}
       </div>
 
-      <Composer chat={chat} users={users} writeBlock={props.writeBlock ?? null} />
+      <Composer
+        chat={chat}
+        users={users}
+        names={names}
+        onJumpTo={(id) => void jump.jumpTo(id)}
+        writeBlock={props.writeBlock ?? null}
+        placeholder={thread ? 'Responder en el hilo' : undefined}
+      />
     </div>
   );
 }
@@ -452,6 +670,59 @@ function DirectHeaderActions({ layout, onAction }: { layout: DmHeaderLayout; onA
 // Mensajes
 // ==========================================
 
+/**
+ * "se unió Ana, _saludalo_": el nombre actual (abre el perfil) y saludar deja un 👋 en el aviso. Ya saludado,
+ * dice "saludaste" (no se des-saluda con un clic suelto). Sin permiso de reaccionar, "saludalo" es texto.
+ */
+function MemberJoinText({
+  msg,
+  users,
+  currentUserId,
+  canWave,
+  onWave,
+  onOpenUserProfile,
+}: {
+  msg: Message;
+  users: Record<string, User>;
+  currentUserId?: string;
+  canWave: boolean;
+  onWave: () => void;
+  onOpenUserProfile?: (userId: string) => void;
+}) {
+  const userId = systemMessageUserId(msg);
+  const isMe = userId === currentUserId;
+  const user = users[userId];
+  const text = memberJoinText(user?.displayName || user?.username || 'alguien', isMe);
+  const waved = currentUserId ? hasWaved(msg, currentUserId) : false;
+  const waves = waveCount(msg);
+
+  return (
+    <>
+      {text.before}
+      {text.name &&
+        (onOpenUserProfile ? (
+          <button type="button" className={styles.systemName} onClick={() => onOpenUserProfile(userId)}>
+            {text.name}
+          </button>
+        ) : (
+          <strong>{text.name}</strong>
+        ))}
+      {text.after}
+      {text.waveLabel &&
+        (waved ? (
+          'saludaste'
+        ) : canWave ? (
+          <ActionLink onPress={onWave} aria-label={`Saludar a ${text.name}`}>
+            {text.waveLabel}
+          </ActionLink>
+        ) : (
+          text.waveLabel
+        ))}
+      {waves > 0 && <span aria-label={`${waves} saludos`}> {WAVE_EMOJI} {waves}</span>}
+    </>
+  );
+}
+
 function MessageRow({
   msg,
   chat,
@@ -463,7 +734,10 @@ function MessageRow({
   names,
   consecutive,
   isNew,
+  highlighted = false,
   onOpenUserProfile,
+  onOpenThread,
+  onJumpTo,
 }: {
   msg: Message;
   chat: ChatViewState;
@@ -475,9 +749,35 @@ function MessageRow({
   names: MentionNames;
   consecutive: boolean;
   isNew: boolean;
+  /** Se acaba de ir a este mensaje (desde los fijados). */
+  highlighted?: boolean;
   onOpenUserProfile?: (userId: string) => void;
+  /** Abre el hilo del mensaje. Sin esto (dentro de un hilo), no hay "responder en hilo" ni resumen. */
+  onOpenThread?: (message: Message) => void;
+  /** Ir a un mensaje (tocar la cita del que responde). */
+  onJumpTo?: (messageId: string) => void;
 }) {
   const reduce = useReducedMotion();
+  const threadSummary =
+    onOpenThread && hasThreadReplies(msg) ? (
+      <button
+        type="button"
+        className={styles.threadSummary}
+        onClick={() => onOpenThread(msg)}
+        aria-label={`Abrir hilo: ${threadSummaryLabel(msg.thread)}`}
+      >
+        <span className={styles.threadAvatars} aria-hidden="true">
+          {(msg.thread.replierIds ?? [])
+            .filter((id) => users[id])
+            .slice(0, 3)
+            .map((id) => (
+              <SquareAvatar key={id} user={users[id]} size={20} />
+            ))}
+        </span>
+        <strong className={styles.threadCount}>{replyCountLabel(msg.thread.replyCount)}</strong>
+        <span>última respuesta {formatTimeAgo(msg.thread.lastReplyAt)}</span>
+      </button>
+    ) : null;
   const enter = {
     initial: isNew ? (reduce ? { opacity: 0 } : { opacity: 0, y: distances.rise }) : false,
     animate: { opacity: 1, y: 0 },
@@ -501,19 +801,35 @@ function MessageRow({
 
   if (msg.type === 'deleted') {
     return (
-      <motion.li className={`${styles.message} ${styles.compact}`} {...enter}>
+      <motion.li className={`${styles.message} ${styles.compact}`} data-message-id={msg.id} {...enter}>
         <span className={styles.gutter} />
-        <p className={styles.deleted}>/ este mensaje fue eliminado</p>
+        <div className={styles.body}>
+          <p className={styles.deleted}>/ este mensaje fue eliminado</p>
+          {threadSummary}
+        </div>
       </motion.li>
     );
   }
 
   if (msg.type === 'system') {
     return (
-      <motion.li className={`${styles.message} ${styles.compact}`} {...enter}>
+      <motion.li className={`${styles.message} ${styles.compact}`} data-message-id={msg.id} {...enter}>
         <span className={styles.gutter} />
         <p className={styles.system}>
-          •{msg.content} <time className={styles.time}>{formatMessageTime(msg.timestamp)}</time>
+          •
+          {isMemberJoin(msg) ? (
+            <MemberJoinText
+              msg={msg}
+              users={users}
+              currentUserId={currentUserId}
+              canWave={canAddReactions}
+              onWave={() => chat.handleToggleReaction(msg.id, WAVE_EMOJI)}
+              onOpenUserProfile={onOpenUserProfile}
+            />
+          ) : (
+            msg.content
+          )}{' '}
+          <time className={styles.time}>{formatMessageTime(msg.timestamp)}</time>
         </p>
       </motion.li>
     );
@@ -537,7 +853,9 @@ function MessageRow({
         mentionsMe ? styles.mentioned : '',
         isReplying ? styles.replying : '',
         menuOpen || pickerOpen ? styles.toolsOpen : '',
+        highlighted ? styles.highlighted : '',
       ].join(' ')}
+      data-message-id={msg.id}
       {...enter}
     >
       <span className={styles.gutter}>
@@ -552,12 +870,11 @@ function MessageRow({
 
       <div className={styles.body}>
         {msg.replyTo && (
-          <p className={styles.reply}>
-            <span className={styles.replyLine} aria-hidden="true" />
-            <span className={styles.replyText}>
-              @{authorName(msg.replyTo, users)} {mentionsToText(msg.replyTo.content, names)}
-            </span>
-          </p>
+          <ReplyQuote
+            author={`@${authorName(msg.replyTo, users)}`}
+            text={msg.replyTo.deleted ? 'mensaje eliminado' : mentionsToText(msg.replyTo.content, names)}
+            onPress={onJumpTo && !msg.replyTo.deleted ? () => onJumpTo(msg.replyTo!.id) : undefined}
+          />
         )}
 
         {!consecutive && (
@@ -637,6 +954,8 @@ function MessageRow({
             })}
           </div>
         )}
+
+        {threadSummary}
       </div>
 
       {/* Acciones al pasar el mouse o con foco dentro del mensaje */}
@@ -660,6 +979,9 @@ function MessageRow({
             </ActionLink>
           )}
           <ActionLink onPress={() => chat.setReplyingTo(msg)}>responder</ActionLink>
+          {onOpenThread && canStartThread(msg) && (
+            <ActionLink onPress={() => onOpenThread(msg)}>responder en hilo</ActionLink>
+          )}
           {isAuthor && <ActionLink onPress={() => chat.handleStartEdit(msg)}>editar</ActionLink>}
           {canDelete && (
             <ActionLink className={styles.dangerLink} onPress={() => chat.promptDeleteMessage(msg.id)}>
@@ -694,11 +1016,13 @@ function MessageRow({
                 {chat.copiedMessageId === msg.id ? 'copiado/' : 'copiar texto'}
               </button>
             </li>
-            <li>
-              <button type="button" onClick={() => chat.handleTogglePin(msg)}>
-                {msg.isPinned ? 'desfijar mensaje' : 'fijar mensaje'}
-              </button>
-            </li>
+            {chat.canPin(msg) && (
+              <li>
+                <button type="button" onClick={() => chat.handleTogglePin(msg)}>
+                  {msg.isPinned ? 'desfijar mensaje' : 'fijar mensaje'}
+                </button>
+              </li>
+            )}
           </ul>
         </Popover>
       )}
@@ -782,7 +1106,10 @@ function EditBox({ chat, messageId }: { chat: ChatViewState; messageId: string }
         onChange={(e) => chat.setEditContent(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') chat.handleSaveEdit(messageId);
-          if (e.key === 'Escape') chat.setEditingMessageId(null);
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            chat.setEditingMessageId(null);
+          }
         }}
         autoFocus
       />
@@ -794,7 +1121,17 @@ function EditBox({ chat, messageId }: { chat: ChatViewState; messageId: string }
   );
 }
 
-function PinnedPanel({ chat, users, names }: { chat: ChatViewState; users: Record<string, User>; names: MentionNames }) {
+function PinnedPanel({
+  chat,
+  users,
+  names,
+  onJump,
+}: {
+  chat: ChatViewState;
+  users: Record<string, User>;
+  names: MentionNames;
+  onJump: (messageId: string) => void;
+}) {
   return (
     <Popover className={styles.pinned} label="Mensajes fijados" onClose={() => chat.setIsPinnedPanelOpen(false)}>
       <p className={styles.popoverTitle}>Mensajes fijados /</p>
@@ -802,15 +1139,29 @@ function PinnedPanel({ chat, users, names }: { chat: ChatViewState; users: Recor
         <p className={styles.popoverEmpty}>/ todavía no hay mensajes fijados en esta conversación.</p>
       ) : (
         <ul className={styles.pinnedList}>
-          {chat.pinnedMessages.map((msg) => (
-            <li key={msg.id}>
-              <p className={styles.meta}>
-                <strong>{(msg.author || users[msg.authorId])?.displayName || 'Usuario'}</strong>{' '}
-                <span className={styles.time}>{formatMessageTime(msg.timestamp)}</span>
-              </p>
-              <p className={styles.pinnedText}>{mentionsToText(msg.content, names)}</p>
-            </li>
-          ))}
+          {chat.pinnedMessages.map((msg) => {
+            const name = (msg.author || users[msg.authorId])?.displayName || 'Usuario';
+            return (
+              <li key={msg.id}>
+                <button
+                  type="button"
+                  className={styles.pinnedJump}
+                  onClick={() => onJump(msg.id)}
+                  aria-label={`Ir al mensaje de ${name}`}
+                >
+                  <span className={styles.meta}>
+                    <strong>{name}</strong> <span className={styles.time}>{formatMessageTime(msg.timestamp)}</span>
+                  </span>
+                  <span className={styles.pinnedText}>{mentionsToText(msg.content, names)}</span>
+                </button>
+                {chat.canPinMessages && (
+                  <p className={styles.meta}>
+                    <ActionLink onPress={() => chat.handleTogglePin(msg)}>desfijar</ActionLink>
+                  </p>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </Popover>
@@ -822,11 +1173,65 @@ function PinnedPanel({ chat, users, names }: { chat: ChatViewState; users: Recor
 // ==========================================
 
 /** Nombre del autor: el del mensaje o, si no viene (el backend manda solo authorId), el del directorio. */
-const authorName = (msg: Message, users: Record<string, User>) =>
+const authorName = (msg: Pick<Message, 'author' | 'authorId'>, users: Record<string, User>) =>
   (msg.author || users[msg.authorId])?.displayName || 'usuario';
 
-function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Record<string, User>; writeBlock: string | null }) {
-  const placeholder = chat.isDirectMessage ? `Enviar mensaje a @${chat.chatTitle}` : `Enviar mensaje a ${chat.chatTitle}`;
+/** Cita del mensaje al que se responde (en el mensaje y en la barra de escritura), como en WhatsApp. */
+function ReplyQuote({
+  author,
+  text,
+  onPress,
+  children,
+}: {
+  author: string;
+  text: string;
+  /** Tocar la cita: ir al mensaje citado. */
+  onPress?: () => void;
+  children?: ReactNode;
+}) {
+  const content = (
+    <>
+      <strong className={styles.quoteAuthor}>{author}</strong>
+      <span className={styles.quoteText}>{text || 'archivo adjunto'}</span>
+    </>
+  );
+  return (
+    <div className={styles.quote}>
+      {onPress ? (
+        <button
+          type="button"
+          className={`${styles.quoteBody} ${styles.quoteButton}`}
+          onClick={onPress}
+          aria-label={`Ir al mensaje citado: ${author}: ${text || 'archivo adjunto'}`}
+        >
+          {content}
+        </button>
+      ) : (
+        <p className={styles.quoteBody}>{content}</p>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function Composer({
+  chat,
+  users,
+  names,
+  onJumpTo,
+  writeBlock,
+  placeholder: placeholderOverride,
+}: {
+  chat: ChatViewState;
+  users: Record<string, User>;
+  names: MentionNames;
+  onJumpTo: (messageId: string) => void;
+  writeBlock: string | null;
+  placeholder?: string;
+}) {
+  const placeholder =
+    placeholderOverride ??
+    (chat.isDirectMessage ? `Enviar mensaje a @${chat.chatTitle}` : `Enviar mensaje a ${chat.chatTitle}`);
   const canSend = Boolean(chat.inputText.trim() || chat.attachment) && !chat.isUploading;
 
   // Silenciado, sin permiso o fuera del servidor: en lugar de la barra, solo el aviso. Vuelve cuando el chat
@@ -844,10 +1249,15 @@ function Composer({ chat, users, writeBlock }: { chat: ChatViewState; users: Rec
   return (
     <div className={styles.composer}>
       {chat.replyingTo && (
-        <p className={styles.composerNote}>
-          respondiendo a <strong>@{authorName(chat.replyingTo, users)}</strong>{' '}
-          <ActionLink onPress={() => chat.setReplyingTo(null)}>cancelar</ActionLink>
-        </p>
+        <div className={styles.composerReply}>
+          <ReplyQuote
+            author={`respondiendo a @${authorName(chat.replyingTo, users)}`}
+            text={mentionsToText(chat.replyingTo.content, names)}
+            onPress={() => onJumpTo(chat.replyingTo!.id)}
+          >
+            <IconButton icon={X} label="Cancelar respuesta" onPress={() => chat.setReplyingTo(null)} />
+          </ReplyQuote>
+        </div>
       )}
       {chat.attachment && (
         <p className={styles.composerNote}>
@@ -1053,7 +1463,10 @@ function Popover({ children, className, label, onClose }: { children: ReactNode;
       role="dialog"
       aria-label={label}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        }
       }}
     >
       {children}

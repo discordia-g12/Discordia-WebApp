@@ -7,7 +7,7 @@ import { acceptFriendRequest, sendFriendRequest } from '../../api/friends';
 import type { Conversation, FriendRequest, Message, PublicProfile } from '../../types';
 import type { InboxEvent, InboxSocketHandlers, InboxSocketStatus } from '../../realtime/inboxSocket';
 import { conversationsQueryKey, conversationWithQueryKey } from '../inboxCache';
-import { messagesQueryKey, type MessagePages } from '../messageCache';
+import { messagesQueryKey, pinnedMessagesQueryKey, type MessagePages } from '../messageCache';
 import { useMarkChannelReadMutation } from '../useUnread';
 import {
   friendsQueryKey,
@@ -16,6 +16,8 @@ import {
   useSendFriendRequestMutation,
 } from '../useFriends';
 import { useInbox } from '../useInbox';
+import { applyPresence, presenceQueryKey } from '../useConversations';
+import { myStatusQueryKey } from '../useMyStatus';
 import { subscribeCallEvents } from '../../realtime/callEvents';
 
 const connections: { handlers: InboxSocketHandlers; close: ReturnType<typeof vi.fn>; reconnect: ReturnType<typeof vi.fn> }[] = [];
@@ -238,6 +240,33 @@ describe('useInbox', () => {
     expect(pages?.pages[0][0].reactions).toEqual([{ emoji: '❤️', count: 1, users: ['other'] }]);
   });
 
+  it('DM_MESSAGE_UPDATED de un fijado actualiza el historial y la lista de fijados', () => {
+    const { queryClient, wrapper } = setup();
+    queryClient.setQueryData<MessagePages>(messagesQueryKey('dm-1'), {
+      pages: [[{ id: 'm1', content: 'hola', authorId: 'other', channelId: 'dm-1', timestamp: '2026-05-01T00:00:00.000Z' }]],
+      pageParams: [undefined],
+    });
+    queryClient.setQueryData<Message[]>(pinnedMessagesQueryKey('dm-1'), []);
+    renderHook(() => useInbox(), { wrapper });
+
+    const base = { id: 'm1', content: 'hola', authorId: 'other', channelId: 'dm-1', createdAt: '2026-05-01T00:00:00.000Z' };
+    act(() =>
+      lastConnection().handlers.onEvent({
+        type: 'DM_MESSAGE_UPDATED',
+        conversationId: 'dm-1',
+        message: { ...base, pinned: true, pinnedAt: '2026-05-02T00:00:00.000Z', pinnedBy: 'me' },
+      })
+    );
+    expect(queryClient.getQueryData<MessagePages>(messagesQueryKey('dm-1'))?.pages[0][0].isPinned).toBe(true);
+    expect(queryClient.getQueryData<Message[]>(pinnedMessagesQueryKey('dm-1'))?.map((m) => m.id)).toEqual(['m1']);
+
+    act(() =>
+      lastConnection().handlers.onEvent({ type: 'DM_MESSAGE_UPDATED', conversationId: 'dm-1', message: { ...base, pinned: false } })
+    );
+    expect(queryClient.getQueryData<MessagePages>(messagesQueryKey('dm-1'))?.pages[0][0].isPinned).toBe(false);
+    expect(queryClient.getQueryData<Message[]>(pinnedMessagesQueryKey('dm-1'))).toEqual([]);
+  });
+
   it('solo pide las conversaciones de nuevo si la conexión volvió, no la primera vez', () => {
     const { wrapper, invalidate } = setup();
     renderHook(() => useInbox(), { wrapper });
@@ -364,5 +393,60 @@ describe('solicitudes de amistad', () => {
 
     await expect(act(() => result.current.mutateAsync({ target: 'a@b.com' }))).resolves.toBeNull();
     expect(getConversationWith).not.toHaveBeenCalled();
+  });
+});
+
+describe('presencia por el inbox', () => {
+  beforeEach(() => {
+    connections.length = 0;
+    sessionStatus.current = 'authenticated';
+  });
+
+  const lastConnection = () => connections[connections.length - 1];
+
+  it('PRESENCE_UPDATE y PRESENCE_SNAPSHOT actualizan las listas que muestran a ese usuario', () => {
+    const { queryClient, wrapper } = setup();
+    queryClient.setQueryData(presenceQueryKey(['u1', 'u2']), { u1: 'online', u2: 'offline' });
+    queryClient.setQueryData(presenceQueryKey(['u2']), { u2: 'offline' });
+    queryClient.setQueryData(presenceQueryKey(['u3']), { u3: 'online' });
+    renderHook(() => useInbox(), { wrapper });
+
+    act(() => lastConnection().handlers.onEvent({ type: 'PRESENCE_UPDATE', userId: 'u2', status: 'dnd' }));
+
+    expect(queryClient.getQueryData(presenceQueryKey(['u1', 'u2']))).toEqual({ u1: 'online', u2: 'dnd' });
+    expect(queryClient.getQueryData(presenceQueryKey(['u2']))).toEqual({ u2: 'dnd' });
+    expect(queryClient.getQueryData(presenceQueryKey(['u3']))).toEqual({ u3: 'online' });
+
+    act(() => lastConnection().handlers.onEvent({ type: 'PRESENCE_SNAPSHOT', statuses: { u1: 'idle', u3: 'offline', u9: 'online' } }));
+
+    expect(queryClient.getQueryData(presenceQueryKey(['u1', 'u2']))).toEqual({ u1: 'idle', u2: 'dnd' });
+    expect(queryClient.getQueryData(presenceQueryKey(['u3']))).toEqual({ u3: 'offline' });
+    // Nadie mostraba a u9: no se crea nada
+    expect(queryClient.getQueryCache().findAll({ queryKey: presenceQueryKey(['u9']) })).toHaveLength(0);
+  });
+
+  it('MY_STATUS cambia el estado propio sin tocar las listas', () => {
+    const { queryClient, wrapper } = setup();
+    queryClient.setQueryData(myStatusQueryKey, 'online');
+    queryClient.setQueryData(presenceQueryKey(['u1']), { u1: 'online' });
+    renderHook(() => useInbox(), { wrapper });
+
+    act(() => lastConnection().handlers.onEvent({ type: 'MY_STATUS', status: 'invisible' }));
+
+    expect(queryClient.getQueryData(myStatusQueryKey)).toBe('invisible');
+    expect(queryClient.getQueryData(presenceQueryKey(['u1']))).toEqual({ u1: 'online' });
+  });
+
+  it('applyPresence no toca el estado propio ni reemplaza listas sin cambios', () => {
+    const { queryClient } = setup();
+    const unchanged = { u1: 'online' } as const;
+    queryClient.setQueryData(myStatusQueryKey, 'dnd');
+    queryClient.setQueryData(presenceQueryKey(['u1']), unchanged);
+
+    applyPresence(queryClient, { u1: 'online', me: 'offline' });
+    applyPresence(queryClient, {});
+
+    expect(queryClient.getQueryData(myStatusQueryKey)).toBe('dnd');
+    expect(queryClient.getQueryData(presenceQueryKey(['u1']))).toBe(unchanged);
   });
 });

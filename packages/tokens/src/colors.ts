@@ -27,6 +27,8 @@ export const palette = {
   slate400: '#6b8794',
   /** Celeste decorativo de noche: la marca de agua de un servidor, tan sutil como el cielo de día. */
   slate800: '#2b4550',
+  /** Celeste oscuro: el celeste del cielo con contraste de texto sobre el día. */
+  sky700: '#14607f',
   red600: '#c0392b',
   /** Verde de "hablando" de día: oscuro para llegar a 3:1 también sobre el celeste del degradé. */
   green700: '#15803d',
@@ -67,6 +69,8 @@ export interface SemanticColors {
    * grilla y verse sobre fotos y video: por eso es el único color saturado de la paleta.
    */
   speaking: string;
+  /** Texto que tiene que llamar la atención (resumen de un hilo, a quién se responde). AA texto normal. */
+  accent: string;
 }
 
 export const colors: Record<ColorScheme, SemanticColors> = {
@@ -87,6 +91,7 @@ export const colors: Record<ColorScheme, SemanticColors> = {
     skyTint: 'rgba(168, 219, 239, 0.3)',
     skyDecoration: palette.sky100,
     speaking: palette.green700,
+    accent: palette.sky700,
   },
   dark: {
     background: palette.night900,
@@ -105,5 +110,6 @@ export const colors: Record<ColorScheme, SemanticColors> = {
     skyTint: 'rgba(168, 219, 239, 0.06)',
     skyDecoration: palette.slate800,
     speaking: palette.green400,
+    accent: palette.sky100,
   },
 };

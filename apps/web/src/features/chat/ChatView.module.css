@@ -135,6 +135,30 @@
   background: color-mix(in srgb, var(--color-text) 4%, transparent);
 }
 
+/* Al ir a un mensaje (desde los fijados): se marca un momento y se apaga */
+.highlighted {
+  animation: highlight 2s ease-out;
+}
+
+@keyframes highlight {
+  0%,
+  40% {
+    background: color-mix(in srgb, var(--color-text) 12%, transparent);
+    box-shadow: inset var(--line-accent) 0 0 var(--color-text);
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .highlighted {
+    animation: none;
+    background: color-mix(in srgb, var(--color-text) 12%, transparent);
+  }
+}
+
 /* Te mencionan: barra negra a la izquierda */
 .mentioned {
   box-shadow: inset var(--line-accent) 0 0 var(--color-inverse-background);
@@ -240,27 +264,67 @@
   color: var(--color-text-muted);
 }
 
+/* El nombre de quien se unió: en negrita y en el color del texto, abre su perfil */
+.systemName {
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.systemName:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* Respuesta: una línea fina y la cita en texto chico, arriba del mensaje (PDF, pág. 9) */
-.reply {
+.quote {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin: 0 0 2px;
+  gap: var(--space-2);
+  max-width: 480px;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-left: var(--line-accent) solid var(--color-accent);
+  background: var(--color-sky-tint);
+}
+
+.quoteBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   min-width: 0;
+  margin: 0;
+  font-size: var(--font-meta-size);
 }
 
-.replyLine {
-  flex-shrink: 0;
-  width: 120px;
-  height: var(--line-hairline);
-  background: var(--color-line-strong);
+.quoteButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--font-meta-size);
+  text-align: left;
+  cursor: pointer;
 }
 
-.replyText {
+.quoteButton:hover .quoteAuthor,
+.quoteButton:focus-visible .quoteAuthor {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.quoteAuthor {
+  color: var(--color-accent);
+}
+
+.quoteText {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 10px;
   color: var(--color-text-muted);
 }
 
@@ -299,6 +363,40 @@
 }
 
 /* Reacciones: emoji y número en una caja de línea fina; la propia, invertida */
+/* "3 respuestas · última hace 5 min": abre el hilo (CA3) */
+.threadSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--font-meta-size);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.threadAvatars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.threadAvatars:empty {
+  display: none;
+}
+
+.threadCount {
+  color: var(--color-accent);
+}
+
+.threadSummary:hover .threadCount,
+.threadSummary:focus-visible .threadCount {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .reactions {
   display: flex;
   flex-wrap: wrap;
@@ -450,6 +548,28 @@
   font-size: var(--font-body-small-size);
 }
 
+/* El fijado entero lleva al mensaje */
+.pinnedJump {
+  display: block;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.pinnedJump > span {
+  display: block;
+}
+
+.pinnedJump:hover .pinnedText,
+.pinnedJump:focus-visible .pinnedText {
+  text-decoration: underline;
+}
+
 .menu {
   margin: 0;
   padding: 0;
@@ -559,6 +679,15 @@
   position: relative;
   flex-shrink: 0;
   border-top: var(--line-hairline) solid var(--color-line-strong);
+}
+
+.composerReply {
+  padding: var(--space-2) var(--space-5) 0;
+}
+
+.composerReply .quote {
+  max-width: none;
+  margin: 0;
 }
 
 .composerNote {

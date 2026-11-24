@@ -16,6 +16,15 @@ describe('ServerRail (rediseño)', () => {
     expect(screen.getByRole('button', { name: 'Mensajes directos' }).getAttribute('aria-current')).toBeNull();
   });
 
+  it('el logo lleva al inicio (mensajes directos)', () => {
+    const onSelectServer = vi.fn();
+    render(<ServerRail servers={servers} selectedServerId="s1" onSelectServer={onSelectServer} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ir al inicio' }));
+
+    expect(onSelectServer).toHaveBeenCalledWith('home');
+  });
+
   it('al pasar el mouse despliega la etiqueta con el nombre y la actividad nueva', () => {
     render(<ServerRail servers={servers} selectedServerId="home" onSelectServer={vi.fn()} />);
 

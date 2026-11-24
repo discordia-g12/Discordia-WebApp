@@ -10,13 +10,13 @@ export function shortUserId(userId: string) {
   return userId.substring(userId.length - 4);
 }
 
-/** Usuario a mostrar cuando todavía no llegó su perfil. */
+/** Usuario a mostrar cuando todavía no llegó su perfil. Desconectado hasta que llegue su presencia. */
 export function placeholderUser(userId: string): User {
   return {
     id: userId,
     username: userId,
     displayName: `User ${shortUserId(userId)}`,
-    status: 'online' as Status,
+    status: 'offline' as Status,
   };
 }
 
@@ -98,7 +98,8 @@ export function useServerMemberUsers(): User[] {
       username: m.userId,
       displayName: m.nickname || `User ${shortUserId(m.userId)}`,
       roleIds: m.roleIds,
-      status: 'online' as Status,
+      // La presencia la suma MemberListPanel (usePresenceQuery)
+      status: 'offline' as Status,
       avatar: undefined,
     }));
   }, [data]);

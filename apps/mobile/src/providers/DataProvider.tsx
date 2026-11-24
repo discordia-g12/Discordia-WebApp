@@ -11,7 +11,9 @@ import { AppState } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import type { User, Server, Category, Channel, Message, MessageAttachment, MessageBackendPayload, Reaction } from '../types'
 import { useAuth } from './AuthProvider'
+import { markDeletedInList, mergeIntoList, setThreadSummaryInList } from '../utils/channelMessages'
 import {
+  useMyStatusQuery,
   getMessages,
   MESSAGES_PAGE_SIZE,
   getServers,
@@ -20,9 +22,20 @@ import {
   deleteMessage as apiDeleteMessage,
   toggleReaction as apiToggleReaction,
   updateCachedMessages,
+  normalizeMessage,
+  syncPinnedMessage,
+  mergeCachedMessage,
+  markCachedMessageDeleted,
+  applyThreadReply,
+  type ThreadSummary,
+  togglePinnedMessage,
+  loadUntilMessage,
+  type PinState,
   createServer as apiCreateServer,
   updateServerIcon as apiUpdateServerIcon,
   removeServerIcon as apiRemoveServerIcon,
+  updateServerBanner as apiUpdateServerBanner,
+  removeServerBanner as apiRemoveServerBanner,
   createChannel as apiCreateChannel,
   editChannel as apiEditChannel,
   deleteChannel as apiDeleteChannel,
@@ -53,6 +66,8 @@ interface DataContextValue {
   createServer: (name: string, icon?: UploadableFile) => Promise<Server>
   /** Cambia el ícono (o lo quita con null) y aplica la URL que devuelve la API. Rechaza con el ApiError. */
   setServerIcon: (serverId: string, icon: UploadableFile | null) => Promise<void>
+  /** Cambia el banner (null lo quita) y actualiza la lista de servidores con el que devuelve la API. */
+  setServerBanner: (serverId: string, banner: UploadableFile | null) => Promise<void>
   createChannel: (
     serverId: string,
     data: { name: string; type: 'text' | 'voice'; categoryId?: string },
@@ -74,16 +89,26 @@ interface DataContextValue {
   removeServerLocally: (serverId: string) => void
 
   // Mutaciones y sincronización
-  sendMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => void
+  sendMessage: (channelId: string, content: string, attachments?: MessageAttachment[], replyTo?: Message | null) => void
   editMessage: (channelId: string, messageId: string, content: string) => Promise<Message>
   deleteMessage: (channelId: string, messageId: string) => Promise<void>
   toggleReaction: (channelId: string, messageId: string, emoji: string) => Promise<Message>
-  addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[]) => string
+  /** Fija o desfija (togglePinnedMessage de core). Si falla, vuelve atrás y rechaza con un texto para mostrar. */
+  togglePin: (channelId: string, message: Message) => Promise<void>
+  addOptimisticMessage: (channelId: string, content: string, attachments?: MessageAttachment[], replyTo?: Message | null) => string
   confirmOptimisticMessage: (channelId: string, payload: MessageBackendPayload) => void
+  /** MESSAGE_UPDATED del socket del canal: actualiza un mensaje que ya está; nunca agrega uno. */
+  applyRemoteUpdate: (channelId: string, payload: MessageBackendPayload) => void
+  /** Otro borró un mensaje (MESSAGE_DELETED por el socket del canal, deuda C6). */
+  applyRemoteDelete: (channelId: string, payload: MessageBackendPayload) => void
+  /** Alguien respondió en un hilo del canal (THREAD_REPLY_CREATED): el resumen del original y el hilo. */
+  applyThreadReplyEvent: (channelId: string, parentId: string, reply: MessageBackendPayload, thread: ThreadSummary) => void
   failOptimisticMessage: (channelId: string) => void
   fetchChannelMessages: (channelId: string) => Promise<void>
   /** Pide la página anterior del historial y la agrega arriba. Rechaza si falla la red. */
   fetchOlderChannelMessages: (channelId: string) => Promise<void>
+  /** Carga páginas anteriores hasta tener el mensaje (ir a un fijado). false si no apareció; rechaza si falla la red. */
+  loadChannelMessagesUntil: (channelId: string, messageId: string) => Promise<boolean>
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
@@ -107,6 +132,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [messages])
   const loadingOlderRef = useRef(new Set<string>())
 
+  // Estado elegido por el usuario (lo guarda Chat-Engine). El activity_status del perfil no se usa
+  const { data: myStatus } = useMyStatusQuery()
+
   // Sincronizar el perfil del usuario autenticado en el diccionario de usuarios
   useEffect(() => {
     if (!userProfile) return
@@ -115,7 +143,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       username: userProfile.username,
       displayName: userProfile.display_name || userProfile.username,
       avatar: userProfile.avatar_url || undefined,
-      status: (userProfile.activity_status as User['status']) || 'online',
+      status: myStatus ?? 'online',
       customStatus: userProfile.custom_status,
       bio: userProfile.bio,
     }
@@ -124,7 +152,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       [userProfile.id]: profileUser,
       ...(userProfile.user_id ? { [userProfile.user_id]: profileUser } : {}),
     }))
-  }, [userProfile])
+  }, [userProfile, myStatus])
 
   // Carga y sincronización de servidores desde el backend
   const refreshServers = useCallback(async () => {
@@ -362,8 +390,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [token],
   )
 
+  // Ir a un fijado: el loop es el de core (loadUntilMessage). Las páginas se juntan acá y se agregan de una vez,
+  // porque messagesRef recién se actualiza en el render siguiente
+  const loadChannelMessagesUntil = useCallback(
+    async (channelId: string, messageId: string) => {
+      const loaded = messagesRef.current[channelId] ?? []
+      let cursor = loaded.find(m => !m.id.startsWith('temp-'))?.id
+      const fetched: Message[] = []
+      let hasMore = true
+      const found = await loadUntilMessage({
+        isLoaded: () => loaded.some(m => m.id === messageId) || fetched.some(m => m.id === messageId),
+        loadOlder: async () => {
+          if (!cursor) return (hasMore = false)
+          const page = await getMessages(channelId, { before: cursor })
+          fetched.unshift(...page.map(m => ({ ...m, status: 'sent' as const })))
+          cursor = page[0]?.id
+          hasMore = page.length >= MESSAGES_PAGE_SIZE
+          return hasMore
+        },
+      })
+      if (fetched.length > 0) {
+        setMessages(prev => {
+          const current = prev[channelId] ?? []
+          const known = new Set(current.map(m => m.id))
+          return { ...prev, [channelId]: [...fetched.filter(m => !known.has(m.id)), ...current] }
+        })
+        setHasOlderMessages(prev => ({ ...prev, [channelId]: hasMore }))
+      }
+      return found
+    },
+    [],
+  )
+
   const addOptimisticMessage = useCallback(
-    (channelId: string, content: string, attachments?: MessageAttachment[]): string => {
+    (channelId: string, content: string, attachments?: MessageAttachment[], replyTo?: Message | null): string => {
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
       const now = new Date().toISOString()
       const newMessage: Message = {
@@ -376,6 +436,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         type: 'normal',
         status: 'pending',
         attachments,
+        // La cita se ve ya; al confirmarse la reemplaza la copia que guardó Chat-Engine
+        ...(replyTo ? { replyToId: replyTo.id, replyTo } : {}),
       }
       setMessages(prev => ({
         ...prev,
@@ -386,24 +448,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [activeUserId],
   )
 
+  /**
+   * Un MESSAGE_UPDATED (edición, reacción, fijado, contador de un hilo). Solo toca un mensaje que ya está en la
+   * lista del canal: uno que no está (una respuesta de hilo, o una página no cargada) no se agrega. Fijados e
+   * hilos (React Query) se ponen al día acá.
+   */
+  const applyRemoteUpdate = useCallback(
+    (channelId: string, payload: MessageBackendPayload) => {
+      const normalized = normalizeMessage(payload as unknown as Message)
+      mergeCachedMessage(queryClient, channelId, normalized)
+      setMessages(prev => {
+        const list = prev[channelId]
+        const updated = list && mergeIntoList(list, payload, normalized)
+        return updated ? { ...prev, [channelId]: updated } : prev
+      })
+    },
+    [queryClient],
+  )
+
+  /** Un mensaje nuevo del canal (MESSAGE_CREATED o la respuesta del POST): confirma el pendiente o lo agrega. */
   const confirmOptimisticMessage = useCallback(
     (channelId: string, payload: MessageBackendPayload) => {
+      const normalized = normalizeMessage(payload as unknown as Message)
+      mergeCachedMessage(queryClient, channelId, normalized)
+      // Las respuestas de hilo no van en el canal (llegan como THREAD_REPLY_CREATED)
+      if (normalized.threadParentId) return
       setMessages(prev => {
         const list = prev[channelId] ?? []
         // Si ya existe este ID exacto (por ejemplo reconexión/duplicado), asegurarse de que esté como sent
-        const existingIndex = list.findIndex(m => m.id === payload.id)
-        if (existingIndex !== -1) {
-          const updated = [...list]
-          updated[existingIndex] = {
-            ...updated[existingIndex],
-            status: 'sent',
-            content: payload.content,
-            edited: payload.edited ?? (payload.editedTimestamp ? true : updated[existingIndex].edited),
-            editedTimestamp: payload.editedTimestamp ?? updated[existingIndex].editedTimestamp,
-            reactions: payload.reactions !== undefined ? payload.reactions : updated[existingIndex].reactions,
-          }
-          return { ...prev, [channelId]: updated }
-        }
+        const merged = mergeIntoList(list, payload, normalized)
+        if (merged) return { ...prev, [channelId]: merged }
 
         // Si es un mensaje emitido por el usuario activo, buscar el mensaje pendiente correspondiente
         if (payload.authorId === activeUserId) {
@@ -426,6 +500,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               timestamp: payload.createdAt,
               status: 'sent',
               reactions: payload.reactions ?? updated[pendingIndex].reactions ?? [],
+              replyTo: normalized.replyTo ?? updated[pendingIndex].replyTo,
             }
             return { ...prev, [channelId]: updated }
           }
@@ -442,11 +517,41 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           type: 'normal',
           status: 'sent',
           reactions: payload.reactions ?? [],
+          mentions: normalized.mentions,
+          attachments: normalized.attachments,
+          replyToId: normalized.replyTo?.id ?? null,
+          replyTo: normalized.replyTo ?? null,
         }
         return { ...prev, [channelId]: [...list, newMsg] }
       })
     },
-    [activeUserId],
+    [activeUserId, queryClient],
+  )
+
+  const applyRemoteDelete = useCallback(
+    (channelId: string, payload: MessageBackendPayload) => {
+      const normalized = normalizeMessage(payload as unknown as Message)
+      // Fijados, DMs e hilos (React Query): sale de los fijados y, si era una respuesta, queda borrada en su hilo
+      markCachedMessageDeleted(queryClient, channelId, normalized)
+      setMessages(prev => {
+        const list = prev[channelId]
+        if (!list) return prev
+        return { ...prev, [channelId]: markDeletedInList(list, normalized) }
+      })
+    },
+    [queryClient],
+  )
+
+  const applyThreadReplyEvent = useCallback(
+    (channelId: string, parentId: string, reply: MessageBackendPayload, thread: ThreadSummary) => {
+      applyThreadReply(queryClient, channelId, parentId, normalizeMessage(reply as unknown as Message), thread)
+      setMessages(prev => {
+        const list = prev[channelId]
+        if (!list) return prev
+        return { ...prev, [channelId]: setThreadSummaryInList(list, parentId, thread) }
+      })
+    },
+    [queryClient],
   )
 
   const failOptimisticMessage = useCallback((channelId: string) => {
@@ -465,9 +570,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // Envío por REST (el normal es por el WebSocket del canal): se muestra al instante y queda enviado o fallido
   const sendMessage = useCallback(
-    (channelId: string, content: string, attachments?: MessageAttachment[]) => {
-      const tempId = addOptimisticMessage(channelId, content, attachments)
-      apiSendMessage(channelId, content, tempId, attachments)
+    (channelId: string, content: string, attachments?: MessageAttachment[], replyTo?: Message | null) => {
+      const tempId = addOptimisticMessage(channelId, content, attachments, replyTo)
+      apiSendMessage(channelId, content, tempId, attachments, replyTo?.id)
         .then(sent => confirmOptimisticMessage(channelId, { ...sent, createdAt: sent.createdAt ?? sent.timestamp }))
         .catch(() => failOptimisticMessage(channelId))
     },
@@ -582,7 +687,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       )
 
       try {
-        await apiDeleteMessage(channelId, messageId)
+        const deleted = await apiDeleteMessage(channelId, messageId)
+        // Borrado deja de estar fijado (por si el MESSAGE_DELETED del socket no llega)
+        syncPinnedMessage(queryClient, channelId, deleted)
       } catch (err) {
         if (previousMessage) {
           const prevMsg = previousMessage
@@ -599,6 +706,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [queryClient]
+  )
+
+  // Fijar: la lógica optimista es de core (historial y fijados en React Query, que usan los DMs); acá solo se
+  // replica en el estado local de los canales
+  const togglePin = useCallback(
+    (channelId: string, message: Message) =>
+      togglePinnedMessage(queryClient, channelId, message, {
+        onPinStateChange: (messageId: string, state: PinState) =>
+          setMessages(prev => {
+            const list = prev[channelId]
+            if (!list) return prev
+            return { ...prev, [channelId]: list.map(m => (m.id === messageId ? { ...m, ...state } : m)) }
+          }),
+      }),
+    [queryClient],
   )
 
   const toggleReaction = useCallback(
@@ -741,7 +863,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const setServerIcon = useCallback(async (serverId: string, icon: UploadableFile | null): Promise<void> => {
     const updated = icon ? await apiUpdateServerIcon(serverId, icon) : await apiRemoveServerIcon(serverId)
     // Solo el ícono: el resto del servidor (canales, categorías) ya está al día en la lista
-    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, iconUrl: updated.iconUrl, icon: updated.icon } : srv)))
+    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, iconUrl: updated.iconUrl } : srv)))
+  }, [])
+
+  const setServerBanner = useCallback(async (serverId: string, banner: UploadableFile | null): Promise<void> => {
+    const updated = banner ? await apiUpdateServerBanner(serverId, banner) : await apiRemoveServerBanner(serverId)
+    // Solo el banner, como el ícono
+    setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, banner: updated.banner } : srv)))
   }, [])
 
   const value = useMemo<DataContextValue>(
@@ -756,6 +884,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       refreshServers,
       createServer,
       setServerIcon,
+      setServerBanner,
       createChannel,
       editChannel,
       deleteChannel,
@@ -769,11 +898,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       editMessage,
       deleteMessage,
       toggleReaction,
+      togglePin,
       addOptimisticMessage,
       confirmOptimisticMessage,
+      applyRemoteUpdate,
+      applyRemoteDelete,
+      applyThreadReplyEvent,
       failOptimisticMessage,
       fetchChannelMessages,
       fetchOlderChannelMessages,
+      loadChannelMessagesUntil,
     }),
     [
       activeUserId,
@@ -786,6 +920,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       refreshServers,
       createServer,
       setServerIcon,
+      setServerBanner,
       createChannel,
       editChannel,
       deleteChannel,
@@ -799,11 +934,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       editMessage,
       deleteMessage,
       toggleReaction,
+      togglePin,
       addOptimisticMessage,
       confirmOptimisticMessage,
+      applyRemoteUpdate,
+      applyRemoteDelete,
+      applyThreadReplyEvent,
       failOptimisticMessage,
       fetchChannelMessages,
       fetchOlderChannelMessages,
+      loadChannelMessagesUntil,
     ],
   )
 

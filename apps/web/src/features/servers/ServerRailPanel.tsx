@@ -1,3 +1,4 @@
+import { notificationBadge, useNotificationsQuery } from '@discordia/core';
 import { useUIStore } from '../../app/uiStore';
 import { ServerRail } from './ServerRail';
 import { selectServer } from './serverActions';
@@ -8,6 +9,7 @@ export function ServerRailPanel() {
   const { servers, isLoadingServers } = useCurrentServer();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const setActiveModal = useUIStore((s) => s.setActiveModal);
+  const { unreadCount } = useNotificationsQuery();
 
   return (
     <ServerRail
@@ -18,6 +20,8 @@ export function ServerRailPanel() {
       onDiscoverServers={() => setActiveModal('join-server')}
       homeBadgeCount={0}
       isLoading={isLoadingServers}
+      onOpenNotifications={() => setActiveModal('notifications')}
+      notificationsBadge={notificationBadge(unreadCount)}
     />
   );
 }

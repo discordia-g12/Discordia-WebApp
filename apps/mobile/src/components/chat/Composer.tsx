@@ -2,6 +2,7 @@ import React from 'react'
 import { Pressable, TextInput, View } from 'react-native'
 import { makeStyles, useTheme } from '../../theme'
 import { Text, noWebOutline } from '../../ui'
+import ReplyQuote from './ReplyQuote'
 
 export interface PendingAttachment {
   uri: string
@@ -26,6 +27,8 @@ interface ComposerProps {
   onAttach?: () => void
   onRemoveAttachment?: () => void
   isUploading?: boolean
+  /** Respondiendo a un mensaje: la cita va arriba de la barra. */
+  replyingTo?: { author: string; text: string; onPress?: () => void; onCancel: () => void } | null
 }
 
 /** Barra de escritura de una línea, entre líneas finas, con "+" a la izquierda y "ENVIAR /" a la derecha. */
@@ -40,6 +43,7 @@ export default function Composer({
   onAttach,
   onRemoveAttachment,
   isUploading = false,
+  replyingTo = null,
 }: ComposerProps) {
   const styles = useStyles()
   const { colors } = useTheme()
@@ -58,6 +62,16 @@ export default function Composer({
 
   return (
     <View>
+      {replyingTo && (
+        <View style={styles.replyBar}>
+          <ReplyQuote
+            author={`respondiendo a ${replyingTo.author}`}
+            text={replyingTo.text}
+            onPress={replyingTo.onPress}
+            onCancel={replyingTo.onCancel}
+          />
+        </View>
+      )}
       {attachment && (
         <View style={styles.attachmentBar}>
           <Text variant="meta" bold numberOfLines={1} style={styles.attachmentName}>
@@ -120,6 +134,13 @@ export default function Composer({
 }
 
 const useStyles = makeStyles(t => ({
+  replyBar: {
+    paddingHorizontal: t.space[4],
+    paddingTop: t.space[2],
+    backgroundColor: t.colors.background,
+    borderTopWidth: t.lines.hairline,
+    borderTopColor: t.colors.lineStrong,
+  },
   attachmentBar: {
     flexDirection: 'row',
     alignItems: 'center',

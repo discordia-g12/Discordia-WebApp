@@ -1,5 +1,12 @@
 import { useEffect } from 'react';
-import { DM_HEADER_COMPACT_ICONS, dmHeaderActions, useAutoMarkChannelRead, type DmHeaderActionId } from '@discordia/core';
+import {
+  DM_HEADER_COMPACT_ICONS,
+  canPinMessages,
+  dmHeaderActions,
+  useAutoMarkChannelRead,
+  usePinnedMessagesQuery,
+  type DmHeaderActionId,
+} from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { useIsMobile } from '../../app/useIsMobile';
 import { usePageVisible } from '../../app/usePageVisible';
@@ -10,7 +17,9 @@ import { useMessageActions } from '../chat/useMessageActions';
 import { CallPanel } from '../calls/CallPanel';
 import { isCallOpen, useCall } from '../calls/callContext';
 import { MessageRequestView } from './RequestCards';
+import { DmMessageSearchModal } from '../search/MessageSearchModal';
 import { useDirectChat } from './useDirectChat';
+import { useChannelNotifications } from '../notifications/useNotificationMenus';
 import { useRelationshipActions } from './useRelationshipActions';
 import styles from './RequestCards.module.css';
 
@@ -29,9 +38,11 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
   const { conversation, profile, actions, user, messages } = chat;
   const isRequest = actions.composer === 'message_request';
   const messageActions = useMessageActions(conversation?.id ?? null);
+  const pinned = usePinnedMessagesQuery(conversation?.id ?? null, { enabled: !isRequest });
   const call = useCall();
   // Pantalla angosta (mobile web): menos íconos, el resto al menú "más"
   const compact = useIsMobile();
+  const notifications = useChannelNotifications(null, conversation?.id);
 
   // Mientras el chat está en pantalla, lo que llega no suma no leídos y se marca leído
   const readingId = !chat.isLoading && !isRequest ? (conversation?.id ?? null) : null;
@@ -119,6 +130,7 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
   return (
     <ChatView
       directChat={{ conversationId: conversation?.id ?? null, user }}
+      notifications={notifications}
       directHeader={{
         layout: (pinned) =>
           dmHeaderActions({
@@ -127,6 +139,7 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
             hasConversation: Boolean(conversation),
             inCallHere: callHere,
             pinned,
+            search: true,
             showProfile: true,
             friendRequestSending: relationship.sendingFriendRequest,
             maxIcons: compact ? DM_HEADER_COMPACT_ICONS : undefined,
@@ -134,6 +147,19 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
         onAction: onHeaderAction,
       }}
       banner={conversation && <CallPanel conversationId={conversation.id} peer={user} />}
+      renderDirectSearch={
+        conversation
+          ? ({ onClose, onJump }) => (
+              <DmMessageSearchModal
+                key="dm-search"
+                conversationId={conversation.id}
+                otherUser={user}
+                onClose={onClose}
+                onJump={onJump}
+              />
+            )
+          : undefined
+      }
       messages={messages.data || []}
       isLoading={messages.isLoading}
       hasOlderMessages={messages.hasOlder}
@@ -150,8 +176,17 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
       writeBlock={actions.composerMessage}
       onSendMessage={chat.send}
       onToggleReaction={messageActions.toggleReaction}
+      onOpenThread={
+        conversation && !isRequest
+          ? (message) => useUIStore.getState().setOpenThread({ channelId: conversation.id, messageId: message.id, serverId: null })
+          : undefined
+      }
       onDeleteMessage={messageActions.deleteMessage}
       onEditMessage={messageActions.editMessage}
+      onPinMessage={messageActions.togglePin}
+      pinnedMessages={pinned.data ?? []}
+      canPinMessages={Boolean(conversation) && canPinMessages({ isDirect: true })}
+      onLoadUntilMessage={messages.loadUntil}
       onOpenUserProfile={onOpenUserProfile}
     />
   );

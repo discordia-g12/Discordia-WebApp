@@ -29,6 +29,14 @@ let lastToastId = 0;
  */
 export type DmTarget = { type: 'chat'; userId: string } | { type: 'friend-request'; requestId: string };
 
+/** Hilo abierto en el panel derecho: de qué canal o DM (`dm-…`) y cuál es el mensaje original. */
+export interface OpenThread {
+  channelId: string;
+  messageId: string;
+  /** null en un DM: se guarda con la preferencia, para limpiarla si se borra el servidor. */
+  serverId: string | null;
+}
+
 interface ConfirmState {
   action: ConfirmAction;
   /** Nombre de lo que se confirma (servidor, canal de voz destino). */
@@ -46,6 +54,8 @@ export interface UIState {
   selectedDm: DmTarget | null;
   appView: AppView;
   isMemberListOpen: boolean;
+  /** Hilo abierto (reemplaza a la lista de miembros). Cambiar de canal, servidor o DM lo cierra. */
+  openThread: OpenThread | null;
   /** Canal de texto o conversación en pantalla (el chat montado): no suma no leídos y se marca al leerlo. */
   readingChannelId: string | null;
 
@@ -68,6 +78,7 @@ export interface UIState {
   setSelectedDm: (target: DmTarget | null) => void;
   setAppView: (view: AppView) => void;
   toggleMemberList: () => void;
+  setOpenThread: (thread: OpenThread | null) => void;
   setReadingChannelId: (id: string | null) => void;
 
   setActiveModal: (modal: Modal) => void;
@@ -100,6 +111,7 @@ export const useUIStore = create<UIState>((set) => ({
   selectedDm: null,
   appView: 'chat',
   isMemberListOpen: true,
+  openThread: null,
   readingChannelId: null,
 
   activeModal: null,
@@ -111,11 +123,17 @@ export const useUIStore = create<UIState>((set) => ({
 
   toast: null,
 
-  setSelectedServerId: (selectedServerId) => set({ selectedServerId }),
-  setSelectedChannelId: (selectedChannelId) => set({ selectedChannelId }),
-  setSelectedDm: (selectedDm) => set({ selectedDm }),
+  // El hilo es de lo que se estaba mirando: cambiar de lugar lo cierra (salvo que sea el mismo canal)
+  setSelectedServerId: (selectedServerId) =>
+    set((s) => ({ selectedServerId, openThread: s.selectedServerId === selectedServerId ? s.openThread : null })),
+  setSelectedChannelId: (selectedChannelId) =>
+    set((s) => ({ selectedChannelId, openThread: s.openThread?.channelId === selectedChannelId ? s.openThread : null })),
+  setSelectedDm: (selectedDm) => set({ selectedDm, openThread: null }),
   setAppView: (appView) => set({ appView }),
-  toggleMemberList: () => set((s) => ({ isMemberListOpen: !s.isMemberListOpen })),
+  // Abrir la lista de miembros cierra el hilo: comparten el panel
+  toggleMemberList: () =>
+    set((s) => (s.openThread ? { openThread: null, isMemberListOpen: true } : { isMemberListOpen: !s.isMemberListOpen })),
+  setOpenThread: (openThread) => set({ openThread }),
   setReadingChannelId: (readingChannelId) => set({ readingChannelId }),
 
   setActiveModal: (activeModal) => set({ activeModal }),

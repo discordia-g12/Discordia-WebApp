@@ -222,7 +222,6 @@ export const SERVERS: Server[] = [
   {
     id: 's1',
     name: 'Indie Developers',
-    icon: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=80',
     iconUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=80',
     banner: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80',
     description: 'Comunidad de creadores independientes, hackers de software y diseñadores web.',
@@ -387,7 +386,6 @@ export const SERVERS: Server[] = [
   {
     id: 's2',
     name: 'Design Hub',
-    icon: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=100&auto=format&fit=crop&q=80',
     iconUrl: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=100&auto=format&fit=crop&q=80',
     banner: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=800&auto=format&fit=crop&q=80',
     description: 'Comunidad dedicada a diseño UI/UX, prototipado Figma y sistemas visuales.',
@@ -453,7 +451,6 @@ export const SERVERS: Server[] = [
   {
     id: 's3',
     name: 'Open Source Hub',
-    icon: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=100&auto=format&fit=crop&q=80',
     iconUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=100&auto=format&fit=crop&q=80',
     banner: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
     description: 'Proyectos colaborativos, repositorios públicos y licencias libres.',
@@ -646,12 +643,9 @@ export const MESSAGES: Record<string, Message[]> = {
       replyToId: 'm-gen-9',
       replyTo: {
         id: 'm-gen-9',
-        channelId: 'ch-general',
         authorId: 'u1',
         author: USERS.u1,
         content: '<@u0> ¿recibiste mi consulta sobre los roles de moderación y el flujo de auditoría?',
-        timestamp: '2026-09-09T09:35:00.000Z',
-        type: 'normal',
       },
       mentions: { users: ['u1'], roles: [], everyone: false },
     },

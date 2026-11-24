@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
   type SetStateAction,
 } from 'react';
-import { encodeMentions, validateAttachmentFile, uploadAttachment, type PickedMention } from '@discordia/core';
+import { encodeMentions, isPinnableMessage, validateAttachmentFile, uploadAttachment, type PickedMention } from '@discordia/core';
 import type { Channel, Message, MessageAttachment, Reaction, Role, User } from '../../types';
 import { showToast, useUIStore } from '../../app/uiStore';
 
@@ -70,7 +70,12 @@ export interface ChatViewStateOptions {
   onToggleReaction?: (messageId: string, emoji: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onEditMessage?: (messageId: string, newContent: string) => void;
-  onPinMessage?: (messageId: string) => void;
+  /** Fija o desfija (usePinMessage de core). Sin esto, el fijado es solo local. */
+  onPinMessage?: (message: Message) => void;
+  /** Fijados que trae el servidor (usePinnedMessagesQuery). Sin esto, salen de los mensajes cargados. */
+  pinnedMessages?: Message[];
+  /** Si el usuario puede fijar acá (canPinMessages de core). Por defecto sí, para el modo local. */
+  canPinMessages?: boolean;
 }
 
 /**
@@ -90,6 +95,8 @@ export function useChatViewState({
   onDeleteMessage,
   onEditMessage,
   onPinMessage,
+  pinnedMessages: serverPinnedMessages,
+  canPinMessages = true,
 }: ChatViewStateOptions) {
   // Inicialización de mensajes locales
   const initialList = useMemo(() => {
@@ -117,7 +124,6 @@ export function useChatViewState({
   // Menús flotantes e interactivos
   const [isEmojiPickerOpen, setIsEmojiPickerOpenRaw] = useState(false);
   const [isPinnedPanelOpen, setIsPinnedPanelOpen] = useState(false);
-  const [isNotificationsMuted, setIsNotificationsMuted] = useState(false);
   const [activeContextMenuMessageId, setActiveContextMenuMessageIdRaw] = useState<string | null>(null);
   const [reactionPickerMessageId, setReactionPickerMessageIdRaw] = useState<string | null>(null);
 
@@ -306,6 +312,8 @@ export function useChatViewState({
       e.preventDefault();
       handleSend();
     } else if (e.key === 'Escape') {
+      // Marcado solo si cerró algo: si no, el Escape le queda al panel del hilo (lo cierra)
+      if (replyingTo || mentionQuery !== null) e.preventDefault();
       setReplyingTo(null);
       setMentionQuery(null);
     }
@@ -408,9 +416,10 @@ export function useChatViewState({
   };
 
   // Fijado de mensaje
+  const canPin = (msg: Message) => canPinMessages && isPinnableMessage(msg);
   const handleTogglePin = (msg: Message) => {
     if (onPinMessage) {
-      onPinMessage(msg.id);
+      onPinMessage(msg);
     } else {
       setLocalMessages((prev) =>
         prev.map((m) => (m.id === msg.id ? { ...m, isPinned: !m.isPinned } : m))
@@ -476,7 +485,8 @@ export function useChatViewState({
   };
 
   // Mensajes fijados
-  const pinnedMessages = useMemo(() => localMessages.filter((m) => m.isPinned), [localMessages]);
+  const localPinnedMessages = useMemo(() => localMessages.filter((m) => m.isPinned), [localMessages]);
+  const pinnedMessages = serverPinnedMessages ?? localPinnedMessages;
 
   return {
     localMessages,
@@ -501,8 +511,6 @@ export function useChatViewState({
     setIsEmojiPickerOpen,
     isPinnedPanelOpen,
     setIsPinnedPanelOpen,
-    isNotificationsMuted,
-    setIsNotificationsMuted,
     activeContextMenuMessageId,
     setActiveContextMenuMessageId,
     reactionPickerMessageId,
@@ -524,6 +532,8 @@ export function useChatViewState({
     handleDeleteMessage,
     promptDeleteMessage,
     handleTogglePin,
+    canPin,
+    canPinMessages,
     handleCopyText,
     handleAttachMock,
     handleAttachClick,

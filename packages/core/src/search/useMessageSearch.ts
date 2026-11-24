@@ -3,7 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSession } from '../auth/session';
 import { ApiError } from '../api/errors';
 import type { Message } from '../types';
-import { searchServerMessages } from './api';
+import { searchChannelMessages, searchServerMessages } from './api';
 import { MESSAGE_SEARCH_MAX_LENGTH, MESSAGE_SEARCH_PAGE_SIZE } from './types';
 
 /** Lo que se busca: el texto (ya recortado) y el autor elegido. */
@@ -27,19 +27,33 @@ export function messageSearchErrorMessage(error: unknown): string {
   return 'No se pudo completar la búsqueda.';
 }
 
-export function messageSearchQueryKey(serverId: string | null, filters: MessageSearchFilters | null) {
-  return ['message-search', serverId, filters?.query ?? null, filters?.authorId ?? null] as const;
+/** Dónde se busca: en todos los canales visibles de un servidor, o en un solo canal o DM. */
+export type MessageSearchScope = { serverId: string } | { channelId: string };
+
+export function messageSearchQueryKey(scope: MessageSearchScope | null, filters: MessageSearchFilters | null) {
+  const target = !scope ? null : 'serverId' in scope ? `server:${scope.serverId}` : `channel:${scope.channelId}`;
+  return ['message-search', target, filters?.query ?? null, filters?.authorId ?? null] as const;
 }
 
 export interface UseMessageSearchOptions {
   limit?: number;
 }
 
-/**
- * Búsqueda de mensajes de un servidor. El texto y el autor se editan libremente y la búsqueda corre recién
- * al llamar a `submit` (no en cada tecla). Pagina con cursor: `loadMore` trae los más viejos.
- */
+/** Búsqueda de mensajes de un servidor (todos los canales que el usuario ve). */
 export function useMessageSearch(serverId: string | null, options: UseMessageSearchOptions = {}) {
+  return useScopedMessageSearch(serverId ? { serverId } : null, options);
+}
+
+/** Búsqueda dentro de un solo canal o DM (`dm-…`): la de la conversación abierta. */
+export function useChannelMessageSearch(channelId: string | null, options: UseMessageSearchOptions = {}) {
+  return useScopedMessageSearch(channelId ? { channelId } : null, options);
+}
+
+/**
+ * Búsqueda de mensajes en un alcance. El texto y el autor se editan libremente y la búsqueda corre recién al
+ * llamar a `submit` (no en cada tecla). Pagina con cursor: `loadMore` trae los más viejos.
+ */
+function useScopedMessageSearch(scope: MessageSearchScope | null, options: UseMessageSearchOptions) {
   const { limit = MESSAGE_SEARCH_PAGE_SIZE } = options;
   const status = useSession((s) => s.status);
   const [query, setQuery] = useState('');
@@ -60,17 +74,16 @@ export function useMessageSearch(serverId: string | null, options: UseMessageSea
   }, []);
 
   const search = useInfiniteQuery({
-    queryKey: messageSearchQueryKey(serverId, submitted),
-    queryFn: ({ pageParam }) =>
-      searchServerMessages(serverId as string, {
-        query: submitted?.query,
-        authorId: submitted?.authorId ?? undefined,
-        before: pageParam,
-        limit,
-      }),
+    queryKey: messageSearchQueryKey(scope, submitted),
+    queryFn: ({ pageParam }) => {
+      const page = { query: submitted?.query, authorId: submitted?.authorId ?? undefined, before: pageParam, limit };
+      return scope && 'channelId' in scope
+        ? searchChannelMessages(scope.channelId, page)
+        : searchServerMessages((scope as { serverId: string }).serverId, page);
+    },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => (lastPage.hasMore && lastPage.nextCursor ? lastPage.nextCursor : undefined),
-    enabled: status === 'authenticated' && Boolean(serverId) && submitted !== null,
+    enabled: status === 'authenticated' && scope !== null && submitted !== null,
     // Un 400 no se arregla reintentando
     retry: (failureCount, error) => !(error instanceof ApiError && error.status < 500) && failureCount < 2,
   });

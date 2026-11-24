@@ -12,6 +12,8 @@ import { useIsMobile } from './app/useIsMobile';
 import { DesktopLayout } from './app/DesktopLayout';
 import { MobileLayout } from './app/MobileLayout';
 import { useEnsureChannelSelected } from './features/servers/useCurrentServer';
+import { useInactivity } from './app/useInactivity';
+import { usePushNavigation } from './features/notifications/usePushNavigation';
 
 /**
  * Raíz de la web: arranca la sesión y, con sesión, monta lo que vive mientras dura (voz, chat en
@@ -31,6 +33,9 @@ export default function App() {
   useEffect(() => {
     if (profile) syncFromProfile(profile);
   }, [profile, syncFromProfile]);
+
+  // Sin actividad, quien eligió "Conectado" se ve "Ausente"
+  useInactivity(status === 'authenticated');
 
   // Parseo de link de invitación desde URL
   useEffect(() => {
@@ -75,6 +80,7 @@ export default function App() {
 function AuthenticatedApp() {
   const isMobile = useIsMobile();
   useEnsureChannelSelected();
+  usePushNavigation();
 
   // Shell móvil para pantallas menores a 768px
   return isMobile ? <MobileLayout /> : <DesktopLayout />;

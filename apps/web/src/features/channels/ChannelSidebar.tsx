@@ -4,8 +4,9 @@ import { MicOff, HeadphoneOff, Lock, VolumeX } from 'lucide-react';
 import { isLocalCategoryId, isVoiceChannelLocked } from '@discordia/core';
 import type { ServerOwnershipTransfer } from '@discordia/core';
 import type { Channel, Server, User } from '../../types';
-import { ActionLink, SectionLabel, Skeleton, SquareAvatar } from '../../ui';
+import { ActionLink, SectionLabel, ServerIcon, Skeleton, SquareAvatar, useContextMenuTrigger } from '../../ui';
 import { VoiceParticipantMenu } from '../voice/VoiceParticipantMenu';
+import { useNotificationLevelMenu } from '../notifications/useNotificationMenus';
 import { useChannelDragAndDrop, type DropTarget } from './useChannelDragAndDrop';
 import { channelUnreadDescription, formatUnreadCount } from '../servers/unread';
 import styles from './ChannelSidebar.module.css';
@@ -128,6 +129,7 @@ export function ChannelSidebar({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [participantMenu, setParticipantMenu] = useState<{ user: User; x: number; y: number } | null>(null);
   const closeParticipantMenu = useCallback(() => setParticipantMenu(null), []);
+  const levelMenu = useNotificationLevelMenu();
   const dnd = useChannelDragAndDrop(server, onMoveChannel, onMoveCategory);
   const isOwner = server.ownerId === currentUser.id;
   const isTransferRecipient =
@@ -161,6 +163,10 @@ export function ChannelSidebar({
 
   return (
     <nav className={styles.sidebar} aria-label={`Canales de ${server.name}`}>
+      <div className={styles.identity}>
+        <ServerIcon server={server} size="sm" />
+        <span className={styles.identityName}>{server.name}</span>
+      </div>
       <div className={styles.top}>
         {onInvitePeople && (
           <button type="button" className={styles.invite} onClick={onInvitePeople}>
@@ -258,6 +264,12 @@ export function ChannelSidebar({
                             if (channel.type === 'voice') onJoinVoiceChannel?.(channel.id);
                           }}
                           onEdit={onEditChannel ? () => onEditChannel(channel) : undefined}
+                          onOpenMenu={
+                            // Los de voz no tienen mensajes: no hay avisos que elegir
+                            channel.type === 'voice'
+                              ? undefined
+                              : levelMenu.open({ scopeType: 'channel', serverId: server.id, channelId: channel.id }, `#${channel.name}`)
+                          }
                         />
                         {channel.type === 'voice' && (voiceParticipants[channel.id]?.length ?? 0) > 0 && (
                           <ul className={styles.participants} aria-label={`Conectados a ${channel.name}`}>
@@ -307,6 +319,8 @@ export function ChannelSidebar({
           onClose={closeParticipantMenu}
         />
       )}
+
+      {levelMenu.menu}
     </nav>
   );
 }
@@ -320,6 +334,7 @@ function ChannelRow({
   locked,
   onSelect,
   onEdit,
+  onOpenMenu,
 }: {
   channel: Channel;
   active: boolean;
@@ -329,16 +344,22 @@ function ChannelRow({
   locked: boolean;
   onSelect: () => void;
   onEdit?: () => void;
+  /** Click derecho, long-press o tecla Menú, con la posición: el menú de avisos del canal. */
+  onOpenMenu?: (x: number, y: number) => void;
 }) {
   const unread = channel.unreadCount ?? 0;
   const mentions = channel.mentions ?? 0;
   const unreadDescription = channelUnreadDescription(channel);
+  const menuTrigger = useContextMenuTrigger(onOpenMenu);
   return (
-    <div className={`${styles.channel} ${active ? styles.active : ''} ${unread > 0 ? styles.unread : ''}`}>
+    <div
+      className={`${styles.channel} ${active ? styles.active : ''} ${unread > 0 ? styles.unread : ''}`}
+    >
       <button
         type="button"
         className={styles.channelButton}
         onClick={onSelect}
+        {...menuTrigger}
         disabled={locked}
         title={locked ? 'No tenés permiso para conectarte a este canal' : undefined}
         aria-label={

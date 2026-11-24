@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { useUIStore } from '../../../app/uiStore';
 import { dmActions, dmHeaderActions } from '@discordia/core';
 import { ChatView } from '../ChatView';
@@ -66,7 +66,9 @@ describe('ChatView (rediseño)', () => {
     const onToggleReaction = vi.fn();
     render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onToggleReaction={onToggleReaction} />);
 
-    expect(screen.getByText('@Mar q rindo temprano tecno')).toBeTruthy();
+    // Tocar la cita lleva al mensaje citado y lo marca
+    fireEvent.click(screen.getByRole('button', { name: 'Ir al mensaje citado: @Mar: q rindo temprano tecno' }));
+    expect(document.querySelector('[data-message-id="m2"]')!.className).toContain('highlighted');
     const reaction = screen.getByRole('button', { name: '❤️ 2' });
     expect(reaction.getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(reaction);
@@ -87,6 +89,13 @@ describe('ChatView (rediseño)', () => {
 
     expect(onSendMessage).toHaveBeenCalledWith('dale', undefined, 'm1');
     expect(screen.queryByText(/respondiendo a/)).toBeNull();
+  });
+
+  it('respondiendo, tocar la cita de la barra lleva al mensaje citado', () => {
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onSendMessage={vi.fn()} />);
+    fireEvent.click(within(screen.getByText('m!skip').closest('li')!).getByRole('button', { name: '_responder' }));
+    fireEvent.click(screen.getByRole('button', { name: /Ir al mensaje citado: respondiendo a @lbars/ }));
+    expect(document.querySelector('[data-message-id="m1"]')!.className).toContain('highlighted');
   });
 
   it('con mensajes anteriores sin cargar, arriba ofrece cargarlos en vez del comienzo del canal', () => {
@@ -228,8 +237,17 @@ describe('ChatView (rediseño)', () => {
 
   it('los íconos del encabezado alternan la lista de miembros, los fijados y las notificaciones', () => {
     const onToggleMemberList = vi.fn();
+    const onOpen = vi.fn();
     render(
-      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" isMemberListOpen onToggleMemberList={onToggleMemberList} />
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        isMemberListOpen
+        onToggleMemberList={onToggleMemberList}
+        notifications={{ off: false, onOpen }}
+      />
     );
 
     const members = screen.getByRole('button', { name: 'Lista de miembros' });
@@ -242,9 +260,113 @@ describe('ChatView (rediseño)', () => {
     expect(pins.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('dialog', { name: 'Mensajes fijados' }).textContent).toContain('todavía no hay mensajes fijados');
 
-    const bell = screen.getByRole('button', { name: 'Silenciar notificaciones' });
+    // La campana abre el menú de nivel (useChannelNotifications) con el nombre del canal
+    const bell = screen.getByRole('button', { name: 'Notificaciones' });
+    expect(bell.getAttribute('aria-haspopup')).toBe('menu');
     fireEvent.click(bell);
-    expect(bell.getAttribute('aria-pressed')).toBe('true');
+    expect(onOpen).toHaveBeenCalledWith(expect.stringMatching(/^#/), expect.any(Number), expect.any(Number));
+  });
+
+  it('fija desde el menú "más" con onPinMessage, y sin permiso no ofrece la opción', () => {
+    const onPinMessage = vi.fn();
+    const { rerender } = render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onPinMessage={onPinMessage} pinnedMessages={[]} canPinMessages />
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: '_más' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'fijar mensaje' }));
+    expect(onPinMessage).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }));
+
+    rerender(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" onPinMessage={onPinMessage} pinnedMessages={[]} canPinMessages={false} />
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: '_más' })[0]);
+    expect(screen.queryByRole('button', { name: /fijar mensaje/ })).toBeNull();
+  });
+
+  it('el panel de fijados muestra los del servidor y permite desfijar si tiene permiso', () => {
+    const onPinMessage = vi.fn();
+    const pinned = msg('old', 'u2', 'un fijado viejo que no está cargado', '2025-01-01T10:00:00', { isPinned: true });
+    const renderWith = (canPinMessages: boolean) => (
+      <ChatView
+        channel={channel}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        onPinMessage={onPinMessage}
+        pinnedMessages={[pinned]}
+        canPinMessages={canPinMessages}
+      />
+    );
+    const { rerender } = render(renderWith(true));
+
+    // El badge cuenta los fijados del servidor, no los de los mensajes cargados
+    fireEvent.click(screen.getByRole('button', { name: 'Mensajes fijados (1)' }));
+    const panel = screen.getByRole('dialog', { name: 'Mensajes fijados' });
+    expect(panel.textContent).toContain('un fijado viejo que no está cargado');
+    fireEvent.click(within(panel).getByRole('button', { name: '_desfijar' }));
+    expect(onPinMessage).toHaveBeenCalledWith(pinned);
+
+    rerender(renderWith(false));
+    expect(within(screen.getByRole('dialog', { name: 'Mensajes fijados' })).queryByRole('button', { name: '_desfijar' })).toBeNull();
+  });
+
+  it('tocar un fijado cierra el panel y marca ese mensaje', async () => {
+    const pinned = { ...MESSAGES[0], isPinned: true };
+    render(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" pinnedMessages={[pinned]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mensajes fijados (1)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Ir al mensaje de lbars' }));
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Mensajes fijados' })).toBeNull();
+    const row = document.querySelector('[data-message-id="m1"]')!;
+    expect(row.className).toContain('highlighted');
+    expect(document.querySelector('[data-message-id="m2"]')!.className).not.toContain('highlighted');
+  });
+
+  it('para ir a un fijado que no está cargado pide las páginas anteriores', async () => {
+    const old = msg('m0', 'u2', 'muy viejo', '2025-10-01T10:00:00', { isPinned: true });
+    const view = (messages: Message[]) => (
+      <ChatView
+        channel={channel}
+        messages={messages}
+        users={users}
+        currentUserId="me"
+        pinnedMessages={[old]}
+        onLoadUntilMessage={onLoadUntilMessage}
+      />
+    );
+    // Lo que hace loadUntil: el historial vuelve con la página anterior arriba
+    const onLoadUntilMessage = vi.fn(async () => {
+      rerender(view([old, ...MESSAGES]));
+      return true;
+    });
+    const { rerender } = render(view(MESSAGES));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mensajes fijados (1)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Ir al mensaje de lbars' }));
+    });
+
+    expect(onLoadUntilMessage).toHaveBeenCalledWith('m0');
+    expect(document.querySelector('[data-message-id="m0"]')!.className).toContain('highlighted');
+  });
+
+  it('si el fijado no aparece en el historial no marca nada', async () => {
+    const onLoadUntilMessage = vi.fn().mockResolvedValue(false);
+    const gone = msg('gone', 'u2', 'ya no está', '2025-01-01T10:00:00', { isPinned: true });
+    render(
+      <ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" pinnedMessages={[gone]} onLoadUntilMessage={onLoadUntilMessage} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mensajes fijados (1)' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Ir al mensaje de lbars' }));
+    });
+
+    expect(onLoadUntilMessage).toHaveBeenCalledWith('gone');
+    expect(document.querySelector('[class*="highlighted"]')).toBeNull();
   });
 
   it('el ícono de búsqueda abre la búsqueda de mensajes, y sin onOpenSearch no aparece', () => {
@@ -258,6 +380,48 @@ describe('ChatView (rediseño)', () => {
 
     rerender(<ChatView channel={channel} messages={MESSAGES} users={users} currentUserId="me" />);
     expect(screen.queryByRole('button', { name: 'Buscar mensajes' })).toBeNull();
+  });
+
+  it('en un DM, buscar abre la búsqueda de la conversación y elegir un resultado va a ese mensaje', async () => {
+    const actions = dmActions({ relationship: 'friend', conversation: { id: 'dm-1', status: 'accepted', requestedBy: 'u2', otherUserId: 'u2', unreadCount: 0 } });
+    const onAction = vi.fn();
+    render(
+      <ChatView
+        directChat={{ conversationId: 'dm-1', user: { ...users.u2, status: 'online' } }}
+        directHeader={{
+          layout: (pinned) => dmHeaderActions({ name: 'lbars', actions, hasConversation: true, pinned, search: true }),
+          onAction,
+        }}
+        messages={MESSAGES}
+        users={users}
+        currentUserId="me"
+        renderDirectSearch={({ onClose, onJump }) => (
+          <div role="dialog" aria-label="Buscar en el DM">
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onJump('m1');
+              }}
+            >
+              resultado
+            </button>
+          </div>
+        )}
+      />
+    );
+
+    const header = within(screen.getByRole('navigation', { name: 'Acciones del chat' }));
+    fireEvent.click(header.getByRole('button', { name: 'Buscar mensajes con lbars' }));
+    // La resuelve la vista, no onAction
+    expect(onAction).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('dialog', { name: 'Buscar en el DM' })).getByRole('button', { name: 'resultado' }));
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Buscar en el DM' })).toBeNull();
+    expect(document.querySelector('[data-message-id="m1"]')!.className).toContain('highlighted');
   });
 
   it('en un DM el encabezado tiene íconos (dmHeaderActions) y el menú "más", sin lista de miembros', () => {
@@ -489,4 +653,56 @@ describe('ChatView (rediseño)', () => {
     fireEvent.click(catBtn);
     expect(screen.getByText('Caritas y Emociones')).toBeTruthy();
   });
+
+  describe('aviso de que alguien se unió', () => {
+    const join = (reactions: Message['reactions'] = []) =>
+      msg('j1', 'u2', '', '2025-10-21T17:00:00', {
+        type: 'system',
+        system: { event: 'member_join', userId: 'u2' },
+        reactions,
+      });
+
+    it('dice quién se unió con su nombre actual y saludar reacciona con 👋', () => {
+      const onToggleReaction = vi.fn();
+      render(<ChatView channel={channel} messages={[join()]} users={users} currentUserId="me" onToggleReaction={onToggleReaction} />);
+
+      const row = document.querySelector('[data-message-id="j1"]')!;
+      expect(row.textContent).toContain('se unió lbars, _saludalo');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Saludar a lbars' }));
+      expect(onToggleReaction).toHaveBeenCalledWith('j1', '👋');
+    });
+
+    it('ya saludado dice "saludaste" y cuenta los saludos', () => {
+      render(
+        <ChatView
+          channel={channel}
+          messages={[join([{ emoji: '👋', count: 2, users: ['me', 'u3'] }])]}
+          users={users}
+          currentUserId="me"
+        />
+      );
+
+      const row = document.querySelector('[data-message-id="j1"]')!;
+      expect(row.textContent).toContain('saludaste');
+      expect(row.textContent).toContain('👋 2');
+      expect(screen.queryByRole('button', { name: 'Saludar a lbars' })).toBeNull();
+    });
+
+    it('quien se unió ve la bienvenida, no se saluda a sí mismo', () => {
+      render(<ChatView channel={channel} messages={[join()]} users={users} currentUserId="u2" />);
+
+      const row = document.querySelector('[data-message-id="j1"]')!;
+      expect(row.textContent).toContain('te uniste al servidor. ¡te damos la bienvenida!');
+      expect(screen.queryByRole('button', { name: /^Saludar/ })).toBeNull();
+    });
+
+    it('sin permiso de reaccionar, "saludalo" es texto', () => {
+      render(<ChatView channel={channel} messages={[join()]} users={users} currentUserId="me" canAddReactions={false} />);
+
+      expect(document.querySelector('[data-message-id="j1"]')!.textContent).toContain('se unió lbars, saludalo');
+      expect(screen.queryByRole('button', { name: 'Saludar a lbars' })).toBeNull();
+    });
+  });
 });
+

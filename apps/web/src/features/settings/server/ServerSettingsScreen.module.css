@@ -80,6 +80,11 @@
   overflow: hidden;
 }
 
+/* La franja como en la barra (sin la etiqueta flotante: el contenedor es inert) */
+.stripPreview {
+  flex-shrink: 0;
+}
+
 .bannerImage {
   display: block;
   width: 100%;

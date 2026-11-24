@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { View } from 'react-native'
+import { Image, View } from 'react-native'
 import {
   canSeeSettingsSection,
   memberActionsIn,
+  serverBannerErrorMessage,
   serverIconErrorMessage,
   useRolesAdmin,
   useServerBansAdmin,
@@ -10,8 +11,8 @@ import {
 } from '@discordia/core'
 import { useData, useUI } from '../../../providers/AppProviders'
 import { makeStyles } from '../../../theme'
-import { ActionLink, ServerStrip, SquareAvatar, Text, UnderlineInput } from '../../../ui'
-import { pickSquareImage, toUploadFile } from '../../../utils/images'
+import { ActionLink, ServerIcon, ServerStrip, Text, UnderlineInput } from '../../../ui'
+import { pickBannerImage, pickSquareImage, toUploadFile } from '../../../utils/images'
 import ConfirmModal from '../../shared/ConfirmModal'
 import type { Server } from '../../../types'
 import { SettingsCell, SettingsScreen, type SettingsSection } from '../SettingsScreen'
@@ -117,22 +118,23 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
       {section === 'overview' && (
         <>
           <IconCell server={server} index={0} />
+          <BannerCell server={server} index={1} />
           {/* Sin PATCH /servers/{id} en el backend: nombre y descripción todavía no se guardan */}
-          <SettingsCell title="Nombre y descripción" soon index={1}>
+          <SettingsCell title="Nombre y descripción" soon index={2}>
             <UnderlineInput label="nombre" value={server.name} disabled />
             <UnderlineInput label="descripción" value={server.description ?? ''} placeholder="de qué se trata" disabled />
           </SettingsCell>
-          <SettingsCell title="Números" index={2}>
+          <SettingsCell title="Números" index={3}>
             <View style={styles.numbers}>
               <Figure label="miembros" value={members.total || server.memberCount || 0} />
               <Figure label="canales" value={channels.length} />
               <Figure label="roles" value={roles.roles.length} />
             </View>
           </SettingsCell>
-          <SettingsCell title="Actividad del servidor" index={3}>
+          <SettingsCell title="Actividad del servidor" index={4}>
             <ServerActivityMetrics serverId={server.id} serverName={server.name} />
           </SettingsCell>
-          <SettingsCell title="Crecimiento de miembros" index={4}>
+          <SettingsCell title="Crecimiento de miembros" index={5}>
             <MemberGrowthChart serverId={server.id} />
           </SettingsCell>
         </>
@@ -172,7 +174,7 @@ function IconCell({ server, index }: { server: Server; index: number }) {
   const { showToast } = useUI()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const iconUrl = server.iconUrl || server.icon || null
+  const iconUrl = server.iconUrl || null
 
   const run = async (icon: Parameters<typeof setServerIcon>[1], done: string) => {
     setBusy(true)
@@ -200,7 +202,7 @@ function IconCell({ server, index }: { server: Server; index: number }) {
   return (
     <SettingsCell title="Ícono" index={index}>
       <View style={styles.iconRow}>
-        <SquareAvatar user={{ username: '', displayName: server.name, avatar: iconUrl }} size="lg" />
+        <ServerIcon server={server} size="lg" label={server.name} />
         <ActionLink onPress={pick} disabled={busy}>
           {busy ? 'subiendo…' : 'cambiar ícono'}
         </ActionLink>
@@ -212,6 +214,71 @@ function IconCell({ server, index }: { server: Server; index: number }) {
       </View>
       <Text variant="meta" tone={error ? 'default' : 'muted'} bold={!!error}>
         / {error ?? 'JPEG, PNG o WebP, hasta 5 MB. Se guarda al elegirlo.'}
+      </Text>
+    </SettingsCell>
+  )
+}
+
+/**
+ * Banner del servidor: el fondo de su franja en la tira (el ícono va encima). Mismo flujo que el ícono: se
+ * guarda apenas se elige (PUT /servers/{id}/banner) y Server-Roles lo recorta al centro en 16:9.
+ */
+function BannerCell({ server, index }: { server: Server; index: number }) {
+  const styles = useStyles()
+  const { setServerBanner } = useData()
+  const { showToast } = useUI()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const banner = server.banner || null
+
+  const run = async (file: Parameters<typeof setServerBanner>[1], done: string) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await setServerBanner(server.id, file)
+      showToast(done, 'success')
+    } catch (err) {
+      setError(serverBannerErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const pick = async () => {
+    const picked = await pickBannerImage('banner')
+    if (!picked) return
+    if ('error' in picked) {
+      setError(picked.error)
+      return
+    }
+    await run(await toUploadFile(picked.image), 'Banner actualizado')
+  }
+
+  return (
+    <SettingsCell title="Banner" index={index}>
+      <View style={styles.bannerPreview}>
+        {banner ? (
+          <Image source={{ uri: banner }} style={styles.bannerImage} accessibilityRole="image" accessibilityLabel={`Banner de ${server.name}`} />
+        ) : (
+          <Text variant="meta" tone="muted">
+            sin banner
+          </Text>
+        )}
+      </View>
+      <View style={styles.iconRow}>
+        {/* Cómo queda en la tira de servidores */}
+        <ServerStrip server={server} />
+        <ActionLink onPress={pick} disabled={busy}>
+          {busy ? 'subiendo…' : 'cambiar banner'}
+        </ActionLink>
+        {banner && (
+          <ActionLink onPress={() => run(null, 'Banner quitado')} disabled={busy}>
+            quitar banner
+          </ActionLink>
+        )}
+      </View>
+      <Text variant="meta" tone={error ? 'default' : 'muted'} bold={!!error}>
+        / {error ?? 'JPEG, PNG o WebP, hasta 5 MB. Se guarda al elegirlo y se recorta al centro en 16:9.'}
       </Text>
     </SettingsCell>
   )
@@ -233,6 +300,14 @@ const useStyles = makeStyles(t => ({
   identity: { flexDirection: 'row', alignItems: 'center', gap: t.space[3] },
   flex: { flex: 1 },
   iconRow: { flexDirection: 'row', alignItems: 'flex-end', flexWrap: 'wrap', gap: t.space[3] },
+  bannerPreview: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: t.colors.line,
+  },
+  bannerImage: { width: '100%', height: '100%' },
   numbers: { flexDirection: 'row', gap: t.space[6] },
   number: { gap: 2 },
 }))

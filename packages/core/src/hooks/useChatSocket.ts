@@ -5,12 +5,16 @@ import {
   type ChatRemovalReason,
   type ChatSocketConnection,
   type ChatSocketStatus,
+  type ThreadReplyEvent,
 } from '../realtime/chatSocket';
 import type { Message, MessageAttachment, MessageBackendPayload } from '../types';
 import { normalizeMessage } from '../api/messages';
 import {
   appendMessage,
-  updateCachedMessages,
+  applyThreadReply,
+  markCachedMessageDeleted,
+  mergeCachedMessage,
+  pinnedMessagesQueryKey,
   messagesQueryKey,
   type MessagePages,
 } from './messageCache';
@@ -22,6 +26,8 @@ export interface UseChatSocketOptions {
   /** Último mensaje que la app ya tiene; el servidor reenvía los posteriores al (re)conectar. */
   lastMessageIdSeen?: string;
   onMessage: (message: MessageBackendPayload) => void;
+  /** Una respuesta nueva en un hilo de este canal. */
+  onThreadReply?: (event: ThreadReplyEvent) => void;
   /** Un mensaje existente fue editado en este canal. */
   onMessageUpdated?: (message: MessageBackendPayload) => void;
   /** Un mensaje existente fue eliminado en este canal. */
@@ -42,7 +48,7 @@ export interface UseChatSocketResult {
   /** Distinto de null si lo sacaron del servidor: la conexión quedó cerrada para siempre. */
   removedReason: ChatRemovalReason | null;
   /** Envía un mensaje; rechaza si no hay conexión (espera si está conectando). */
-  sendMessage: (content: string, attachments?: MessageAttachment[]) => Promise<void>;
+  sendMessage: (content: string, attachments?: MessageAttachment[], replyToId?: string) => Promise<void>;
   /** Reconecta ya, sin esperar el backoff. */
   reconnect: () => void;
 }
@@ -56,6 +62,7 @@ export function useChatSocket({
   userId,
   lastMessageIdSeen,
   onMessage,
+  onThreadReply,
   onMessageUpdated,
   onMessageDeleted,
   onError,
@@ -68,8 +75,8 @@ export function useChatSocket({
   const connectionRef = useRef<ChatSocketConnection | null>(null);
 
   // Callbacks y último id en refs: cambiarlos no debe reconectar
-  const handlersRef = useRef({ onMessage, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved });
-  handlersRef.current = { onMessage, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved };
+  const handlersRef = useRef({ onMessage, onThreadReply, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved });
+  handlersRef.current = { onMessage, onThreadReply, onMessageUpdated, onMessageDeleted, onError, onReconnect, onRemoved };
   const lastMessageIdRef = useRef(lastMessageIdSeen);
   lastMessageIdRef.current = lastMessageIdSeen;
 
@@ -83,6 +90,7 @@ export function useChatSocket({
       channelId,
       {
         onMessage: (message) => handlersRef.current.onMessage(message),
+        onThreadReply: (event) => handlersRef.current.onThreadReply?.(event),
         onMessageUpdated: (message) => handlersRef.current.onMessageUpdated?.(message),
         onMessageDeleted: (message) => handlersRef.current.onMessageDeleted?.(message),
         onError: handlersRef.current.onError
@@ -107,10 +115,10 @@ export function useChatSocket({
   }, [channelId, userId]);
 
   const sendMessage = useCallback(
-    async (content: string, attachments?: MessageAttachment[]) => {
+    async (content: string, attachments?: MessageAttachment[], replyToId?: string) => {
       const connection = connectionRef.current;
       if (!connection) throw new Error('WebSocket not initialized');
-      await connection.send(content, userId, attachments);
+      await connection.send(content, userId, attachments, replyToId);
     },
     [userId]
   );
@@ -154,29 +162,24 @@ export function useChatWebSocket(
         appendMessage(old, normalizeMessage(data as unknown as Message))
       );
     },
-    onMessageUpdated: (data) => {
-      const normalized = normalizeMessage(data as unknown as Message);
+    onThreadReply: ({ parentId, reply, thread }) => {
       if (channelId) {
-        updateCachedMessages(queryClient, channelId, (list) =>
-          list.map((m) => (m.id === normalized.id ? { ...m, ...normalized } : m))
-        );
+        applyThreadReply(queryClient, channelId, parentId, normalizeMessage(reply as unknown as Message), thread);
       }
+    },
+    onMessageUpdated: (data) => {
+      // Edición, reacción o fijado: actualiza el historial y la lista de fijados
+      if (channelId) mergeCachedMessage(queryClient, channelId, normalizeMessage(data as unknown as Message));
     },
     onMessageDeleted: (data) => {
-      const normalized = normalizeMessage(data as unknown as Message);
-      if (channelId) {
-        updateCachedMessages(queryClient, channelId, (list) =>
-          list.map((m) =>
-            m.id === normalized.id
-              ? { ...m, ...normalized, type: 'deleted' as const, content: '', attachments: [] }
-              : m
-          )
-        );
-      }
+      if (channelId) markCachedMessageDeleted(queryClient, channelId, normalizeMessage(data as unknown as Message));
     },
     onReconnect: () => {
-      // Reconexión: los mensajes enviados durante el corte no llegaron por el socket
+      // Reconexión: los mensajes enviados durante el corte no llegaron por el socket, ni los fijados de mensajes viejos
       queryClient.invalidateQueries({ queryKey: ['messages', channelId] });
+      queryClient.invalidateQueries({ queryKey: pinnedMessagesQueryKey(channelId) });
+      // Las respuestas de los hilos abiertos tampoco (la reconexión del canal no las repone)
+      queryClient.invalidateQueries({ queryKey: ['thread', channelId] });
     },
     onRemoved: (reason) => {
       // Ya no es miembro: la lista de servidores tiene que dejar de mostrarlo

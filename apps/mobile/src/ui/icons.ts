@@ -3,6 +3,7 @@ import {
   CircleUser,
   Phone,
   Pin,
+  Search,
   ShieldOff,
   UserCheck,
   UserMinus,
@@ -19,6 +20,7 @@ import type { DmHeaderIcon } from '@discordia/core'
 export const ACTION_ICONS: Record<DmHeaderIcon, LucideIcon> = {
   phone: Phone,
   pin: Pin,
+  search: Search,
   'user-plus': UserPlus,
   'user-check': UserCheck,
   'user-x': UserX,

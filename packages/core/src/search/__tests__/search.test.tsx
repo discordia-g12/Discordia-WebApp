@@ -4,8 +4,14 @@ import type { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { configureClient } from '../../api/client';
 import { ApiError } from '../../api/errors';
-import { searchServerMessages } from '../api';
-import { canSearchMessages, messageSearchErrorMessage, useMessageSearch } from '../useMessageSearch';
+import { searchChannelMessages, searchServerMessages } from '../api';
+import {
+  canSearchMessages,
+  messageSearchErrorMessage,
+  messageSearchQueryKey,
+  useChannelMessageSearch,
+  useMessageSearch,
+} from '../useMessageSearch';
 import { MESSAGE_SEARCH_MAX_LENGTH } from '../types';
 
 vi.mock('../../auth/session', () => ({
@@ -64,6 +70,27 @@ describe('searchServerMessages', () => {
 
     expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:8000/api/v1/chat/servers/srv-1/messages/search?authorId=auth0%7Cana');
     expect(page).toEqual({ messages: [], hasMore: false, nextCursor: null });
+  });
+});
+
+describe('searchChannelMessages', () => {
+  it('busca dentro de un DM con los mismos filtros', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ messages: [message('m1', 'hola')], hasMore: false, nextCursor: null }));
+    globalThis.fetch = fetchMock;
+
+    const page = await searchChannelMessages('dm-abc', { query: 'hola', authorId: 'auth0|ana', limit: 25 });
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'http://localhost:8000/api/v1/chat/channels/dm-abc/messages/search?q=hola&authorId=auth0%7Cana&limit=25'
+    );
+    expect(page.messages[0].id).toBe('m1');
+  });
+});
+
+describe('messageSearchQueryKey', () => {
+  it('no mezcla la caché de un servidor con la de un canal del mismo id', () => {
+    const filters = { query: 'x', authorId: null };
+    expect(messageSearchQueryKey({ serverId: 'a' }, filters)).not.toEqual(messageSearchQueryKey({ channelId: 'a' }, filters));
   });
 });
 
@@ -163,4 +190,28 @@ describe('useMessageSearch', () => {
     expect(result.current.submitted).toBeNull();
     expect(result.current.canSubmit).toBe(false);
   });
+
+  it('useChannelMessageSearch busca en el canal o DM, no en el servidor', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ messages: [], hasMore: false, nextCursor: null }));
+    globalThis.fetch = fetchMock;
+
+    const { result } = renderHook(() => useChannelMessageSearch('dm-abc'), { wrapper });
+    act(() => result.current.setQuery('hola'));
+    act(() => result.current.submit());
+
+    await waitFor(() => expect(result.current.isEmpty).toBe(true));
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/chat/channels/dm-abc/messages/search?q=hola');
+  });
+
+  it('sin canal no busca', () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock;
+
+    const { result } = renderHook(() => useChannelMessageSearch(null), { wrapper });
+    act(() => result.current.setQuery('hola'));
+    act(() => result.current.submit());
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });
+

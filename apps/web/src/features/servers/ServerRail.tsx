@@ -1,6 +1,7 @@
-import { Compass, Home, Plus, type LucideIcon } from 'lucide-react';
+import { Bell, Compass, Home, Plus, type LucideIcon } from 'lucide-react';
 import type { Server } from '../../types';
 import { Logo, ServerStrip, Skeleton } from '../../ui';
+import { useNotificationLevelMenu } from '../notifications/useNotificationMenus';
 import { serverUnreadBadge, serverUnreadLabel } from './unread';
 import styles from './ServerRail.module.css';
 
@@ -19,6 +20,10 @@ export interface ServerRailProps {
   homeBadgeCount?: number;
   /** Indica si los servidores se están cargando desde el backend. */
   isLoading?: boolean;
+  /** Abre los avisos. Sin esto no se muestra la campana. */
+  onOpenNotifications?: () => void;
+  /** Avisos sin leer ("3", "99+"); null si no hay. */
+  notificationsBadge?: string | null;
 }
 
 
@@ -35,13 +40,25 @@ export function ServerRail({
   onDiscoverServers,
   homeBadgeCount = 0,
   isLoading = false,
+  onOpenNotifications,
+  notificationsBadge = null,
 }: ServerRailProps) {
   const isHome = selectedServerId === 'home';
+  const levelMenu = useNotificationLevelMenu();
 
   return (
     <nav className={styles.rail} aria-label="Servidores y mensajes directos">
+      {/* El logo lleva al inicio (mensajes directos), como la casita del pie */}
       <div className={styles.logo}>
-        <Logo size={22} />
+        <button
+          type="button"
+          className={styles.logoButton}
+          onClick={() => onSelectServer('home')}
+          aria-label="Ir al inicio"
+          data-label="Ir al inicio"
+        >
+          <Logo size={22} />
+        </button>
       </div>
 
       <ul className={styles.strips} aria-busy={isLoading || undefined}>
@@ -59,6 +76,7 @@ export function ServerRail({
                 badge={serverUnreadBadge(server)}
                 suspended={server.isSuspended}
                 onPress={() => onSelectServer(server.id)}
+                onOpenMenu={levelMenu.open({ scopeType: 'server', serverId: server.id }, server.name)}
               />
             </li>
           ))
@@ -73,9 +91,19 @@ export function ServerRail({
           badge={homeBadgeCount > 0}
           onPress={() => onSelectServer('home')}
         />
+        {onOpenNotifications && (
+          <RailAction
+            icon={Bell}
+            label={notificationsBadge ? `Avisos, ${notificationsBadge} sin leer` : 'Avisos'}
+            badge={notificationsBadge !== null}
+            onPress={onOpenNotifications}
+          />
+        )}
         <RailAction icon={Plus} label="Añadir un servidor" onPress={onAddServer} />
         <RailAction icon={Compass} label="Descubrir servidores" onPress={onDiscoverServers} />
       </div>
+
+      {levelMenu.menu}
     </nav>
   );
 }

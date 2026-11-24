@@ -1,7 +1,8 @@
-import { useIsPlatformStaff } from '@discordia/core';
+import { toPreferredStatus, useIsPlatformStaff, useSetMyStatusMutation } from '@discordia/core';
+import type { Status, User } from '../../types';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { authService } from '../../platform/auth/session';
-import { useCurrentUserStore } from './currentUserStore';
+import { useCurrentUser, useCurrentUserStore } from './currentUserStore';
 
 /** Abre un perfil: el propio a pantalla completa, el de otro usuario en un modal. */
 export function openUserProfile(userId: string) {
@@ -27,17 +28,38 @@ export function logoutWithToast() {
   showToast('Sesión cerrada', 'info');
 }
 
+/** Cambia el estado propio en Chat-Engine. Se ve al instante; si no se guarda, vuelve al anterior con un aviso. */
+export function useChangeMyStatus() {
+  const { mutate } = useSetMyStatusMutation();
+  return (status: Status) =>
+    mutate(toPreferredStatus(status), { onError: () => showToast('No se pudo cambiar el estado', 'danger') });
+}
+
+/**
+ * Guardar desde Ajustes o Mi perfil: el perfil va a Auth-User y, si cambió, el estado a Chat-Engine.
+ * Resuelve lo que resuelve saveProfile.
+ */
+export function useSaveOwnProfile() {
+  const currentUser = useCurrentUser();
+  const saveProfile = useCurrentUserStore((s) => s.saveProfile);
+  const changeStatus = useChangeMyStatus();
+  return (updated: User, avatarFile?: File) => {
+    if (updated.status !== currentUser.status) changeStatus(updated.status);
+    return saveProfile(updated, avatarFile);
+  };
+}
+
 /** Acciones de la barra de usuario (abajo a la izquierda), iguales en el inicio y en un servidor. */
 export function useUserPanelActions() {
   const setAppView = useUIStore((s) => s.setAppView);
-  const setStatus = useCurrentUserStore((s) => s.setStatus);
+  const changeStatus = useChangeMyStatus();
   const saveProfile = useCurrentUserStore((s) => s.saveProfile);
   const isStaff = useIsPlatformStaff();
 
   return {
     onOpenSettings: () => setAppView('user-settings'),
-    // La presencia todavía no se guarda en el backend; el estado personalizado sí (va en el perfil)
-    onChangeStatus: setStatus,
+    // La presencia va a Chat-Engine; el estado personalizado, al perfil
+    onChangeStatus: changeStatus,
     onSaveCustomStatus: (customStatus: string) =>
       saveProfile({ ...useCurrentUserStore.getState().currentUser, customStatus }),
     onEditProfile: () => setAppView('own-profile'),

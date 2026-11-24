@@ -1,5 +1,12 @@
 import { useEffect, useMemo } from 'react';
-import { canInChannel, useAutoMarkChannelRead, useChannelMessagesQuery, useRolesQuery } from '@discordia/core';
+import {
+  canInChannel,
+  canPinMessages,
+  useAutoMarkChannelRead,
+  useChannelMessagesQuery,
+  usePinnedMessagesQuery,
+  useRolesQuery,
+} from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { usePageVisible } from '../../app/usePageVisible';
 import { useUsers } from '../../app/usersContext';
@@ -10,6 +17,7 @@ import { ChatView } from './ChatView';
 import type { Mentionables } from './useChatViewState';
 import { useMessageActions } from './useMessageActions';
 import { useChatWriteBlock } from './chatConnectionContext';
+import { useChannelNotifications } from '../notifications/useNotificationMenus';
 
 /** Chat del canal de texto seleccionado. */
 export function ChatPanel() {
@@ -24,13 +32,15 @@ export function ChatPanel() {
   const channelId = selectedServerId !== 'home' ? selectedChannelId : null;
   const actions = useMessageActions(channelId);
   const writeBlock = useChatWriteBlock();
+  const notifications = useChannelNotifications(currentServer?.id ?? null, currentChannel?.id);
   const canManageMessages = currentChannel
     ? canInChannel(currentServer, currentChannel, currentUser.id, 'MANAGE_MESSAGES')
     : false;
   const canAddReactions = currentChannel
     ? canInChannel(currentServer, currentChannel, currentUser.id, 'ADD_REACTIONS')
     : true;
-  const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder } = useChannelMessagesQuery(channelId);
+  const { data: realMessages, isLoading, hasOlder, isFetchingOlder, fetchOlder, loadUntil } = useChannelMessagesQuery(channelId);
+  const { data: pinnedMessages } = usePinnedMessagesQuery(channelId);
 
   // Menciones: miembros (con su perfil si ya llegó), roles del servidor y si puede usar @everyone y roles
   const memberUsers = useServerMemberUsers();
@@ -58,6 +68,7 @@ export function ChatPanel() {
   return (
     <ChatView
       channel={currentChannel}
+      notifications={notifications}
       canManageMessages={canManageMessages}
       canAddReactions={canAddReactions}
       messages={realMessages || []}
@@ -80,7 +91,16 @@ export function ChatPanel() {
       onToggleReaction={actions.toggleReaction}
       onDeleteMessage={actions.deleteMessage}
       onEditMessage={actions.editMessage}
+      onPinMessage={actions.togglePin}
+      pinnedMessages={pinnedMessages ?? []}
+      canPinMessages={canPinMessages({ isDirect: false, canManageMessages })}
+      onLoadUntilMessage={loadUntil}
       onOpenUserProfile={openUserProfile}
+      onOpenThread={
+        channelId
+          ? (message) => useUIStore.getState().setOpenThread({ channelId, messageId: message.id, serverId: selectedServerId })
+          : undefined
+      }
     />
   );
 }
