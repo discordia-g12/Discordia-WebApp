@@ -2,6 +2,29 @@
  * Base de la web: el degradé, la tipografía y el foco. Los valores vienen de @discordia/tokens (tokens.css).
  */
 
+/*
+ * Escritorio compacto (entre breakpoints.mobile y breakpoints.compact de @discordia/tokens): la columna
+ * izquierda se angosta. El shell, los ajustes, los modales y los toasts usan esta variable, así que se
+ * mueven juntos.
+ */
+@media (min-width: 768px) and (max-width: 1199px) {
+  :root {
+    --layout-sidebar-width: var(--layout-sidebar-width-compact);
+  }
+}
+
+/*
+ * Mobile web: Safari de iOS hace zoom al tocar un campo con letra menor a 16 px y la pantalla queda
+ * descuadrada. !important porque cada campo pone su tamaño en su módulo CSS.
+ */
+@media (max-width: 767px) {
+  :root input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']),
+  :root textarea,
+  :root select {
+    font-size: 16px !important;
+  }
+}
+
 /* El degradé va en <html>; body y #root quedan transparentes */
 :root {
   background: var(--gradient-background) fixed, var(--color-background);

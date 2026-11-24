@@ -36,6 +36,8 @@ export const layout = {
   railWidth: 68,
   /** Columna izquierda: DMs o canales, con la marca de agua al pie. */
   sidebarWidth: 352,
+  /** La columna izquierda entre breakpoints.mobile y breakpoints.compact: deja más ancho al chat. */
+  sidebarWidthCompact: 264,
   /** Columna derecha ("ACTIVO AHORA", miembros). */
   asideWidth: 220,
   /** Barra de usuario negra. */
@@ -46,7 +48,13 @@ export const layout = {
   serverStripHeight: 24,
 } as const;
 
-/** Por debajo de este ancho, la web usa el layout mobile (MobileShell). */
+/**
+ * Por debajo de `mobile`, la web usa el layout mobile (MobileShell). Entre `mobile` y `compact` es el
+ * escritorio compacto: la columna izquierda se angosta (sidebarWidthCompact), la lista de miembros y los
+ * hilos se abren encima del chat, y "Activo ahora" se oculta. Los CSS repiten estos números en sus
+ * @media (no aceptan variables): 767px y 1199px.
+ */
 export const breakpoints = {
   mobile: 768,
+  compact: 1200,
 } as const;

@@ -197,7 +197,7 @@ describe('vista de hilo (CA2, CA4)', () => {
 
 describe('estado del hilo abierto', () => {
   beforeEach(() => {
-    useUIStore.setState({ selectedServerId: 's1', selectedChannelId: 'c1', openThread: null, isMemberListOpen: true });
+    useUIStore.setState({ selectedServerId: 's1', selectedChannelId: 'c1', openThread: null, isMemberListOpen: true, isMemberOverlayOpen: false });
   });
 
   it('cambiar de canal cierra el hilo; el mismo canal no', () => {
@@ -215,6 +215,34 @@ describe('estado del hilo abierto', () => {
     useUIStore.getState().toggleMemberList();
     expect(useUIStore.getState().openThread).toBeNull();
     expect(useUIStore.getState().isMemberListOpen).toBe(true);
+  });
+
+  it('escritorio compacto: la lista encima del chat tiene su propio estado y abrirla cierra el hilo', () => {
+    useUIStore.setState({ isMemberOverlayOpen: false });
+    useUIStore.getState().toggleMemberList(true);
+    expect(useUIStore.getState().isMemberOverlayOpen).toBe(true);
+    // La de pantalla grande no cambia
+    expect(useUIStore.getState().isMemberListOpen).toBe(true);
+
+    useUIStore.getState().setOpenThread({ channelId: 'c1', messageId: 'p', serverId: 's1' });
+    useUIStore.getState().toggleMemberList(true);
+    expect(useUIStore.getState().openThread).toBeNull();
+    expect(useUIStore.getState().isMemberOverlayOpen).toBe(true);
+
+    useUIStore.getState().closeMemberOverlay();
+    expect(useUIStore.getState().isMemberOverlayOpen).toBe(false);
+  });
+
+  it('escritorio compacto: cambiar de canal o de servidor cierra la lista encima del chat', () => {
+    useUIStore.setState({ isMemberOverlayOpen: true });
+    useUIStore.getState().setSelectedChannelId('c1');
+    expect(useUIStore.getState().isMemberOverlayOpen).toBe(true);
+    useUIStore.getState().setSelectedChannelId('c2');
+    expect(useUIStore.getState().isMemberOverlayOpen).toBe(false);
+
+    useUIStore.setState({ isMemberOverlayOpen: true });
+    useUIStore.getState().setSelectedServerId('s2');
+    expect(useUIStore.getState().isMemberOverlayOpen).toBe(false);
   });
 
   it('abrir un aviso de hilo de un servidor lleva al canal y abre el hilo', () => {

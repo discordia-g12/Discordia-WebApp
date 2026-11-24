@@ -833,5 +833,36 @@
   .topic {
     display: none;
   }
+
+  /*
+   * Acciones del mensaje: en un chat angosto la fila entera no entra y se salía por la izquierda. Sin las
+   * reacciones rápidas (quedan en "_reaccionar"), sin cortar "responder en hilo" en dos renglones, y si
+   * igual no entra, se desliza de costado dentro del chat.
+   */
+  .tools {
+    left: var(--space-3);
+    right: var(--space-3);
+    width: max-content;
+    max-width: calc(100% - 2 * var(--space-3));
+    margin-left: auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+    white-space: nowrap;
+  }
+
+  .tools::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolEmoji {
+    display: none;
+  }
+}
+
+/* Chat de celular: el nombre del DM necesita el lugar del estado ("Conectado/"), que se ve en el perfil */
+@container chat (max-width: 480px) {
+  .presence {
+    display: none;
+  }
 }
 

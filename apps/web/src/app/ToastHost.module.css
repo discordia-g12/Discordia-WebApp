@@ -13,10 +13,11 @@
   pointer-events: auto;
 }
 
+/* Mobile web: arriba de la barra inferior (MobileAppShell .tabs), sin taparla */
 @media (max-width: 767px) {
   .host {
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: calc(var(--layout-user-bar-height) + env(safe-area-inset-bottom));
   }
 }

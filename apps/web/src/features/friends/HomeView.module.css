@@ -390,6 +390,24 @@ button.friendIdentity:hover .friendName {
   border: 0;
 }
 
+/* ── Escritorio compacto (768–1199 px): ACTIVO AHORA no entra al lado de la lista ── */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .friends {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'header'
+      'main';
+  }
+
+  .activeNow {
+    display: none;
+  }
+
+  .friendsMain {
+    border-right: 0;
+  }
+}
+
 /* ── Pantalla chica (mobile web) ── */
 @media (max-width: 767px) {
   /* Una columna: la lista de amigos; ACTIVO AHORA no entra (y no tiene backend: siempre vacía) */

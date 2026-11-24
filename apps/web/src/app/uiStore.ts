@@ -54,6 +54,11 @@ export interface UIState {
   selectedDm: DmTarget | null;
   appView: AppView;
   isMemberListOpen: boolean;
+  /**
+   * Lista de miembros en el escritorio compacto (useIsCompact), donde se abre encima del chat: arranca
+   * cerrada y cambiar de canal o de servidor la cierra. En pantalla grande manda isMemberListOpen.
+   */
+  isMemberOverlayOpen: boolean;
   /** Hilo abierto (reemplaza a la lista de miembros). Cambiar de canal, servidor o DM lo cierra. */
   openThread: OpenThread | null;
   /** Canal de texto o conversación en pantalla (el chat montado): no suma no leídos y se marca al leerlo. */
@@ -77,7 +82,9 @@ export interface UIState {
   setSelectedChannelId: (id: string | null) => void;
   setSelectedDm: (target: DmTarget | null) => void;
   setAppView: (view: AppView) => void;
-  toggleMemberList: () => void;
+  /** `overlay`: en el escritorio compacto cambia isMemberOverlayOpen en vez de isMemberListOpen. */
+  toggleMemberList: (overlay?: boolean) => void;
+  closeMemberOverlay: () => void;
   setOpenThread: (thread: OpenThread | null) => void;
   setReadingChannelId: (id: string | null) => void;
 
@@ -111,6 +118,7 @@ export const useUIStore = create<UIState>((set) => ({
   selectedDm: null,
   appView: 'chat',
   isMemberListOpen: true,
+  isMemberOverlayOpen: false,
   openThread: null,
   readingChannelId: null,
 
@@ -123,16 +131,29 @@ export const useUIStore = create<UIState>((set) => ({
 
   toast: null,
 
-  // El hilo es de lo que se estaba mirando: cambiar de lugar lo cierra (salvo que sea el mismo canal)
+  // El hilo es de lo que se estaba mirando: cambiar de lugar lo cierra (salvo que sea el mismo canal).
+  // La lista de miembros encima del chat (escritorio compacto) se cierra al cambiar de lugar.
   setSelectedServerId: (selectedServerId) =>
-    set((s) => ({ selectedServerId, openThread: s.selectedServerId === selectedServerId ? s.openThread : null })),
+    set((s) =>
+      s.selectedServerId === selectedServerId
+        ? { selectedServerId }
+        : { selectedServerId, openThread: null, isMemberOverlayOpen: false }
+    ),
   setSelectedChannelId: (selectedChannelId) =>
-    set((s) => ({ selectedChannelId, openThread: s.openThread?.channelId === selectedChannelId ? s.openThread : null })),
+    set((s) => ({
+      selectedChannelId,
+      openThread: s.openThread?.channelId === selectedChannelId ? s.openThread : null,
+      isMemberOverlayOpen: s.selectedChannelId === selectedChannelId ? s.isMemberOverlayOpen : false,
+    })),
   setSelectedDm: (selectedDm) => set({ selectedDm, openThread: null }),
   setAppView: (appView) => set({ appView }),
   // Abrir la lista de miembros cierra el hilo: comparten el panel
-  toggleMemberList: () =>
-    set((s) => (s.openThread ? { openThread: null, isMemberListOpen: true } : { isMemberListOpen: !s.isMemberListOpen })),
+  toggleMemberList: (overlay = false) =>
+    set((s) => {
+      if (overlay) return s.openThread ? { openThread: null, isMemberOverlayOpen: true } : { isMemberOverlayOpen: !s.isMemberOverlayOpen };
+      return s.openThread ? { openThread: null, isMemberListOpen: true } : { isMemberListOpen: !s.isMemberListOpen };
+    }),
+  closeMemberOverlay: () => set({ isMemberOverlayOpen: false }),
   setOpenThread: (openThread) => set({ openThread }),
   setReadingChannelId: (readingChannelId) => set({ readingChannelId }),
 

@@ -323,6 +323,23 @@
   border: 0;
 }
 
+/* ── Escritorio compacto (768–1199 px): la columna izquierda es más angosta (base.css) ── */
+@media (min-width: 768px) and (max-width: 1199px) {
+  /* El menú gigante achica la letra para que "Notificaciones" entre en la columna */
+  .menu {
+    --font-display-size: clamp(24px, 3vw, 40px);
+  }
+
+  /* Las celdas, una por fila: en dos columnas los formularios quedaban de ~200 px */
+  .content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cell:not(.wide):nth-child(odd) {
+    border-right: 0;
+  }
+}
+
 /* ── Pantalla chica (mobile web) ── */
 @media (max-width: 767px) {
   /* Una columna: identidad y buscador arriba, el menú como una fila de palabras que se desliza y las
@@ -345,6 +362,12 @@
 
   .index {
     display: none;
+  }
+
+  /* El buscador con alto para el dedo, y en 16 px: con menos, Safari de iOS hace zoom al tocarlo */
+  .search input {
+    padding: var(--space-3) var(--space-4);
+    font-size: 16px;
   }
 
   .menu {
