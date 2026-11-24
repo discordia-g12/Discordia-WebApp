@@ -9,6 +9,8 @@ export { BlockButton } from './BlockButton';
 export { GoogleButton } from './GoogleButton';
 export { IconButton, type IconButtonProps } from './IconButton';
 export { IconMenu, type IconMenuItem, type IconMenuProps } from './IconMenu';
+export { ContextMenu, ContextMenuItem, type ContextMenuProps, type ContextMenuItemProps } from './ContextMenu';
+export { useContextMenuTrigger, LONG_PRESS_MS } from './useContextMenuTrigger';
 export { Tabs, type TabItem } from './Tabs';
 export { SquareAvatar } from './SquareAvatar';
 export { ServerIcon } from './ServerIcon';

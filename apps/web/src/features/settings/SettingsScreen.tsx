@@ -186,13 +186,24 @@ export function SettingsRow({ title, description, children }: { title: string; d
 }
 
 /** Interruptor cuadrado: el bloque se corre a la derecha y se invierte al activarse. */
-export function Switch({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+export function Switch({
+  label,
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       className={`${styles.switch} ${checked ? styles.switchOn : ''}`}
       onClick={() => onChange(!checked)}
     >

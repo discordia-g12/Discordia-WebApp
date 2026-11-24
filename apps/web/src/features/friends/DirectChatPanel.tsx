@@ -19,6 +19,7 @@ import { isCallOpen, useCall } from '../calls/callContext';
 import { MessageRequestView } from './RequestCards';
 import { DmMessageSearchModal } from '../search/MessageSearchModal';
 import { useDirectChat } from './useDirectChat';
+import { useChannelNotifications } from '../notifications/useNotificationMenus';
 import { useRelationshipActions } from './useRelationshipActions';
 import styles from './RequestCards.module.css';
 
@@ -41,6 +42,7 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
   const call = useCall();
   // Pantalla angosta (mobile web): menos íconos, el resto al menú "más"
   const compact = useIsMobile();
+  const notifications = useChannelNotifications(null, conversation?.id);
 
   // Mientras el chat está en pantalla, lo que llega no suma no leídos y se marca leído
   const readingId = !chat.isLoading && !isRequest ? (conversation?.id ?? null) : null;
@@ -128,6 +130,7 @@ export function DirectChatPanel({ userId, currentUserId, onClose, onOpenUserProf
   return (
     <ChatView
       directChat={{ conversationId: conversation?.id ?? null, user }}
+      notifications={notifications}
       directHeader={{
         layout: (pinned) =>
           dmHeaderActions({

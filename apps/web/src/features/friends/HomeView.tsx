@@ -4,7 +4,18 @@ import { Plus, Search } from 'lucide-react';
 import { FRIEND_REQUEST_MESSAGE_MAX } from '@discordia/core';
 import type { Status, User } from '../../types';
 import type { DmTarget } from '../../app/uiStore';
-import { ActionLink, BlockButton, EmptyState, Skeleton, SquareAvatar, Tabs, UnderlineInput, type TabItem } from '../../ui';
+import {
+  ActionLink,
+  BlockButton,
+  EmptyState,
+  Skeleton,
+  SquareAvatar,
+  Tabs,
+  UnderlineInput,
+  useContextMenuTrigger,
+  type TabItem,
+} from '../../ui';
+import { useNotificationLevelMenu } from '../notifications/useNotificationMenus';
 import { DirectChatPanel } from './DirectChatPanel';
 import { FriendRequestView } from './RequestCards';
 import { profileToUser } from './profileUser';
@@ -130,6 +141,8 @@ function DmSidebar({
 }
 
 function DmList({ home, selected, onSelect }: { home: HomeState; selected: DmTarget | null; onSelect: (target: DmTarget) => void }) {
+  const levelMenu = useNotificationLevelMenu();
+
   if (home.conversations.isLoading) {
     return (
       <div className={styles.sidebarEmpty}>
@@ -154,7 +167,17 @@ function DmList({ home, selected, onSelect }: { home: HomeState; selected: DmTar
         <ul className={styles.dmList}>
           {home.filteredDms.map((row) => (
             <li key={row.key}>
-              <DmItem row={row} active={isSelected(row, selected)} onPress={() => onSelect(targetOf(row))} />
+              <DmItem
+                row={row}
+                active={isSelected(row, selected)}
+                onPress={() => onSelect(targetOf(row))}
+                onOpenMenu={
+                  // Una solicitud de amistad todavía no es una conversación: no tiene avisos que elegir
+                  row.kind === 'friend_request'
+                    ? undefined
+                    : levelMenu.open({ scopeType: 'channel', serverId: null, channelId: row.conversation.id }, row.user.displayName)
+                }
+              />
             </li>
           ))}
         </ul>
@@ -167,6 +190,7 @@ function DmList({ home, selected, onSelect }: { home: HomeState; selected: DmTar
           )}
         </div>
       )}
+      {levelMenu.menu}
     </>
   );
 }
@@ -175,7 +199,19 @@ function DmList({ home, selected, onSelect }: { home: HomeState; selected: DmTar
  * Un chat de la lista: nombre y estado con barra final, sin avatar; desconectado, en gris (PDF, pág. 6). Las
  * solicitudes muestran qué son en lugar del estado.
  */
-function DmItem({ row, active, onPress }: { row: DmRow; active: boolean; onPress: () => void }) {
+function DmItem({
+  row,
+  active,
+  onPress,
+  onOpenMenu,
+}: {
+  row: DmRow;
+  active: boolean;
+  onPress: () => void;
+  /** Click derecho, long-press o tecla Menú, con la posición: el menú de avisos del DM. */
+  onOpenMenu?: (x: number, y: number) => void;
+}) {
+  const menuTrigger = useContextMenuTrigger(onOpenMenu);
   const { user } = row;
   const unread = row.kind === 'friend_request' ? 0 : row.conversation.unreadCount;
 
@@ -184,6 +220,7 @@ function DmItem({ row, active, onPress }: { row: DmRow; active: boolean; onPress
       type="button"
       className={`${styles.dm} ${active ? styles.dmActive : ''} ${isOffline(user.status) ? styles.dmOffline : ''}`}
       onClick={onPress}
+      {...menuTrigger}
       aria-current={active ? 'page' : undefined}
     >
       <span className={styles.dmName}>{user.displayName}</span>

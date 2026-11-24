@@ -1,29 +1,48 @@
+import { useMemo } from 'react';
 import {
   errorMessageFor,
   formatTimeAgo,
   mentionsToText,
+  notificationPlace,
   notificationTitle,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotificationsQuery,
+  useServersQuery,
   type AppNotification,
 } from '@discordia/core';
-import { ActionLink, EmptyState, Skeleton } from '../../ui';
+import { ActionLink, EmptyState, Skeleton, SquareAvatar } from '../../ui';
 import { showToast } from '../../app/uiStore';
 import { useUsers } from '../../app/usersContext';
 import { openNotification } from './notificationActions';
 import styles from './NotificationList.module.css';
 
+/** Nombres de servidores y canales por id, para decir dónde pasó cada aviso. */
+function usePlaceNames() {
+  const { data: servers } = useServersQuery();
+  return useMemo(() => {
+    const serverNames = new Map<string, string>();
+    const channelNames = new Map<string, string>();
+    for (const server of servers ?? []) {
+      serverNames.set(server.id, server.name);
+      for (const category of server.categories) for (const channel of category.channels) channelNames.set(channel.id, channel.name);
+    }
+    return { serverNames, channelNames };
+  }, [servers]);
+}
+
 /**
- * Bandeja de avisos, de la más nueva a la más vieja (CA5 de hilos). Abrir uno lo marca leído y lleva a la
- * conversación. Es la misma lista en el modal de escritorio y en la pestaña "Avisos" de mobile web.
+ * Bandeja de avisos, de la más nueva a la más vieja (centro de notificaciones, ADR 0017): mensajes directos,
+ * menciones, respuestas en hilos y, con nivel "Todos", cualquier mensaje. Abrir uno lo marca leído y lleva a
+ * la conversación. Es la misma lista en el modal de escritorio y en la pestaña "Avisos" de mobile web.
  */
-export function NotificationList({ onOpened }: { onOpened?: () => void }) {
+export function NotificationList({ onOpened }: { onOpened?: (notification: AppNotification) => void }) {
   const { items, unreadCount, isPending, isError, refetch, hasMore, fetchMore, isFetchingNextPage } =
     useNotificationsQuery();
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
-  const { usersMap } = useUsers();
+  const { usersMap, userOrFallback } = useUsers();
+  const { serverNames, channelNames } = usePlaceNames();
   const names = {
     user: (id: string) => usersMap[id]?.displayName ?? 'usuario',
     role: () => 'rol',
@@ -32,7 +51,7 @@ export function NotificationList({ onOpened }: { onOpened?: () => void }) {
   const open = (notification: AppNotification) => {
     if (!notification.readAt) markRead.mutate(notification.id);
     openNotification(notification);
-    onOpened?.();
+    onOpened?.(notification);
   };
 
   if (isPending) return <Skeleton lines={4} label="Cargando avisos" />;
@@ -44,7 +63,7 @@ export function NotificationList({ onOpened }: { onOpened?: () => void }) {
     );
   }
   if (items.length === 0) {
-    return <EmptyState title="no hay notificaciones para mostrar" hint="acá vas a ver las respuestas en tus hilos" />;
+    return <EmptyState title="No tenés notificaciones" hint="acá vas a ver mensajes directos, menciones y respuestas en tus hilos" />;
   }
 
   return (
@@ -64,7 +83,12 @@ export function NotificationList({ onOpened }: { onOpened?: () => void }) {
       )}
       <ul className={styles.list} aria-label="Avisos">
         {items.map((notification) => {
-          const actor = usersMap[notification.actorId]?.displayName ?? 'Alguien';
+          const actor = userOrFallback(notification.actorId);
+          const channelName = channelNames.get(notification.channelId);
+          const title = notificationTitle(notification.reason, actor.displayName, channelName);
+          const serverName = notification.serverId ? serverNames.get(notification.serverId) : undefined;
+          const place = notificationPlace(notification, channelName);
+          const context = serverName ? `${serverName} › ${place}` : place;
           const unread = !notification.readAt;
           return (
             <li key={notification.id}>
@@ -72,18 +96,22 @@ export function NotificationList({ onOpened }: { onOpened?: () => void }) {
                 type="button"
                 className={`${styles.item} ${unread ? styles.unread : ''}`}
                 onClick={() => open(notification)}
-                aria-label={`${unread ? 'Sin leer: ' : ''}${notificationTitle(notification.reason, actor)}`}
+                aria-label={`${unread ? 'Sin leer: ' : ''}${title}, ${context}`}
               >
-                <span className={styles.title}>
-                  {unread && <span className={styles.dot} aria-hidden="true" />}
-                  {notificationTitle(notification.reason, actor)}
-                  <time className={styles.time} dateTime={notification.createdAt}>
-                    {formatTimeAgo(notification.createdAt)}
-                  </time>
+                <SquareAvatar user={actor} size="sm" />
+                <span className={styles.body}>
+                  <span className={styles.title}>
+                    {unread && <span className={styles.dot} aria-hidden="true" />}
+                    {title}
+                    <time className={styles.time} dateTime={notification.createdAt}>
+                      {formatTimeAgo(notification.createdAt)}
+                    </time>
+                  </span>
+                  <span className={styles.context}>{context}</span>
+                  {notification.preview && (
+                    <span className={styles.preview}>{mentionsToText(notification.preview, names)}</span>
+                  )}
                 </span>
-                {notification.preview && (
-                  <span className={styles.preview}>{mentionsToText(notification.preview, names)}</span>
-                )}
               </button>
             </li>
           );

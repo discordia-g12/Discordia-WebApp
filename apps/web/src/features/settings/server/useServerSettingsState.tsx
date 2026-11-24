@@ -76,11 +76,6 @@ export function useServerSettingsState(props: ServerSettingsProps) {
   const [require2FA, setRequire2FA] = useState(false);
   const [blockedWords, setBlockedWords] = useState('scam, phishing, free-nitro-link, malware');
 
-  // Notifications Tab States
-  const [notifPreference, setNotifPreference] = useState<'all' | 'mentions' | 'nothing'>('mentions');
-  const [isServerMuted, setIsServerMuted] = useState(false);
-  const [muteDuration, setMuteDuration] = useState('until_turn_on');
-  const [suppressEveryone, setSuppressEveryone] = useState(false);
 
   // Emojis Tab States
   const [customEmojis, setCustomEmojis] = useState([
@@ -368,14 +363,6 @@ export function useServerSettingsState(props: ServerSettingsProps) {
     setRequire2FA,
     blockedWords,
     setBlockedWords,
-    notifPreference,
-    setNotifPreference,
-    isServerMuted,
-    setIsServerMuted,
-    muteDuration,
-    setMuteDuration,
-    suppressEveryone,
-    setSuppressEveryone,
     customEmojis,
     setCustomEmojis,
     userPoints,

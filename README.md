@@ -81,6 +81,22 @@ la pantalla se comparte igual, solo con video y sin error.
 - Para revisar si el audio llega: en el receptor, `chrome://webrtc-internals` tiene que mostrar un segundo
   `inbound-rtp` de audio con `bytesReceived` subiendo.
 
+### Notificaciones push
+
+Web Push (ADR-08 de Notification-Service): `apps/web/public/sw.js` es el service worker (solo push, no cachea
+nada) y `src/platform/push.ts` la suscripción. El permiso se pide solo al prender **Ajustes → Notificación →
+Notificaciones push**: suscribe con la clave VAPID de `GET /api/v1/notifications/push/vapid-public-key`, registra
+el `endpoint` y guarda `pushEnabled`. Al cerrar sesión se borra del backend y se desuscribe. Con una ventana de
+Discordia con foco no se muestra el aviso (avisa la bandeja); el click abre o enfoca la app en la conversación.
+
+- Si el backend devuelve `publicKey: null` (push web apagado), el navegador no tiene push o el permiso está
+  bloqueado, el interruptor queda deshabilitado con el motivo.
+- iPhone y iPad: Safari solo tiene Web Push con la web instalada en la pantalla de inicio (PWA, iOS 16.4+).
+- `VITE_USE_MOCK` no simula push: se ve el registro del service worker y el interruptor deshabilitado. Para un
+  push real hace falta el backend con VAPID y HTTPS o `localhost`. Para probar sin backend: DevTools →
+  Application → Service Workers → **Push** con `{"title":"t","body":"b","data":{…}}`, con la pestaña sin foco.
+- `sw.js` va con `Cache-Control: no-cache` (`nginx.conf` y `public/_headers`) para que un deploy lo actualice.
+
 ## Backoffice
 
 ```bash
