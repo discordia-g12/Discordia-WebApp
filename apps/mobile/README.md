@@ -85,6 +85,41 @@ Los agregan los config plugins al generar el build:
 
 - Android: `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS`, `FOREGROUND_SERVICE` y `FOREGROUND_SERVICE_MEDIA_PROJECTION` (compartir pantalla, `@config-plugins/react-native-webrtc` y `@livekit/react-native-expo-plugin`).
 - iOS: `NSMicrophoneUsageDescription` / `NSCameraUsageDescription` con los textos definidos en `app.json`.
+- Push: `expo-notifications` suma `POST_NOTIFICATIONS` (Android 13+) y el entitlement `aps-environment` (iOS).
+
+## Notificaciones push
+
+Lo que hace la app (`src/utils/push.ts`, `src/hooks/usePushNotifications.ts`, backend en el
+ADR-08 de Notification-Audit-Metrics-Service, `docs/ADR-08-Push.md`):
+
+- Al entrar con sesión pide permiso (una vez: si se negó para siempre no vuelve a preguntar), saca el Expo push
+  token y lo registra con `POST /api/v1/notifications/push/devices`.
+- Al cerrar sesión borra el token (`DELETE /push/devices`) **antes** de soltar el JWT. Si el DELETE falla o tarda
+  más de 3 s, el cierre sigue igual. Si la sesión se pierde sola (token vencido), el token queda: el backend lo
+  pasa al próximo usuario que lo registre en ese teléfono.
+- Con la app en primer plano no se muestra nada: avisa la bandeja.
+- Tocar el aviso (app cerrada o en segundo plano) abre la conversación, igual que desde la bandeja. Un DM se abre
+  por el otro participante, que sale de la lista de conversaciones (el push no trae quién escribió).
+- El interruptor está en Ajustes de usuario → Experiencia → Notificaciones push (`PUT /push/settings`, vale
+  para todos los dispositivos).
+
+Cómo probarlo: hace falta un **teléfono físico** con un development build (`eas build --profile development`,
+regenerarlo: `expo-notifications` es un plugin nuevo). El simulador de iOS no recibe push remotos y Expo Go en
+Android no soporta push desde el SDK 53. Con el backend levantado y la app logueada:
+
+1. Aceptar el permiso. En los logs de Metro no tiene que aparecer `[push] no se pudo registrar el dispositivo`.
+2. Mandar un mensaje que te mencione (o un DM) desde otra cuenta, con la app en segundo plano: llega el aviso.
+3. Tocarlo: abre el canal (o el hilo) o el DM.
+4. Con la app abierta, el mismo mensaje no muestra banner.
+5. Apagar el interruptor: no llegan más push, la bandeja sigue igual.
+
+Para mandar uno a mano: `https://expo.dev/notifications` con el token (sale en la tabla `push_devices`) y
+`data` como el `PushPayload` de `docs/openapi.yaml` de Notification.
+
+Pendiente para Android: Expo entrega por FCM y pide `google-services.json` en el build (`android.googleServicesFile`
+en `app.json`) y la clave de cuenta de servicio de FCM v1 cargada en EAS (`eas credentials`). Hoy no están: en
+Android `getExpoPushTokenAsync` falla y la app sigue sin push. En iOS las credenciales de APNs las genera EAS al
+hacer el build (necesita una cuenta de Apple Developer).
 
 ## HTTP sin cifrar (Android)
 

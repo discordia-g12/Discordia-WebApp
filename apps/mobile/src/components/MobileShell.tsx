@@ -3,7 +3,7 @@ import { Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth, useData, useUI } from '../providers/AppProviders'
 import { makeStyles } from '../theme'
-import { Pin, Search, Settings } from 'lucide-react-native'
+import { Bell, Pin, Search, Settings } from 'lucide-react-native'
 import { Background, ConnectionBanner, EmptyState, IconButton, ServerIcon, Skeleton, ActionLink, Text, keyboardAvoidingBehavior } from '../ui'
 import type { Channel, Message, User } from '../types'
 import ChannelActionModals from './channels/ChannelActionModals'
@@ -12,6 +12,8 @@ import ChatHeader from './chat/ChatHeader'
 import Composer, { type PendingAttachment } from './chat/Composer'
 import { quotePreview } from './chat/ReplyQuote'
 import ConfirmModal from './shared/ConfirmModal'
+import { NotificationLevelModal } from './shared/NotificationLevelModal'
+import { notificationChannelName } from '../utils/notifications'
 import InviteModal from './servers/InviteModal'
 import CreateChannelModal from './channels/CreateChannelModal'
 import CreateCategoryModal from './channels/CreateCategoryModal'
@@ -45,6 +47,7 @@ import { Padded, Pane, Screen } from './shell/ShellScreen'
 import { useUserDisplay } from '../hooks/useUserProfiles'
 import { useAppActive } from '../hooks/useAppActive'
 import { useDmInbox } from '../hooks/useDmInbox'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 import { usePrivateCallSession } from '../hooks/usePrivateCallSession'
 import { usePickAttachment } from '../hooks/usePickAttachment'
 import type { VoiceChannelParticipant } from './channels/VoiceChannelParticipants'
@@ -53,7 +56,10 @@ import {
   ApiError,
   canStartThread,
   useNotificationsQuery,
+  notificationDestination,
+  type NotificationPreferenceTarget,
   type AppNotification,
+  type NotificationDestination,
   errorMessageFor,
   isLocalCategoryId,
   shiftCategory,
@@ -197,6 +203,8 @@ export default function MobileShell() {
   const [pendingVoiceSwitch, setPendingVoiceSwitch] = useState<Channel | null>(null)
   // Participante sobre el que se mantuvo presionado (menú para silenciarlo solo para vos)
   const [voiceActionTarget, setVoiceActionTarget] = useState<VoiceParticipantTarget | null>(null)
+  // Preferencia de notificaciones abierta (servidor o canal), con el nombre para la bajada
+  const [levelTarget, setLevelTarget] = useState<{ target: NotificationPreferenceTarget; name: string } | null>(null)
 
   const clearDeletedServerUi = useCallback(
     (deletedServerId: string, notify: boolean) => {
@@ -293,10 +301,12 @@ export default function MobileShell() {
   )
   const voicePresence = useVoicePresence(serverVoiceChannelIds)
 
-  // IDs (LiveKit, presencia, autores o mencionados) -> nombre y avatar; los que la app no conoce se piden al backend
+  // IDs (LiveKit, presencia, autores, mencionados o de avisos) -> nombre y avatar; los que la app no conoce se piden al backend
   const describeUser = useUserDisplay([
     ...voice.participants.map(p => p.id),
     ...Object.values(voicePresence).flat(),
+    // Quién escribió cada aviso (pestaña Avisos)
+    ...notifications.items.map(n => n.actorId),
     ...channelMessages.flatMap(m => [
       m.authorId,
       ...(m.mentions?.users ?? []),
@@ -705,22 +715,35 @@ export default function MobileShell() {
     [server?.id],
   )
 
-  /** Lleva a donde pasó lo del aviso y, si es de un hilo, lo abre. En un DM 1 a 1, quien escribió es el otro. */
-  const openNotification = (notification: AppNotification) => {
-    if (notification.serverId) {
-      setTab('servers')
-      selectServer(notification.serverId)
-      selectChannel(notification.channelId)
-      fetchChannelMessages(notification.channelId)
-      setScreen('chat')
-    } else {
-      setTab('messages')
-      setDmUserId(notification.actorId)
+  /** Lleva a donde pasó lo del aviso (de la bandeja o un push tocado) y, si es de un hilo, lo abre. */
+  const openDestination = (destination: NotificationDestination) => {
+    switch (destination.kind) {
+      case 'channel':
+        setTab('servers')
+        selectServer(destination.serverId)
+        selectChannel(destination.channelId)
+        fetchChannelMessages(destination.channelId)
+        setScreen('chat')
+        break
+      case 'dm':
+        setTab('messages')
+        setDmUserId(destination.userId)
+        break
     }
-    if (notification.threadId) {
-      setOpenThread({ channelId: notification.channelId, messageId: notification.threadId, serverId: notification.serverId })
-    }
+    setOpenThread(
+      destination.threadId
+        ? {
+            channelId: destination.channelId,
+            messageId: destination.threadId,
+            serverId: destination.kind === 'channel' ? destination.serverId : null,
+          }
+        : null,
+    )
   }
+
+  /** En un DM 1 a 1, quien escribió es el otro. */
+  const openNotification = (notification: AppNotification) => openDestination(notificationDestination(notification))
+  usePushNotifications(openDestination)
 
   // El propio perfil no se abre: se edita desde la pestaña Perfil
   const openProfile = useCallback(
@@ -761,6 +784,10 @@ export default function MobileShell() {
           onSelect: servers.some(s => s.unread)
             ? () => markAllRead.mutate(undefined, { onError: markReadError })
             : undefined,
+        },
+        {
+          label: 'Notificaciones',
+          onSelect: () => setLevelTarget({ target: { scopeType: 'server', serverId: server.id }, name: server.name }),
         },
         { label: 'Invitar personas', onSelect: canInvite ? () => setInviteModalOpen(true) : undefined },
         {
@@ -874,6 +901,16 @@ export default function MobileShell() {
                   badge={channelPinned.data?.length}
                   pressed={pinnedOpen}
                   onPress={() => setPinnedOpen(true)}
+                />
+                <IconButton
+                  icon={Bell}
+                  label={`Notificaciones de ${channel.name}`}
+                  onPress={() =>
+                    setLevelTarget({
+                      target: { scopeType: 'channel', serverId: server?.id ?? null, channelId: channel.id },
+                      name: `#${channel.name}`,
+                    })
+                  }
                 />
                 <IconButton icon={Settings} label={`Editar el canal ${channel.name}`} onPress={() => handleOpenEditChannel(channel)} />
               </>
@@ -1030,7 +1067,11 @@ export default function MobileShell() {
           )}
 
           {!openThread && tab === 'notifications' && (
-            <NotificationsTab describeUser={describeUser} onOpen={openNotification} />
+            <NotificationsTab
+              describeUser={describeUser}
+              channelNameOf={n => notificationChannelName(servers, n.serverId, n.channelId)}
+              onOpen={openNotification}
+            />
           )}
 
           {!openThread && tab === 'profile' && (
@@ -1079,7 +1120,7 @@ export default function MobileShell() {
           <BottomTabs
             value={tab}
             onChange={goTo}
-            unread={{ messages: inbox.unread > 0, notifications: notifications.unreadCount > 0 }}
+            unread={{ messages: inbox.unread > 0, notifications: notifications.unreadCount }}
           />
         )}
       </SafeAreaView>
@@ -1087,6 +1128,8 @@ export default function MobileShell() {
       <ConnectionBanner
         active={(!!activeSocketChannelId && screen === 'chat' && socket.isReconnecting) || (!!dmUserId && inbox.isReconnecting)}
       />
+
+      <NotificationLevelModal target={levelTarget?.target ?? null} name={levelTarget?.name ?? ''} onClose={() => setLevelTarget(null)} />
 
       <CreateServerModal
         visible={createServerModalOpen}

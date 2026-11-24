@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { Bell } from 'lucide-react-native'
 import { View } from 'react-native'
 import {
   DM_HEADER_COMPACT_ICONS,
@@ -31,6 +32,7 @@ import PinnedMessagesModal from '../chat/PinnedMessagesModal'
 import { DmMessageSearchModal } from '../chat/MessageSearchModal'
 import ConfirmModal from '../shared/ConfirmModal'
 import { MoreMenu } from '../shared/MoreMenu'
+import { NotificationLevelModal } from '../shared/NotificationLevelModal'
 import { Pane } from '../shell/ShellScreen'
 import type { Message } from '../../types'
 import { ListStatus } from './ListStatus'
@@ -84,6 +86,7 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
   const [blockConfirmOpen, setBlockConfirmOpen] = useState(false)
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false)
   const [pinnedOpen, setPinnedOpen] = useState(false)
+  const [levelOpen, setLevelOpen] = useState(false)
   // Búsqueda dentro de la conversación (ADR-04 de Chat-Engine)
   const [searchOpen, setSearchOpen] = useState(false)
   // Mensaje fijado al que se está yendo (MessageList lo centra y lo marca)
@@ -319,19 +322,27 @@ export default function DmChatScreen({ userId, inboxConnected, onBack, onOpenPro
               />
             ))}
             <MoreMenu
-              items={header.menu.filter(available).map(action => ({
-                key: action.id,
-                label: action.label,
-                icon: ACTION_ICONS[action.icon],
-                destructive: action.destructive,
-                disabled: isDisabled(action),
-                onSelect: () => runAction[action.id]?.(),
-              }))}
+              items={[
+                ...(conversationId ? [{ key: 'notifications', label: 'Notificaciones', icon: Bell, onSelect: () => setLevelOpen(true) }] : []),
+                ...header.menu.filter(available).map(action => ({
+                  key: action.id,
+                  label: action.label,
+                  icon: ACTION_ICONS[action.icon],
+                  destructive: action.destructive,
+                  disabled: isDisabled(action),
+                  onSelect: () => runAction[action.id]?.(),
+                })),
+              ]}
             />
           </>
         }
       />
       {body()}
+      <NotificationLevelModal
+        target={levelOpen && conversationId ? { scopeType: 'channel', serverId: null, channelId: conversationId } : null}
+        name={name}
+        onClose={() => setLevelOpen(false)}
+      />
       <PinnedMessagesModal
         visible={pinnedOpen}
         channelId={conversationId}

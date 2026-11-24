@@ -24,8 +24,8 @@ export function BottomTabs({
 }: {
   value: ShellTab
   onChange: (tab: ShellTab) => void
-  /** Pestañas con algo sin leer: un cuadrado sobre el ícono. */
-  unread?: Partial<Record<ShellTab, boolean>>
+  /** Pestañas con algo sin leer: un cuadrado sobre el ícono; con un número, el cuadrado lo lleva (Avisos). */
+  unread?: Partial<Record<ShellTab, boolean | number>>
 }) {
   const styles = useStyles()
   const { colors } = useTheme()
@@ -34,18 +34,27 @@ export function BottomTabs({
     <View style={[styles.bar, { paddingBottom: insets.bottom }]} accessibilityRole="tablist">
       {TABS.map(({ id, label, icon: Icon }, i) => {
         const active = id === value
+        const count = typeof unread?.[id] === 'number' ? (unread[id] as number) : 0
         return (
           <Pressable
             key={id}
             style={[styles.tab, i > 0 && styles.divider, active && styles.active]}
             onPress={() => onChange(id)}
             accessibilityRole="tab"
-            accessibilityLabel={unread?.[id] ? `${label}, hay novedades` : label}
+            accessibilityLabel={count ? `${label}, ${count} sin leer` : unread?.[id] ? `${label}, hay novedades` : label}
             accessibilityState={{ selected: active }}
           >
             <View>
               <Icon color={active ? colors.inverseText : colors.textMuted} size={18} strokeWidth={1.5} />
-              {unread?.[id] && <View style={[styles.dot, active && styles.dotActive]} />}
+              {count > 0 ? (
+                <View style={[styles.badge, active && styles.dotActive]}>
+                  <Text variant="meta" bold tone={active ? 'default' : 'inverse'} style={styles.badgeText}>
+                    {count > 99 ? '99+' : count}
+                  </Text>
+                </View>
+              ) : (
+                !!unread?.[id] && <View style={[styles.dot, active && styles.dotActive]} />
+              )}
             </View>
             <Text variant="meta" tone={active ? 'inverse' : 'muted'} bold={active} style={styles.label}>
               {label.toUpperCase()}
@@ -65,4 +74,6 @@ const useStyles = makeStyles(t => ({
   label: { letterSpacing: 0.2 },
   dot: { position: 'absolute', top: -2, right: -4, width: t.space[2], height: t.space[2], backgroundColor: t.colors.text },
   dotActive: { backgroundColor: t.colors.inverseText },
+  badge: { position: 'absolute', top: -6, left: 10, minWidth: 16, paddingHorizontal: 3, alignItems: 'center', backgroundColor: t.colors.text },
+  badgeText: { fontSize: 10, lineHeight: 14 },
 }))

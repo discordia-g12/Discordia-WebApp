@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { FlatList, Pressable, View } from 'react-native'
 import {
   formatTimeAgo,
   mentionsToText,
+  notificationPlace,
   notificationTitle,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -16,6 +17,8 @@ import { Padded, Screen } from './ShellScreen'
 
 interface NotificationsTabProps {
   describeUser: (userId: string) => UserDisplay
+  /** Nombre del canal del aviso (null en un DM o si el servidor no está cargado). */
+  channelNameOf: (notification: AppNotification) => string | null
   /** Lleva a la conversación del aviso (y abre el hilo, si es de un hilo). */
   onOpen: (notification: AppNotification) => void
 }
@@ -24,10 +27,15 @@ interface NotificationsTabProps {
  * Pestaña Avisos (CA5 de hilos; el centro de notificaciones de la épica): de la más nueva a la más vieja. Abrir
  * uno lo marca leído. Se mantiene al día con NOTIFICATION_CREATED por el inbox y cada 60 s.
  */
-export function NotificationsTab({ describeUser, onOpen }: NotificationsTabProps) {
+export function NotificationsTab({ describeUser, channelNameOf, onOpen }: NotificationsTabProps) {
   const styles = useStyles()
-  const { items, unreadCount, isPending, isError, refetch, isRefetching, hasMore, fetchMore, isFetchingNextPage } =
-    useNotificationsQuery()
+  const { items, unreadCount, isPending, isError, refetch, hasMore, fetchMore, isFetchingNextPage } = useNotificationsQuery()
+  // Solo el gesto muestra el indicador: el refetch cada 60 s no
+  const [pulling, setPulling] = useState(false)
+  const refresh = () => {
+    setPulling(true)
+    void refetch().finally(() => setPulling(false))
+  }
   const markRead = useMarkNotificationRead()
   const markAll = useMarkAllNotificationsRead()
   const names = { user: (id: string) => describeUser(id).name, role: () => 'rol' }
@@ -53,19 +61,18 @@ export function NotificationsTab({ describeUser, onOpen }: NotificationsTabProps
         </ActionLink>
       </Padded>
     )
-  } else if (items.length === 0) {
-    body = (
-      <Padded>
-        <EmptyState title="no hay notificaciones para mostrar" hint="acá vas a ver las respuestas en tus hilos" />
-      </Padded>
-    )
   } else {
     body = (
       <FlatList
         data={items}
         keyExtractor={n => n.id}
-        refreshing={isRefetching}
-        onRefresh={() => void refetch()}
+        refreshing={pulling}
+        onRefresh={refresh}
+        ListEmptyComponent={
+          <Padded>
+            <EmptyState title="no hay notificaciones para mostrar" hint="acá vas a ver menciones, mensajes directos y respuestas en tus hilos" />
+          </Padded>
+        }
         onEndReached={() => {
           if (hasMore && !isFetchingNextPage) void fetchMore()
         }}
@@ -79,14 +86,16 @@ export function NotificationsTab({ describeUser, onOpen }: NotificationsTabProps
           ) : undefined
         }
         renderItem={({ item }) => {
-          const title = notificationTitle(item.reason, describeUser(item.actorId).name)
+          const channelName = channelNameOf(item)
+          const title = notificationTitle(item.reason, describeUser(item.actorId).name, channelName)
+          const place = notificationPlace(item, channelName)
           const unread = !item.readAt
           return (
             <Pressable
               style={({ pressed }) => [styles.item, pressed && styles.pressed]}
               onPress={() => open(item)}
               accessibilityRole="button"
-              accessibilityLabel={`${unread ? 'Sin leer: ' : ''}${title}`}
+              accessibilityLabel={`${unread ? 'Sin leer: ' : ''}${title}, ${place}`}
             >
               <View style={styles.row}>
                 {unread && <View style={styles.dot} />}
@@ -97,11 +106,10 @@ export function NotificationsTab({ describeUser, onOpen }: NotificationsTabProps
                   {formatTimeAgo(item.createdAt)}
                 </Text>
               </View>
-              {!!item.preview && (
-                <Text variant="meta" tone="muted" numberOfLines={1}>
-                  {mentionsToText(item.preview, names)}
-                </Text>
-              )}
+              <Text variant="meta" tone="muted" numberOfLines={1}>
+                {place}
+                {item.preview ? ` · ${mentionsToText(item.preview, names)}` : ''}
+              </Text>
             </Pressable>
           )
         }}
