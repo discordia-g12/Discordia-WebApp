@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Animated, Image, Pressable, View } from 'react-native'
 import { makeStyles, useTheme } from '../theme'
 import { Text } from './Text'
+import { remoteImage } from '../utils/remoteImage'
 import { ServerIcon } from './ServerIcon'
 import { timing, useReducedMotion } from './motion'
 
@@ -54,7 +55,7 @@ export function ServerStrip({ server, active = false, unread, onPress, orientati
           { transform: [horizontal ? { translateY: offset } : { translateX: offset }] },
         ]}
       >
-        {!!server.banner && <Image source={{ uri: server.banner }} style={[styles.banner, suspended && styles.dimmed]} />}
+        {!!server.banner && <Image source={remoteImage(server.banner)} style={[styles.banner, suspended && styles.dimmed]} />}
         <View style={[styles.icon, suspended && styles.dimmed]}>
           <ServerIcon server={server} size={iconSize} />
         </View>

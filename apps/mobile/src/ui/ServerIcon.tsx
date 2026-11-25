@@ -4,6 +4,7 @@ import { layout } from '@discordia/tokens'
 import { makeStyles, useTheme } from '../theme'
 import { Text } from './Text'
 import { initials } from './SquareAvatar'
+import { remoteImage } from '../utils/remoteImage'
 
 interface ServerIconProps {
   server: { name: string; iconUrl?: string | null }
@@ -33,7 +34,7 @@ export function ServerIcon({ server, size = 'sm', label }: ServerIconProps) {
   return (
     <View style={{ width: px, height: px }} {...a11y}>
       {server.iconUrl && !broken ? (
-        <Image source={{ uri: server.iconUrl }} style={styles.image} onError={() => setBroken(true)} />
+        <Image source={remoteImage(server.iconUrl)} style={styles.image} onError={() => setBroken(true)} />
       ) : (
         <View style={styles.initials}>
           <Text tone="inverse" style={{ fontFamily: theme.fonts[700], fontSize: Math.max(9, px * 0.36), lineHeight: Math.max(11, px * 0.44) }}>

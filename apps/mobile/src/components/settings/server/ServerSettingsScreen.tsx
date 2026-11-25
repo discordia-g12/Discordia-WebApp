@@ -19,6 +19,7 @@ import { SettingsCell, SettingsScreen, type SettingsSection } from '../SettingsS
 import { RoleSaveBar, RolesSection } from './RolesSection'
 import { BansSection, MembersSection } from './MembersSection'
 import { AuditSection } from './AuditSection'
+import { remoteImage } from '../../../utils/remoteImage'
 import { MemberGrowthChart } from '../../servers/MemberGrowthChart'
 import { ServerActivityMetrics } from '../../servers/ServerActivityMetrics'
 
@@ -258,7 +259,7 @@ function BannerCell({ server, index }: { server: Server; index: number }) {
     <SettingsCell title="Banner" index={index}>
       <View style={styles.bannerPreview}>
         {banner ? (
-          <Image source={{ uri: banner }} style={styles.bannerImage} accessibilityRole="image" accessibilityLabel={`Banner de ${server.name}`} />
+          <Image source={remoteImage(banner)} style={styles.bannerImage} accessibilityRole="image" accessibilityLabel={`Banner de ${server.name}`} />
         ) : (
           <Text variant="meta" tone="muted">
             sin banner

@@ -4,6 +4,7 @@ import { layout } from '@discordia/tokens'
 import type { Status } from '@discordia/core'
 import { makeStyles, useTheme } from '../theme'
 import { Text } from './Text'
+import { remoteImage } from '../utils/remoteImage'
 
 interface SquareAvatarProps {
   user: { displayName?: string; name?: string; username: string; avatar?: string | null }
@@ -38,7 +39,7 @@ export function SquareAvatar({ user, size = 'md', status }: SquareAvatarProps) {
   return (
     <View style={{ width: px, height: px }} accessible accessibilityRole="image" accessibilityLabel={status ? `${name}, ${STATUS_LABEL[status]}` : name}>
       {user.avatar && !broken ? (
-        <Image source={{ uri: user.avatar }} style={styles.image} onError={() => setBroken(true)} />
+        <Image source={remoteImage(user.avatar)} style={styles.image} onError={() => setBroken(true)} />
       ) : (
         <View style={styles.initials}>
           <Text tone="inverse" style={{ fontFamily: theme.fonts[700], fontSize: Math.max(10, px * 0.36), lineHeight: Math.max(12, px * 0.44) }}>
