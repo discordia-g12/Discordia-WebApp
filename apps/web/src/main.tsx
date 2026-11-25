@@ -25,9 +25,12 @@ import '@fontsource/schibsted-grotesk/700.css';
 import '@fontsource/schibsted-grotesk/900.css';
 import './ui/base.css';
 import { initTheme } from './ui/theme';
+import { initPreferences } from './app/preferences';
 import { registerServiceWorker } from './platform/push';
 
 initTheme();
+// Tamaño de letra del chat (Ajustes → Experiencia), guardado en este navegador
+initPreferences();
 // Solo deja listo el service worker de push (public/sw.js): el permiso se pide desde Ajustes
 registerServiceWorker();
 

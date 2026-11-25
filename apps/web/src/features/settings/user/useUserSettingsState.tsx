@@ -90,24 +90,7 @@ export function useUserSettingsState(props: UserSettingsProps) {
   const [purchasingPackage, setPurchasingPackage] = useState<number | null>(null);
   const [billingFeedback, setBillingFeedback] = useState<string | null>(null);
 
-  // Appearance Tab State
-  const [theme, setTheme] = useState<'dark' | 'light' | 'auto'>('dark');
-  const [displayMode, setDisplayMode] = useState<'cozy' | 'compact'>('cozy');
-  const [fontSize, setFontSize] = useState<number>(14);
-
-  // Voice Tab State
-  const [inputDevice, setInputDevice] = useState('Default - Microphone (Built-in)');
-  const [outputDevice, setOutputDevice] = useState('Default - Speakers (Built-in)');
-  const [inputVolume, setInputVolume] = useState<number>(85);
-  const [outputVolume, setOutputVolume] = useState<number>(100);
-  const [isTestingMic, setIsTestingMic] = useState<boolean>(false);
-  const [micLevel, setMicLevel] = useState<number>(0);
-
-  // Notifications Tab State
-  const [enableDesktop, setEnableDesktop] = useState(true);
-  const [enableBadge, setEnableBadge] = useState(true);
-  const [enableSounds, setEnableSounds] = useState(true);
-  const [previewContent, setPreviewContent] = useState(true);
+  // Notificación, Voz y Experiencia (salvo el tema) son preferencias de este navegador: app/preferences.ts
 
   // Cargar estado inicial de 2FA
   useEffect(() => {
@@ -228,20 +211,6 @@ export function useUserSettingsState(props: UserSettingsProps) {
       // Ignorar fallo de regeneración
     }
   };
-
-  // Simulated Mic Testing Level Animation
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isTestingMic) {
-      interval = setInterval(() => {
-        // Random volume fluctuations between 20% and 90%
-        setMicLevel(Math.floor(20 + Math.random() * 70));
-      }, 120);
-    } else {
-      setMicLevel(0);
-    }
-    return () => clearInterval(interval);
-  }, [isTestingMic]);
 
   // Save profile changes
   const handleSaveProfile = () => {
@@ -383,32 +352,6 @@ export function useUserSettingsState(props: UserSettingsProps) {
     setPurchasingPackage,
     billingFeedback,
     setBillingFeedback,
-    theme,
-    setTheme,
-    displayMode,
-    setDisplayMode,
-    fontSize,
-    setFontSize,
-    inputDevice,
-    setInputDevice,
-    outputDevice,
-    setOutputDevice,
-    inputVolume,
-    setInputVolume,
-    outputVolume,
-    setOutputVolume,
-    isTestingMic,
-    setIsTestingMic,
-    micLevel,
-    setMicLevel,
-    enableDesktop,
-    setEnableDesktop,
-    enableBadge,
-    setEnableBadge,
-    enableSounds,
-    setEnableSounds,
-    previewContent,
-    setPreviewContent,
     handleSaveProfile,
     handleUpdatePassword,
     handleSubscribePremium,

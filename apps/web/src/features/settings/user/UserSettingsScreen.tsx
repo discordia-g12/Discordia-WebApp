@@ -6,6 +6,9 @@ import { Choice, Feedback, SettingsCell, SettingsRow, SettingsScreen, Switch, ty
 import type { UserSettingsProps } from './useUserSettingsState';
 import { useUserSettingsState, type UserSettingsState } from './useUserSettingsState';
 import { useWebPushToggle } from './useWebPushToggle';
+import { CHAT_FONT_SIZE_MAX, CHAT_FONT_SIZE_MIN, usePreferences, type MessageMode } from '../../../app/preferences';
+import { useDesktopNotificationsToggle } from '../../notifications/useAppNotificationAlerts';
+import { canChooseAudioOutput, selectedDevice, useAudioDevices, useMicrophoneTest, type AudioDevice } from '../../voice/audioDevices';
 import styles from './UserSettingsScreen.module.css';
 
 type Section = 'account' | 'notifications' | 'voice' | 'billing' | 'experience';
@@ -61,10 +64,10 @@ export function UserSettingsScreen(props: UserSettingsProps) {
       onClose={() => props.onClose?.()}
     >
       {section === 'account' && <AccountSection s={s} />}
-      {section === 'notifications' && <NotificationsSection s={s} />}
-      {section === 'voice' && <VoiceSection s={s} />}
+      {section === 'notifications' && <NotificationsSection />}
+      {section === 'voice' && <VoiceSection />}
       {section === 'billing' && <BillingSection s={s} />}
-      {section === 'experience' && <ExperienceSection s={s} />}
+      {section === 'experience' && <ExperienceSection />}
     </SettingsScreen>
   );
 }
@@ -233,22 +236,46 @@ function AccountSection({ s }: { s: UserSettingsState }) {
 // NOTIFICACIÓN
 // ==========================================
 
-function NotificationsSection({ s }: { s: UserSettingsState }) {
+function NotificationsSection() {
+  const prefs = usePreferences();
+  const desktop = useDesktopNotificationsToggle();
   const toggles = [
-    { title: 'Notificaciones de escritorio', description: 'Avisos del sistema con mensajes y menciones.', checked: s.enableDesktop, set: s.setEnableDesktop },
-    { title: 'Contador de no leídos', description: 'El número de mensajes sin leer en el ícono de la app.', checked: s.enableBadge, set: s.setEnableBadge },
-    { title: 'Sonidos', description: 'Un sonido con los mensajes directos, menciones y avisos de servidores.', checked: s.enableSounds, set: s.setEnableSounds },
-    { title: 'Vista previa', description: 'Quién escribe y el comienzo del mensaje en los avisos.', checked: s.previewContent, set: s.setPreviewContent },
+    {
+      title: 'Contador de no leídos',
+      description: 'Los avisos sin leer en el título de la pestaña y en el ícono de la app instalada.',
+      checked: prefs.unreadBadge,
+      set: (next: boolean) => prefs.setPreference('unreadBadge', next),
+    },
+    {
+      title: 'Sonidos',
+      description: 'Un sonido corto cuando llega un aviso: mensajes directos, menciones y respuestas en hilos.',
+      checked: prefs.sounds,
+      set: (next: boolean) => prefs.setPreference('sounds', next),
+    },
+    {
+      title: 'Vista previa',
+      description: 'El comienzo del mensaje en los avisos de escritorio. Apagada, solo dice quién y dónde.',
+      checked: prefs.notificationPreview,
+      set: (next: boolean) => prefs.setPreference('notificationPreview', next),
+    },
   ];
   return (
     <>
       <PushCell />
-      <SettingsCell title="Notificaciones de la app" wide soon>
+      <SettingsCell title="Notificaciones de la app" wide>
+        <SettingsRow
+          title="Notificaciones de escritorio"
+          description="Avisos del sistema con Discordia abierta en otra pestaña o ventana. Si tenés push activo, avisa el push."
+        >
+          <Switch label="Notificaciones de escritorio" checked={desktop.checked} disabled={desktop.disabled} onChange={(next) => void desktop.toggle(next)} />
+        </SettingsRow>
+        {desktop.unavailable && <p className={styles.note}>/ {desktop.unavailable}</p>}
         {toggles.map((t) => (
           <SettingsRow key={t.title} title={t.title} description={t.description}>
             <Switch label={t.title} checked={t.checked} onChange={t.set} />
           </SettingsRow>
         ))}
+        <p className={styles.note}>/ Se guardan en este navegador. Con Discordia cerrada avisa el push.</p>
       </SettingsCell>
     </>
   );
@@ -275,14 +302,26 @@ function PushCell() {
 // VOZ
 // ==========================================
 
-function DeviceSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+function DeviceSelect({
+  label,
+  value,
+  options,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  value: string;
+  options: AudioDevice[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
   return (
     <label className={styles.field}>
       <span className={styles.fieldLabel}>{label}</span>
-      <select className={styles.select} value={value} onChange={(e) => onChange(e.target.value)}>
+      <select className={styles.select} value={selectedDevice(options, value)} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
+          <option key={o.id} value={o.id}>
+            {o.label}
           </option>
         ))}
       </select>
@@ -319,34 +358,50 @@ function Range({
   );
 }
 
-function VoiceSection({ s }: { s: UserSettingsState }) {
+function VoiceSection() {
+  const prefs = usePreferences();
+  const devices = useAudioDevices();
+  const mic = useMicrophoneTest(prefs.inputDeviceId);
+  const outputChoosable = canChooseAudioOutput();
+
   return (
     <>
-      <SettingsCell title="Entrada" soon>
+      <SettingsCell title="Entrada">
         <DeviceSelect
           label="micrófono"
-          value={s.inputDevice}
-          options={['Default - Microphone (Built-in)', 'External USB Microphone', 'Headset Microphone (Bluetooth)']}
-          onChange={s.setInputDevice}
+          value={prefs.inputDeviceId}
+          options={devices.inputs}
+          disabled={!devices.supported}
+          onChange={(id) => prefs.setPreference('inputDeviceId', id)}
         />
-        <Range label="volumen de entrada" value={s.inputVolume} onChange={s.setInputVolume} />
+        {devices.needsPermission && (
+          <p className={styles.note}>
+            / Para ver los nombres, el navegador necesita permiso de micrófono.{' '}
+            <ActionLink onPress={() => void devices.requestAccess()}>permitir</ActionLink>
+          </p>
+        )}
+        {devices.error && <Feedback tone="error">/ {devices.error}</Feedback>}
+        <p className={styles.note}>/ Con una llamada en curso, cambia enseguida.</p>
       </SettingsCell>
-      <SettingsCell title="Salida" soon>
+      <SettingsCell title="Salida">
         <DeviceSelect
           label="parlantes"
-          value={s.outputDevice}
-          options={['Default - Speakers (Built-in)', 'Headphones (AirPods)', 'External Studio Monitors']}
-          onChange={s.setOutputDevice}
+          value={prefs.outputDeviceId}
+          options={devices.outputs}
+          disabled={!outputChoosable}
+          onChange={(id) => prefs.setPreference('outputDeviceId', id)}
         />
-        <Range label="volumen de salida" value={s.outputVolume} onChange={s.setOutputVolume} />
+        {!outputChoosable && <p className={styles.note}>/ Este navegador usa siempre los parlantes del sistema.</p>}
+        <Range label="volumen de los demás" value={prefs.outputVolume} onChange={(value) => prefs.setPreference('outputVolume', value)} />
       </SettingsCell>
-      <SettingsCell title="Prueba de micrófono" wide soon>
-        <SettingsRow title={s.isTestingMic ? 'escuchando/' : '¿problemas con el micrófono?'} description="Hablá y mirá si la barra se mueve.">
-          <BlockButton onPress={() => s.setIsTestingMic(!s.isTestingMic)}>{s.isTestingMic ? 'Detener' : 'Probar'}</BlockButton>
+      <SettingsCell title="Prueba de micrófono" wide>
+        <SettingsRow title={mic.testing ? 'escuchando/' : '¿problemas con el micrófono?'} description="Hablá y mirá si la barra se mueve. No se manda nada a nadie.">
+          <BlockButton onPress={mic.toggle}>{mic.testing ? 'Detener' : 'Probar'}</BlockButton>
         </SettingsRow>
-        <div className={styles.meter} role="meter" aria-label="Nivel del micrófono" aria-valuemin={0} aria-valuemax={100} aria-valuenow={s.micLevel}>
-          <span className={styles.meterFill} style={{ transform: `scaleX(${s.micLevel / 100})` }} />
+        <div className={styles.meter} role="meter" aria-label="Nivel del micrófono" aria-valuemin={0} aria-valuemax={100} aria-valuenow={mic.level}>
+          <span className={styles.meterFill} style={{ transform: `scaleX(${mic.level / 100})` }} />
         </div>
+        {mic.error && <Feedback tone="error">/ {mic.error}</Feedback>}
       </SettingsCell>
     </>
   );
@@ -439,8 +494,11 @@ function BillingSection({ s }: { s: UserSettingsState }) {
 // EXPERIENCIA
 // ==========================================
 
-function ExperienceSection({ s }: { s: UserSettingsState }) {
+function ExperienceSection() {
   const [theme, setTheme] = useState<ThemePreference>(getThemePreference);
+  const messageMode = usePreferences((p) => p.messageMode);
+  const chatFontSize = usePreferences((p) => p.chatFontSize);
+  const setPreference = usePreferences((p) => p.setPreference);
   return (
     <>
       <SettingsCell title="Tema" wide>
@@ -461,26 +519,34 @@ function ExperienceSection({ s }: { s: UserSettingsState }) {
         </SettingsRow>
       </SettingsCell>
 
-      <SettingsCell title="Modo de los mensajes" soon>
+      <SettingsCell title="Modo de los mensajes">
         <Choice
           label="Modo de los mensajes"
           options={[
             { value: 'cozy', label: 'cómodo' },
             { value: 'compact', label: 'compacto' },
           ]}
-          value={s.displayMode}
-          onChange={s.setDisplayMode}
+          value={messageMode}
+          onChange={(value: MessageMode) => setPreference('messageMode', value)}
         />
         <p className={styles.note}>
-          / {s.displayMode === 'cozy' ? 'Con aire y avatares grandes.' : 'Más mensajes por pantalla, con la hora en la misma línea.'}
+          / {messageMode === 'cozy' ? 'Con aire y avatares grandes.' : 'Más mensajes por pantalla, con avatares chicos.'}
         </p>
       </SettingsCell>
 
-      <SettingsCell title="Tamaño de letra" soon>
-        <Range label="tamaño del chat" value={s.fontSize} onChange={s.setFontSize} min={12} max={18} unit="px" />
-        <p className={styles.preview} style={{ fontSize: s.fontSize }}>
+      <SettingsCell title="Tamaño de letra">
+        <Range
+          label="tamaño del chat"
+          value={chatFontSize}
+          onChange={(value) => setPreference('chatFontSize', value)}
+          min={CHAT_FONT_SIZE_MIN}
+          max={CHAT_FONT_SIZE_MAX}
+          unit="px"
+        />
+        <p className={styles.preview} style={{ fontSize: chatFontSize }}>
           Así se van a ver los mensajes.
         </p>
+        <p className={styles.note}>/ Se guarda en este navegador.</p>
       </SettingsCell>
     </>
   );

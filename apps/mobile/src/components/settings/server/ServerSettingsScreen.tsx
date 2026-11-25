@@ -3,15 +3,19 @@ import { Image, View } from 'react-native'
 import {
   canSeeSettingsSection,
   memberActionsIn,
+  SERVER_DESCRIPTION_MAX_LENGTH,
+  SERVER_NAME_MAX_LENGTH,
   serverBannerErrorMessage,
   serverIconErrorMessage,
+  serverSettingsErrorMessage,
+  serverSettingsValidationError,
   useRolesAdmin,
   useServerBansAdmin,
   useServerMembersAdmin,
 } from '@discordia/core'
 import { useData, useUI } from '../../../providers/AppProviders'
 import { makeStyles } from '../../../theme'
-import { ActionLink, ServerIcon, ServerStrip, Text, UnderlineInput } from '../../../ui'
+import { ActionLink, BlockButton, ServerIcon, ServerStrip, Text, UnderlineInput } from '../../../ui'
 import { pickBannerImage, pickSquareImage, toUploadFile } from '../../../utils/images'
 import ConfirmModal from '../../shared/ConfirmModal'
 import type { Server } from '../../../types'
@@ -26,8 +30,9 @@ import { ServerActivityMetrics } from '../../servers/ServerActivityMetrics'
 export type ServerSettingsSection = 'overview' | 'roles' | 'members' | 'bans' | 'audit'
 type Section = ServerSettingsSection
 
-// Las secciones que tienen backend: canales se maneja desde la barra de canales, y moderación,
-// notificaciones, emojis y mejoras todavía no se guardan (en la web, "próximamente")
+// Las secciones que tienen backend: canales se maneja desde la barra de canales, las notificaciones del
+// servidor desde su menú (NotificationLevelModal), y moderación, emojis y mejoras todavía no se guardan
+// (en la web, "próximamente")
 const SECTIONS: SettingsSection<Section>[] = [
   { id: 'overview', label: 'Resumen' },
   { id: 'roles', label: 'Roles' },
@@ -120,11 +125,7 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
         <>
           <IconCell server={server} index={0} />
           <BannerCell server={server} index={1} />
-          {/* Sin PATCH /servers/{id} en el backend: nombre y descripción todavía no se guardan */}
-          <SettingsCell title="Nombre y descripción" soon index={2}>
-            <UnderlineInput label="nombre" value={server.name} disabled />
-            <UnderlineInput label="descripción" value={server.description ?? ''} placeholder="de qué se trata" disabled />
-          </SettingsCell>
+          <IdentityCell server={server} index={2} />
           <SettingsCell title="Números" index={3}>
             <View style={styles.numbers}>
               <Figure label="miembros" value={members.total || server.memberCount || 0} />
@@ -162,6 +163,75 @@ export function ServerSettingsScreen({ visible, initialSection = 'overview', ser
         }}
       />
     </SettingsScreen>
+  )
+}
+
+/**
+ * Nombre y descripción, como en la web: se guarda con el botón (PATCH /servers/{id}, solo lo que cambió) y
+ * se valida antes con las mismas reglas que el backend. Si lo rechaza, el motivo queda abajo y lo escrito
+ * sigue ahí para corregirlo.
+ */
+function IdentityCell({ server, index }: { server: Server; index: number }) {
+  const styles = useStyles()
+  const { updateServerInfo } = useData()
+  const { showToast } = useUI()
+  const [name, setName] = useState(server.name)
+  const [description, setDescription] = useState(server.description ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Otro miembro (o la web) lo cambió mientras tanto: se toma lo nuevo
+  useEffect(() => {
+    setName(server.name)
+    setDescription(server.description ?? '')
+  }, [server.id, server.name, server.description])
+
+  const changes: { name?: string; description?: string } = {}
+  if (name.trim() !== server.name) changes.name = name
+  if (description.trim() !== (server.description ?? '')) changes.description = description
+  const dirty = Object.keys(changes).length > 0
+
+  const save = async () => {
+    const invalid = serverSettingsValidationError(changes)
+    if (invalid) {
+      setError(invalid)
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      await updateServerInfo(server.id, changes)
+      showToast('Cambios guardados', 'success')
+    } catch (err) {
+      setError(serverSettingsErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <SettingsCell title="Nombre y descripción" index={index}>
+      <UnderlineInput label="nombre" value={name} onChangeText={setName} maxLength={SERVER_NAME_MAX_LENGTH} editable={!busy} />
+      <UnderlineInput
+        label="descripción"
+        value={description}
+        onChangeText={setDescription}
+        placeholder="de qué se trata"
+        maxLength={SERVER_DESCRIPTION_MAX_LENGTH}
+        multiline
+        editable={!busy}
+      />
+      {error && (
+        <Text variant="meta" bold>
+          / {error}
+        </Text>
+      )}
+      <View style={styles.saveRow}>
+        <BlockButton onPress={save} loading={busy} disabled={!dirty}>
+          Guardar
+        </BlockButton>
+      </View>
+    </SettingsCell>
   )
 }
 
@@ -309,6 +379,7 @@ const useStyles = makeStyles(t => ({
     backgroundColor: t.colors.line,
   },
   bannerImage: { width: '100%', height: '100%' },
+  saveRow: { flexDirection: 'row' },
   numbers: { flexDirection: 'row', gap: t.space[6] },
   number: { gap: 2 },
 }))

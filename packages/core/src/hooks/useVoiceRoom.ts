@@ -16,7 +16,7 @@ import {
   type VoiceJoinResponse,
   type VoicePublishPermissions,
 } from '../api/voice';
-import { DEFAULT_VOICE_PREFS, getVoicePlatform, type LiveKitModule } from '../voice/platform';
+import { DEFAULT_VOICE_PREFS, getVoicePlatform, onVoiceVolumeRefresh, type LiveKitModule } from '../voice/platform';
 
 export type VoiceConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 
@@ -202,12 +202,13 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
 
   const applyVolume = useCallback((participant: RemoteParticipant) => {
     const silenced = deafenedRef.current || locallyMutedRef.current[participant.identity];
-    const volume = silenced ? 0 : 1;
+    const output = Math.min(1, Math.max(0, platform.outputVolume?.() ?? 1));
+    const volume = silenced ? 0 : output;
     // Silenciar también el audio de la pantalla compartida antes del micrófono por defecto
     const screenAudio = livekitRef.current?.Track.Source?.ScreenShareAudio;
     if (screenAudio) participant.setVolume(volume, screenAudio);
     participant.setVolume(volume);
-  }, []);
+  }, [platform]);
 
   const syncParticipants = useCallback(() => {
     const room = roomRef.current;
@@ -256,6 +257,9 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
   const applyVolumes = useCallback(() => {
     roomRef.current?.remoteParticipants.forEach(applyVolume);
   }, [applyVolume]);
+
+  // El volumen de salida de la plataforma cambió (web: Ajustes → Voz): se aplica sin volver a entrar
+  useEffect(() => onVoiceVolumeRefresh(applyVolumes), [applyVolumes]);
 
   const disconnectRoom = useCallback(
     async (room: Room) => {
@@ -396,7 +400,7 @@ export function useVoiceRoom(options: UseVoiceRoomOptions = {}) {
 
         // adaptiveStream: cada video se recibe a la resolución en que se muestra (y se pausa si no se ve);
         // dynacast: no se envía una calidad de la cámara propia que nadie esté mirando
-        room = new lk.Room({ adaptiveStream: true, dynacast: true });
+        room = new lk.Room({ adaptiveStream: true, dynacast: true, ...platform.roomOptions?.() });
         roomRef.current = room;
         bindRoomEvents(room, lk);
         await room.connect(url, token);

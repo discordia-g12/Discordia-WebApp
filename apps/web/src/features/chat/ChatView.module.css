@@ -129,6 +129,31 @@
   padding-top: var(--space-1);
 }
 
+/* Modo compacto (Ajustes → Experiencia): avatar chico y menos aire, más mensajes por pantalla */
+.dense {
+  grid-template-columns: var(--layout-avatar-size-sm) minmax(0, 1fr);
+  column-gap: var(--space-3);
+  padding-top: var(--space-2);
+  padding-bottom: 0;
+}
+
+.dense.compact {
+  padding-top: 0;
+}
+
+/* La hora al pasar el mouse entra en la columna del avatar chico */
+.dense .gutterTime {
+  padding-top: 3px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+/* El separador de día sigue alineado con el texto */
+.messages:has(.dense) .day {
+  padding-top: var(--space-4);
+  padding-left: calc(var(--space-1) + var(--layout-avatar-size-sm) + var(--space-3));
+}
+
 .message:hover,
 .message:focus-within,
 .toolsOpen {
@@ -230,7 +255,8 @@
 .content {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: var(--font-body-size);
+  /* Ajustes → Experiencia → Tamaño de letra (app/preferences.ts); sin elección, el del diseño */
+  font-size: var(--chat-font-size, var(--font-body-size));
   line-height: var(--font-body-line-height);
 }
 

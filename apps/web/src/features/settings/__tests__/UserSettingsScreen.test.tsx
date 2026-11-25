@@ -4,6 +4,7 @@ import { setApiMock } from '@discordia/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { UserSettingsScreen } from '../user/UserSettingsScreen';
 import type { User } from '../../../types';
+import { DEFAULT_PREFERENCES, usePreferences } from '../../../app/preferences';
 
 const user = { id: 'me', username: 'mar', displayName: 'Mar', status: 'online', bio: '' } as unknown as User;
 
@@ -20,6 +21,8 @@ const renderSettings = (props: Partial<Parameters<typeof UserSettingsScreen>[0]>
 describe('UserSettingsScreen (rediseño)', () => {
   afterEach(() => {
     localStorage.removeItem('discordia_theme');
+    localStorage.removeItem('discordia_preferences');
+    usePreferences.setState(DEFAULT_PREFERENCES);
     delete document.documentElement.dataset.theme;
     vi.restoreAllMocks();
   });
@@ -73,13 +76,50 @@ describe('UserSettingsScreen (rediseño)', () => {
     expect(document.documentElement.dataset.theme).toBeUndefined();
   });
 
-  it('NOTIFICACIÓN: interruptores accesibles, deshabilitados hasta que se guarden', () => {
+  it('NOTIFICACIÓN: los interruptores se guardan en este navegador', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: 'Notificación' }));
 
     const sounds = screen.getByRole('switch', { name: 'Sonidos' });
     expect(sounds.getAttribute('aria-checked')).toBe('true');
-    expect(sounds.matches(':disabled')).toBe(true);
+    expect(sounds.matches(':disabled')).toBe(false);
+    fireEvent.click(sounds);
+
+    expect(screen.getByRole('switch', { name: 'Sonidos' }).getAttribute('aria-checked')).toBe('false');
+    expect(JSON.parse(localStorage.getItem('discordia_preferences') ?? '{}').sounds).toBe(false);
+    expect(within(screen.getByRole('region', { name: 'Notificaciones de la app' })).queryByText('próximamente')).toBeNull();
+  });
+
+  it('NOTIFICACIÓN: sin avisos del sistema en el navegador, el de escritorio queda apagado y explica por qué', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Notificación' }));
+
+    const desktop = screen.getByRole('switch', { name: 'Notificaciones de escritorio' });
+    expect(desktop.getAttribute('aria-checked')).toBe('false');
+    expect(desktop.matches(':disabled')).toBe(true);
+    expect(screen.getByText(/no muestra avisos del sistema/)).toBeTruthy();
+  });
+
+  it('EXPERIENCIA: el modo compacto y el tamaño de letra se guardan y se aplican', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Experiencia' }));
+
+    fireEvent.click(screen.getByRole('radio', { name: 'compacto' }));
+    expect(usePreferences.getState().messageMode).toBe('compact');
+
+    fireEvent.change(screen.getByLabelText(/tamaño del chat/), { target: { value: '18' } });
+    expect(usePreferences.getState().chatFontSize).toBe(18);
+    expect(JSON.parse(localStorage.getItem('discordia_preferences') ?? '{}')).toMatchObject({ messageMode: 'compact', chatFontSize: 18 });
+  });
+
+  it('VOZ: sin acceso a los dispositivos del navegador, queda "El del sistema"', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'Voz' }));
+
+    const mic = screen.getByLabelText('micrófono') as HTMLSelectElement;
+    expect(mic.value).toBe('default');
+    expect(within(mic).getByRole('option', { name: 'El del sistema' })).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: 'Entrada' })).queryByText('próximamente')).toBeNull();
   });
 
   it('NOTIFICACIÓN: sin Web Push en el navegador, el interruptor de push queda apagado y explica por qué', () => {

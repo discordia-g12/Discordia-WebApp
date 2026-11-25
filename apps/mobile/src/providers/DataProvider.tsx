@@ -35,6 +35,7 @@ import {
   updateServerIcon as apiUpdateServerIcon,
   removeServerIcon as apiRemoveServerIcon,
   updateServerBanner as apiUpdateServerBanner,
+  updateServer as apiUpdateServer,
   removeServerBanner as apiRemoveServerBanner,
   createChannel as apiCreateChannel,
   editChannel as apiEditChannel,
@@ -68,6 +69,8 @@ interface DataContextValue {
   setServerIcon: (serverId: string, icon: UploadableFile | null) => Promise<void>
   /** Cambia el banner (null lo quita) y actualiza la lista de servidores con el que devuelve la API. */
   setServerBanner: (serverId: string, banner: UploadableFile | null) => Promise<void>
+  /** Cambia el nombre y/o la descripción (PATCH /servers/{id}, solo lo que se pasa). Rechaza con el ApiError. */
+  updateServerInfo: (serverId: string, changes: { name?: string; description?: string }) => Promise<void>
   createChannel: (
     serverId: string,
     data: { name: string; type: 'text' | 'voice'; categoryId?: string },
@@ -872,6 +875,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setServers(prev => prev.map(srv => (srv.id === serverId ? { ...srv, banner: updated.banner } : srv)))
   }, [])
 
+  const updateServerInfo = useCallback(
+    async (serverId: string, changes: { name?: string; description?: string }): Promise<void> => {
+      const updated = await apiUpdateServer(serverId, changes)
+      // Solo nombre y descripción, como el ícono. Los demás miembros lo reciben por SERVER_UPDATED
+      setServers(prev =>
+        prev.map(srv => (srv.id === serverId ? { ...srv, name: updated.name, description: updated.description } : srv))
+      )
+    },
+    []
+  )
+
   const value = useMemo<DataContextValue>(
     () => ({
       currentUserId: activeUserId,
@@ -885,6 +899,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createServer,
       setServerIcon,
       setServerBanner,
+      updateServerInfo,
       createChannel,
       editChannel,
       deleteChannel,
@@ -921,6 +936,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       createServer,
       setServerIcon,
       setServerBanner,
+      updateServerInfo,
       createChannel,
       editChannel,
       deleteChannel,
