@@ -5,6 +5,7 @@ import { usePageVisible } from '../../app/usePageVisible';
 import { selectServer } from '../servers/serverActions';
 import { useCurrentUser } from '../profile/currentUserStore';
 import { ChatConnectionContext } from './chatConnectionContext';
+import { publishIncomingNotification } from '../notifications/useAppNotificationAlerts';
 
 /**
  * WebSocket del canal seleccionado, uno solo para toda la app: sigue conectado aunque se abran los
@@ -18,7 +19,8 @@ export function ChatConnectionProvider({ children }: { children: ReactNode }) {
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
   const readingChannelId = useUIStore((s) => s.readingChannelId);
   const pageVisible = usePageVisible();
-  useInbox({ activeConversationId: pageVisible ? readingChannelId : null });
+  // Los avisos en vivo van a NotificationAlerts (sonido y aviso de escritorio), que tiene los nombres
+  useInbox({ activeConversationId: pageVisible ? readingChannelId : null, onNotification: publishIncomingNotification });
 
   const { sendMessageWs, isReconnecting, canSend, removedReason } = useChatWebSocket(
     selectedServerId !== 'home' && selectedChannelId ? selectedChannelId : null,

@@ -30,7 +30,10 @@ export type NotificationDestination =
   /** Un DM 1 a 1 se abre por el otro participante: quien escribió. `channelId` es la conversación (`dm-…`). */
   | { kind: 'dm'; userId: string; channelId: string; threadId: string | null; messageId: string };
 
-export function notificationDestination(notification: AppNotification): NotificationDestination {
+export function notificationDestination(
+  // Pick: también sirve para el aviso en vivo del inbox (NotificationPreview), que no trae id
+  notification: Pick<AppNotification, 'serverId' | 'channelId' | 'threadId' | 'messageId' | 'actorId'>
+): NotificationDestination {
   const { serverId, channelId, threadId, messageId, actorId } = notification;
   return serverId
     ? { kind: 'channel', serverId, channelId, threadId, messageId }

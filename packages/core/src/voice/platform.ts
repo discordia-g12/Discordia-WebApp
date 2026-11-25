@@ -1,4 +1,4 @@
-import type { RemoteTrack, Room } from 'livekit-client';
+import type { RemoteTrack, Room, RoomOptions } from 'livekit-client';
 
 /**
  * Lo que cambia de la voz entre plataformas. La sala (useVoiceRoom) es la misma en web y mobile:
@@ -44,6 +44,13 @@ export interface VoicePlatform {
   stopAudioSession?(): Promise<void>;
   /** Recién conectada la sala (web: room.startAudio, por la política de autoplay del browser). */
   afterConnect?(room: Room): Promise<void>;
+  /** Opciones extra de la sala al crearla (web: el micrófono elegido en Ajustes → Voz). */
+  roomOptions?(): Partial<RoomOptions>;
+  /**
+   * Volumen de los demás, de 0 a 1 (web: Ajustes → Voz). Default: 1. Si cambia con una llamada en curso,
+   * llamar a refreshVoiceVolumes(): la sala lo vuelve a aplicar sin tocar a quien está silenciado.
+   */
+  outputVolume?(): number;
 
   /**
    * Reproducir el audio de un participante remoto (web: un elemento <audio>). Sin estas funciones lo
@@ -63,6 +70,21 @@ export interface VoicePlatform {
 }
 
 let platform: VoicePlatform | null = null;
+
+const volumeRefreshers = new Set<() => void>();
+
+/** La sala montada se anota para volver a aplicar los volúmenes (useVoiceRoom). */
+export function onVoiceVolumeRefresh(refresh: () => void): () => void {
+  volumeRefreshers.add(refresh);
+  return () => {
+    volumeRefreshers.delete(refresh);
+  };
+}
+
+/** Cambió outputVolume() de la plataforma: la sala en curso lo aplica enseguida. */
+export function refreshVoiceVolumes(): void {
+  volumeRefreshers.forEach((refresh) => refresh());
+}
 
 export function setVoicePlatform(voicePlatform: VoicePlatform): void {
   platform = voicePlatform;

@@ -32,6 +32,7 @@ import {
 import type { Channel, Message, MessageAttachment, Role, Status, User } from '../../types';
 import { ActionLink, IconButton, IconMenu, Skeleton, SquareAvatar, transitions } from '../../ui';
 import { showToast } from '../../app/uiStore';
+import { usePreferences } from '../../app/preferences';
 import {
   EMOJI_CATEGORIES,
   QUICK_EMOJIS,
@@ -758,6 +759,7 @@ function MessageRow({
   onJumpTo?: (messageId: string) => void;
 }) {
   const reduce = useReducedMotion();
+  const dense = usePreferences((s) => s.messageMode === 'compact');
   const threadSummary =
     onOpenThread && hasThreadReplies(msg) ? (
       <button
@@ -849,6 +851,7 @@ function MessageRow({
       ref={rowRef}
       className={[
         styles.message,
+        dense ? styles.dense : '',
         consecutive ? styles.compact : '',
         mentionsMe ? styles.mentioned : '',
         isReplying ? styles.replying : '',
@@ -863,7 +866,7 @@ function MessageRow({
           <time className={styles.gutterTime}>{formatMessageHour(msg.timestamp)}</time>
         ) : (
           <button type="button" className={styles.avatarButton} onClick={openProfile} aria-label={`Ver perfil de ${author.displayName}`}>
-            <SquareAvatar user={author} size="md" />
+            <SquareAvatar user={author} size={dense ? 'sm' : 'md'} />
           </button>
         )}
       </span>

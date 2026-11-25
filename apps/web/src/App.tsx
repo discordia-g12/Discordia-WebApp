@@ -14,6 +14,7 @@ import { MobileLayout } from './app/MobileLayout';
 import { useEnsureChannelSelected } from './features/servers/useCurrentServer';
 import { useInactivity } from './app/useInactivity';
 import { usePushNavigation } from './features/notifications/usePushNavigation';
+import { NotificationAlerts } from './features/notifications/useAppNotificationAlerts';
 
 /**
  * Raíz de la web: arranca la sesión y, con sesión, monta lo que vive mientras dura (voz, chat en
@@ -83,5 +84,10 @@ function AuthenticatedApp() {
   usePushNavigation();
 
   // Shell móvil para pantallas menores a 768px
-  return isMobile ? <MobileLayout /> : <DesktopLayout />;
+  return (
+    <>
+      <NotificationAlerts />
+      {isMobile ? <MobileLayout /> : <DesktopLayout />}
+    </>
+  );
 }

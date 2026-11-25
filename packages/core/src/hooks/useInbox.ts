@@ -20,6 +20,7 @@ import {
   upsertConversation,
 } from './inboxCache';
 import { notificationsQueryKey } from './useNotifications';
+import type { NotificationPreview } from '../api/notifications';
 import {
   appendMessage,
   applyThreadReply,
@@ -38,6 +39,8 @@ export interface UseInboxOptions {
   onServerUpdated?: (serverId: string) => void;
   /** Callback opcional cuando se elimina un servidor (mobile lo usa para sacarlo y cerrar vistas activas). */
   onServerDeleted?: (serverId: string) => void;
+  /** Llegó un aviso nuevo (NOTIFICATION_CREATED): la web lo usa para el sonido y el aviso de escritorio. */
+  onNotification?: (notification: NotificationPreview) => void;
 }
 
 /**
@@ -50,6 +53,7 @@ export function useInbox({
   enabled = true,
   onServerUpdated,
   onServerDeleted,
+  onNotification,
 }: UseInboxOptions = {}) {
   const queryClient = useQueryClient();
   const sessionStatus = useSession((s) => s.status);
@@ -60,8 +64,8 @@ export function useInbox({
   // En un ref: abrir otra conversación no debe reconectar
   const activeRef = useRef(activeConversationId);
   activeRef.current = activeConversationId;
-  const serverCallbacksRef = useRef({ onServerUpdated, onServerDeleted });
-  serverCallbacksRef.current = { onServerUpdated, onServerDeleted };
+  const serverCallbacksRef = useRef({ onServerUpdated, onServerDeleted, onNotification });
+  serverCallbacksRef.current = { onServerUpdated, onServerDeleted, onNotification };
 
   const active = enabled && sessionStatus === 'authenticated';
 
@@ -106,6 +110,7 @@ export function useInbox({
       if (event.type === 'NOTIFICATION_CREATED') {
         // El evento no trae el id del aviso: la bandeja se vuelve a pedir
         queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
+        serverCallbacksRef.current.onNotification?.(event.notification);
         return;
       }
 
