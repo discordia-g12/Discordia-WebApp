@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUIStore } from './uiStore';
+import { useIsCompact } from './useIsMobile';
 import { GlobalModals } from './GlobalModals';
 import { ConnectionBanner, DisplayText } from '../ui';
 import { ToastHost } from './ToastHost';
@@ -51,6 +52,7 @@ export function AppShell() {
   const appView = useUIStore((s) => s.appView);
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
+  const isMemberOverlayOpen = useUIStore((s) => s.isMemberOverlayOpen);
   const openThread = useUIStore((s) => s.openThread);
   const { word, tone } = useShellContext();
   const reconnecting = useIsReconnecting();
@@ -60,6 +62,40 @@ export function AppShell() {
   // Suspendido por el staff: sin canales, chat ni miembros; solo el aviso (ADR-002 de Server-Roles)
   const { currentServer } = useCurrentServer();
   const suspendedServer = !isHome && currentServer?.isSuspended ? currentServer : null;
+  const compact = useIsCompact();
+  const membersOpen = compact ? isMemberOverlayOpen : isMemberListOpen;
+
+  // Panel derecho del contenido: el hilo abierto o, si no, la lista de miembros (comparten el lugar)
+  const sidePanel =
+    openThread && !suspendedServer
+      ? {
+          kind: 'thread',
+          node: <ThreadPanel key={openThread.messageId} thread={openThread} />,
+          close: () => useUIStore.getState().setOpenThread(null),
+          closeLabel: 'Cerrar hilo',
+        }
+      : !isHome && !suspendedServer && membersOpen && appView === 'chat'
+        ? {
+            kind: 'members',
+            node: <MemberListPanel />,
+            close: () => useUIStore.getState().closeMemberOverlay(),
+            closeLabel: 'Cerrar lista de miembros',
+          }
+        : null;
+
+  // El hilo cierra con Escape por su cuenta (ThreadPanel). La lista de miembros encima del chat, acá: en
+  // window y no en la capa, porque el foco suele quedar en el botón que la abrió (afuera de la capa)
+  const memberOverlayOpen = compact && sidePanel?.kind === 'members';
+  useEffect(() => {
+    if (!memberOverlayOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented && !useUIStore.getState().activeModal) {
+        useUIStore.getState().closeMemberOverlay();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [memberOverlayOpen]);
 
   // Modales, avisos y el banner de conexión van fuera de la grilla: la grilla aísla su apilado (isolation) y los ajustes se montan
   // encima de ella, así los modales que se abren desde los ajustes (invitar, eliminar) quedan arriba de todo.
@@ -94,10 +130,16 @@ export function AppShell() {
           ) : (
             <ChatPanel />
           )}
-          {openThread && !suspendedServer ? (
-            <ThreadPanel key={openThread.messageId} thread={openThread} />
+          {compact && sidePanel ? (
+            // Escritorio compacto: el hilo o la lista de miembros se abren encima del chat, que no pierde ancho
+            <div className={styles.overlay}>
+              <button type="button" className={styles.scrim} aria-label={sidePanel.closeLabel} tabIndex={-1} onClick={sidePanel.close} />
+              <div className={styles.overlayPanel} data-kind={sidePanel.kind}>
+                {sidePanel.node}
+              </div>
+            </div>
           ) : (
-            !isHome && !suspendedServer && isMemberListOpen && appView === 'chat' && <MemberListPanel />
+            sidePanel?.node
           )}
         </main>
       </div>

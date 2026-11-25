@@ -200,6 +200,13 @@
   color: var(--color-text-muted);
 }
 
+/* ── Escritorio compacto (768–1199 px): como máximo tres columnas, para que las fichas no queden chiquitas ── */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .grid[data-columns='4'] {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
 /* ── Pantalla chica (mobile web) ── */
 @media (max-width: 767px) {
   /* Como máximo dos columnas (la cantidad la pone el componente en línea) */

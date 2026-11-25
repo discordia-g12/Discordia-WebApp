@@ -82,8 +82,71 @@
 }
 
 .main {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+/*
+ * Escritorio compacto (useIsCompact): el hilo o la lista de miembros encima del chat, pegados a la derecha.
+ * El velo de la izquierda los cierra; sin sombras, como el resto del diseño: la línea los separa.
+ */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+}
+
+.scrim {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--color-background) 55%, transparent);
+  cursor: pointer;
+  animation: fade var(--motion-duration-fast) var(--motion-ease-standard) both;
+}
+
+.overlayPanel {
+  display: flex;
+  flex-shrink: 0;
+  width: min(320px, 85%);
+  min-height: 0;
+  background: var(--color-background);
+  animation: slide var(--motion-duration-base) var(--motion-ease-enter) both;
+}
+
+.overlayPanel[data-kind='thread'] {
+  width: min(480px, 85%);
+}
+
+/* El panel ocupa todo el ancho de la capa: anula el ancho de columna de MemberList y ThreadPanel (dos
+   clases, para no depender del orden en que se cargan los CSS) */
+.overlay .overlayPanel > * {
+  flex: 1;
+  width: auto;
+  max-width: none;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(var(--space-6));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .overlayPanel {
+    animation: fade var(--motion-duration-instant) linear both;
+  }
 }

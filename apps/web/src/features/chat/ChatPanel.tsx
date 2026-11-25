@@ -9,6 +9,7 @@ import {
 } from '@discordia/core';
 import { showToast, useUIStore } from '../../app/uiStore';
 import { usePageVisible } from '../../app/usePageVisible';
+import { useIsCompact } from '../../app/useIsMobile';
 import { useUsers } from '../../app/usersContext';
 import { useCurrentServer, useServerMemberUsers } from '../servers/useCurrentServer';
 import { useCurrentUser } from '../profile/currentUserStore';
@@ -24,7 +25,9 @@ export function ChatPanel() {
   const { currentServer, currentChannel } = useCurrentServer();
   const selectedServerId = useUIStore((s) => s.selectedServerId);
   const selectedChannelId = useUIStore((s) => s.selectedChannelId);
-  const isMemberListOpen = useUIStore((s) => s.isMemberListOpen);
+  // En el escritorio compacto la lista se abre encima del chat, con su propio estado (arranca cerrada)
+  const compact = useIsCompact();
+  const isMemberListOpen = useUIStore((s) => (compact ? s.isMemberOverlayOpen : s.isMemberListOpen));
   const toggleMemberList = useUIStore((s) => s.toggleMemberList);
   const setActiveModal = useUIStore((s) => s.setActiveModal);
   const currentUser = useCurrentUser();
@@ -84,7 +87,7 @@ export function ChatPanel() {
       users={usersMap}
       mentionables={mentionables}
       isMemberListOpen={isMemberListOpen}
-      onToggleMemberList={toggleMemberList}
+      onToggleMemberList={() => toggleMemberList(compact)}
       onOpenSearch={currentServer ? () => setActiveModal('search') : undefined}
       onSendMessage={actions.sendMessage}
       writeBlock={writeBlock}
